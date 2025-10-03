@@ -1,4 +1,4 @@
-;;; 04-denote-core.el --- Core Denote configuration
+;;; 04-denote-core.el --- Core Denote configuration  -*- lexical-binding: t; -*-
 ;;
 ;; Description: Pakiet Denote, Consult-denote, fix signature (zachowanie kropek),
 ;;              auto-fill dla notatek

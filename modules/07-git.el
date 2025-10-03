@@ -1,4 +1,4 @@
-;;; 07-git.el --- Git integration with Magit
+;;; 07-git.el --- Git integration with Magit  -*- lexical-binding: t; -*-
 ;;
 ;; Description: Magit (Git interface), automatyczne commity notatek + config,
 ;;              działa z C-x C-c i krzyżykiem w oknie!

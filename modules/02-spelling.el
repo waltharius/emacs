@@ -1,4 +1,4 @@
-;;; 02-spelling.el --- Spell checking and grammar checking
+;;; 02-spelling.el --- Spell checking and grammar checking  -*- lexical-binding: t; -*-
 ;;
 ;; Description: Hunspell (pl_PL + en_GB) dla pisowni
 ;;              LanguageTool offline dla gramatyki

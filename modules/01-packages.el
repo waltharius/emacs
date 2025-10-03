@@ -1,4 +1,4 @@
-;;; 01-packages.el --- Package management and basic tools
+;;; 01-packages.el --- Package management and basic tools  -*- lexical-binding: t; -*-
 ;;
 ;; Description: Konfiguracja repozytoriów pakietów (MELPA, GNU),
 ;;              use-package, which-key i htmlize
@@ -33,6 +33,11 @@
 ;; --- Htmlize: kolorowy eksport do HTML ---
 (use-package htmlize
   :ensure t)
+
+;; --- Org-transclusion: embed notes (jak Obsidian ![[link]]) ---
+(use-package org-transclusion
+  :ensure t
+  :after org)
 
 (provide '01-packages)
 ;;; 01-packages.el ends here

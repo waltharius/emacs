@@ -1,4 +1,4 @@
-;;; init.el --- Modular Emacs configuration for Denote note-taking
+;;; init.el --- Modular Emacs configuration for Denote note-taking  -*- lexical-binding: t; -*-
 ;;
 ;; Author: Marcin
 ;; Created: 2025-10-03
@@ -53,7 +53,7 @@
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
    '(ample-theme consult-denote diff-hl flyspell-correct-ivy htmlize
-		 langtool magit org-contrib org-roam)))
+		 langtool magit org-contrib org-roam org-transclusion)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.

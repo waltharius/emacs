@@ -1,4 +1,4 @@
-;;; 03-ui.el --- UI settings and desktop save mode
+;;; 03-ui.el --- UI settings and desktop save mode  -*- lexical-binding: t; -*-
 ;;
 ;; Description: Ustawienia interfejsu, desktop-save-mode,
 ;;              save-place-mode, auto-fill dla org-mode
@@ -27,6 +27,12 @@
     (make-directory desktop-dirname t))
   (desktop-save-mode 1))
 
+;; --- Desktop-save: ignoruj pliki tymczasowe ---
+(add-to-list 'desktop-modes-not-to-save 'fundamental-mode)
+(setq desktop-files-not-to-save
+      (concat desktop-files-not-to-save
+              "\\|\\(\\.aux\\|\\.log\\|\\.out\\|\\.toc\\|\\.tex\\)$"))
+
 ;; --- Zapamiętywanie pozycji kursora ---
 (save-place-mode 1)
 (setq save-place-file "~/.emacs.d/saveplace")
@@ -44,6 +50,26 @@
     (split-window-below)
     (other-window 1)
     (find-file init-file)))
+
+;; --- Auto-close auxiliary files (LaTeX, Org export) ---
+(defun my/kill-auxiliary-buffers ()
+  "Automatycznie zamknij bufory pomocnicze (.aux, .log, .tex)."
+  (interactive)
+  (dolist (buf (buffer-list))
+    (let ((name (buffer-file-name buf)))
+      (when (and name
+                 (or (string-suffix-p ".aux" name)
+                     (string-suffix-p ".log" name)
+                     (string-suffix-p ".out" name)
+                     (string-suffix-p ".toc" name)
+                     (string-suffix-p ".tex" name)))
+        (kill-buffer buf)))))
+
+;; Wywołaj przy starcie Emacsa
+(add-hook 'emacs-startup-hook 'my/kill-auxiliary-buffers)
+
+;; Wywołaj po eksporcie Org
+(add-hook 'org-export-before-processing-hook 'my/kill-auxiliary-buffers)
 
 (provide '03-ui)
 ;;; 03-ui.el ends here

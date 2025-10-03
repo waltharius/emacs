@@ -1,4 +1,4 @@
-;;; 06-keybindings.el --- All keyboard shortcuts
+;;; 06-keybindings.el --- All keyboard shortcuts  -*- lexical-binding: t; -*-
 ;;
 ;; Description: Centralne miejsce na wszystkie skróty klawiszowe
 ;;

@@ -1,4 +1,4 @@
-;;; 05-denote-functions.el --- Custom Denote functions
+;;; 05-denote-functions.el --- Custom Denote functions  -*- lexical-binding: t; -*-
 ;;
 ;; Description: Journal, Journal z datą, Zettelkasten, Osoba,
 ;;              Shortcuts, Base, pomocnicze funkcje
