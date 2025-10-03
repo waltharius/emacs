@@ -1,0 +1,68 @@
+;;; 06-keybindings.el --- All keyboard shortcuts
+;;
+;; Description: Centralne miejsce na wszystkie skróty klawiszowe
+;;
+;;; Code:
+
+;; --- Pisownia (Flyspell + Hunspell) ---
+(global-set-key (kbd "C-c f n") 'flyspell-goto-next-error)
+(global-set-key (kbd "C-c f p") 'my/flyspell-goto-previous-error)
+(global-set-key (kbd "C-c f c") 'flyspell-correct-wrapper)
+(global-set-key (kbd "C-c i") 'my/spell-add-word-here)
+
+;; --- Gramatyka (LanguageTool) ---
+(global-set-key (kbd "C-c g c") 'langtool-check)
+(global-set-key (kbd "C-c g d") 'langtool-check-done)
+(global-set-key (kbd "C-c g s") 'langtool-show-message-at-point)
+(global-set-key (kbd "C-c g n") 'langtool-goto-next-error)
+(global-set-key (kbd "C-c g p") 'langtool-goto-previous-error)
+(global-set-key (kbd "C-c g f") 'langtool-correct-buffer)
+
+;; --- UI ---
+(global-set-key (kbd "C-c n e") 'open-init-el-bottom-split)
+
+;; --- Denote: tworzenie notatek ---
+(global-set-key (kbd "C-c n n") 'denote)
+(global-set-key (kbd "C-c n j") 'my/denote-journal)
+(global-set-key (kbd "C-c n J") 'my/denote-journal-date)
+(global-set-key (kbd "C-c n z") 'my/denote-zettel)
+(global-set-key (kbd "C-c n o") 'my/denote-osoba)
+(global-set-key (kbd "C-c n s") 'my/denote-skroty)
+(global-set-key (kbd "C-c n b") 'my/denote-base)
+(global-set-key (kbd "C-c n h") 'insert-current-time)
+
+;; --- Denote: wyszukiwanie ---
+(autoload 'denote-open-or-create "denote" nil t)
+(autoload 'consult-denote-grep "consult-denote" nil t)
+(autoload 'consult-denote-find "consult-denote" nil t)
+
+(global-set-key (kbd "C-c n f") 'denote-open-or-create)
+(global-set-key (kbd "C-c n g") 'consult-denote-grep)
+(global-set-key (kbd "C-c n F") 'consult-denote-find)
+
+;; --- Denote: linkowanie ---
+(autoload 'denote-link "denote" nil t)
+(autoload 'denote-backlinks "denote" nil t)
+(autoload 'denote-add-links "denote" nil t)
+(autoload 'denote-link-or-create "denote" nil t)
+(autoload 'denote-link-after-creating "denote" nil t)
+
+(global-set-key (kbd "C-c n i") 'denote-link)
+(global-set-key (kbd "C-c n B") 'denote-backlinks)
+(global-set-key (kbd "C-c n L") 'denote-add-links)
+(global-set-key (kbd "C-c n I") 'denote-link-or-create)
+(global-set-key (kbd "C-c n C") 'denote-link-after-creating)
+
+;; --- Denote: zarządzanie ---
+(autoload 'denote-keywords-add "denote" nil t)
+(autoload 'denote-keywords-remove "denote" nil t)
+(autoload 'denote-rename-file "denote" nil t)
+(autoload 'denote-rename-file-using-front-matter "denote" nil t)
+
+(global-set-key (kbd "C-c n t a") 'denote-keywords-add)
+(global-set-key (kbd "C-c n t r") 'denote-keywords-remove)
+(global-set-key (kbd "C-c n r") 'denote-rename-file)
+(global-set-key (kbd "C-c n R") 'denote-rename-file-using-front-matter)
+
+(provide '06-keybindings)
+;;; 06-keybindings.el ends here
