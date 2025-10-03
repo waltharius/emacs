@@ -1,30 +1,43 @@
 ;;; 02-spelling.el --- Spell checking and grammar checking  -*- lexical-binding: t; -*-
 ;;
-;; Description: Hunspell (pl_PL + en_GB) dla pisowni
+;; Description: Hunspell (pl_PL + en_GB UTF-8) dla pisowni
 ;;              LanguageTool offline dla gramatyki
-;;              Flyspell + custom funkcje
+;;              Flyspell (LAZY, manual scan only)
 ;;
 ;;; Code:
 
-;; --- Hunspell: sprawdzanie pisowni pl_PL + en_GB ---
+;; --- Hunspell: sprawdzanie pisowni pl_PL + en_GB (UTF-8) ---
 (require 'ispell)
-(setq ispell-program-name "hunspell")
-(setq ispell-personal-dictionary (expand-file-name "~/.hunspell_personal"))
-(setenv "HUNSPELL_PERSONAL" (expand-file-name "~/.hunspell_personal"))
-(setq ispell-dictionary "pl_PL,en_GB")
-(ispell-set-spellchecker-params)
-(ispell-hunspell-add-multi-dic "pl_PL,en_GB")
 
-;; Utwórz słownik jeśli nie istnieje
+;; FORCE UTF-8 encoding dla Hunspell
+(setq ispell-program-name "hunspell")
+(setq ispell-local-dictionary-alist
+      '(("pl_PL" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
+         ("-d" "pl_PL") nil utf-8)
+        ("en_GB" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
+         ("-d" "en_GB") nil utf-8)))
+
+(setq ispell-dictionary "pl_PL,en_GB")
+(setq ispell-personal-dictionary (expand-file-name "~/.hunspell_personal"))
+(setenv "HUNSPELL_PERSONAL" ispell-personal-dictionary)
+
+;; Upewnij się że personal dictionary ma UTF-8 header
 (unless (file-exists-p ispell-personal-dictionary)
-  (with-temp-buffer (write-file ispell-personal-dictionary)))
+  (with-temp-buffer 
+    (insert "personal_ws-1.1 pl_PL 0 utf-8\n")
+    (write-file ispell-personal-dictionary)))
 (setq ispell-silently-savep t)
+
+;; Inicjalizuj Hunspell z UTF-8
+(with-eval-after-load 'ispell
+  (ispell-set-spellchecker-params)
+  (ispell-hunspell-add-multi-dic "pl_PL,en_GB"))
 
 ;; --- Automatyczne odświeżanie po zapisie słownika ---
 (defun my/ispell-refresh-after-save (&rest _)
   "Odśwież proces Hunspell po zapisie słownika."
-  (when (process-live-p ispell-process) (ispell-kill-ispell))
-  (when (bound-and-true-p flyspell-mode) (flyspell-buffer)))
+  (when (process-live-p ispell-process) 
+    (ispell-kill-ispell)))
 (advice-add 'ispell-pdict-save :after #'my/ispell-refresh-after-save)
 
 ;; --- Funkcja: dodaj słowo pod kursorem ---
@@ -38,7 +51,6 @@
         (insert (downcase w) "\n")
         (append-to-file (point-min) (point-max) pd))
       (when (process-live-p ispell-process) (ispell-kill-ispell))
-      (when (bound-and-true-p flyspell-mode) (flyspell-buffer))
       (message "Dodano: %s -> %s" w pd))))
 
 ;; --- Funkcja: poprzedni błąd pisowni ---
@@ -61,31 +73,21 @@
             flyspell-old-buffer-error (current-buffer))
       (goto-char pos)
       (setq arg (1- arg))
-      (when (> pos min) (forward-word))))
-  (recenter))
+      (when (> pos min) (forward-word)))
+  (recenter)))
 
-;; --- Flyspell: podświetlanie błędów (LAZY, BEZ TIMERÓW! Bez AUTO-SCAN!) ---
+;; --- Flyspell: podświetlanie błędów (LAZY - tylko manual!) ---
 (use-package flyspell
   :ensure nil
   :hook ((text-mode . flyspell-mode)
          (org-mode  . flyspell-mode))
   :config
-  ;; WYŁĄCZ automatyczne skanowanie przy starcie!
-  ;; (brak flyspell-buffer w hookach)
+  ;; WYŁĄCZ automatyczne skanowanie
+  (setq flyspell-issue-message-flag nil)
+  (setq flyspell-issue-welcome-flag nil)
   
-  ;; Manual scan dla dużych plików (C-c f b)
-  (global-set-key (kbd "C-c f b") 'flyspell-buffer)
-  
-  ;; Opcjonalnie: lazy check TYLKO przy zapisie pliku
-  (defun my/flyspell-buffer-on-save ()
-    "Skanuj bufor przy zapisie (tylko dla małych plików <20k)."
-    (when (and (derived-mode-p 'text-mode 'org-mode)
-               (< (buffer-size) 20000))
-      (flyspell-buffer)))
-  
-  ;; Włącz tylko dla małych plików przy zapisie
-  ;; (add-hook 'after-save-hook 'my/flyspell-buffer-on-save)
-  )
+  ;; Manual scan
+  (global-set-key (kbd "C-c f b") 'flyspell-buffer))
 
 ;; --- Flyspell-correct: poprawianie błędów ---
 (use-package flyspell-correct

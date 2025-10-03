@@ -71,5 +71,32 @@
 ;; Wywołaj po eksporcie Org
 (add-hook 'org-export-before-processing-hook 'my/kill-auxiliary-buffers)
 
+;; --- Desktop-save: wyłącz flyspell przed zapisem sesji ---
+(defun my/disable-flyspell-before-desktop-save ()
+  "Wyłącz flyspell-mode we wszystkich buforach przed zapisem sesji."
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (when (bound-and-true-p flyspell-mode)
+        (flyspell-mode -1)))))
+
+(add-hook 'desktop-save-hook 'my/disable-flyspell-before-desktop-save)
+
+;; --- Winner-mode: UNDO/REDO dla layout okien ---
+(use-package winner
+  :ensure nil
+  :init
+  (winner-mode 1)
+  :bind (("C-c <left>"  . winner-undo)   ;; Cofnij layout (lub C-c LEFT arrow)
+         ("C-c <right>" . winner-redo))) ;; Przywróć layout (lub C-c RIGHT arrow)
+
+;; --- Funkcja: Zapisz desktop manualnie ---
+(defun my/desktop-save-now ()
+  "Zapisz desktop TERAZ (nie czekaj na auto-save)."
+  (interactive)
+  (desktop-save desktop-dirname)
+  (message "Desktop zapisany!"))
+
+(global-set-key (kbd "C-c d s") 'my/desktop-save-now)
+
 (provide '03-ui)
 ;;; 03-ui.el ends here
