@@ -1,5 +1,6 @@
 # Ignoruj zainstalowane pakiety
 elpa/
+elpa.backup/
 elpaca/
 straight/
 quelpa/
@@ -13,6 +14,7 @@ saveplace
 eshell/
 transient/
 url/
+eln-cache/
 
 # Ignoruj desktopy
 desktop/
@@ -26,7 +28,16 @@ desktop/
 .\#*
 .DS_Store
 
+# Ignoruj backupy
+*.backup
+*.backup.*
+init.el_v*.txt
+
+# Ignoruj tutorial
+tutorial/
+
 # Zachowaj TYLKO konfigurację
 !init.el
 !early-init.el
 !modules/
+!.gitignore
