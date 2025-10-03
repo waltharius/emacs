@@ -98,5 +98,20 @@
 
 (global-set-key (kbd "C-c d s") 'my/desktop-save-now)
 
+;; --- Tab-bar: workspace'y (jak zakładki w przeglądarce) ---
+(use-package tab-bar
+  :ensure nil
+  :init
+  (tab-bar-mode 1)
+  :bind (("C-c t n" . tab-bar-new-tab)        ;; Nowy tab
+         ("C-c t c" . tab-bar-close-tab)      ;; Zamknij tab
+         ("C-c t o" . tab-bar-switch-to-tab)  ;; Przełącz tab
+         ("C-c t r" . tab-bar-rename-tab))    ;; Nazwij tab
+  :config
+  (setq tab-bar-show t)                       ;; Pokaż bar ZAWSZE, nawet gdy tylko 1
+  (setq tab-bar-new-tab-choice "*scratch*")   ;; Nowy tab = scratch
+  (setq tab-bar-close-button-show t)          ;; POKAŻ przycisk X
+  (setq tab-bar-new-button-show t))           ;; POKAŻ przycisk +
+
 (provide '03-ui)
 ;;; 03-ui.el ends here
