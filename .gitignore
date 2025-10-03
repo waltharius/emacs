@@ -1,0 +1,32 @@
+# Ignoruj zainstalowane pakiety
+elpa/
+elpaca/
+straight/
+quelpa/
+
+# Ignoruj pliki cache
+auto-save-list/
+recentf
+places
+bookmarks
+saveplace
+eshell/
+transient/
+url/
+
+# Ignoruj desktopy
+desktop/
+*.desktop
+*.desktop.lock
+
+# Ignoruj pliki tymczasowe
+*.elc
+*~
+\#*\#
+.\#*
+.DS_Store
+
+# Zachowaj TYLKO konfigurację
+!init.el
+!early-init.el
+!modules/

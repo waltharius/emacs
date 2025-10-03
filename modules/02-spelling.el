@@ -64,7 +64,7 @@
       (when (> pos min) (forward-word))))
   (recenter))
 
-;; --- Flyspell: podświetlanie błędów (LAZY, BEZ TIMERÓW!) ---
+;; --- Flyspell: podświetlanie błędów (LAZY, BEZ TIMERÓW! Bez AUTO-SCAN!) ---
 (use-package flyspell
   :ensure nil
   :hook ((text-mode . flyspell-mode)
