@@ -606,7 +606,7 @@
       (insert "\n")
 
       ;;Sekcja Well-being (ostatnie 7 dni)
-      (insert "\n💚 WELL-BEING (ostatnie 7 dni):\n")
+      (insert "\n💚 WELL-BEING (ostatnie 7 dni):\n\n")
       (let ((results '())
 	    (days-back 7))
 	(dolist (file (directory-files my-notes-dir t "journal.*\\.org$"))
