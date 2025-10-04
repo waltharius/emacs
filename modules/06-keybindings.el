@@ -72,5 +72,10 @@
 (global-set-key (kbd "C-c t r") 'org-transclusion-remove)
 (global-set-key (kbd "C-c t R") 'org-transclusion-remove-all)
 
+;; --- Zlicznie statystyk ze wszystkich notatek ---
+(global-set-key (kbd "C-c s S") 'my/denote-count-words-all)
+(global-set-key (kbd "C-c s s") 'my/denote-count-words-today)
+(global-set-key (kbd "C-c s G") 'my/denote-writing-goal)
+
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here

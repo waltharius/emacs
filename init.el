@@ -54,7 +54,8 @@
  '(custom-enabled-themes nil)
  '(package-selected-packages
    '(ample-theme consult-denote diff-hl flyspell-correct-ivy htmlize
-		 langtool magit org-contrib org-roam org-transclusion)))
+		 langtool magit org-contrib org-roam org-transclusion
+		 wc-mode)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.

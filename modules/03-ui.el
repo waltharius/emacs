@@ -113,5 +113,12 @@
   (setq tab-bar-close-button-show t)          ;; POKAŻ przycisk X
   (setq tab-bar-new-button-show t))           ;; POKAŻ przycisk +
 
+;; --- Word count w modeline (jak w Scrivener) ---
+(use-package wc-mode
+  :ensure t
+  :hook (org-mode . wc-mode)
+  :config
+  (setq wc-modeline-format "[%tw słów]"))
+
 (provide '03-ui)
 ;;; 03-ui.el ends here

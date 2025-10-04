@@ -210,5 +210,63 @@
   (interactive)
   (insert (format-time-string "%H:%M")))
 
+;; --- Statystyki: zlicz słowa we wszystkich notatkach ---
+(defun my/denote-count-words-all ()
+  "Zlicz słowa we wszystkich plikach Denote."
+  (interactive)
+  (let ((total-words 0)
+        (total-chars 0)
+        (file-count 0))
+    (dolist (file (directory-files-recursively my-notes-dir "\\.org$"))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (setq total-words (+ total-words (count-words (point-min) (point-max))))
+        (setq total-chars (+ total-chars (- (point-max) (point-min))))
+        (setq file-count (1+ file-count))))
+    (message "📊 Statystyki: %d plików | %d słów | %d znaków"
+             file-count total-words total-chars)))
+
+;; --- Statystyki dzienne: ile słów napisałem dziś? ---
+(defun my/denote-count-words-today ()
+  "Zlicz słowa w notatkach stworzonych DZISIAJ."
+  (interactive)
+  (let ((today (format-time-string "%Y-%m-%d"))
+        (total-words 0)
+        (file-count 0))
+    (dolist (file (directory-files-recursively my-notes-dir "\\.org$"))
+      (when (string-match-p today file)  ; Sprawdź czy data w nazwie == dziś
+        (with-temp-buffer
+          (insert-file-contents file)
+          (setq total-words (+ total-words (count-words (point-min) (point-max))))
+          (setq file-count (1+ file-count)))))
+    (message "📊 Dzisiaj: %d plików | %d słów" file-count total-words)))
+
+;; --- Cel pisarski: sprawdź postęp względem celu ---
+(defvar my/daily-word-goal 3000
+  "Dzienny cel słów do napisania.")
+
+(defun my/denote-writing-goal ()
+  "Sprawdź postęp względem dziennego celu."
+  (interactive)
+  (let ((today (format-time-string "%Y-%m-%d"))
+        (total-words 0)
+        (file-count 0))
+    (dolist (file (directory-files-recursively my-notes-dir "\\.org$"))
+      (when (string-match-p today file)
+        (with-temp-buffer
+          (insert-file-contents file)
+          (setq total-words (+ total-words (count-words (point-min) (point-max))))
+          (setq file-count (1+ file-count)))))
+    (let* ((progress (/ (* 100.0 total-words) my/daily-word-goal))
+           (remaining (- my/daily-word-goal total-words))
+           (emoji (cond ((>= progress 100) "🎉")
+                       ((>= progress 75) "💪")
+                       ((>= progress 50) "📝")
+                       ((>= progress 25) "🚀")
+                       (t "⏳"))))
+      (message "%s Cel: %d/%d słów (%.1f%%) | Brakuje: %d"
+               emoji total-words my/daily-word-goal progress
+               (max 0 remaining)))))
+
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
