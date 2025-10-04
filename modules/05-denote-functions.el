@@ -268,5 +268,81 @@
                emoji total-words my/daily-word-goal progress
                (max 0 remaining)))))
 
+;; --- Dashboard: live statystyki ---
+(defun my/denote-dashboard ()
+  "Pokaż live dashboard z statystykami."
+  (interactive)
+  (let ((buffer-name "*Denote Dashboard*"))
+    (with-current-buffer (get-buffer-create buffer-name)
+      (read-only-mode -1)
+      (erase-buffer)
+      (insert "╔════════════════════════════════════╗\n")
+      (insert "║   📊 DENOTE DASHBOARD 📊          ║\n")
+      (insert "╚════════════════════════════════════╝\n\n")
+      
+      ;; Statystyki globalne
+      (let ((total-words 0)
+            (total-files 0))
+        (dolist (file (directory-files-recursively my-notes-dir "\\.org$"))
+          (with-temp-buffer
+            (insert-file-contents file)
+            (setq total-words (+ total-words (count-words (point-min) (point-max))))
+            (setq total-files (1+ total-files))))
+        (insert (format "📚 Wszystkie notatki: %d plików, %d słów\n\n" 
+                       total-files total-words)))
+      
+      ;; Statystyki dzienne
+      (let ((today (format-time-string "%Y-%m-%d"))
+            (today-words 0)
+            (today-files 0))
+        (dolist (file (directory-files-recursively my-notes-dir "\\.org$"))
+          (when (string-match-p today file)
+            (with-temp-buffer
+              (insert-file-contents file)
+              (setq today-words (+ today-words (count-words (point-min) (point-max))))
+              (setq today-files (1+ today-files)))))
+        (insert (format "📝 Dzisiaj: %d plików, %d słów\n\n" 
+                       today-files today-words))
+        
+        ;; Cel dzienny
+        (let* ((goal my/daily-word-goal)
+               (progress (/ (* 100.0 today-words) goal))
+               (emoji (cond ((>= progress 100) "🎉")
+                           ((>= progress 75) "💪")
+                           ((>= progress 50) "📝")
+                           (t "⏳"))))
+          (insert (format "%s Cel dzienny: %d/%d (%.1f%%)\n\n"
+                         emoji today-words goal progress))))
+      
+      ;; Projekty
+      (insert "🎯 PROJEKTY:\n")
+      (dolist (project my/project-daily-goals)
+        (let* ((tag (car project))
+               (goal (cdr project))
+               (today (format-time-string "%Y-%m-%d"))
+               (words 0))
+          (dolist (file (directory-files-recursively my-notes-dir "\\.org$"))
+            (when (string-match-p today file)
+              (with-temp-buffer
+                (insert-file-contents file)
+                (goto-char (point-min))
+                (when (re-search-forward (format ":%s:" tag) nil t)
+                  (setq words (+ words (count-words (point-min) (point-max))))))))
+          (let* ((progress (/ (* 100.0 words) goal))
+                 (emoji (cond ((>= progress 100) "✅")
+                             ((>= progress 50) "🟡")
+                             (t "🔴"))))
+            (insert (format "  %s %s: %d/%d (%.0f%%)\n"
+                           emoji tag words goal progress)))))
+      
+      (insert "\n────────────────────────────────────\n")
+      (insert "Odśwież: r | Zamknij: q\n")
+      
+      (goto-char (point-min))
+      (read-only-mode 1)
+      (local-set-key (kbd "r") 'my/denote-dashboard)
+      (local-set-key (kbd "q") 'quit-window))
+    (switch-to-buffer buffer-name)))
+
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
