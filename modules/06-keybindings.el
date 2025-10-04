@@ -94,5 +94,10 @@
 (global-set-key (kbd "C-c n L") 'my/denote-literature)   ; Lektura
 (global-set-key (kbd "C-c n E") 'my/denote-essay)        ; Esej
 
+;; --- Folgezettel (smart Zettelkasten) ---
+(global-set-key (kbd "C-c n Z") 'my/denote-zettel-smart)     ; Smart Zettel
+(global-set-key (kbd "C-c n T") 'my/denote-zettel-tree)      ; Tree view
+(global-set-key (kbd "C-c n C") 'my/denote-find-children)    ; Find children
+
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here

@@ -40,6 +40,7 @@
 (my/load-module "03-ui.el")
 (my/load-module "04-denote-core.el")
 (my/load-module "05-denote-functions.el")
+(my/load-module "05a-folgezettel.el")
 (my/load-module "06-keybindings.el")
 (my/load-module "07-git.el")
 
