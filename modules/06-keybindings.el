@@ -87,6 +87,7 @@
 (global-set-key (kbd "C-c w h") 'my/denote-wellbeing-history)
 (global-set-key (kbd "C-c w g") 'my/denote-wellbeing-graph)
 (global-set-key (kbd "C-c w p") 'my/denote-wellbeing-plot)
+(global-set-key (kbd "C-c w f") 'my/denote-wellbeing-fill-missing)
 
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here

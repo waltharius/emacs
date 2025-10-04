@@ -631,6 +631,41 @@
 	    (insert (format "  %s %s: %d\n" 
 			    (substring date 4 8) emoji score)))))
 
+      ;; Sekcja Missing Well-being
+      (insert "* ⚠️  Brakujące Well-being\n\n")
+      (let ((missing '()))
+	(dolist (file (directory-files my-notes-dir t "journal.*\\.org$"))
+	  (with-temp-buffer
+	    (insert-file-contents file)
+	    (goto-char (point-min))
+	    (let ((has-property (re-search-forward "^:well-being:" nil t))
+		  (has-value nil))
+              (when has-property
+		(beginning-of-line)
+		(when (re-search-forward ":well-being: *\\([0-9]+\\)" (line-end-position) t)
+		  (setq has-value t)))
+              (when (not has-value)
+		(let ((date (when (string-match "\\([0-9]\\{8\\}\\)" file)
+			      (match-string 1 file))))
+		  (when date
+		    (push (list date file) missing)))))))
+	(setq missing (sort missing (lambda (a b) (string> (car a) (car b)))))
+	(if missing
+	    (progn
+              (insert "Journale bez ustawionego well-being:\n\n")
+              (dolist (entry missing)
+		(let* ((date (car entry))
+                       (file (cadr entry))
+                       (filename (file-name-nondirectory file))
+                       (date-fmt (format "%s-%s-%s" 
+					 (substring date 0 4)
+					 (substring date 4 6)
+					 (substring date 6 8))))
+		  (insert (format "- %s [[file:%s][%s]] [[elisp:(progn (find-file \"%s\") (my/denote-set-wellbeing))][⚙️ Ustaw]]\n"
+				  date-fmt file filename file)))))
+	  (insert "✅ Wszystkie journale mają ustawione well-being!\n"))
+	(insert "\n"))
+ 
       ;; Sekcja Akcje
       (insert "* 🎛️  Akcje\n\n")
       (insert "- [[elisp:(my/denote-projects-menu)][Zarządzaj projektami]]\n")
@@ -640,10 +675,40 @@
       (insert "- [[elisp:(my/denote-wellbeing-plot)][Wykres well-being (gnuplot)]]\n")
       (insert "- [[elisp:(consult-denote-find)][Szukaj notatki]]\n")
       (insert "- [[elisp:(my/denote-cockpit)][Odśwież cockpit]]\n")
+      (insert "- [[elisp:(my/denote-wellbeing-fill-missing)][⚠️ Uzupełnij brakujące well-being]]\n")
       
       (goto-char (point-min))
       (read-only-mode 1))
     (switch-to-buffer buffer-name)))
+
+;; --- Well-being: uzupełnij wszystkie brakujące ---
+(defun my/denote-wellbeing-fill-missing ()
+  "Interaktywnie uzupełnij wszystkie journale bez well-being."
+  (interactive)
+  (let ((missing '()))
+    ;; Znajdź brakujące
+    (dolist (file (directory-files my-notes-dir t "journal.*\\.org$"))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (let ((has-property (re-search-forward "^:well-being:" nil t))
+              (has-value nil))
+          (when has-property
+            (beginning-of-line)
+            (when (re-search-forward ":well-being: *\\([0-9]+\\)" (line-end-position) t)
+              (setq has-value t)))
+          (when (not has-value)
+            (push file missing)))))
+    (setq missing (sort missing 'string<))
+    
+    (if missing
+        (progn
+          (message "Znaleziono %d journali bez well-being" (length missing))
+          (dolist (file missing)
+            (when (y-or-n-p (format "Ustaw well-being dla %s? " 
+                                   (file-name-nondirectory file)))
+              (my/denote-set-wellbeing-for-file file))))
+      (message "✅ Wszystkie journale mają well-being!"))))
 
 ;; --- Well-being: szybkie ustawienie ---
 (defun my/denote-set-wellbeing ()
@@ -800,6 +865,21 @@
       (local-set-key (kbd "q") 'quit-window))
     (switch-to-buffer "*Well-being Plot*")
     (message "Naciśnij C-c \" na tabeli aby wygenerować wykres")))
+
+;; --- Well-being: ustaw z konkretnego pliku ---
+(defun my/denote-set-wellbeing-for-file (file)
+  "Ustaw well-being dla konkretnego pliku journala."
+  (interactive "fJournal file: ")
+  (find-file file)
+  (goto-char (point-min))
+  (if (re-search-forward "^:well-being:.*$" nil t)
+      (let ((score (read-number "Well-being (0-10): " 7)))
+        (beginning-of-line)
+        (kill-line)
+        (insert (format ":well-being: %d" score))
+        (save-buffer)
+        (message "✅ Well-being ustawione: %d" score))
+    (message "⚠️  To nie jest journal z własnością :well-being:")))
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
