@@ -28,27 +28,27 @@
   :config
   (consult-denote-mode 1))
 
-;; --- Transliteracja polskich znaków (slug-safe) ---
-(defun my/transliterate-polish (str)
-  "Zamień polskie znaki na ASCII."
-  (when (stringp str)
-    (let ((replacements '(("ą" . "a") ("ć" . "c") ("ę" . "e")
-                         ("ł" . "l") ("ń" . "n") ("ó" . "o")
-                         ("ś" . "s") ("ź" . "z") ("ż" . "z")
-                         ("Ą" . "A") ("Ć" . "C") ("Ę" . "E")
-                         ("Ł" . "L") ("Ń" . "N") ("Ó" . "O")
-                         ("Ś" . "S") ("Ź" . "Z") ("Ż" . "Z"))))
-      (dolist (pair replacements str)
-        (setq str (replace-regexp-in-string (car pair) (cdr pair) str))))))
+;; ;; --- Transliteracja polskich znaków (slug-safe) ---
+;; (defun my/transliterate-polish (str)
+;;   "Zamień polskie znaki na ASCII."
+;;   (when (stringp str)
+;;     (let ((replacements '(("ą" . "a") ("ć" . "c") ("ę" . "e")
+;;                          ("ł" . "l") ("ń" . "n") ("ó" . "o")
+;;                          ("ś" . "s") ("ź" . "z") ("ż" . "z")
+;;                          ("Ą" . "A") ("Ć" . "C") ("Ę" . "E")
+;;                          ("Ł" . "L") ("Ń" . "N") ("Ó" . "O")
+;;                          ("Ś" . "S") ("Ź" . "Z") ("Ż" . "Z"))))
+;;       (dolist (pair replacements str)
+;;         (setq str (replace-regexp-in-string (car pair) (cdr pair) str))))))
 
-(with-eval-after-load 'denote
-  (advice-add 'denote-sluggify-title :filter-args
-              (lambda (args)
-                (list (my/transliterate-polish (car args)))))
+;; (with-eval-after-load 'denote
+;;   (advice-add 'denote-sluggify-title :filter-args
+;;               (lambda (args)
+;;                 (list (my/transliterate-polish (car args)))))
   
-  (advice-add 'denote-sluggify-keyword :filter-args
-              (lambda (args)
-                (list (my/transliterate-polish (car args))))))
+;;   (advice-add 'denote-sluggify-keyword :filter-args
+;;               (lambda (args)
+;;                 (list (my/transliterate-polish (car args))))))
 
 ;; --- FIX: Zachowaj format signature (kropki + wielkie litery) ---
 (with-eval-after-load 'denote
