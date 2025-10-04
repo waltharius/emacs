@@ -14,7 +14,7 @@
   :ensure t
   :custom
   (denote-directory my-notes-dir)
-  (denote-known-keywords '("zettel" "osoba" "projekt" "zasób"))
+  (denote-known-keywords '("zettel" "osoba" "projekt"))
   (denote-infer-keywords t)
   (denote-sort-keywords t)
   (denote-file-type nil)
@@ -28,17 +28,44 @@
   :config
   (consult-denote-mode 1))
 
+;; --- Transliteracja polskich znaków (slug-safe) ---
+(defun my/transliterate-polish (str)
+  "Zamień polskie znaki na ASCII."
+  (when (stringp str)
+    (let ((replacements '(("ą" . "a") ("ć" . "c") ("ę" . "e")
+                         ("ł" . "l") ("ń" . "n") ("ó" . "o")
+                         ("ś" . "s") ("ź" . "z") ("ż" . "z")
+                         ("Ą" . "A") ("Ć" . "C") ("Ę" . "E")
+                         ("Ł" . "L") ("Ń" . "N") ("Ó" . "O")
+                         ("Ś" . "S") ("Ź" . "Z") ("Ż" . "Z"))))
+      (dolist (pair replacements str)
+        (setq str (replace-regexp-in-string (car pair) (cdr pair) str))))))
+
+(with-eval-after-load 'denote
+  (advice-add 'denote-sluggify-title :filter-args
+              (lambda (args)
+                (list (my/transliterate-polish (car args)))))
+  
+  (advice-add 'denote-sluggify-keyword :filter-args
+              (lambda (args)
+                (list (my/transliterate-polish (car args))))))
+
 ;; --- FIX: Zachowaj format signature (kropki + wielkie litery) ---
 (with-eval-after-load 'denote
   (defun my/denote-signature-no-lowercase (signature)
     "Nie zmieniaj signature na lowercase - zachowaj oryginał."
-    (if (and signature (not (string-empty-p signature)))
+    (if (and signature 
+             (not (string-empty-p signature))
+             (not (string-match-p "^=+$" signature)))  ; Ignoruj "=="
         (replace-regexp-in-string "[^A-Za-z0-9.]" "" signature)
-      signature))
+      ""))  ; Zwróć pusty string jeśli signature jest pusty!
   
   (advice-add 'denote-sluggify :around
               (lambda (orig-fun component str &rest args)
-                (if (eq component 'signature)
+                (if (and (eq component 'signature)
+                         str
+                         (not (string-empty-p str))
+                         (not (string-match-p "^=+$" str)))  ; Ignoruj "=="
                     (my/denote-signature-no-lowercase str)
                   (apply orig-fun component str args)))))
 

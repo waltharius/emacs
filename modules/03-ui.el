@@ -52,7 +52,7 @@
     (find-file init-file)))
 
 ;; --- Auto-close auxiliary files (LaTeX, Org export) ---
-(defun my/kill-auxiliary-buffers ()
+(defun my/kill-auxiliary-buffers (&rest _args)
   "Automatycznie zamknij bufory pomocnicze (.aux, .log, .tex)."
   (interactive)
   (dolist (buf (buffer-list))
