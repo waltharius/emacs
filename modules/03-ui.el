@@ -121,12 +121,33 @@
       (propertize (format "[%dw] " words)
                   'face '(:foreground "orange" :weight bold)))))
 
+;; --- Word count w modeline (PRZED nazwą pliku) ---
 (defun my/word-count-modeline ()
-  "Zwróć licznik słów jako SUPER krótki string."
+  "Zwróć licznik słów jako krótki string."
   (when (derived-mode-p 'org-mode 'text-mode)
     (let ((words (count-words (point-min) (point-max))))
-      (propertize (format "%d " words)
+      (propertize (format "[%dw] " words)
                   'face '(:foreground "orange" :weight bold)))))
+
+;; Custom modeline: [COUNT] na początku!
+(setq-default mode-line-format
+              '((:eval (my/word-count-modeline))  ; COUNT PIERWSZY!
+                "%e"
+                mode-line-front-space
+                mode-line-mule-info
+                mode-line-client
+                mode-line-modified
+                mode-line-remote
+                mode-line-frame-identification
+                mode-line-buffer-identification  ; Nazwa pliku
+                "   "
+                mode-line-position
+                (vc-mode vc-mode)
+                "  "
+                mode-line-modes
+                mode-line-misc-info
+                mode-line-end-spaces))
+
 
 (provide '03-ui)
 ;;; 03-ui.el ends here
