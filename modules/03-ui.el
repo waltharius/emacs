@@ -113,12 +113,20 @@
   (setq tab-bar-close-button-show t)          ;; POKAŻ przycisk X
   (setq tab-bar-new-button-show t))           ;; POKAŻ przycisk +
 
-;; --- Word count w modeline (jak w Scrivener) ---
-(use-package wc-mode
-  :ensure t
-  :hook (org-mode . wc-mode)
-  :config
-  (setq wc-modeline-format "[%tw słów]"))
+;; --- Word count w modeline (PRZED nazwą pliku) ---
+(defun my/word-count-modeline ()
+  "Zwróć licznik słów jako krótki string."
+  (when (derived-mode-p 'org-mode 'text-mode)
+    (let ((words (count-words (point-min) (point-max))))
+      (propertize (format "[%dw] " words)
+                  'face '(:foreground "orange" :weight bold)))))
+
+(defun my/word-count-modeline ()
+  "Zwróć licznik słów jako SUPER krótki string."
+  (when (derived-mode-p 'org-mode 'text-mode)
+    (let ((words (count-words (point-min) (point-max))))
+      (propertize (format "%d " words)
+                  'face '(:foreground "orange" :weight bold)))))
 
 (provide '03-ui)
 ;;; 03-ui.el ends here

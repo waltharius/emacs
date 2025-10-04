@@ -277,7 +277,7 @@
       (read-only-mode -1)
       (erase-buffer)
       (insert "╔════════════════════════════════════╗\n")
-      (insert "║   📊 DENOTE DASHBOARD 📊          ║\n")
+      (insert "║             📊 STATS 📊            ║\n")
       (insert "╚════════════════════════════════════╝\n\n")
       
       ;; Statystyki globalne
