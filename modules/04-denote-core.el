@@ -60,5 +60,15 @@
 (add-hook 'find-file-hook 'my/denote-auto-fill-setup)
 (add-hook 'org-mode-hook 'my/denote-auto-fill-setup)
 
+;; --- Org-mode: wyłącz auto-indent, włącz lepsze listy ---
+(add-hook 'org-mode-hook
+          (lambda ()
+            (electric-indent-local-mode -1)
+            (setq-local electric-indent-chars nil)))
+
+(setq org-list-allow-alphabetical t)
+(setq org-list-demote-modify-bullet
+      '(("+" . "-") ("-" . "+") ("*" . "-") ("1." . "a.")))
+
 (provide '04-denote-core)
 ;;; 04-denote-core.el ends here
