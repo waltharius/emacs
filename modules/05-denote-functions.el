@@ -398,6 +398,219 @@
                emoji project-tag total-words goal progress
                (max 0 remaining)))))
 
+;; --- Menu zarządzania projektami ---
+(defun my/denote-projects-menu ()
+  "Interaktywne menu zarządzania projektami."
+  (interactive)
+  (let ((choice (completing-read 
+                 "Projekty - wybierz akcję: "
+                 '("📊 Pokaż wszystkie projekty"
+                   "➕ Dodaj nowy projekt"
+                   "✏️  Edytuj cel projektu"
+                   "🗑️  Usuń projekt"
+                   "📈 Statystyki projektu"
+                   "🎯 Cel dzienny projektu")
+                 nil t)))
+    (cond
+     ((string-match "Pokaż wszystkie" choice)
+      (my/denote-projects-list))
+     ((string-match "Dodaj nowy" choice)
+      (my/denote-project-add))
+     ((string-match "Edytuj cel" choice)
+      (my/denote-project-edit))
+     ((string-match "Usuń projekt" choice)
+      (my/denote-project-delete))
+     ((string-match "Statystyki" choice)
+      (my/denote-project-stats))
+     ((string-match "Cel dzienny" choice)
+      (my/denote-project-goal)))))
+
+;; --- Lista projektów ---
+(defun my/denote-projects-list ()
+  "Pokaż listę projektów w ładnym buforze."
+  (interactive)
+  (let ((buffer-name "*Projekty*"))
+    (with-current-buffer (get-buffer-create buffer-name)
+      (read-only-mode -1)
+      (erase-buffer)
+      (insert "╔════════════════════════════════════╗\n")
+      (insert "║   🎯 MOJE PROJEKTY 🎯            ║\n")
+      (insert "╚════════════════════════════════════╝\n\n")
+      
+      (insert (format "%-20s | %s\n" "Projekt" "Cel dzienny"))
+      (insert "────────────────────────────────────\n")
+      
+      (dolist (project my/project-daily-goals)
+        (let ((name (car project))
+              (goal (cdr project)))
+          (insert (format "%-20s | %d słów\n" name goal))))
+      
+      (insert "\n────────────────────────────────────\n")
+      (insert "Edytuj: e | Dodaj: a | Usuń: d | Zamknij: q\n")
+      
+      (goto-char (point-min))
+      (read-only-mode 1)
+      (local-set-key (kbd "e") 'my/denote-project-edit)
+      (local-set-key (kbd "a") 'my/denote-project-add)
+      (local-set-key (kbd "d") 'my/denote-project-delete)
+      (local-set-key (kbd "q") 'quit-window))
+    (switch-to-buffer buffer-name)))
+
+;; --- Dodaj projekt ---
+(defun my/denote-project-add ()
+  "Dodaj nowy projekt przez menu."
+  (interactive)
+  (let* ((name (read-string "Nazwa projektu (tag): "))
+         (goal (read-number "Cel dzienny (słowa): " 1000)))
+    (when (and name (not (string-empty-p name)))
+      ;; Dodaj do zmiennej
+      (add-to-list 'my/project-daily-goals (cons name goal))
+      ;; Zapisz do pliku
+      (my/denote-projects-save)
+      (message "✅ Projekt '%s' dodany (cel: %d słów)" name goal)
+      ;; Odśwież listę jeśli jest otwarta
+      (when (get-buffer "*Projekty*")
+        (my/denote-projects-list)))))
+
+;; --- Edytuj projekt ---
+(defun my/denote-project-edit ()
+  "Edytuj cel projektu."
+  (interactive)
+  (let* ((project-name (completing-read "Projekt do edycji: " 
+                                        (mapcar 'car my/project-daily-goals)))
+         (old-goal (cdr (assoc project-name my/project-daily-goals)))
+         (new-goal (read-number (format "Nowy cel dla '%s' (było: %d): " 
+                                       project-name old-goal)
+                               old-goal)))
+    (setf (cdr (assoc project-name my/project-daily-goals)) new-goal)
+    (my/denote-projects-save)
+    (message "✅ Projekt '%s': cel zmieniony na %d słów" project-name new-goal)
+    (when (get-buffer "*Projekty*")
+      (my/denote-projects-list))))
+
+;; --- Usuń projekt ---
+(defun my/denote-project-delete ()
+  "Usuń projekt."
+  (interactive)
+  (let ((project-name (completing-read "Projekt do usunięcia: " 
+                                       (mapcar 'car my/project-daily-goals))))
+    (when (yes-or-no-p (format "Usunąć projekt '%s'? " project-name))
+      (setq my/project-daily-goals
+            (assoc-delete-all project-name my/project-daily-goals))
+      (my/denote-projects-save)
+      (message "🗑️  Projekt '%s' usunięty" project-name)
+      (when (get-buffer "*Projekty*")
+        (my/denote-projects-list)))))
+
+;; --- Zapisz projekty do pliku ---
+(defvar my/projects-file (expand-file-name "denote-projects.el" user-emacs-directory)
+  "Plik z listą projektów.")
+
+(defun my/denote-projects-save ()
+  "Zapisz projekty do pliku."
+  (with-temp-file my/projects-file
+    (insert ";;; denote-projects.el --- Auto-generated projects list\n\n")
+    (insert "(setq my/project-daily-goals\n")
+    (insert "  '(")
+    (dolist (project my/project-daily-goals)
+      (insert (format "\n    (\"%s\" . %d)" (car project) (cdr project))))
+    (insert "))\n")))
+
+(defun my/denote-projects-load ()
+  "Załaduj projekty z pliku."
+  (when (file-exists-p my/projects-file)
+    (load my/projects-file)))
+
+;; Załaduj przy starcie
+(my/denote-projects-load)
+
+;; --- Cockpit: interaktywny dashboard ---
+(defun my/denote-cockpit ()
+  "Interaktywny cockpit do zarządzania notatkami."
+  (interactive)
+  (let ((buffer-name "*Denote Cockpit*"))
+    (with-current-buffer (get-buffer-create buffer-name)
+      (read-only-mode -1)
+      (erase-buffer)
+      (org-mode)
+      
+      (insert "#+title: Denote Cockpit\n")
+      (insert "#+startup: overview\n\n")
+      
+      ;; Sekcja 1: Statystyki
+      (insert "* 📊 Statystyki\n\n")
+      (let ((total-files 0)
+            (total-words 0)
+            (today-files 0)
+            (today-words 0)
+            (today (format-time-string "%Y-%m-%d")))
+        (dolist (file (directory-files-recursively my-notes-dir "\\.org$"))
+          (with-temp-buffer
+            (insert-file-contents file)
+            (let ((words (count-words (point-min) (point-max))))
+              (setq total-words (+ total-words words))
+              (setq total-files (1+ total-files))
+              (when (string-match-p today file)
+                (setq today-words (+ today-words words))
+                (setq today-files (1+ today-files))))))
+        (insert (format "- Wszystkie notatki: *%d plików* | *%d słów*\n" 
+                       total-files total-words))
+        (insert (format "- Dzisiaj: *%d plików* | *%d słów*\n\n" 
+                       today-files today-words)))
+      
+      ;; Sekcja 2: Projekty
+      (insert "* 🎯 Projekty\n\n")
+      (insert "| Projekt | Cel | Dzisiaj | Postęp |\n")
+      (insert "|---------|-----|---------|--------|\n")
+      (dolist (project my/project-daily-goals)
+        (let* ((tag (car project))
+               (goal (cdr project))
+               (today (format-time-string "%Y-%m-%d"))
+               (words 0))
+          (dolist (file (directory-files-recursively my-notes-dir "\\.org$"))
+            (when (string-match-p today file)
+              (with-temp-buffer
+                (insert-file-contents file)
+                (goto-char (point-min))
+                (when (re-search-forward (format ":%s:" tag) nil t)
+                  (setq words (+ words (count-words (point-min) (point-max))))))))
+          (let ((progress (/ (* 100.0 words) goal)))
+            (insert (format "| %s | %d | %d | %.0f%% |\n"
+                           tag goal words progress)))))
+      (insert "\n")
+      
+      ;; Sekcja 3: Tagi (TOP 10)
+      (insert "* 🏷️  Najczęstsze tagi\n\n")
+      (let ((tags-count (make-hash-table :test 'equal)))
+        (dolist (file (directory-files-recursively my-notes-dir "\\.org$"))
+          (with-temp-buffer
+            (insert-file-contents file)
+            (goto-char (point-min))
+            (when (re-search-forward "^#\\+filetags: *\\(.*\\)$" nil t)
+              (let ((tags-string (match-string 1)))
+                (dolist (tag (split-string tags-string ":" t))
+                  (puthash tag (1+ (gethash tag tags-count 0)) tags-count))))))
+        (let ((sorted-tags (sort (hash-table-keys tags-count)
+                                (lambda (a b) 
+                                  (> (gethash a tags-count) 
+                                     (gethash b tags-count))))))
+          (dotimes (i (min 10 (length sorted-tags)))
+            (let ((tag (nth i sorted-tags)))
+              (insert (format "%d. *%s* (%d)\n" 
+                             (1+ i) tag (gethash tag tags-count)))))))
+      (insert "\n")
+      
+      ;; Sekcja 4: Akcje
+      (insert "* 🎛️  Akcje\n\n")
+      (insert "- [[elisp:(my/denote-projects-menu)][Zarządzaj projektami]]\n")
+      (insert "- [[elisp:(my/denote-dashboard)][Dashboard statystyk]]\n")
+      (insert "- [[elisp:(my/denote-wellbeing-history)][Historia well-being]]\n")
+      (insert "- [[elisp:(consult-denote-find)][Szukaj notatki]]\n")
+      (insert "- [[elisp:(my/denote-cockpit)][Odśwież cockpit]]\n")
+      
+      (goto-char (point-min))
+      (read-only-mode 1))
+    (switch-to-buffer buffer-name)))
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here

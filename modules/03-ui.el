@@ -118,16 +118,8 @@
   "Zwróć licznik słów jako krótki string."
   (when (derived-mode-p 'org-mode 'text-mode)
     (let ((words (count-words (point-min) (point-max))))
-      (propertize (format "[%dw] " words)
-                  'face '(:foreground "orange" :weight bold)))))
-
-;; --- Word count w modeline (PRZED nazwą pliku) ---
-(defun my/word-count-modeline ()
-  "Zwróć licznik słów jako krótki string."
-  (when (derived-mode-p 'org-mode 'text-mode)
-    (let ((words (count-words (point-min) (point-max))))
-      (propertize (format "[%dw] " words)
-                  'face '(:foreground "orange" :weight bold)))))
+      (propertize (format "%d " words)
+                  'face '(:foreground "purple" :weight bold)))))
 
 ;; Custom modeline: [COUNT] na początku!
 (setq-default mode-line-format
