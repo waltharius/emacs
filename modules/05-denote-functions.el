@@ -364,9 +364,7 @@
 
 ;; --- Cel dzienny dla projektu ---
 (defvar my/project-daily-goals
-  '(("arystoteles" . 1500)
-    ("kant" . 2000)
-    ("hume" . 1000))
+  '(("arystoteles" . 2000))
   "Dzienne cele słów dla projektów (tag . liczba_słów).")
 
 (defun my/denote-project-goal ()
