@@ -344,5 +344,62 @@
       (local-set-key (kbd "q") 'quit-window))
     (switch-to-buffer buffer-name)))
 
+;; --- Statystyki PROJEKTU (przez tag) ---
+(defun my/denote-project-stats ()
+  "Zlicz słowa w wybranym projekcie (przez tag)."
+  (interactive)
+  (let* ((project-tag (completing-read "Tag projektu: " 
+                                       '("arystoteles" "kant" "hume" "projekt")))
+         (total-words 0)
+         (file-count 0))
+    (dolist (file (directory-files-recursively my-notes-dir "\\.org$"))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (when (re-search-forward (format ":%s:" project-tag) nil t)
+          (setq total-words (+ total-words (count-words (point-min) (point-max))))
+          (setq file-count (1+ file-count)))))
+    (message "📊 Projekt '%s': %d plików | %d słów" 
+             project-tag file-count total-words)))
+
+;; --- Cel dzienny dla projektu ---
+(defvar my/project-daily-goals
+  '(("arystoteles" . 1500)
+    ("kant" . 2000)
+    ("hume" . 1000))
+  "Dzienne cele słów dla projektów (tag . liczba_słów).")
+
+(defun my/denote-project-goal ()
+  "Sprawdź postęp względem celu dziennego PROJEKTU."
+  (interactive)
+  (let* ((project-tag (completing-read "Tag projektu: " 
+                                       (mapcar 'car my/project-daily-goals)))
+         (goal (or (cdr (assoc project-tag my/project-daily-goals)) 1000))
+         (today (format-time-string "%Y-%m-%d"))
+         (total-words 0)
+         (file-count 0))
+    
+    ;; Zlicz słowa w plikach z DZISIEJSZĄ datą I tagiem projektu
+    (dolist (file (directory-files-recursively my-notes-dir "\\.org$"))
+      (when (string-match-p today file)
+        (with-temp-buffer
+          (insert-file-contents file)
+          (goto-char (point-min))
+          (when (re-search-forward (format ":%s:" project-tag) nil t)
+            (setq total-words (+ total-words (count-words (point-min) (point-max))))
+            (setq file-count (1+ file-count))))))
+    
+    (let* ((progress (/ (* 100.0 total-words) goal))
+           (remaining (- goal total-words))
+           (emoji (cond ((>= progress 100) "🎉")
+                       ((>= progress 75) "💪")
+                       ((>= progress 50) "📝")
+                       ((>= progress 25) "🚀")
+                       (t "⏳"))))
+      (message "%s Projekt '%s': %d/%d słów (%.1f%%) | Brakuje: %d"
+               emoji project-tag total-words goal progress
+               (max 0 remaining)))))
+
+
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here

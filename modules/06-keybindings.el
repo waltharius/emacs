@@ -77,6 +77,8 @@
 (global-set-key (kbd "C-c s s") 'my/denote-count-words-today)
 (global-set-key (kbd "C-c s G") 'my/denote-writing-goal)
 (global-set-key (kbd "C-c s d") 'my/denote-dashboard)
+(global-set-key (kbd "C-c s p") 'my/denote-project-stats)
+(global-set-key (kbd "C-c s P") 'my/denote-project-goal)
 
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here
