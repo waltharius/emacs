@@ -34,13 +34,18 @@
              (filename (format "%s--%s__journal.org" id slug))
              (filepath (expand-file-name filename my-notes-dir)))
         
-        (find-file filepath)
-        (insert (format "#+title:      %s Journal\n" today))
-        (insert (format "#+date:       %s\n" 
-                        (format-time-string "[%Y-%m-%d %a %H:%M]")))
-        (insert "#+filetags:   :journal:\n")
-        (insert (format "#+identifier: %s\n\n" id))
-        (insert (format "* Książenice (%s)\n\n" time-now))
+	;; NOWY KOD (z well-being):
+	(insert (format "#+title:      %s Journal\n" today))
+	(insert (format "#+date:       %s\n" 
+			(format-time-string "[%Y-%m-%d %a %H:%M]")))
+	(insert "#+filetags:   :journal:\n")
+	(insert (format "#+identifier: %s\n" id))
+	;; Dodaj property well-being
+	(insert ":PROPERTIES:\n")
+	(insert ":well-being: \n")  ; Puste pole - wypełnisz później!
+	(insert ":END:\n\n")
+	(insert (format "* Książenice (%s)\n\n" time-now))
+
         (backward-char 1)
         (message "Utworzono nowy journal")))))
 
@@ -537,7 +542,7 @@
       (insert "#+title: Denote Cockpit\n")
       (insert "#+startup: overview\n\n")
       
-      ;; Sekcja 1: Statystyki
+      ;; Sekcja Statystyki
       (insert "* 📊 Statystyki\n\n")
       (let ((total-files 0)
             (total-words 0)
@@ -558,7 +563,7 @@
         (insert (format "- Dzisiaj: *%d plików* | *%d słów*\n\n" 
                        today-files today-words)))
       
-      ;; Sekcja 2: Projekty
+      ;; Sekcja Projekty
       (insert "* 🎯 Projekty\n\n")
       (insert "| Projekt | Cel | Dzisiaj | Postęp |\n")
       (insert "|---------|-----|---------|--------|\n")
@@ -579,7 +584,7 @@
                            tag goal words progress)))))
       (insert "\n")
       
-      ;; Sekcja 3: Tagi (TOP 10)
+      ;; Sekcja Tagi (TOP 10)
       (insert "* 🏷️  Najczęstsze tagi\n\n")
       (let ((tags-count (make-hash-table :test 'equal)))
         (dolist (file (directory-files-recursively my-notes-dir "\\.org$"))
@@ -599,18 +604,202 @@
               (insert (format "%d. *%s* (%d)\n" 
                              (1+ i) tag (gethash tag tags-count)))))))
       (insert "\n")
-      
-      ;; Sekcja 4: Akcje
+
+      ;;Sekcja Well-being (ostatnie 7 dni)
+      (insert "\n💚 WELL-BEING (ostatnie 7 dni):\n")
+      (let ((results '())
+	    (days-back 7))
+	(dolist (file (directory-files my-notes-dir t "journal.*\\.org$"))
+	  (with-temp-buffer
+	    (insert-file-contents file)
+	    (goto-char (point-min))
+	    (when (re-search-forward ":well-being: \\([0-9]+\\)" nil t)
+              (let* ((score (string-to-number (match-string 1)))
+		     (date (when (string-match "\\([0-9]\\{8\\}\\)" file)
+			     (match-string 1 file))))
+		(when (and date (> score 0))
+		  (push (list date score) results))))))
+	(setq results (sort results (lambda (a b) (string> (car a) (car b)))))
+	(setq results (seq-take results days-back))
+	(dolist (entry results)
+	  (let* ((date (car entry))
+		 (score (cadr entry))
+		 (emoji (cond ((>= score 9) "😊")
+			      ((>= score 7) "🙂")
+			      ((>= score 5) "😐")
+			      (t "😕"))))
+	    (insert (format "  %s %s: %d\n" 
+			    (substring date 4 8) emoji score)))))
+
+      ;; Sekcja Akcje
       (insert "* 🎛️  Akcje\n\n")
       (insert "- [[elisp:(my/denote-projects-menu)][Zarządzaj projektami]]\n")
       (insert "- [[elisp:(my/denote-dashboard)][Dashboard statystyk]]\n")
       (insert "- [[elisp:(my/denote-wellbeing-history)][Historia well-being]]\n")
+      (insert "- [[elisp:(my/denote-wellbeing-graph)][Graf well-being ASCII]]\n")
+      (insert "- [[elisp:(my/denote-wellbeing-plot)][Wykres well-being (gnuplot)]]\n")
       (insert "- [[elisp:(consult-denote-find)][Szukaj notatki]]\n")
       (insert "- [[elisp:(my/denote-cockpit)][Odśwież cockpit]]\n")
       
       (goto-char (point-min))
       (read-only-mode 1))
     (switch-to-buffer buffer-name)))
+
+;; --- Well-being: szybkie ustawienie ---
+(defun my/denote-set-wellbeing ()
+  "Ustaw wartość well-being dla obecnego journala (0-10)."
+  (interactive)
+  (let ((score (read-number "Well-being (0-10): " 7)))
+    (save-excursion
+      (goto-char (point-min))
+      (if (re-search-forward "^:well-being:.*$" nil t)
+          (progn
+            (beginning-of-line)
+            (kill-line)
+            (insert (format ":well-being: %d" score))
+            (save-buffer)
+            (message "✅ Well-being ustawione: %d" score))
+        (message "⚠️  To nie jest journal z własnością :well-being:")))))
+
+;; --- Well-being: historia samopoczucia ---
+(defun my/denote-wellbeing-history ()
+  "Pokaż historię well-being z journali."
+  (interactive)
+  (let ((results '()))
+    (dolist (file (directory-files my-notes-dir t "journal.*\\.org$"))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (when (re-search-forward ":well-being: \\([0-9]+\\)" nil t)
+          (let* ((score (string-to-number (match-string 1)))
+                 (date (when (string-match "\\([0-9]\\{8\\}\\)" file)
+                        (match-string 1 file))))
+            (when (and date (> score 0))
+              (push (list date score file) results))))))
+    (setq results (sort results (lambda (a b) (string< (car a) (car b)))))
+    (with-current-buffer (get-buffer-create "*Well-being History*")
+      (read-only-mode -1)
+      (erase-buffer)
+      (org-mode)
+      (insert "#+title: Historia Well-being\n")
+      (insert "#+startup: overview\n\n")
+      (insert "* 📊 Historia Well-being\n\n")
+      (insert "| Data | Score | Emoji | Journal |\n")
+      (insert "|------|-------|-------|----------|\n")
+      (dolist (entry results)
+        (let* ((date (car entry))
+               (score (cadr entry))
+               (file (caddr entry))
+               (date-fmt (format "%s-%s-%s" 
+                               (substring date 0 4)
+                               (substring date 4 6)
+                               (substring date 6 8)))
+               (emoji (cond ((>= score 9) "😊")
+                           ((>= score 7) "🙂")
+                           ((>= score 5) "😐")
+                           ((>= score 3) "😕")
+                           (t "😔")))
+               (filename (file-name-nondirectory file)))
+          (insert (format "| %s | %d | %s | [[file:%s][%s]] |\n"
+                         date-fmt score emoji file filename))))
+      (insert "\n** 📈 Statystyki\n\n")
+      (let* ((scores (mapcar 'cadr results))
+             (avg (if scores (/ (apply '+ scores) (float (length scores))) 0))
+             (min-score (if scores (apply 'min scores) 0))
+             (max-score (if scores (apply 'max scores) 0)))
+        (insert (format "- Średnia: %.1f\n" avg))
+        (insert (format "- Min: %d | Max: %d\n" min-score max-score))
+        (insert (format "- Liczba wpisów: %d\n" (length results))))
+      (goto-char (point-min))
+      (read-only-mode 1)
+      (local-set-key (kbd "q") 'quit-window))
+    (switch-to-buffer "*Well-being History*")))
+
+;; --- Well-being: graf ASCII ---
+(defun my/denote-wellbeing-graph ()
+  "Pokaż graf well-being (ASCII art)."
+  (interactive)
+  (let ((results '()))
+    (dolist (file (directory-files my-notes-dir t "journal.*\\.org$"))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (when (re-search-forward ":well-being: \\([0-9]+\\)" nil t)
+          (let* ((score (string-to-number (match-string 1)))
+                 (date (when (string-match "\\([0-9]\\{8\\}\\)" file)
+                        (substring (match-string 1 file) 4 8))))  ; MMDD
+            (when (and date (> score 0))
+              (push (list date score) results))))))
+    (setq results (sort results (lambda (a b) (string< (car a) (car b)))))
+    (with-current-buffer (get-buffer-create "*Well-being Graph*")
+      (read-only-mode -1)
+      (erase-buffer)
+      (insert "╔════════════════════════════════════╗\n")
+      (insert "║   📊 Graf Well-being (0-10)       ║\n")
+      (insert "╚════════════════════════════════════╝\n\n")
+      (dolist (entry results)
+        (let* ((date (car entry))
+               (score (cadr entry))
+               (bar (make-string score ?█))
+               (emoji (cond ((>= score 9) "😊")
+                           ((>= score 7) "🙂")
+                           ((>= score 5) "😐")
+                           ((>= score 3) "😕")
+                           (t "😔"))))
+          (insert (format "%s %s | %s %d\n" 
+                         date emoji bar score))))
+      (insert "\n────────────────────────────────────\n")
+      (insert "Zamknij: q\n")
+      (goto-char (point-min))
+      (read-only-mode 1)
+      (local-set-key (kbd "q") 'quit-window))
+    (switch-to-buffer "*Well-being Graph*")))
+
+;; --- Well-being: wykres graficzny (gnuplot) ---
+(defun my/denote-wellbeing-plot ()
+  "Pokaż graficzny wykres well-being (wymaga gnuplot)."
+  (interactive)
+  (let ((results '())
+        (data-file (expand-file-name "wellbeing-data.txt" temporary-file-directory)))
+    ;; Zbierz dane
+    (dolist (file (directory-files my-notes-dir t "journal.*\\.org$"))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (when (re-search-forward ":well-being: \\([0-9]+\\)" nil t)
+          (let* ((score (string-to-number (match-string 1)))
+                 (date (when (string-match "\\([0-9]\\{8\\}\\)" file)
+                        (match-string 1 file))))
+            (when (and date (> score 0))
+              (push (list date score) results))))))
+    (setq results (sort results (lambda (a b) (string< (car a) (car b)))))
+    
+    ;; Zapisz dane do pliku
+    (with-temp-file data-file
+      (dolist (entry results)
+        (insert (format "%s %d\n" (car entry) (cadr entry)))))
+    
+    ;; Stwórz wykres w Org-mode
+    (with-current-buffer (get-buffer-create "*Well-being Plot*")
+      (read-only-mode -1)
+      (erase-buffer)
+      (org-mode)
+      (insert "#+title: Well-being Wykres\n\n")
+      (insert "* 📊 Wykres Well-being\n\n")
+      (insert "#+PLOT: title:\"Well-being over time\" ind:1 deps:(2) type:2d with:linespoints\n")
+      (insert "| Data | Score |\n")
+      (insert "|------------|-------|\n")
+      (dolist (entry results)
+        (insert (format "| %s | %d |\n" (car entry) (cadr entry))))
+      (insert "\n")
+      (insert "Aby wygenerować wykres: C-c \" (org-plot)\n")
+      (goto-char (point-min))
+      (re-search-forward "^|" nil t)
+      (org-table-align)
+      (read-only-mode 1)
+      (local-set-key (kbd "q") 'quit-window))
+    (switch-to-buffer "*Well-being Plot*")
+    (message "Naciśnij C-c \" na tabeli aby wygenerować wykres")))
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here

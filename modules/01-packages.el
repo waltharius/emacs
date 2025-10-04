@@ -39,5 +39,9 @@
   :ensure t
   :after org)
 
+;; --- Gnuplot dla wykresów Org-mode ---
+(use-package gnuplot
+  :ensure t)
+
 (provide '01-packages)
 ;;; 01-packages.el ends here

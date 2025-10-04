@@ -82,5 +82,11 @@
 (global-set-key (kbd "C-c s m") 'my/denote-projects-menu)
 (global-set-key (kbd "C-c s c") 'my/denote-cockpit)
 
+;; --- Well-being w journalu ---
+(global-set-key (kbd "C-c w w") 'my/denote-set-wellbeing)
+(global-set-key (kbd "C-c w h") 'my/denote-wellbeing-history)
+(global-set-key (kbd "C-c w g") 'my/denote-wellbeing-graph)
+(global-set-key (kbd "C-c w p") 'my/denote-wellbeing-plot)
+
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here
