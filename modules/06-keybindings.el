@@ -64,5 +64,13 @@
 (global-set-key (kbd "C-c n r") 'denote-rename-file)
 (global-set-key (kbd "C-c n R") 'denote-rename-file-using-front-matter)
 
+;; --- Org-transclusion: embed notes ---
+(global-set-key (kbd "C-c t a") 'org-transclusion-add)
+(global-set-key (kbd "C-c t A") 'org-transclusion-add-all)
+(global-set-key (kbd "C-c t t") 'org-transclusion-mode)
+(global-set-key (kbd "C-c t m") 'org-transclusion-make-from-link)
+(global-set-key (kbd "C-c t r") 'org-transclusion-remove)
+(global-set-key (kbd "C-c t R") 'org-transclusion-remove-all)
+
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here

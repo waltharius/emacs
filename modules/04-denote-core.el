@@ -42,6 +42,12 @@
                     (my/denote-signature-no-lowercase str)
                   (apply orig-fun component str args)))))
 
+;; --- Wyłącz automatyczne wcięcia w org-mode ---
+(add-hook 'org-mode-hook
+          (lambda ()
+            (electric-indent-local-mode -1)
+            (setq-local electric-indent-chars nil)))
+
 ;; --- Auto-fill dla wszystkich notatek Denote ---
 (defun my/denote-auto-fill-setup ()
   "Włącz auto-fill-mode dla notatek Denote (wrap na 80 znaków)."
