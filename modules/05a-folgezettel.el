@@ -10,7 +10,7 @@
 ;; - NX.Y     = Child level 1
 ;; - NX.Ya    = Branch (alternative path)
 ;; - NX.YaZ   = Deeper level
-;;
+;; 
 ;; Funkcje:
 ;; - my/denote-zettel-smart     → Tworzenie z auto-numeracją
 ;; - my/denote-zettel-tree      → Wizualizacja drzewa
