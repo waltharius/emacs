@@ -197,17 +197,105 @@
         (insert (format "#+identifier: %s\n\n" id))
         (insert (format "* %s\n\n" header))
         (backward-char 1)
-        (message "Utworzono shortcuts: %s" header)))))
+        (message "Utworzono shortcuts: %s" HEADER)))))
 
-;; --- FUNKCJA: Base (prosta notatka) ---
-(defun my/denote-base ()
-  "Utwórz prostą notatkę bez struktury."
+;; --- FUNKCJA: Filozof ---
+(defun my/denote-philosopher ()
+  "Utwórz notatkę filozofa."
   (interactive)
-  (let ((denote-prompts '(title keywords)))
-    (denote nil nil nil nil nil nil)
+  (let* ((name (read-string "Pełne imię filozofa: "))
+         (short (read-string "Nazwisko Inicjał (np. Nietzsche F.): "))
+         (title short))
+    (denote title '("filozof"))
+  (save-excursion
     (goto-char (point-max))
-    (insert "\n* Notatki\n\n")
-    (backward-char 1)))
+    (insert "\n* Podstawowe informacje\n")
+    (insert (format "- Pełne imię: %s\n" name))
+    (insert "- Życie: \n")
+    (insert "- Epoka: \n")
+    (insert "- Główne dzieła: \n")
+    (insert "- Tematyka: \n\n")
+    (insert "* Główne koncepcje\n\n")
+    (insert "* Bibliografia (moje lektury)\n\n")
+    (insert "* Notatki powiązane\n\n")
+    (save-buffer))
+    (goto-char (point-min))
+    (re-search-forward "^- Życie: " nil t)))
+
+;; --- FUNKCJA: Lektura (literature note) ---
+(defun my/denote-literature ()
+  "Utwórz notatkę lektury (literature note)."
+  (interactive)
+  (let* ((author (read-string "Autor (Nazwisko Inicjał): "))
+         (work-title (read-string "Tytuł dzieła: "))
+         (title (format "%s - %s" author work-title))
+         (type (completing-read "Typ lektury: "
+                                '("esej" "książka" "artykuł" "rozdział" 
+                                  "poezja" "proza" "filozofia")
+                                nil nil "filozofia"))
+         (tags (list "lektura" type)))
+    (denote title tags)
+  (save-excursion
+    (goto-char (point-max))
+    (insert "\n* Metadata\n")
+    (insert (format "- Autor: [[denote:][%s]]\n" author))
+    (insert "- Tytuł oryginalny: \n")
+    (insert "- Rok: \n")
+    (insert (format "- Typ: %s\n" type))
+    (insert "- Wydanie: \n")
+    (insert "- Strony: \n")
+    (insert (format "- Data lektury: %s\n" (format-time-string "%Y-%m-%d")))
+    (insert "- Status: W trakcie\n\n")
+    (insert "* Streszczenie\n\n")
+    (insert "* Główne koncepcje\n\n")
+    (insert "* Cytaty kluczowe\n")
+    (insert "#+begin_quote\n\n#+end_quote\n\n")
+    (insert "* Moje przemyślenia\n\n")
+    (insert "* Powiązane lektury\n\n")
+    (insert "* Do zbadania dalej\n")
+    (insert "- [ ] \n")
+    (save-buffer))
+    (goto-char (point-min))
+    (re-search-forward "^- Tytuł oryginalny: " nil t)))
+
+;; --- FUNKCJA: Esej (projekt pisarski) ---
+(defun my/denote-essay ()
+  "Utwórz esej (projekt pisarski)."
+  (interactive)
+  (let* ((essay-title (read-string "Tytuł eseju: "))
+         (title (format "ESEJ: %s" essay-title))
+         (project-tag (read-string "Tag projektu (np. kant, hume): "))
+         (tags (list "esej" "projekt" project-tag)))
+    (denote title tags)
+  (save-excursion
+    (goto-char (point-max))
+    (insert "\n* Metadata\n")
+    (insert "- Przedmiot: \n")
+    (insert "- Termin: \n")
+    (insert "- Długość: \n")
+    (insert "- Status: Planowanie\n\n")
+    (insert "* Plan eseju\n")
+    (insert "** Wstęp\n\n")
+    (insert "** Część główna\n\n")
+    (insert "** Wniosek\n\n")
+    (insert "* Bibliografia\n\n")
+    (insert "* Notatki robocze\n\n")
+    (save-buffer))
+    (goto-char (point-min))
+    (re-search-forward "^- Przedmiot: " nil t)))
+
+;; --- POPRAWKA: Base note z pytaniem o tytuł i tagi ---
+(defun my/denote-base ()
+  "Utwórz prostą notatkę (z pytaniem o tytuł i tagi)."
+  (interactive)
+  (let* ((title (read-string "Tytuł: "))
+         (keywords-string (read-string "Tagi (rozdziel spacjami): "))
+         (keywords (if (string-empty-p keywords-string)
+                       nil
+                     (split-string keywords-string " " t))))
+    (if (string-empty-p title)
+        (denote nil keywords)  ; Pusty tytuł = tylko ID
+      (denote title keywords))))
 
 ;; --- Pomocnicza: wstaw godzinę ---
 (defun insert-current-time ()
@@ -674,9 +762,9 @@
       (insert "- [[elisp:(my/denote-wellbeing-graph)][Graf well-being ASCII]]\n")
       (insert "- [[elisp:(my/denote-wellbeing-plot)][Wykres well-being (gnuplot)]]\n")
       (insert "- [[elisp:(consult-denote-find)][Szukaj notatki]]\n")
-      (insert "- [[elisp:(my/denote-cockpit)][Odśwież cockpit]]\n")
       (insert "- [[elisp:(my/denote-wellbeing-fill-missing)][⚠️ Uzupełnij brakujące well-being]]\n")
-      
+      (insert "- [[elisp:(my/denote-cockpit)][Odśwież cockpit]]\n")
+            
       (goto-char (point-min))
       (read-only-mode 1))
     (switch-to-buffer buffer-name)))

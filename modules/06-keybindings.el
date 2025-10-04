@@ -89,5 +89,10 @@
 (global-set-key (kbd "C-c w p") 'my/denote-wellbeing-plot)
 (global-set-key (kbd "C-c w f") 'my/denote-wellbeing-fill-missing)
 
+;; --- Akademicki flow ---
+(global-set-key (kbd "C-c n P") 'my/denote-philosopher)  ; Filozof
+(global-set-key (kbd "C-c n L") 'my/denote-literature)   ; Lektura
+(global-set-key (kbd "C-c n E") 'my/denote-essay)        ; Esej
+
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here
