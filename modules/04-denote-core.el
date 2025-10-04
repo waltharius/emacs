@@ -49,7 +49,7 @@
              (string-match-p (expand-file-name my-notes-dir) 
                              (buffer-file-name)))
     (auto-fill-mode 1)
-    (setq fill-column 80)))
+    (setq fill-column 84)))
 
 (add-hook 'find-file-hook 'my/denote-auto-fill-setup)
 (add-hook 'org-mode-hook 'my/denote-auto-fill-setup)
