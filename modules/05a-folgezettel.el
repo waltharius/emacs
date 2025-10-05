@@ -232,23 +232,27 @@ Przykład: N1 → szuka N1[a-z] → zwraca max(letter) + 1"
 ;; ============================================================
 ;; WIZUALIZACJA: Drzewo Folgezettel
 ;; ============================================================
-
 (defun my/denote-zettel-tree ()
-  "Pokaż drzewo Folgezettel (hierarchia signatures)."
+  "Pokaż drzewo Folgezettel (hierarchia signatures).
+Czyta signature z NAZWY PLIKU (==NX), nie z treści!"
   (interactive)
   (let ((sigs '()))
-    ;; Zbierz wszystkie signatures
-    (dolist (file (directory-files my-notes-dir t "\\.org$"))
-      (with-temp-buffer
-        (insert-file-contents file)
-        (goto-char (point-min))
-        (when (re-search-forward "^#\\+signature: *\\(N[0-9.a-z]+\\)" nil t)
-          (let ((sig (match-string 1))
-                (title (progn
-                        (goto-char (point-min))
-                        (when (re-search-forward "^#\\+title: *\\(.*\\)$" nil t)
-                          (match-string 1)))))
-            (push (cons sig title) sigs)))))
+    ;; Zbierz wszystkie pliki ze signature w nazwie
+    (dolist (file (directory-files my-notes-dir nil "\\.org$"))
+      ;; Regex: ==NX gdzie X to cyfry, kropki, małe litery
+      (when (string-match "==\\(N[0-9.a-z]+\\)--" file)
+        (let* ((sig (match-string 1 file))
+               (full-path (expand-file-name file my-notes-dir))
+               (title (with-temp-buffer
+                       (insert-file-contents full-path)
+                       (goto-char (point-min))
+                       (if (re-search-forward "^#\\+title: *\\(.*\\)$" nil t)
+                           (match-string 1)
+                         "Brak tytułu"))))
+          (push (cons sig title) sigs))))
+    
+    ;; Usuń duplikaty (ten sam sig może być w wielu plikach - błąd!)
+    (setq sigs (delete-dups sigs))
     
     ;; Sortuj alfabetycznie (Folgezettel order)
     (setq sigs (sort sigs (lambda (a b) 
@@ -270,7 +274,8 @@ Przykład: N1 → szuka N1[a-z] → zwraca max(letter) + 1"
       (goto-char (point-min))
       (read-only-mode 1)
       (local-set-key (kbd "q") 'quit-window))
-    (switch-to-buffer "*Zettel Tree*")))
+    (switch-to-buffer "*Zettel Tree*")
+    (message "✅ Drzewo Folgezettel: %d notatek" (length sigs))))
 
 ;; ============================================================
 ;; POMOCNICZE: Głębokość signature
