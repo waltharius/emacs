@@ -1071,5 +1071,98 @@ ZAWSZE pyta o potwierdzenie!"
           (find-file file))
       (message "Nie znaleziono notatek z %s=%s" property value))))
 
+;; ============================================================
+;; DASHBOARD WIDGET: PKM Stats
+;; ============================================================
+
+(defun my/dashboard-insert-pkm-stats (list-size)
+  "Wstaw statystyki PKM do Dashboard."
+  (interactive)
+  (let* ((all-notes (directory-files my-notes-dir nil "\\.org$"))
+         (total-notes (length all-notes))
+         (today-str (format-time-string "%Y-%m-%d"))
+         (notes-today 0)
+         (words-today 0)
+         (fleeting 0)
+         (literature 0)
+         (zettel 0)
+         (well-being-last nil)
+         (daily-goal (if (boundp 'my-word-count-daily-goal)
+                        my-word-count-daily-goal
+                      500)))
+    
+    ;; Policz notatki i słowa
+    (dolist (file all-notes)
+      (let ((full-path (expand-file-name file my-notes-dir)))
+        (when (string-match today-str file)
+          (setq notes-today (1+ notes-today)))
+        
+        (with-temp-buffer
+          (insert-file-contents full-path)
+          
+          ;; Typy notatek
+          (goto-char (point-min))
+          (when (re-search-forward "^#\\+filetags:" nil t)
+            (let ((tags (buffer-substring (line-beginning-position) (line-end-position))))
+              (cond
+               ((string-match ":fleeting:" tags) (setq fleeting (1+ fleeting)))
+               ((string-match ":lektura:" tags) (setq literature (1+ literature)))
+               ((string-match ":zettel:" tags) (setq zettel (1+ zettel))))))
+          
+          ;; Słowa dzisiaj
+          (when (string-match today-str file)
+            (setq words-today (+ words-today 
+                                (count-words (point-min) (point-max))))))))
+    
+    ;; Well-being (ostatni wpis)
+    (when (file-exists-p (expand-file-name "well-being.org" my-notes-dir))
+      (with-temp-buffer
+        (insert-file-contents (expand-file-name "well-being.org" my-notes-dir))
+        (goto-char (point-min))
+        (when (re-search-forward "^\\* \\[.*\\] \\([0-9]+\\)/10" nil t)
+          (setq well-being-last (match-string 1)))))
+    
+    ;; Wstaw do Dashboard
+    (dashboard-insert-heading "PKM Statistics:" 
+                             (dashboard-get-shortcut 'pkm-stats))
+    (insert "\n")
+    
+    ;; Notatki
+    (insert (format "    📝 Total Notes:        %d\n" total-notes))
+    (insert (format "       ├─ Fleeting:        %d\n" fleeting))
+    (insert (format "       ├─ Literature:      %d\n" literature))
+    (insert (format "       └─ Zettel:          %d\n\n" zettel))
+    
+    ;; Dzisiaj
+    (insert (format "    📅 Today:              %d notes, %d words\n" 
+                   notes-today words-today))
+    (insert (format "    🎯 Daily Goal:         %d/%d words (%d%%)\n\n" 
+                   words-today daily-goal
+                   (if (> daily-goal 0)
+                       (/ (* words-today 100) daily-goal)
+                     0)))
+    
+    ;; Well-being
+    (when well-being-last
+      (insert (format "    💚 Well-being:         %s/10\n\n" well-being-last)))
+    
+    ;; Quick actions
+    (insert "    Quick Actions:\n")
+    (insert "       [j] New Journal    [n] Quick Note    [z] Zettel\n")
+    (insert "       [c] Full Cockpit   [q] Quit\n\n")))
+
+;; Zarejestruj w Dashboard
+(add-to-list 'dashboard-item-generators 
+             '(pkm-stats . my/dashboard-insert-pkm-stats))
+
+;; Refresh dashboarsdu bez restartu
+(defun my/dashboard-refresh ()
+  "Odśwież Dashboard."
+  (interactive)
+  (dashboard-refresh-buffer))
+
+
+
+
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here

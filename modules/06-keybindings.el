@@ -107,5 +107,7 @@
 ;; --- Orrg-roam UI (graf)
 (global-set-key (kbd "C-c n u") 'org-roam-ui-mode)
 
+(global-set-key (kbd "C-c d r") 'my/dashboard-refresh)
+
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here

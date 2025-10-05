@@ -43,18 +43,50 @@
 (use-package gnuplot
   :ensure t)
 
-;; --- Dashboard ---
+;; ============================================================
+;; DASHBOARD: Custom PKM Dashboard
+;; ============================================================
+
 (use-package dashboard
   :ensure t
   :config
   (dashboard-setup-startup-hook)
-  (setq dashboard-banner-logo-title "📚 Emacs PKM System")
+  
+  ;; Podstawowe ustawienia
+  (setq dashboard-banner-logo-title "📚 Emacs PKM System - Filozofia")
   (setq dashboard-startup-banner 'logo)
   (setq dashboard-center-content t)
-  (setq dashboard-items '((recents  . 5)
-                          (bookmarks . 5)
-                          (projects . 5)))
-  (setq dashboard-set-footer nil))
+  (setq dashboard-set-footer t)
+  (setq dashboard-footer-messages 
+        '("Free as free speech, free as free Beer"
+          "Emacs: A lisp interpreter pretending to be a text editor"
+          "The extensible, customizable, self-documenting real-time display editor"))
+  
+  ;; Ikony (opcjonalne - wymaga all-the-icons)
+  (setq dashboard-set-heading-icons t)
+  (setq dashboard-set-file-icons t)
+  
+  ;; Co pokazać
+  (setq dashboard-items '((recents  . 10)
+                          (bookmarks . 5)))
+  
+  ;; Custom widgets (KLUCZOWE!)
+  (setq dashboard-startupify-list '(dashboard-insert-banner
+                                    dashboard-insert-newline
+                                    dashboard-insert-banner-title
+                                    dashboard-insert-newline
+                                    dashboard-insert-init-info
+                                    dashboard-insert-items
+                                    my/dashboard-insert-pkm-stats  ; <-- CUSTOM!
+                                    dashboard-insert-newline
+                                    dashboard-insert-footer))
+  
+  ;; Skróty klawiszowe w Dashboard
+  (define-key dashboard-mode-map (kbd "j") 'my/denote-journal)
+  (define-key dashboard-mode-map (kbd "n") 'my/denote-base)
+  (define-key dashboard-mode-map (kbd "z") 'my/denote-zettel-smart)
+  (define-key dashboard-mode-map (kbd "c") 'my/denote-cockpit)
+  (define-key dashboard-mode-map (kbd "q") 'quit-window))
 
 ;; --- Org-roam UI (graf)
 (use-package org-roam-ui
