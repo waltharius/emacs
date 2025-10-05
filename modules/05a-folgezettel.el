@@ -30,16 +30,39 @@ Automatycznie generuje signature, linkuje do parenta i dodaje backlink."
   (interactive)
   (let* ((parent-sig (read-string "Parent signature (Enter = nowy root): "))
          (new-sig (if (string-empty-p parent-sig)
-                      ;; Nowy top-level - znajdź następny numer
                       (my/folge-next-top-level)
-                    ;; Child - wybierz typ
                     (my/folge-next-child parent-sig)))
-         (title (read-string (format "Tytuł dla %s: " new-sig))))
+         (title (read-string (format "Tytuł dla %s: " new-sig)))
+         ;; Tworzymy plik z signature RĘCZNIE
+         (denote-user-enforced-denote-directory denote-directory)
+         (id (format-time-string denote-id-format (current-time)))
+         (keywords '("zettel"))
+         (slug (denote-sluggify 'title title))
+         ;; === FIX: Dodaj rozszerzenie .org ===
+         (extension (denote--file-extension denote-file-type))
+         (filename (concat
+                    (denote-format-file-name 
+                     denote-directory 
+                     id 
+                     keywords 
+                     slug 
+                     nil  ;; bez extension tutaj
+                     new-sig)
+                    extension)))  ;; dodaj extension na końcu
     
-    ;; Utwórz notatkę Z SIGNATURE używając denote-signature
-    (denote-signature title '("zettel") new-sig)
+    ;; Otwórz plik
+    (find-file filename)
     
-    ;; Link do parenta (jeśli istnieje)
+    ;; Dodaj front matter
+    (insert (format "#+title: %s\n" title))
+    (insert (format "#+date: %s\n" (format-time-string "[%Y-%m-%d %a %H:%M]")))
+    (insert (format "#+filetags: :%s:\n" (mapconcat 'identity keywords ":")))
+    (insert (format "#+signature: %s\n" new-sig))
+    (insert (format "#+identifier: %s\n\n" id))
+    
+    (save-buffer)
+    
+    ;; Link do parenta
     (unless (string-empty-p parent-sig)
       (my/folge-add-parent-link parent-sig))
     
