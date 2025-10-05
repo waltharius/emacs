@@ -66,4 +66,20 @@
   (setq org-roam-ui-update-on-save t))
 (provide '01-packages)
 
+;; --- Better minibuffer ---
+(use-package vertico
+  :ensure t
+  :init
+  (vertico-mode))
+
+(use-package marginalia
+  :ensure t
+  :init
+  (marginalia-mode))
+
+(use-package orderless
+  :ensure t
+  :custom
+  (completion-styles '(orderless basic)))
+
 ;;; 01-packages.el ends here

@@ -54,9 +54,10 @@
  ;; If there is more than one, they won't work right.
  '(custom-enabled-themes nil)
  '(package-selected-packages
-   '(ample-theme consult-denote diff-hl flyspell-correct-ivy gnuplot
-		 htmlize langtool magit org-contrib org-roam
-		 org-transclusion wc-mode)))
+   '(ample-theme consult-denote dashboard diff-hl flyspell-correct-ivy
+		 gnuplot htmlize langtool magit marginalia orderless
+		 org-contrib org-roam-ui org-transclusion vertico
+		 wc-mode)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
