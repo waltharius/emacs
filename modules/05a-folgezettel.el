@@ -10,7 +10,7 @@
 ;; - NX.Y     = Child level 1
 ;; - NX.Ya    = Branch (alternative path)
 ;; - NX.YaZ   = Deeper level
-;; 
+;;
 ;; Funkcje:
 ;; - my/denote-zettel-smart     → Tworzenie z auto-numeracją
 ;; - my/denote-zettel-tree      → Wizualizacja drzewa
@@ -30,43 +30,56 @@ Automatycznie generuje signature, linkuje do parenta i dodaje backlink."
   (interactive)
   (let* ((parent-sig (read-string "Parent signature (Enter = nowy root): "))
          (new-sig (if (string-empty-p parent-sig)
+                      ;; Nowy top-level - znajdź następny numer
                       (my/folge-next-top-level)
+                    ;; Child - wybierz typ
                     (my/folge-next-child parent-sig)))
-         (title (read-string (format "Tytuł dla %s: " new-sig)))
-         ;; Tworzymy plik z signature RĘCZNIE
-         (denote-user-enforced-denote-directory denote-directory)
-         (id (format-time-string denote-id-format (current-time)))
-         (keywords '("zettel"))
+         (title (read-string "Tytuł: "))
+         (keywords-string (read-string "Tagi (opcjonalnie): " "zettel"))
+         (keywords (split-string keywords-string " " t))
+         ;; Generuj nazwę pliku RĘCZNIE (Denote style)
+         (id (format-time-string "%Y%m%dT%H%M%S"))
          (slug (denote-sluggify 'title title))
-         ;; === FIX: Dodaj rozszerzenie .org ===
-         (extension (denote--file-extension denote-file-type))
-         (filename (concat
-                    (denote-format-file-name 
-                     denote-directory 
-                     id 
-                     keywords 
-                     slug 
-                     nil  ;; bez extension tutaj
-                     new-sig)
-                    extension)))  ;; dodaj extension na końcu
+         (keyword-string (mapconcat #'identity keywords "_"))
+         (filename (format "%s==%s--%s__%s.org" 
+                          id new-sig slug keyword-string))
+         (filepath (expand-file-name filename my-notes-dir)))
     
-    ;; Otwórz plik
-    (find-file filename)
+    ;; ✅ KLUCZOWE: Utwórz NOWY plik!
+    (find-file filepath)
     
-    ;; Dodaj front matter
-    (insert (format "#+title: %s\n" title))
-    (insert (format "#+date: %s\n" (format-time-string "[%Y-%m-%d %a %H:%M]")))
-    (insert (format "#+filetags: :%s:\n" (mapconcat 'identity keywords ":")))
-    (insert (format "#+signature: %s\n" new-sig))
-    (insert (format "#+identifier: %s\n\n" id))
+    ;; Wstaw front matter
+    (insert (format "#+title:      %s\n" title))
+    (insert (format "#+date:       %s\n" 
+                    (format-time-string "[%Y-%m-%d %a %H:%M]")))
+    (insert (format "#+filetags:   :%s:\n" keyword-string))
+    (insert (format "#+identifier: %s\n" id))
+    (insert (format "#+signature:  %s\n\n" new-sig))
+    
+    ;; Dodaj link do parenta (jeśli istnieje)
+    (when (not (string-empty-p parent-sig))
+      (let ((parent-file (my/folge-find-file-by-sig parent-sig)))
+        (when parent-file
+          (insert "\n* Parent\n")
+          (insert (format "← [[denote:%s][%s]]\n\n" 
+                         (my/folge-get-id-from-file parent-file)
+                         parent-sig))
+          
+          ;; Dodaj backlink w parent
+          (with-current-buffer (find-file-noselect parent-file)
+            (goto-char (point-max))
+            (unless (re-search-backward "^\\* Children$" nil t)
+              (goto-char (point-max))
+              (insert "\n* Children\n"))
+            (goto-char (point-max))
+            (insert (format "→ [[denote:%s][%s: %s]]\n"
+                           id
+                           new-sig
+                           title))
+            (save-buffer)))))
     
     (save-buffer)
-    
-    ;; Link do parenta
-    (unless (string-empty-p parent-sig)
-      (my/folge-add-parent-link parent-sig))
-    
-    (message "✓ Stworzono Zettel: %s" new-sig)))
+    (message "✅ Stworzono Zettel: %s (%s)" new-sig filepath)))
 
 ;; ============================================================
 ;; NUMERACJA: Top-level (NX)
@@ -90,28 +103,64 @@ UWAGA: Używa NX (nie NX.1) jako root."
 ;; ============================================================
 ;; NUMERACJA: Child signatures
 ;; ============================================================
-
-(defun my/folge-next-child (parent-sig)
-  "Zaproponuj następny child signature dla PARENT-SIG.
-Użytkownik wybiera: extend (numeric) lub branch (letter)."
-  (let* ((choices '("Extend (number)" "Branch (letter)" "Manual"))
-         (choice (completing-read 
-                  (format "Typ child dla '%s': " parent-sig)
-                  choices nil t)))
-    (cond
-     ;; NX → NX.1 lub NX.Y → NX.Y.1
-     ((string-match "Extend" choice)
-      (let ((next-num (my/folge-find-next-number parent-sig)))
-        (format "%s.%d" parent-sig next-num)))
-     
-     ;; NX → NXa lub NX.Y → NX.Ya
-     ((string-match "Branch" choice)
-      (let ((next-letter (my/folge-find-next-letter parent-sig)))
-        (format "%s%c" parent-sig next-letter)))
-     
-     ;; Manual
-     (t
-      (read-string (format "Child signature dla '%s': " parent-sig))))))
+(defun my/denote-zettel-smart ()
+  "Utwórz Zettel z inteligentnym Folgezettel signature.
+Automatycznie generuje signature, linkuje do parenta i dodaje backlink."
+  (interactive)
+  (let* ((parent-sig (read-string "Parent signature (Enter = nowy root): "))
+         (new-sig (if (string-empty-p parent-sig)
+                      ;; Nowy top-level - znajdź następny numer
+                      (my/folge-next-top-level)
+                    ;; Child - wybierz typ
+                    (my/folge-next-child parent-sig)))
+         (title (read-string "Tytuł: "))
+         (keywords-string (read-string "Tagi (opcjonalnie): " "zettel"))
+         (keywords (split-string keywords-string " " t))
+         ;; Generuj nazwę pliku RĘCZNIE (Denote style) - BEZ slugify!
+         (id (format-time-string "%Y%m%dT%H%M%S"))
+         (slug (replace-regexp-in-string 
+                "[^[:alnum:]ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]+" "-" 
+                (downcase title)))
+         (keyword-string (mapconcat #'identity keywords "_"))
+         (filename (format "%s==%s--%s__%s.org" 
+                          id new-sig slug keyword-string))
+         (filepath (expand-file-name filename my-notes-dir)))
+    
+    ;; ✅ KLUCZOWE: Utwórz NOWY plik!
+    (find-file filepath)
+    
+    ;; Wstaw front matter
+    (insert (format "#+title:      %s\n" title))
+    (insert (format "#+date:       %s\n" 
+                    (format-time-string "[%Y-%m-%d %a %H:%M]")))
+    (insert (format "#+filetags:   :%s:\n" keyword-string))
+    (insert (format "#+identifier: %s\n" id))
+    (insert (format "#+signature:  %s\n\n" new-sig))
+    
+    ;; Dodaj link do parenta (jeśli istnieje)
+    (when (not (string-empty-p parent-sig))
+      (let ((parent-file (my/folge-find-file-by-sig parent-sig)))
+        (when parent-file
+          (insert "\n* Parent\n")
+          (insert (format "← [[denote:%s][%s]]\n\n" 
+                         (my/folge-get-id-from-file parent-file)
+                         parent-sig))
+          
+          ;; Dodaj backlink w parent
+          (with-current-buffer (find-file-noselect parent-file)
+            (goto-char (point-max))
+            (unless (re-search-backward "^\\* Children$" nil t)
+              (goto-char (point-max))
+              (insert "\n* Children\n"))
+            (goto-char (point-max))
+            (insert (format "→ [[denote:%s][%s: %s]]\n"
+                           id
+                           new-sig
+                           title))
+            (save-buffer)))))
+    
+    (save-buffer)
+    (message "✅ Stworzono Zettel: %s (%s)" new-sig filepath)))
 
 ;; ============================================================
 ;; POMOCNICZE: Znajdź następny numer
@@ -185,55 +234,56 @@ Przykład: N1 → szuka N1[a-z] → zwraca max(letter) + 1"
 ;; ============================================================
 
 (defun my/denote-zettel-tree ()
-  "Wyświetl drzewo Folgezettel w nowym buforze.
-Parsuje signature z NAZWY PLIKU (==sig==), nie z treści."
+  "Pokaż drzewo Folgezettel (hierarchia signatures)."
   (interactive)
-  (let ((notes '()))
+  (let ((sigs '()))
+    ;; Zbierz wszystkie signatures
+    (dolist (file (directory-files my-notes-dir t "\\.org$"))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (when (re-search-forward "^#\\+signature: *\\(N[0-9.a-z]+\\)" nil t)
+          (let ((sig (match-string 1))
+                (title (progn
+                        (goto-char (point-min))
+                        (when (re-search-forward "^#\\+title: *\\(.*\\)$" nil t)
+                          (match-string 1)))))
+            (push (cons sig title) sigs)))))
     
-    ;; === KLUCZOWA ZMIANA: czytamy signature z NAZWY PLIKU ===
-    (dolist (file (directory-files denote-directory t "\\.org$"))
-      (when-let ((sig (denote-retrieve-filename-signature file)))
-        ;; Pobierz tytuł z nazwy pliku lub z treści
-        (let ((title (or (denote-retrieve-filename-title file)
-                         "Bez tytułu")))
-          (push (cons sig title) notes))))
+    ;; Sortuj alfabetycznie (Folgezettel order)
+    (setq sigs (sort sigs (lambda (a b) 
+                           (my/folge-sig-less-p (car a) (car b)))))
     
-    ;; Sortuj alfabetycznie po signature
-    (setq notes (sort notes (lambda (a b) (string< (car a) (car b)))))
-    
-    ;; Wyświetl w nowym buforze
-    (with-current-buffer (get-buffer-create "*Folgezettel Tree*")
+    ;; Wyświetl
+    (with-current-buffer (get-buffer-create "*Zettel Tree*")
+      (read-only-mode -1)
       (erase-buffer)
       (org-mode)
       (insert "#+title: Folgezettel Tree\n")
       (insert "#+startup: overview\n\n")
-      
-      (dolist (note notes)
-        (let* ((sig (car note))
-               (title (cdr note))
-               (level (my/folge-sig-depth sig)))
-          (insert (make-string level ?-) " " sig ": " title "\n")))
-      
+      (dolist (sig sigs)
+        (let* ((s (car sig))
+               (title (cdr sig))
+               (depth (my/folge-sig-depth s))
+               (indent (make-string (* 2 depth) ? )))
+          (insert (format "%s- %s: %s\n" indent s title))))
       (goto-char (point-min))
-      (switch-to-buffer (current-buffer)))))
+      (read-only-mode 1)
+      (local-set-key (kbd "q") 'quit-window))
+    (switch-to-buffer "*Zettel Tree*")))
 
 ;; ============================================================
 ;; POMOCNICZE: Głębokość signature
 ;; ============================================================
 
 (defun my/folge-sig-depth (sig)
-"Oblicz poziom zagnieżdżenia dla signature.
-N1 = 1, N1.1 = 2, N1.1a = 3, N1.1a1 = 4, etc."
-  (let ((level 1))
-    ;; Usuń prefix 'N' jeśli istnieje
-    (when (string-match "^[A-Za-z]+" sig)
-      (setq sig (substring sig (match-end 0))))
-    
-    ;; Liczy kropki i litery
+  "Oblicz głębokość signature.
+N1 → 0, N1.1 → 1, N1.1a → 2, N1.1a1 → 3"
+  (let ((depth 0))
     (dolist (char (string-to-list sig))
       (when (or (= char ?.) (and (>= char ?a) (<= char ?z)))
-        (setq level (1+ level))))
-    level))
+        (setq depth (1+ depth))))
+    depth))
 
 ;; ============================================================
 ;; POMOCNICZE: Sortowanie Folgezettel
