@@ -14,11 +14,13 @@
          (journal-pattern (concat "--" today "-journal"))
          (existing-journal nil))
     
+    ;; Szukaj istniejącego journala
     (dolist (file (directory-files my-notes-dir t "\\.org$"))
       (when (string-match-p journal-pattern (file-name-nondirectory file))
         (setq existing-journal file)))
     
     (if existing-journal
+        ;; Journal już istnieje - dodaj nowy wpis
         (progn
           (find-file existing-journal)
           (goto-char (point-max))
@@ -27,6 +29,7 @@
           (backward-char 1)
           (message "Dodano wpis do journala"))
       
+      ;; Stwórz NOWY journal
       (let* ((id (format-time-string "%Y%m%dT%H%M%S"))
              (slug (replace-regexp-in-string 
                     "[^[:alnum:]]+" "-" 
@@ -34,19 +37,26 @@
              (filename (format "%s--%s__journal.org" id slug))
              (filepath (expand-file-name filename my-notes-dir)))
         
-	;; NOWY KOD (z well-being):
-	(insert (format "#+title:      %s Journal\n" today))
-	(insert (format "#+date:       %s\n" 
-			(format-time-string "[%Y-%m-%d %a %H:%M]")))
-	(insert "#+filetags:   :journal:\n")
-	(insert (format "#+identifier: %s\n" id))
-	;; Dodaj property well-being
-	(insert ":PROPERTIES:\n")
-	(insert ":well-being: \n")  ; Puste pole - wypełnisz później!
-	(insert ":END:\n\n")
-	(insert (format "* Książenice (%s)\n\n" time-now))
-
+        ;; ✅ KLUCZOWE: Otwórz NOWY plik!
+        (find-file filepath)
+        
+        ;; Wstaw frontmatter
+        (insert (format "#+title:      %s Journal\n" today))
+        (insert (format "#+date:       %s\n" 
+                        (format-time-string "[%Y-%m-%d %a %H:%M]")))
+        (insert "#+filetags:   :journal:\n")
+        (insert (format "#+identifier: %s\n" id))
+        
+        ;; Dodaj property well-being
+        (insert ":PROPERTIES:\n")
+        (insert ":well-being: \n")  ; Puste - wypełnisz później!
+        (insert ":END:\n\n")
+        
+        ;; Pierwszy wpis
+        (insert (format "* Książenice (%s)\n\n" time-now))
+        
         (backward-char 1)
+        (save-buffer)
         (message "Utworzono nowy journal")))))
 
 ;; --- FUNKCJA: Journal z datą (migracja) ---
