@@ -66,5 +66,9 @@ Zachowaj litery, cyfry i kropki."
 (setq org-list-demote-modify-bullet
       '(("+" . "-") ("-" . "+") ("*" . "-") ("1." . "a.")))
 
+;; --- Kolumny do wyświetlenia w wyszukiwaniu po PROPERTIES ---
+(setq org-columns-default-format 
+      "%40ITEM(Tytuł) %10STATUS %8YEAR %6PAGES %10PROJECT")
+
 (provide '04-denote-core)
 ;;; 04-denote-core.el ends here

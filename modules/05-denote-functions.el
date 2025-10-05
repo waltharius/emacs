@@ -230,33 +230,59 @@
          (work-title (read-string "Tytuł dzieła: "))
          (title (format "%s - %s" author work-title))
          (type (completing-read "Typ lektury: "
-                                '("esej" "książka" "artykuł" "rozdział" 
-                                  "poezja" "proza" "filozofia")
-                                nil nil "filozofia"))
-         (tags (list "lektura" type)))
+                               '("esej" "książka" "artykuł" "rozdział"
+                                 "poezja" "proza" "filozofia")
+                               nil nil "filozofia"))
+         (tags (list "lektura" type))
+         
+         ;; PROPERTIES - pyta o wszystko, domyślne wartości
+         (year (read-string "Rok wydania (opcjonalnie): " ""))
+         (pages (read-string "Strony/długość (opcjonalnie): " ""))
+         (status (completing-read "Status: " 
+                                 '("TODO" "READING" "DONE" "PAUSED")
+                                 nil nil "READING"))
+         (project (read-string "Projekt (opcjonalnie): " ""))
+         (source (read-string "Źródło/wydawnictwo (opcjonalnie): " "")))
+    
     (denote title tags)
-  (save-excursion
-    (goto-char (point-max))
-    (insert "\n* Metadata\n")
-    (insert (format "- Autor: [[denote:][%s]]\n" author))
-    (insert "- Tytuł oryginalny: \n")
-    (insert "- Rok: \n")
-    (insert (format "- Typ: %s\n" type))
-    (insert "- Wydanie: \n")
-    (insert "- Strony: \n")
-    (insert (format "- Data lektury: %s\n" (format-time-string "%Y-%m-%d")))
-    (insert "- Status: W trakcie\n\n")
-    (insert "* Streszczenie\n\n")
-    (insert "* Główne koncepcje\n\n")
-    (insert "* Cytaty kluczowe\n")
-    (insert "#+begin_quote\n\n#+end_quote\n\n")
-    (insert "* Moje przemyślenia\n\n")
-    (insert "* Powiązane lektury\n\n")
-    (insert "* Do zbadania dalej\n")
-    (insert "- [ ] \n")
-    (save-buffer))
+    (save-excursion
+      (goto-char (point-max))
+      
+      ;; PROPERTIES zaraz po front matter
+      (insert "\n:PROPERTIES:\n")
+      (when (not (string-empty-p year))
+        (insert (format ":YEAR:     %s\n" year)))
+      (when (not (string-empty-p pages))
+        (insert (format ":PAGES:    %s\n" pages)))
+      (insert (format ":STATUS:   %s\n" status))
+      (when (not (string-empty-p project))
+        (insert (format ":PROJECT:  %s\n" project)))
+      (when (not (string-empty-p source))
+        (insert (format ":SOURCE:   %s\n" source)))
+      (insert (format ":READ_DATE: %s\n" (format-time-string "[%Y-%m-%d %a]")))
+      (insert ":END:\n\n")
+      
+      ;; Struktura notatki
+      (insert "* Autor\n")
+      (insert (format "← [[denote:][%s]]\n\n" author))
+      (insert "* Teza główna\n\n")
+      (insert "* Struktura tekstu\n\n")
+      (insert "* Kluczowe koncepty\n\n")
+      (insert "* Argumenty\n\n")
+      (insert "* Moje pytania\n\n")
+      (insert "* Powiązania\n\n")
+      (insert "* Cytaty kluczowe\n")
+      (insert "#+begin_quote\n\n#+end_quote\n\n")
+      (insert "* Fleeting Notes (czytanie 1)\n\n")
+      (insert "* Literature Notes (czytanie 2)\n\n")
+      (insert "* Permanent Notes (refleksja)\n\n")
+      (insert "* Do zbadania dalej\n")
+      (insert "- [ ] \n"))
+    
+    (save-buffer)
     (goto-char (point-min))
-    (re-search-forward "^- Tytuł oryginalny: " nil t)))
+    (re-search-forward "^\\* Teza główna" nil t)
+    (message "✅ Stworzono notatkę lektury: %s" title)))
 
 ;; --- FUNKCJA: Esej (projekt pisarski) ---
 (defun my/denote-essay ()
@@ -1019,6 +1045,31 @@ ZAWSZE pyta o potwierdzenie!"
       ;; Zamknij bufor jeśli otwarty
       (let ((buf (get-file-buffer file)))
         (when buf (kill-buffer buf))))))
+
+(defun my/denote-find-by-property (property value)
+  "Znajdź notatki gdzie PROPERTY = VALUE."
+  (interactive 
+   (list (read-string "Property: " "STATUS")
+         (read-string "Value: ")))
+  (let ((results '()))
+    (dolist (file (directory-files my-notes-dir t "\\.org$"))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (when (re-search-forward 
+               (format "^:%s: +%s" property (regexp-quote value)) 
+               nil t)
+          (let ((title (progn
+                        (goto-char (point-min))
+                        (when (re-search-forward "^#\\+title: *\\(.*\\)$" nil t)
+                          (match-string 1)))))
+            (push (cons title file) results)))))
+    (if results
+        (let* ((titles (mapcar #'car results))
+               (choice (completing-read "Wybierz notatkę: " titles))
+               (file (cdr (assoc choice results))))
+          (find-file file))
+      (message "Nie znaleziono notatek z %s=%s" property value))))
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here

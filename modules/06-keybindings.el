@@ -93,6 +93,7 @@
 (global-set-key (kbd "C-c n P") 'my/denote-philosopher)  ; Filozof
 (global-set-key (kbd "C-c n L") 'my/denote-literature)   ; Lektura
 (global-set-key (kbd "C-c n E") 'my/denote-essay)        ; Esej
+(global-set-key (kbd "C-c n p") 'my/denote-find-by-property)
 
 ;; --- Folgezettel (smart Zettelkasten) ---
 (global-set-key (kbd "C-c n Z") 'my/denote-zettel-smart)     ; Smart Zettel
