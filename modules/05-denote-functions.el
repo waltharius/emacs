@@ -1161,64 +1161,6 @@ ZAWSZE pyta o potwierdzenie!"
   (interactive)
   (dashboard-refresh-buffer))
 
-;; ============================================================
-;; DAILY GOALS: Interaktywne cele dzienne
-;; ============================================================
-
-(defvar my/daily-goals-file 
-  (expand-file-name "daily-goals.el" user-emacs-directory)
-  "Plik z celami dziennymi.")
-
-(defun my/load-daily-goals ()
-  "Wczytaj cele dzienne z pliku."
-  (if (file-exists-p my/daily-goals-file)
-      (with-temp-buffer
-        (insert-file-contents my/daily-goals-file)
-        (goto-char (point-min))
-        (read (current-buffer)))
-    ;; Domyślne wartości
-    '((all-notes . 500)
-      (journal . 300))))
-
-(defun my/save-daily-goals (goals)
-  "Zapisz cele dzienne do pliku."
-  (with-temp-file my/daily-goals-file
-    (insert ";; Daily writing goals - persistent configuration\n")
-    (insert ";; Format: ((all-notes . GOAL) (journal . GOAL))\n\n")
-    (pp goals (current-buffer))))
-
-(defun my/set-daily-goals ()
-  "Interaktywnie ustaw cele dzienne."
-  (interactive)
-  (let* ((current-goals (my/load-daily-goals))
-         (current-all (or (cdr (assoc 'all-notes current-goals)) 500))
-         (current-journal (or (cdr (assoc 'journal current-goals)) 300))
-         (new-all (read-number 
-                   (format "Daily goal for ALL notes (current: %d): " current-all)
-                   current-all))
-         (new-journal (read-number 
-                       (format "Daily goal for JOURNAL (current: %d): " current-journal)
-                       current-journal))
-         (new-goals `((all-notes . ,new-all)
-                      (journal . ,new-journal))))
-    (my/save-daily-goals new-goals)
-    (message "✅ Daily goals updated: All=%d, Journal=%d" new-all new-journal)
-    ;; Refresh dashboard jeśli otwarty
-    (when (get-buffer "*dashboard*")
-      (with-current-buffer "*dashboard*"
-        (dashboard-refresh-buffer)))))
-
-(defun my/format-progress-bar (current goal)
-  "Stwórz wizualny progress bar."
-  (let* ((percentage (if (> goal 0) 
-                        (min 100 (/ (* current 100) goal))
-                      0))
-         (filled (/ percentage 7))  ; 100% = 14 bloków, więc 100/7 ≈ 14
-         (empty (- 14 filled)))
-    (concat "["
-            (make-string filled ?█)
-            (make-string empty ?░)
-            "]")))
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
