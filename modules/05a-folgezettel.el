@@ -16,6 +16,7 @@
 ;; - my/denote-zettel-tree      → Wizualizacja drzewa
 ;; - my/denote-find-children    → Lista dzieci danego Zettel
 ;; - my/denote-find-siblings    → Siblings (rodzeństwo)
+;;#+title:      2025-10-05 Journal
 ;;
 ;;; Code:
 
