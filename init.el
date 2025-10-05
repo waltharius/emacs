@@ -44,6 +44,12 @@
 (my/load-module "06-keybindings.el")
 (my/load-module "07-git.el")
 
+;; ============================================================
+;; DASHBOARD FIX: Reload po załadowaniu wszystkich modułów
+;; ============================================================
+(when (fboundp 'dashboard-refresh-buffer)
+  (dashboard-refresh-buffer))
+
 (message "Emacs configuration loaded successfully! ✨")
 
 ;;; init.el ends here
