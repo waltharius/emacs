@@ -99,7 +99,9 @@
 (global-set-key (kbd "C-c n T") 'my/denote-zettel-tree)      ; Tree view
 (global-set-key (kbd "C-c n C") 'my/denote-find-children)    ; Find children
 
-(global-set-key (kbd "C-x C-k") 'kill-buffer-and-file)
+;; --- USUWANIE: Smart delete z Git-aware ---
+(global-set-key (kbd "C-c n d") 'my/denote-delete-note)
+(global-set-key (kbd "C-c n D") 'my/denote-delete-from-list)
 
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here

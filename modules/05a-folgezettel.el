@@ -261,7 +261,7 @@ Czyta signature z NAZWY PLIKU (==NX), nie z treści!"
     ;; Wyświetl
     (with-current-buffer (get-buffer-create "*Zettel Tree*")
       (read-only-mode -1)
-      (erase-buffer)
+      (erase-buffer)kq
       (org-mode)
       (insert "#+title: Folgezettel Tree\n")
       (insert "#+startup: overview\n\n")

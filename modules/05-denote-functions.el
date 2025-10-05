@@ -969,5 +969,56 @@
         (message "✅ Well-being ustawione: %d" score))
     (message "⚠️  To nie jest journal z własnością :well-being:")))
 
+;; ============================================================
+;; USUWANIE: Smart delete z Git-aware
+;; ============================================================
+
+(defun my/denote-delete-note ()
+  "Usuń obecną notatkę (plik + bufor).
+Jeśli w Git repo - używa 'git rm', inaczej zwykłe delete.
+ZAWSZE pyta o potwierdzenie!"
+  (interactive)
+  (let* ((file (buffer-file-name))
+         (name (file-name-nondirectory file)))
+    (if (not file)
+        (message "To nie jest plik!")
+      (when (yes-or-no-p (format "🗑️  Usunąć notatkę: %s? " name))
+        ;; Sprawdź czy w Git repo
+        (if (and (executable-find "git")
+                 (= 0 (call-process "git" nil nil nil 
+                                   "ls-files" "--error-unmatch" file)))
+            ;; W Git - użyj git rm
+            (progn
+              (shell-command (format "git rm -f '%s'" file))
+              (message "✅ Usunięto z Git: %s" name))
+          ;; Nie w Git - zwykłe delete
+          (progn
+            (delete-file file)
+            (message "✅ Usunięto plik: %s" name)))
+        ;; Zamknij bufor
+        (kill-buffer (current-buffer))))))
+
+(defun my/denote-delete-from-list ()
+  "Znajdź notatkę i usuń ją (bez otwierania)."
+  (interactive)
+  (let* ((files (directory-files my-notes-dir t "\\.org$"))
+         (file-names (mapcar #'file-name-nondirectory files))
+         (choice (completing-read "Usuń notatkę: " file-names))
+         (file (expand-file-name choice my-notes-dir)))
+    (when (yes-or-no-p (format "🗑️  Na pewno usunąć: %s? " choice))
+      ;; Git-aware delete
+      (if (and (executable-find "git")
+               (= 0 (call-process "git" nil nil nil 
+                                 "ls-files" "--error-unmatch" file)))
+          (progn
+            (shell-command (format "git rm -f '%s'" file))
+            (message "✅ Usunięto z Git: %s" choice))
+        (progn
+          (delete-file file)
+          (message "✅ Usunięto: %s" choice)))
+      ;; Zamknij bufor jeśli otwarty
+      (let ((buf (get-file-buffer file)))
+        (when buf (kill-buffer buf))))))
+
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
