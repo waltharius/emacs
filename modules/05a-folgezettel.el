@@ -190,7 +190,7 @@ Przykład: N1 → szuka N1[a-z] → zwraca max(letter) + 1"
 
 (defun my/denote-zettel-tree ()
   "Pokaż drzewo Folgezettel (hierarchia signatures)."
-  (interactive)
+  (interactive)  ; ✅ MUSI BYĆ TUTAJ (zaraz po docstringu!)
   (let ((sigs '()))
     ;; Zbierz wszystkie signatures
     (dolist (file (directory-files my-notes-dir t "\\.org$"))
