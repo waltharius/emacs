@@ -24,7 +24,6 @@
 ;; ============================================================
 ;; GŁÓWNA FUNKCJA: Smart Zettel Creator
 ;; ============================================================
-
 (defun my/denote-zettel-smart ()
   "Utwórz Zettel z inteligentnym Folgezettel signature.
 Automatycznie generuje signature, linkuje do parenta i dodaje backlink."
@@ -37,18 +36,8 @@ Automatycznie generuje signature, linkuje do parenta i dodaje backlink."
                     (my/folge-next-child parent-sig)))
          (title (read-string (format "Tytuł dla %s: " new-sig))))
     
-    ;; === KLUCZOWA ZMIANA: dodajemy new-sig jako signature ===
-;    (denote title '("zettel") nil new-sig (current-time) nil)
-    (denote title '("zettel") nil new-sig (current-time) nil)
-    
-    ;; Dodaj signature do treści (opcjonalnie, dla czytelności)
-    (save-excursion
-      (goto-char (point-min))
-      (when (re-search-forward "^#\\+filetags:" nil t)
-        (forward-line 1)
-        (insert (format "#+signature: %s\n" new-sig))))
-    
-    (save-buffer)
+    ;; Utwórz notatkę Z SIGNATURE używając denote-signature
+    (denote-signature title '("zettel") new-sig)
     
     ;; Link do parenta (jeśli istnieje)
     (unless (string-empty-p parent-sig)
