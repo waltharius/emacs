@@ -107,7 +107,16 @@
 ;; --- Orrg-roam UI (graf)
 (global-set-key (kbd "C-c n u") 'org-roam-ui-mode)
 
-(global-set-key (kbd "C-c d r") 'my/dashboard-refresh)
+(global-set-key (kbd "C-c d r") 'dashboard-refresh-buffer)
+(global-set-key (kbd "C-c d d") 'dashboard-open)
+
+;; Bookmarks
+(global-set-key (kbd "C-c b m") 'bookmark-set)      ; Ustaw bookmark
+(global-set-key (kbd "C-c b j") 'bookmark-jump)     ; Skocz do bookmarku
+(global-set-key (kbd "C-c b l") 'bookmark-bmenu-list) ; Lista bookmarków
+
+;; Cele dzienne interaktywne
+(global-set-key (kbd "C-c g s") 'my/set-daily-goals)
 
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here
