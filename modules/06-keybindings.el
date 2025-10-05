@@ -99,5 +99,7 @@
 (global-set-key (kbd "C-c n T") 'my/denote-zettel-tree)      ; Tree view
 (global-set-key (kbd "C-c n C") 'my/denote-find-children)    ; Find children
 
+(global-set-key (kbd "C-x C-k") 'kill-buffer-and-file)
+
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here
