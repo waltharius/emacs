@@ -14,38 +14,42 @@
          (journal-pattern (concat "--" today "-journal"))
          (existing-journal nil))
     
+    ;; Szukaj istniejącego journala
     (dolist (file (directory-files my-notes-dir t "\\.org$"))
       (when (string-match-p journal-pattern (file-name-nondirectory file))
         (setq existing-journal file)))
     
     (if existing-journal
+        ;; Journal już istnieje - otwórz i dodaj wpis
         (progn
           (find-file existing-journal)
           (goto-char (point-max))
           (unless (bolp) (insert "\n"))
-          (insert (format "\n* %s\n\n" time-now))
+          (insert (format "\n* Księżenice (%s)\n" time-now))
           (backward-char 1)
           (message "Dodano wpis do journala"))
       
+      ;; Nowy journal - NAJPIERW utwórz plik!
       (let* ((id (format-time-string "%Y%m%dT%H%M%S"))
-             (slug (replace-regexp-in-string 
-                    "[^[:alnum:]]+" "-" 
-                    (downcase (format "%s-journal" today))))
+             (slug (replace-regexp-in-string "[^[:alnum:]]" "-" (downcase (format "%s-journal" today))))
              (filename (format "%s--%s__journal.org" id slug))
              (filepath (expand-file-name filename my-notes-dir)))
         
-	;; NOWY KOD (z well-being):
-	(insert (format "#+title:      %s Journal\n" today))
-	(insert (format "#+date:       %s\n" 
-			(format-time-string "[%Y-%m-%d %a %H:%M]")))
-	(insert "#+filetags:   :journal:\n")
-	(insert (format "#+identifier: %s\n" id))
-	;; Dodaj property well-being
-	(insert ":PROPERTIES:\n")
-	(insert ":well-being: \n")  ; Puste pole - wypełnisz później!
-	(insert ":END:\n\n")
-	(insert (format "* Książenice (%s)\n\n" time-now))
-
+        ;; NAJPIERW find-file (tworzy buffer + plik)
+        (find-file filepath)
+        
+        ;; POTEM wstaw frontmatter (teraz buffer JUŻ JEST!)
+        (insert (format "#+title:      %s Journal\n" today))
+        (insert (format "#+date:       [%s]\n" (format-time-string "%Y-%m-%d %a %H:%M")))
+        (insert "#+filetags:   :journal:\n")
+        (insert (format "#+identifier: %s\n" id))
+        
+        ;; Dodaj property well-being
+        (insert ":PROPERTIES:\n")
+        (insert ":well-being:  \n")  ; Puste pole - wypełnisz później!
+        (insert ":END:\n\n")
+        
+        (insert (format "* Księżenice (%s)\n" time-now))
         (backward-char 1)
         (message "Utworzono nowy journal")))))
 

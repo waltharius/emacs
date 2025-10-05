@@ -150,7 +150,7 @@
             (setq notes-today (1+ notes-today)))
           
           (with-temp-buffer
-            (insert-file-contents full-path)
+            (insert-file-contents full-path)  ; <-- KLUCZOWE!
             
             ;; Policz słowa w tym pliku
             (let ((word-count (count-words (point-min) (point-max))))
@@ -189,6 +189,7 @@
                   (if existing
                       (setcdr existing (1+ (cdr existing)))
                     (push (cons project-name 1) projects-alist))))))))
+
       
       ;; Well-being
       (when (file-exists-p (expand-file-name "well-being.org" my-notes-dir))
