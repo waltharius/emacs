@@ -120,7 +120,7 @@
   :ensure t
   :init
   ;; ===== FUNKCJA GŁÓWNA: PKM Stats =====
-  (defun my/dashboard-insert-pkm-stats (list-size)
+    (defun my/dashboard-insert-pkm-stats (list-size)
     "Wstaw PEŁNE statystyki PKM z licznikami słów."
     (let* ((my-notes-dir (expand-file-name "~/notes"))
            (all-notes (directory-files my-notes-dir nil "\\.org$"))
