@@ -104,5 +104,8 @@
 (global-set-key (kbd "C-c n d") 'my/denote-delete-note)
 (global-set-key (kbd "C-c n D") 'my/denote-delete-from-list)
 
+;; --- Orrg-roam UI (graf)
+(global-set-key (kbd "C-c n u") 'org-roam-ui-mode)
+
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here

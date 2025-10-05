@@ -43,5 +43,27 @@
 (use-package gnuplot
   :ensure t)
 
+;; --- Dashboard ---
+(use-package dashboard
+  :ensure t
+  :config
+  (dashboard-setup-startup-hook)
+  (setq dashboard-banner-logo-title "📚 Emacs PKM System")
+  (setq dashboard-startup-banner 'logo)
+  (setq dashboard-center-content t)
+  (setq dashboard-items '((recents  . 5)
+                          (bookmarks . 5)
+                          (projects . 5)))
+  (setq dashboard-set-footer nil))
+
+;; --- Org-roam UI (graf)
+(use-package org-roam-ui
+  :ensure t
+  :after org-roam
+  :config
+  (setq org-roam-ui-sync-theme t)
+  (setq org-roam-ui-follow t)
+  (setq org-roam-ui-update-on-save t))
 (provide '01-packages)
+
 ;;; 01-packages.el ends here
