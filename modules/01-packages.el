@@ -406,18 +406,23 @@
     (setq dashboard-item-names '(("Recent Files:" . "📝 Ostatnio otwarte:")
                              ("Bookmarks:" . "⭐ Zakładki:")))
     (setq dashboard-vertically-center-content t)
+
     (setq dashboard-navigator-buttons
       `(;; Line 1
-        ((,(all-the-icons-octicon "mark-github" :height 1.1 :v-adjust 0.0)
-          "GitHub"
-          "Open GitHub"
-          (lambda (&rest _) (browse-url "https://github.com/marcinofulus")))
-         ("📚" "Notes Dir" "Open notes" (lambda (&rest _) (dired "~/notes"))))
+        (("📚" "Notes Dir" "Open notes directory"
+          (lambda (&rest _) (dired "~/notes")))
+         ("⚙️" "Config" "Open init.el"
+          (lambda (&rest _) (find-file "~/.emacs.d/init.el")))
+         ("🧠" "Philosophy" "Browse philosophy files"
+          (lambda (&rest _) (find-file "~/notes/filozofia.org"))))
         ;; Line 2
-        ((,(all-the-icons-faicon "book" :height 1.1 :v-adjust 0.0)
-          "Philosophy"
-          "Browse philosophy books"
-          (lambda (&rest _) (find-file "~/notes/filozofia.org"))))))
+        (("📝" "Journal" "Create journal entry"
+          (lambda (&rest _) (call-interactively 'my/denote-journal)))
+         ("🔖" "Zettel" "Create zettel"
+          (lambda (&rest _) (call-interactively 'my/denote-zettel)))
+         ("🚀" "Blog" "DoMowy"
+          (lambda (&rest _) (browse-url "https://blog.waltharius.pl"))))))
+    
   ;; Footer quotes
   (setq dashboard-footer-messages 
       '("Free as free speech, free as free Beer"
