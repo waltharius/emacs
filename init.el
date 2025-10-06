@@ -19,6 +19,17 @@
 ;; ============================================================
 
 (setq load-prefer-newer t)
+;; Enable recentf mode GLOBALLY (before loading modules!)
+(recentf-mode 1)
+(setq recentf-max-saved-items 100)
+(setq recentf-auto-cleanup 'never)
+(setq recentf-exclude '("\\.git/"
+                        "COMMIT_EDITMSG"
+                        "\\.elc$"
+                        "/elpa/"
+                        "^/tmp/"
+                        "^#.*#$"        ; Ignore auto-save files
+                        "^\\.#"))       ; Ignore lock files!
 
 ;; ============================================================
 ;; LOAD MODULES
@@ -58,9 +69,6 @@
                   (dashboard-refresh-buffer)))
               (message "✅ Dashboard refreshed!"))))
 
-(recentf-mode 1)
-(setq recentf-max-saved-items 50)  ; Keep 50 files
-(setq recentf-auto-cleanup 'never) ; Don't auto-cleanup on startup
 (message "Emacs configuration loaded successfully! ✨")
 
 (provide 'init)

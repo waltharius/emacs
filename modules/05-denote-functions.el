@@ -1088,6 +1088,32 @@ ZAWSZE pyta o potwierdzenie!"
                (file (cdr (assoc choice results))))
           (find-file file))
       (message "Nie znaleziono notatek z %s=%s" property value))))
+;; ============================================================
+;; WELL-BEING: Auto-create tracker file
+;; ============================================================
+
+(defun my/ensure-wellbeing-file ()
+  "Create well-being.org if it doesn't exist."
+  (let ((wellbeing-file (expand-file-name "~/notes/well-being.org")))
+    (unless (file-exists-p wellbeing-file)
+      (with-temp-file wellbeing-file
+        (insert "#+title: Well-Being Tracker\n")
+        (insert "#+filetags: :wellbeing:\n\n")
+        (insert "* Daily Check-ins\n\n")
+        (insert "Track your well-being daily. Rate each category from 1-10.\n\n")
+        (insert "** " (format-time-string "%Y-%m-%d") " [0/10]\n\n")
+        (insert "- Mood: \n")
+        (insert "- Energy: \n")
+        (insert "- Focus: \n")
+        (insert "- Sleep Quality: \n")
+        (insert "- Physical Health: \n")
+        (insert "- Social Connection: \n")
+        (insert "- Stress Level (1=low, 10=high): \n")
+        (insert "- Notes: \n\n"))
+      (message "✅ Created well-being.org tracker!"))))
+
+;; Create well-being file on Dashboard load
+(add-hook 'dashboard-mode-hook 'my/ensure-wellbeing-file)
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here

@@ -173,11 +173,13 @@
          (projects-alist '())
          (well-being-entries '()))
     
-    ;; Count notes and words
+    ;; Policz notatki i słowa
     (dolist (file all-notes)
-      (let ((full-path (expand-file-name file my-notes-dir)))
-        (when (string-match today-str file)
-          (setq notes-today (1+ notes-today)))
+      ;; SKIP lock files (.#filename), auto-saves (#filename#), and hidden files
+      (unless (or (string-prefix-p "." file)
+              (string-prefix-p "#" file)
+              (string-suffix-p "#" file))
+	(let ((full-path (expand-file-name file my-notes-dir)))
         
         (with-temp-buffer
           (insert-file-contents full-path)
@@ -219,6 +221,7 @@
                 (if existing
                     (setcdr existing (1+ (cdr existing)))
                   (push (cons project-name 1) projects-alist))))))))
+    )
     
     ;; Well-being entries
     (when (file-exists-p (expand-file-name "well-being.org" my-notes-dir))
