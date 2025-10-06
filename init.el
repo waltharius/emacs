@@ -14,6 +14,12 @@
 ;;   - modules/07-git.el              : Konfiguracja git
 ;;
 ;;; Code:
+;; ============================================================
+;; CRITICAL: Prevent byte-compilation cache issues
+;; ============================================================
+
+;; Always load .el files even if .elc exists (slower but safer)
+;;(setq load-prefer-newer t)
 
 ;; --- Funkcja ładująca moduły ---
 (defun my/load-module (filename)

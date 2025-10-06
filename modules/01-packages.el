@@ -329,7 +329,11 @@
       (insert "    [q] Quit\n\n")))
   
   :config
-  (dashboard-setup-startup-hook)
+  ;; Delay dashboard setup to ensure all functions loaded
+(run-with-idle-timer 0.5 nil
+  (lambda ()
+    (dashboard-setup-startup-hook)
+    (message "✅ Dashboard loaded!")))
   
   ;; Podstawowe ustawienia
   (setq dashboard-banner-logo-title "📚 Emacs + Denote + Org PKM System")
