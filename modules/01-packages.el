@@ -361,17 +361,21 @@
     (insert "    [q] Quit\n\n")))
 
 ;; ----- HELPER FUNCTIONS (PRZED dashboard!) -----
-;; Testowa funkcja - pokazuje WSZYSTKIE recent files (bez filtra)
 (defun my/dashboard-insert-recent-notes (&optional list-size)
-  "Insert recent notes - DEBUG VERSION."
-  (let ((list-size (or list-size 5)))
+  "Insert recent notes from ~/notes directory."
+  (let* ((list-size (or list-size 5))
+         (notes-dir (expand-file-name "~/notes/"))
+         (recent-files (seq-filter
+                        (lambda (f)
+                          (and (stringp f)
+                               (string-prefix-p notes-dir (expand-file-name f))))
+                        recentf-list)))
     (dashboard-insert-heading "Recent Files:")
     (insert "\n")
-    (if recentf-list
-        (progn
-          (insert (format "    DEBUG: Found %d files in recentf-list\n" (length recentf-list)))
-          (dolist (file (seq-take recentf-list list-size))
-            (insert (format "    - %s\n" file))))
+    (if recent-files
+        (dolist (file (seq-take recent-files list-size))
+          (let ((filename (file-name-nondirectory file)))
+            (insert (format "    • %s\n" filename))))
       (insert "    --- No recent notes ---\n"))
     (insert "\n")))
 
@@ -397,15 +401,14 @@
                           "/modules/"))
   
   ;; Items to show (bookmarks only - recents are custom)
-  (setq dashboard-items '((recent . 5)
-			  (bookmarks . 5)))
+  (setq dashboard-items '(bookmarks . 5))
   
   ;; Custom widgets (ORDERED!)
   (setq dashboard-startupify-list '(dashboard-insert-banner
                                     dashboard-insert-newline
                                     dashboard-insert-banner-title
                                     dashboard-insert-newline
-;				    my/dashboard-insert-recent-notes
+				    my/dashboard-insert-recent-notes
                                     dashboard-insert-items
                                     dashboard-insert-newline
                                     my/dashboard-insert-pkm-stats
@@ -442,23 +445,6 @@
   (define-key dashboard-mode-map (kbd "r") 'dashboard-refresh-buffer)
   (define-key dashboard-mode-map (kbd "q") 'quit-window)
 
-  ;; Force recent files widget to refresh on dashboard load
-(defun my/dashboard-force-refresh-widgets ()
-  "Force refresh all custom widgets."
-  (save-excursion
-    (goto-char (point-min))
-    ;; Find "Recent Files:" section and update it
-    (when (search-forward "Recent Files:" nil t)
-      (let ((inhibit-read-only t))
-        (beginning-of-line)
-        (delete-region (point) 
-                       (or (and (re-search-forward "^[A-Z]" nil t)
-                                (line-beginning-position))
-                           (point-max)))
-        (my/dashboard-insert-recent-notes)))))
-
-;; Add to dashboard refresh hook
-(add-hook 'dashboard-after-initialize-hook 'my/dashboard-force-refresh-widgets)
 
   
   ;; Setup Dashboard
