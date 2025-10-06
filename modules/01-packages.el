@@ -397,14 +397,15 @@
                           "/modules/"))
   
   ;; Items to show (bookmarks only - recents are custom)
-  (setq dashboard-items '((bookmarks . 5)))
+  (setq dashboard-items '((recent . 5)
+			  (bookmarks . 5)))
   
   ;; Custom widgets (ORDERED!)
   (setq dashboard-startupify-list '(dashboard-insert-banner
                                     dashboard-insert-newline
                                     dashboard-insert-banner-title
                                     dashboard-insert-newline
-				    my/dashboard-insert-recent-notes
+;				    my/dashboard-insert-recent-notes
                                     dashboard-insert-items
                                     dashboard-insert-newline
                                     my/dashboard-insert-pkm-stats
