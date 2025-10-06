@@ -360,25 +360,6 @@
     (insert "    [p] Filozof      [d] Delete Note   [s] Shortcuts   [c] Full Cockpit\n")
     (insert "    [q] Quit\n\n")))
 
-;; ----- HELPER FUNCTIONS (PRZED dashboard!) -----
-(defun my/dashboard-insert-recent-notes (&optional list-size)
-  "Insert recent notes from ~/notes directory."
-  (let* ((list-size (or list-size 5))
-         (notes-dir (expand-file-name "~/notes/"))
-         (recent-files (seq-filter
-                        (lambda (f)
-                          (and (stringp f)
-                               (string-prefix-p notes-dir (expand-file-name f))))
-                        recentf-list)))
-    (dashboard-insert-heading "Recent Files:")
-    (insert "\n")
-    (if recent-files
-        (dolist (file (seq-take recent-files list-size))
-          (let ((filename (file-name-nondirectory file)))
-            (insert (format "    • %s\n" filename))))
-      (insert "    --- No recent notes ---\n"))
-    (insert "\n")))
-
 ;; ----- DASHBOARD PACKAGE CONFIGURATION -----
 
 (use-package dashboard
@@ -391,6 +372,7 @@
   (setq dashboard-show-shortcuts nil)
   (setq dashboard-set-heading-icons t)
   (setq dashboard-set-file-icons t)
+  (setq dashboard-icon-type 'all-the-icons)
 
   ;; Exclude config files from recent list globally
   (setq recentf-exclude '("\\.emacs\\.d/"
@@ -401,15 +383,15 @@
                           "/modules/"))
   
   ;; Items to show (bookmarks only - recents are custom)
-  (setq dashboard-items '(bookmarks . 5))
+    (setq dashboard-items '((recents . 10)
+                          (bookmarks . 5)))
   
   ;; Custom widgets (ORDERED!)
   (setq dashboard-startupify-list '(dashboard-insert-banner
                                     dashboard-insert-newline
                                     dashboard-insert-banner-title
                                     dashboard-insert-newline
-				    my/dashboard-insert-recent-notes
-                                    dashboard-insert-items
+				    dashboard-insert-items
                                     dashboard-insert-newline
                                     my/dashboard-insert-pkm-stats
                                     dashboard-insert-footer))
