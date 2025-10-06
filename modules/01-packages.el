@@ -360,6 +360,11 @@
     (insert "    [p] Filozof      [d] Delete Note   [s] Shortcuts   [c] Full Cockpit\n")
     (insert "    [q] Quit\n\n")))
 
+;; All-the-icons - for fancy icons
+(use-package all-the-icons
+  :ensure t
+  :if (display-graphic-p))
+
 ;; ----- DASHBOARD PACKAGE CONFIGURATION -----
 
 (use-package dashboard
