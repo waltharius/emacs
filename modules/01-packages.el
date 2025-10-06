@@ -227,46 +227,64 @@
                      zettel (my/format-number zettel-words)))
       
       ;; Today + Daily Goals
-      (let* ((goals (my/load-daily-goals))
-             (goal-all (or (cdr (assoc 'all-notes goals)) 500))
-             (goal-journal (or (cdr (assoc 'journal goals)) 300))
-             (percentage-all (if (> goal-all 0)
-                                (min 100 (/ (* words-today 100) goal-all))
-                              0))
-             (percentage-journal (if (> goal-journal 0)
-                                    (min 100 (/ (* journal-words 100) goal-journal))
-                                  0)))
-        
-        (insert (propertize (format "    📅 Today:              %d notes, %d words\n\n" 
-                                   notes-today words-today)
-                           'face '(:foreground "#c678dd")))
-        
-        ;; Daily Goals z progress barami!
-        (insert (propertize "🎯 Daily Goals" 
-                           'face '(:foreground "#da8548" :weight bold :height 1.2)))
-        (insert "\n\n")
-        
-        ;; Goal: All notes
-        (insert (format "    All Notes:   %d/%d words   %s %d%%\n" 
-                       words-today 
-                       goal-all
-                       (my/format-progress-bar words-today goal-all)
-                       percentage-all))
-        
-        ;; Goal: Journal
-        (insert (format "    Journal:     %d/%d words   %s %d%%\n\n" 
-                       journal-words 
-                       goal-journal
-                       (my/format-progress-bar journal-words goal-journal)
-                       percentage-journal))
-        
-        ;; Link do zmiany celów
-        (insert "    ")
-        (insert-text-button "[g] Change goals"
-                           'action (lambda (_) (my/set-daily-goals))
-                           'follow-link t
-                           'face '(:foreground "#51afef" :underline t))
-        (insert "\n\n"))
+(let* ((goals (my/load-daily-goals))
+       (goal-all (or (cdr (assoc 'all-notes goals)) 500))
+       (goal-journal (or (cdr (assoc 'journal goals)) 300))
+       
+       ;; NOWE: Journal words TYLKO Z DZISIAJ!
+       (journal-words-today 0)
+       
+       (percentage-all (if (> goal-all 0)
+                          (min 100 (/ (* words-today 100) goal-all))
+                        0))
+       (percentage-journal (if (> goal-journal 0)
+                              (min 100 (/ (* journal-words-today 100) goal-journal))
+                            0)))
+  
+  ;; Policz journal words TYLKO Z DZISIAJ!
+  (dolist (file all-notes)
+    (let ((full-path (expand-file-name file my-notes-dir)))
+      (when (and (string-match today-str file)  ; TYLKO dzisiaj!
+                 (string-match ":journal:" 
+                              (with-temp-buffer
+                                (insert-file-contents full-path)
+                                (buffer-substring (point-min) (min 500 (point-max))))))
+        (with-temp-buffer
+          (insert-file-contents full-path)
+          (setq journal-words-today 
+                (+ journal-words-today 
+                   (count-words (point-min) (point-max))))))))
+  
+  (insert (propertize (format "    📅 Today:              %d notes, %d words\n\n" 
+                             notes-today words-today)
+                     'face '(:foreground "#c678dd")))
+  
+  ;; Daily Goals z progress barami!
+  (insert (propertize "🎯 Daily Goals" 
+                     'face '(:foreground "#da8548" :weight bold :height 1.2)))
+  (insert "\n\n")
+  
+  ;; Goal: All notes
+  (insert (format "    All Notes:   %d/%d words   %s %d%%\n" 
+                 words-today 
+                 goal-all
+                 (my/format-progress-bar words-today goal-all)
+                 percentage-all))
+  
+  ;; Goal: Journal (POPRAWIONE - tylko dzisiaj!)
+  (insert (format "    Journal:     %d/%d words   %s %d%%\n\n" 
+                 journal-words-today  ; <-- FIXED! Tylko dzisiaj!
+                 goal-journal
+                 (my/format-progress-bar journal-words-today goal-journal)
+                 percentage-journal))
+  
+  ;; Link do zmiany celów
+  (insert "    ")
+  (insert-text-button "[g] Change goals"
+                     'action (lambda (_) (my/set-daily-goals))
+                     'follow-link t
+                     'face '(:foreground "#51afef" :underline t))
+  (insert "\n\n"))
       
       ;; Projekty - LISTA
       (when projects-alist
