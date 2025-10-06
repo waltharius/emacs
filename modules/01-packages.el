@@ -332,7 +332,7 @@
   (dashboard-setup-startup-hook)
   
   ;; Podstawowe ustawienia
-  (setq dashboard-banner-logo-title "📚 Emacs PKM System - Filozofia")
+  (setq dashboard-banner-logo-title "📚 Emacs + Denote + Org PKM System")
   (setq dashboard-startup-banner 'logo)
   (setq dashboard-center-content t)
   (setq dashboard-set-footer t)

@@ -50,6 +50,28 @@
 (when (fboundp 'dashboard-refresh-buffer)
   (dashboard-refresh-buffer))
 
+;; ============================================================
+;; AUTO-RELOAD: Dashboard functions after startup
+;; ============================================================
+
+;; Fix: Dashboard loads before functions are fully loaded
+;; Solution: Force reload after Emacs startup completes
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            ;; Reload 01-packages.el to ensure fresh functions
+            (load-file (expand-file-name "modules/01-packages.el" user-emacs-directory))
+            
+            ;; Refresh Dashboard if it exists
+            (when (get-buffer "*dashboard*")
+              (with-current-buffer "*dashboard*"
+                (let ((inhibit-read-only t))
+                  (erase-buffer)
+                  (dashboard-insert-startupify-lists))))
+            
+            (message "✅ Dashboard reloaded with fresh stats!")))
+
+(provide 'init)
+
 (message "Emacs configuration loaded successfully! ✨")
 
 ;;; init.el ends here
