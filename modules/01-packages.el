@@ -357,6 +357,38 @@
     (insert "    [p] Filozof      [d] Delete Note   [s] Shortcuts   [c] Full Cockpit\n")
     (insert "    [q] Quit\n\n")))
 
+;; ----- HELPER FUNCTIONS (PRZED dashboard!) -----
+
+;; Custom recent notes widget (shows only ~/notes with titles)
+(defun my/dashboard-insert-recent-notes (&optional list-size)
+  "Insert recent notes from ~/notes with Denote titles."
+  (let ((list-size (or list-size 5)))
+    (dashboard-insert-heading "Recent Files:")
+    (let* ((notes-dir (expand-file-name "~/notes/"))
+           (recent-notes (seq-filter
+                          (lambda (f)
+                            (and (file-exists-p f)
+                                 (string-prefix-p notes-dir (expand-file-name f))))
+                          recentf-list))
+           (items (seq-take recent-notes list-size)))
+      (if items
+          (dolist (file items)
+            (let* ((filename (file-name-nondirectory file))
+                   ;; Extract title from Denote: YYYYMMDDTHHMMSS--TITLE__TAGS.org
+                   (title (if (string-match "^[0-9T]\\{15\\}--\\(.+?\\)__" filename)
+                              (replace-regexp-in-string "-" " " (match-string 1 filename))
+                            filename)))
+              (insert "\n    ")
+              (widget-create 'push-button
+                             :action `(lambda (&rest _) (find-file-existing ,file))
+                             :mouse-face 'highlight
+                             :button-prefix ""
+                             :button-suffix ""
+                             :format "%[%t%]"
+                             title)))
+        (insert "\n    --- No recent notes ---"))
+      (insert "\n"))))
+
 ;; ----- DASHBOARD PACKAGE CONFIGURATION -----
 
 (use-package dashboard
@@ -369,16 +401,24 @@
   (setq dashboard-show-shortcuts nil)
   (setq dashboard-set-heading-icons t)
   (setq dashboard-set-file-icons t)
+
+  ;; Exclude config files from recent list globally
+  (setq recentf-exclude '("\\.emacs\\.d/"
+                          "/elpa/"
+                          "\\.git/"
+                          "COMMIT_EDITMSG"
+                          "\\.elc$"
+                          "/modules/"))
   
-  ;; Items to show
-  (setq dashboard-items '((recents . 5)
-                         (bookmarks . 5)))
+  ;; Items to show (bookmarks only - recents are custom)
+  (setq dashboard-items '((bookmarks . 5)))
   
   ;; Custom widgets (ORDERED!)
   (setq dashboard-startupify-list '(dashboard-insert-banner
                                     dashboard-insert-newline
                                     dashboard-insert-banner-title
                                     dashboard-insert-newline
+				    my/dashboard-insert-recent-notes
                                     dashboard-insert-items
                                     dashboard-insert-newline
                                     my/dashboard-insert-pkm-stats
