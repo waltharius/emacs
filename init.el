@@ -15,32 +15,28 @@
 ;;
 ;;; Code:
 ;; ============================================================
-;; CRITICAL: Prevent byte-compilation cache issues
+;; CRITICAL: Load fresh .el files (prevent cache issues)
 ;; ============================================================
 
-;; Always load .el files even if .elc exists (slower but safer)
-;;(setq load-prefer-newer t)
+(setq load-prefer-newer t)
 
-;; --- Funkcja ładująca moduły ---
-(defun my/load-module (filename)
-  "Load module from ~/.emacs.d/modules/ with error handling."
-  (let ((file (expand-file-name 
-               (concat "modules/" filename) 
-               user-emacs-directory)))
-    (condition-case err
+;; ============================================================
+;; LOAD MODULES
+;; ============================================================
+;; Helper function to load modules
+(defun my/load-module (module-name)
+  "Load module from ~/.emacs.d/modules/ directory."
+  (let ((module-file (expand-file-name 
+                      (concat "modules/" module-name) 
+                      user-emacs-directory)))
+    (if (file-exists-p module-file)
         (progn
-          (load file)
-          (message "✓ Loaded: %s" filename))
-      (error
-       (message "✗ Failed to load %s: %s" filename (error-message-string err))
-       (display-warning 'init 
-                        (format "Failed to load module %s: %s" 
-                                filename (error-message-string err))
-                        :error)))))
+          (message "Loading %s..." module-name)
+          (load-file module-file))
+      (message "Warning: Module %s not found!" module-name))))
 
-;; --- Ładowanie modułów (kolejność ma znaczenie!) ---
+;; Load all modules in order
 (message "Loading Emacs configuration...")
-
 (my/load-module "01-packages.el")
 (my/load-module "02-spelling.el")
 (my/load-module "03-ui.el")
@@ -51,35 +47,20 @@
 (my/load-module "07-git.el")
 
 ;; ============================================================
-;; DASHBOARD FIX: Reload po załadowaniu wszystkich modułów
+;; DASHBOARD FIX: Refresh after startup
 ;; ============================================================
+
 (when (fboundp 'dashboard-refresh-buffer)
-  (dashboard-refresh-buffer))
-
-;; ============================================================
-;; AUTO-RELOAD: Dashboard functions after startup
-;; ============================================================
-
-;; Fix: Dashboard loads before functions are fully loaded
-;; Solution: Force reload after Emacs startup completes
-(add-hook 'emacs-startup-hook
-          (lambda ()
-            ;; Reload 01-packages.el to ensure fresh functions
-            (load-file (expand-file-name "modules/01-packages.el" user-emacs-directory))
-            
-            ;; Refresh Dashboard if it exists
-            (when (get-buffer "*dashboard*")
-              (with-current-buffer "*dashboard*"
-                (let ((inhibit-read-only t))
-                  (erase-buffer)
-                  (dashboard-insert-startupify-lists))))
-            
-            (message "✅ Dashboard reloaded with fresh stats!")))
-
-(provide 'init)
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              (when (get-buffer "*dashboard*")
+                (with-current-buffer "*dashboard*"
+                  (dashboard-refresh-buffer)))
+              (message "✅ Dashboard refreshed!"))))
 
 (message "Emacs configuration loaded successfully! ✨")
 
+(provide 'init)
 ;;; init.el ends here
 (custom-set-variables
  ;; custom-set-variables was added by Custom.

@@ -328,18 +328,31 @@
       (insert "    [p] Filozof      [d] Delete Note   [s] Shortcuts   [c] Full Cockpit\n")
       (insert "    [q] Quit\n\n")))
   
-  :config
-  ;; Delay dashboard setup to ensure all functions loaded
-(run-with-idle-timer 0.5 nil
-  (lambda ()
+    :config
     (dashboard-setup-startup-hook)
-    (message "✅ Dashboard loaded!")))
+
   
   ;; Podstawowe ustawienia
   (setq dashboard-banner-logo-title "📚 Emacs + Denote + Org PKM System")
   (setq dashboard-startup-banner 'logo)
   (setq dashboard-center-content t)
-  (setq dashboard-set-footer t)
+  (setq dashboard-show-shortcuts nil)
+  (setq dashboard-set-heading-icons t)
+  (setq dashboard-set-file-icons t)
+  ;; Items to show
+  (setq dashboard-items '((recents . 5)
+                         (bookmarks . 5)))
+  
+  ;; Custom widgets (ORDERED!)
+  (setq dashboard-startupify-list '(dashboard-insert-banner
+                                    dashboard-insert-newline
+                                    dashboard-insert-banner-title
+                                    dashboard-insert-newline
+                                    dashboard-insert-items
+                                    dashboard-insert-newline
+                                    my/dashboard-insert-pkm-stats
+                                    dashboard-insert-footer))
+  
   (setq dashboard-footer-messages 
       '("Free as free speech, free as free Beer"
         "The unexamined life is not worth living — Socrates"
@@ -358,8 +371,6 @@
         "The mind is furnished with ideas by experience alone — Locke"))
   
   ;; Ikony
-  (setq dashboard-set-heading-icons t)
-  (setq dashboard-set-file-icons t)
   (setq dashboard-bookmarks-show-base nil)
   
   ;; Items: Recent Files + Bookmarks + Custom Stats
@@ -376,7 +387,13 @@
     "Otwórz plik ze skrótami."
     (interactive)
     (find-file "~/notes/20251003T010032--skróty-klawiszowe-quick-reference__doku_skróty.org"))
-  
+
+  (setq dashboard-footer-icon
+        (all-the-icons-fileicon "emacs"
+                               :height 1.1
+                               :v-adjust -0.05
+                               :face 'font-lock-keyword-face))
+
   (define-key dashboard-mode-map (kbd "j") 'my/denote-journal)
   (define-key dashboard-mode-map (kbd "b") 'my/denote-base)
   (define-key dashboard-mode-map (kbd "z") 'my/denote-zettel-smart)
@@ -387,6 +404,9 @@
   (define-key dashboard-mode-map (kbd "c") 'my/denote-cockpit)
   (define-key dashboard-mode-map (kbd "g") 'my/set-daily-goals)
   (define-key dashboard-mode-map (kbd "q") 'quit-window))
+
+  ;; Setup Dashboard (STANDARD - NO DELAYS!)
+  (dashboard-setup-startup-hook))
 
 ;; --- Org-roam UI (graf)
 (use-package org-roam-ui
@@ -418,4 +438,5 @@
 (when (fboundp 'dashboard-refresh-buffer)
   (dashboard-refresh-buffer))
 
+(provide '01-packages)
 ;;; 01-packages.el ends here
