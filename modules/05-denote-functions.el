@@ -14,7 +14,7 @@
          (journal-pattern (concat "--" today "-journal"))
          (existing-journal nil))
     
-    ;; Szukaj istniejącego journala
+    ;; Szukaj istniejącego journala NA DYSKU (zapisane pliki!)
     (dolist (file (directory-files my-notes-dir t "\\.org$"))
       (when (string-match-p journal-pattern (file-name-nondirectory file))
         (setq existing-journal file)))
@@ -24,33 +24,47 @@
         (progn
           (find-file existing-journal)
           (goto-char (point-max))
-          (unless (bolp) (insert "\n"))
-          (insert (format "\n* Księżenice (%s)\n" time-now))
-          (backward-char 1)
+          
+          ;; SMART SPACING: ZAWSZE jedna linia odstępu!
+          ;; 1. Usuń trailing whitespace
+          (save-excursion
+            (goto-char (point-max))
+            (skip-chars-backward " \t\n")
+            (delete-region (point) (point-max)))
+          
+          ;; 2. Dodaj DOKŁADNIE dwa \n (jedna pusta linia)
+          (goto-char (point-max))
+          (insert "\n\n")
+          
+          ;; 3. Dodaj nowy wpis
+          (insert (format "* %s\n" time-now))
           (message "Dodano wpis do journala"))
       
-      ;; Nowy journal - NAJPIERW utwórz plik!
+      ;; Nowy journal - utwórz
       (let* ((id (format-time-string "%Y%m%dT%H%M%S"))
              (slug (replace-regexp-in-string "[^[:alnum:]]" "-" (downcase (format "%s-journal" today))))
              (filename (format "%s--%s__journal.org" id slug))
              (filepath (expand-file-name filename my-notes-dir)))
         
-        ;; NAJPIERW find-file (tworzy buffer + plik)
+        ;; Utwórz plik
         (find-file filepath)
         
-        ;; POTEM wstaw frontmatter (teraz buffer JUŻ JEST!)
+        ;; Frontmatter
         (insert (format "#+title:      %s Journal\n" today))
         (insert (format "#+date:       [%s]\n" (format-time-string "%Y-%m-%d %a %H:%M")))
         (insert "#+filetags:   :journal:\n")
         (insert (format "#+identifier: %s\n" id))
         
-        ;; Dodaj property well-being
+        ;; Properties
         (insert ":PROPERTIES:\n")
-        (insert ":well-being:  \n")  ; Puste pole - wypełnisz później!
+        (insert ":well-being:  \n")
         (insert ":END:\n\n")
         
-        (insert (format "* Księżenice (%s)\n" time-now))
-        (backward-char 1)
+        ;; Pierwszy wpis
+        (insert (format "* Książenice (%s)\n" time-now))
+        
+        ;; AUTO-SAVE natychmiast (zapobiega #.# problemowi!)
+        (save-buffer)
         (message "Utworzono nowy journal")))))
 
 ;; --- FUNKCJA: Journal z datą (migracja) ---

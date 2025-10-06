@@ -392,4 +392,8 @@
   :custom
   (completion-styles '(orderless basic)))
 
+;; Force reload dashboard widget
+(when (fboundp 'dashboard-refresh-buffer)
+  (dashboard-refresh-buffer))
+
 ;;; 01-packages.el ends here
