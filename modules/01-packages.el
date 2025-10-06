@@ -373,6 +373,7 @@
   (setq dashboard-set-heading-icons t)
   (setq dashboard-set-file-icons t)
   (setq dashboard-icon-type 'all-the-icons)
+  (setq dashboard-set-init-info t)
 
   ;; Exclude config files from recent list globally
   (setq recentf-exclude '("\\.emacs\\.d/"
