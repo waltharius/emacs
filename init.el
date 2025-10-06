@@ -58,6 +58,9 @@
                   (dashboard-refresh-buffer)))
               (message "✅ Dashboard refreshed!"))))
 
+(recentf-mode 1)
+(setq recentf-max-saved-items 50)  ; Keep 50 files
+(setq recentf-auto-cleanup 'never) ; Don't auto-cleanup on startup
 (message "Emacs configuration loaded successfully! ✨")
 
 (provide 'init)

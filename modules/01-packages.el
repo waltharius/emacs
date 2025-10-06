@@ -397,7 +397,7 @@
   ;; Basic settings
   (setq dashboard-banner-logo-title "📚 Emacs PKM System")
   (setq dashboard-startup-banner 'logo)
-  (setq dashboard-center-content t)
+  (setq dashboard-center-content nil)
   (setq dashboard-show-shortcuts nil)
   (setq dashboard-set-heading-icons t)
   (setq dashboard-set-file-icons t)
