@@ -389,12 +389,14 @@
                           "/modules/"))
   
   ;; Items to show (bookmarks only - recents are custom)
-    (setq dashboard-items '((recents . 10)
+  (setq dashboard-items '((recents . 10)
                           (bookmarks . 5)))
   
   ;; Custom widgets (ORDERED!)
-    (setq dashboard-startupify-list '(dashboard-insert-banner
+  (setq dashboard-startupify-list '(dashboard-insert-banner
 				    dashboard-insert-init-info
+				    dashboard-insert-newline
+				    dashboard-insert-navigator
                                     dashboard-insert-newline
                                     dashboard-insert-banner-title
                                     dashboard-insert-newline
@@ -403,50 +405,61 @@
                                     my/dashboard-insert-pkm-stats
                                     dashboard-insert-footer))
 
-    (setq dashboard-item-names '(("Recent Files:" . "📝 Ostatnio otwarte:")
-                             ("Bookmarks:" . "⭐ Zakładki:")))
-    (setq dashboard-vertically-center-content t)
+  (setq dashboard-item-names '(("Recent Files:" . "📝 Ostatnio otwarte:")
+                               ("Bookmarks:" . "⭐ Zakładki:")))
+  (setq dashboard-vertically-center-content t)
 
-    (setq dashboard-navigator-buttons
-      `(;; Line 1
-        (("📚" "Notes Dir" "Open notes directory"
-          (lambda (&rest _) (dired "~/notes")))
-         ("⚙️" "Config" "Open init.el"
-          (lambda (&rest _) (find-file "~/.emacs.d/init.el")))
-         ("🧠" "Philosophy" "Browse philosophy files"
-          (lambda (&rest _) (find-file "~/notes/filozofia.org"))))
-        ;; Line 2
-        (("📝" "Journal" "Create journal entry"
-          (lambda (&rest _) (call-interactively 'my/denote-journal)))
-         ("🔖" "Zettel" "Create zettel"
-          (lambda (&rest _) (call-interactively 'my/denote-zettel)))
-         ("🚀" "Blog" "DoMowy"
-          (lambda (&rest _) (browse-url "https://blog.waltharius.pl"))))))
-    
+  (setq dashboard-navigator-buttons
+	`(;; Line 1
+          (("📚" "Notes Dir" "Open notes directory"
+            (lambda (&rest _) (dired "~/notes")))
+           ("⚙️" "Config" "Open init.el"
+            (lambda (&rest _) (find-file "~/.emacs.d/init.el")))
+           ("🧠" "Philosophy" "Browse philosophy files"
+            (lambda (&rest _) (find-file "~/notes/filozofia.org")))
+	  ("🚀" "Blog" "DoMowy"
+           (lambda (&rest _) (browse-url "https://blog.waltharius.pl"))))
+          ;; Line 2 - SPLIT NOTE CREATION!
+          (("📝" "Journal" "Create journal (split)"
+            (lambda (&rest _) (call-interactively 'my/denote-journal-split)))  ; ← SPLIT!
+           ("🔖" "Zettel" "Create zettel (split)"
+            (lambda (&rest _) (call-interactively 'my/denote-zettel-split)))   ; ← SPLIT!
+           ("📖" "Literature" "Create literature note (split)"
+            (lambda (&rest _) (call-interactively 'my/denote-lektura-split)))  ; ← SPLIT!
+           ("💡" "Philosopher" "Create philosophy note (split)"
+            (lambda (&rest _) (call-interactively 'my/denote-filozof-split)))))) ; ← SPLIT!
+
+  
   ;; Footer quotes
   (setq dashboard-footer-messages 
-      '("Free as free speech, free as free Beer"
-        "The unexamined life is not worth living — Socrates"
-        "I think, therefore I am — Descartes"
-        "What we cannot speak about we must pass over in silence — Wittgenstein"
-        "Man is condemned to be free — Sartre"
-        "The owl of Minerva spreads its wings only with the falling of the dusk — Hegel"
-        "There are no facts, only interpretations — Nietzsche"
-        "Cogito, ergo sum: I doubt, therefore I think, therefore I am"
-        "Being and Nothingness: consciousness is always consciousness of something"
-        "The Cave: we see only shadows, not the forms themselves — Plato"
-        "Dasein: being-in-the-world, thrown into existence — Heidegger"
-        "The absurd is born of confrontation between human need and unreasonable silence — Camus"
-        "Hell is other people — Sartre"
-        "Whereof one cannot speak, thereof one must be silent — Wittgenstein"
-        "The mind is furnished with ideas by experience alone — Locke"))
+	'("Free as free speech, free as free Beer"
+          "The unexamined life is not worth living — Socrates"
+          "I think, therefore I am — Descartes"
+          "What we cannot speak about we must pass over in silence — Wittgenstein"
+          "Man is condemned to be free — Sartre"
+          "The owl of Minerva spreads its wings only with the falling of the dusk — Hegel"
+          "There are no facts, only interpretations — Nietzsche"
+          "Cogito, ergo sum: I doubt, therefore I think, therefore I am"
+          "Being and Nothingness: consciousness is always consciousness of something"
+          "The Cave: we see only shadows, not the forms themselves — Plato"
+          "Dasein: being-in-the-world, thrown into existence — Heidegger"
+          "The absurd is born of confrontation between human need and unreasonable silence — Camus"
+          "Hell is other people — Sartre"
+          "Whereof one cannot speak, thereof one must be silent — Wittgenstein"
+          "The mind is furnished with ideas by experience alone — Locke"))
   
-  ;; Keybindings in Dashboard
-  (define-key dashboard-mode-map (kbd "j") 'my/denote-journal)
-  (define-key dashboard-mode-map (kbd "b") 'my/denote-base)
-  (define-key dashboard-mode-map (kbd "z") 'my/denote-zettel)
-  (define-key dashboard-mode-map (kbd "l") 'my/denote-lektura)
-  (define-key dashboard-mode-map (kbd "p") 'my/denote-filozof)
+   ;; Dashboard keybindings (with split!)
+(define-key dashboard-mode-map (kbd "j") 'my/denote-journal-split)   ; ← SPLIT VERSION!
+(define-key dashboard-mode-map (kbd "b") 'my/denote-base-split)      ; ← SPLIT VERSION!
+(define-key dashboard-mode-map (kbd "z") 'my/denote-zettel-split)    ; ← SPLIT VERSION!
+(define-key dashboard-mode-map (kbd "l") 'my/denote-lektura-split)   ; ← SPLIT VERSION!
+(define-key dashboard-mode-map (kbd "p") 'my/denote-filozof-split)   ; ← SPLIT VERSION!
+(define-key dashboard-mode-map (kbd "d") 'my/denote-delete-note)
+(define-key dashboard-mode-map (kbd "s") 'my/denote-shortcuts)
+(define-key dashboard-mode-map (kbd "c") 'my/denote-cockpit)
+(define-key dashboard-mode-map (kbd "g") 'my/set-daily-goals)
+(define-key dashboard-mode-map (kbd "r") 'dashboard-refresh-buffer)
+(define-key dashboard-mode-map (kbd "q") 'quit-window)
   (define-key dashboard-mode-map (kbd "d") 'my/denote-delete-note)
   (define-key dashboard-mode-map (kbd "s") 'my/denote-shortcuts)
   (define-key dashboard-mode-map (kbd "c") 'my/denote-cockpit)

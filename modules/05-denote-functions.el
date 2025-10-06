@@ -1115,5 +1115,54 @@ ZAWSZE pyta o potwierdzenie!"
 ;; Create well-being file on Dashboard load
 (add-hook 'dashboard-mode-hook 'my/ensure-wellbeing-file)
 
+;; ============================================================
+;; DASHBOARD-AWARE NOTE CREATION
+;; ============================================================
+
+(defun my/denote-journal-split ()
+  "Create journal in right split if in dashboard, else fullscreen."
+  (interactive)
+  (when (and (equal major-mode 'dashboard-mode)
+             (= (length (window-list)) 1))  ; Only 1 window = dashboard fullscreen
+    (split-window-right)
+    (other-window 1))
+  (call-interactively 'my/denote-journal))
+
+(defun my/denote-zettel-split ()
+  "Create zettel in right split if in dashboard, else fullscreen."
+  (interactive)
+  (when (and (equal major-mode 'dashboard-mode)
+             (= (length (window-list)) 1))
+    (split-window-right)
+    (other-window 1))
+  (call-interactively 'my/denote-zettel))
+
+(defun my/denote-base-split ()
+  "Create quick note in right split if in dashboard, else fullscreen."
+  (interactive)
+  (when (and (equal major-mode 'dashboard-mode)
+             (= (length (window-list)) 1))
+    (split-window-right)
+    (other-window 1))
+  (call-interactively 'my/denote-base))
+
+(defun my/denote-lektura-split ()
+  "Create literature note in right split if in dashboard, else fullscreen."
+  (interactive)
+  (when (and (equal major-mode 'dashboard-mode)
+             (= (length (window-list)) 1))
+    (split-window-right)
+    (other-window 1))
+  (call-interactively 'my/denote-lektura))
+
+(defun my/denote-filozof-split ()
+  "Create philosophy note in right split if in dashboard, else fullscreen."
+  (interactive)
+  (when (and (equal major-mode 'dashboard-mode)
+             (= (length (window-list)) 1))
+    (split-window-right)
+    (other-window 1))
+  (call-interactively 'my/denote-filozof))
+
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
