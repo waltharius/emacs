@@ -388,7 +388,8 @@
                           (bookmarks . 5)))
   
   ;; Custom widgets (ORDERED!)
-  (setq dashboard-startupify-list '(dashboard-insert-banner
+    (setq dashboard-startupify-list '(dashboard-insert-banner
+				    dashboard-insert-init-info
                                     dashboard-insert-newline
                                     dashboard-insert-banner-title
                                     dashboard-insert-newline
@@ -396,7 +397,22 @@
                                     dashboard-insert-newline
                                     my/dashboard-insert-pkm-stats
                                     dashboard-insert-footer))
-  
+
+    (setq dashboard-item-names '(("Recent Files:" . "📝 Ostatnio otwarte:")
+                             ("Bookmarks:" . "⭐ Zakładki:")))
+    (setq dashboard-vertically-center-content t)
+    (setq dashboard-navigator-buttons
+      `(;; Line 1
+        ((,(all-the-icons-octicon "mark-github" :height 1.1 :v-adjust 0.0)
+          "GitHub"
+          "Open GitHub"
+          (lambda (&rest _) (browse-url "https://github.com/marcinofulus")))
+         ("📚" "Notes Dir" "Open notes" (lambda (&rest _) (dired "~/notes"))))
+        ;; Line 2
+        ((,(all-the-icons-faicon "book" :height 1.1 :v-adjust 0.0)
+          "Philosophy"
+          "Browse philosophy books"
+          (lambda (&rest _) (find-file "~/notes/filozofia.org"))))))
   ;; Footer quotes
   (setq dashboard-footer-messages 
       '("Free as free speech, free as free Beer"
