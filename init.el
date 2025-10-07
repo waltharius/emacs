@@ -65,14 +65,6 @@
 ;; DASHBOARD FIX: Refresh after startup
 ;; ============================================================
 
-(when (fboundp 'dashboard-refresh-buffer)
-  (add-hook 'emacs-startup-hook
-            (lambda ()
-              (when (get-buffer "*dashboard*")
-                (with-current-buffer "*dashboard*"
-                  (dashboard-refresh-buffer)))
-              (message "✅ Dashboard refreshed!"))))
-
 (message "Emacs configuration loaded successfully! ✨")
 
 (provide 'init)
