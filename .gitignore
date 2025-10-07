@@ -1,3 +1,10 @@
+# Undo-tree history (persistent undo files)
+undo-tree-history/
+.undo-tree-*
+
+# Org-mode temporary files
+.org-id-locations
+
 # Ignoruj zainstalowane pakiety
 elpa/
 elpa.backup/
@@ -41,3 +48,6 @@ tutorial/
 !early-init.el
 !modules/
 !.gitignore
+
+# Undo-tree history
+undo-tree-history/

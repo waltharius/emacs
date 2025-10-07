@@ -161,7 +161,7 @@
     ;; - 'hard   → Hard contrast (high contrast!)
     (setq gruvbox-contrast 'soft)    ; Try: soft, medium, hard
     ;; Load theme
-    (load-theme 'gruvbox-dark-medium t))
+    (load-theme 'gruvbox-light-medium t))
 
 ;; ============================================================
 ;; END OF THEMES GALLERY
