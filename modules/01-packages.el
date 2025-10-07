@@ -499,25 +499,15 @@
 )
 
 ;; ============================================================
-;; DASHBOARD AUTO-RESTORE (simplest!)
+;; DASHBOARD MANUAL OPEN (tylko ręcznie!)
 ;; ============================================================
 
-(defun my/smart-dashboard-restore ()
-  "Restore dashboard intelligently after Desktop loads."
-  (let ((dashboard-restored nil))
-    
-    ;; First: restore dashboard in windows that had it
-    (dolist (win (window-list))
-      (with-selected-window win
-        (when (and (buffer-live-p (window-buffer win))
-                   (string-match-p "\\*dashboard\\*" (buffer-name (window-buffer win))))
-          (dashboard-open)
-          (setq dashboard-restored t))))
-
-
-;; Single hook - handles everything!
-(add-hook 'desktop-after-read-hook #'my/smart-dashboard-restore)
+(defun my/open-dashboard ()
+  "Open dashboard in current window."
+  (interactive)
+  (dashboard-open))
 
 (provide '01-packages)
 ;;; 01-packages.el ends here
+
 
