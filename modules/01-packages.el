@@ -77,6 +77,36 @@
   (setq org-roam-ui-update-on-save t))
 
 ;; ============================================================
+;; UNDO TREE (Persistent undo + visualization)
+;; ============================================================
+
+(use-package undo-tree
+  :ensure t
+  :diminish undo-tree-mode
+  :init
+  (global-undo-tree-mode)
+  :config
+  ;; Persistent undo (survive Emacs restart!)
+  (setq undo-tree-auto-save-history t)
+  (setq undo-tree-history-directory-alist
+        `(("." . ,(expand-file-name "undo-tree-history/" user-emacs-directory))))
+  
+  ;; Visualizer improvements
+  (setq undo-tree-visualizer-timestamps t)  ; Show timestamps
+  (setq undo-tree-visualizer-diff t)        ; Show diff
+  
+  ;; Infinite undo (huge limits!)
+  (setq undo-limit 800000)           ; 800KB (was 80KB default)
+  (setq undo-strong-limit 1200000)   ; 1.2MB (was 120KB default)
+  (setq undo-outer-limit 120000000)  ; 120MB (was 12MB default)
+  
+  ;; Keybindings
+  :bind (("C-z" . undo-tree-undo)         ; Undo
+         ("C-S-z" . undo-tree-redo)       ; Redo (Ctrl-Shift-Z)
+         ("C-x u" . undo-tree-visualize))) ; Visualize tree!
+
+
+;; ============================================================
 ;; DASHBOARD: PKM Statistics + Goals
 ;; ============================================================
 
@@ -449,17 +479,17 @@
           "The mind is furnished with ideas by experience alone — Locke"))
   
    ;; Dashboard keybindings (with split!)
-(define-key dashboard-mode-map (kbd "j") 'my/denote-journal-split)   ; ← SPLIT VERSION!
-(define-key dashboard-mode-map (kbd "b") 'my/denote-base-split)      ; ← SPLIT VERSION!
-(define-key dashboard-mode-map (kbd "z") 'my/denote-zettel-split)    ; ← SPLIT VERSION!
-(define-key dashboard-mode-map (kbd "l") 'my/denote-lektura-split)   ; ← SPLIT VERSION!
-(define-key dashboard-mode-map (kbd "p") 'my/denote-filozof-split)   ; ← SPLIT VERSION!
-(define-key dashboard-mode-map (kbd "d") 'my/denote-delete-note)
-(define-key dashboard-mode-map (kbd "s") 'my/denote-shortcuts)
-(define-key dashboard-mode-map (kbd "c") 'my/denote-cockpit)
-(define-key dashboard-mode-map (kbd "g") 'my/set-daily-goals)
-(define-key dashboard-mode-map (kbd "r") 'dashboard-refresh-buffer)
-(define-key dashboard-mode-map (kbd "q") 'quit-window)
+  (define-key dashboard-mode-map (kbd "j") 'my/denote-journal-split)   ; ← SPLIT VERSION!
+  (define-key dashboard-mode-map (kbd "b") 'my/denote-base-split)      ; ← SPLIT VERSION!
+  (define-key dashboard-mode-map (kbd "z") 'my/denote-zettel-split)    ; ← SPLIT VERSION!
+  (define-key dashboard-mode-map (kbd "l") 'my/denote-lektura-split)   ; ← SPLIT VERSION!
+  (define-key dashboard-mode-map (kbd "p") 'my/denote-filozof-split)   ; ← SPLIT VERSION!
+  (define-key dashboard-mode-map (kbd "d") 'my/denote-delete-note)
+  (define-key dashboard-mode-map (kbd "s") 'my/denote-shortcuts)
+  (define-key dashboard-mode-map (kbd "c") 'my/denote-cockpit)
+  (define-key dashboard-mode-map (kbd "g") 'my/set-daily-goals)
+  (define-key dashboard-mode-map (kbd "r") 'dashboard-refresh-buffer)
+  (define-key dashboard-mode-map (kbd "q") 'quit-window)
   (define-key dashboard-mode-map (kbd "d") 'my/denote-delete-note)
   (define-key dashboard-mode-map (kbd "s") 'my/denote-shortcuts)
   (define-key dashboard-mode-map (kbd "c") 'my/denote-cockpit)

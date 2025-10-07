@@ -84,8 +84,9 @@
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
    '(ample-theme consult-denote diff-hl doom-themes flyspell-correct-ivy
-		 htmlize langtool magit org-contrib org-roam
-		 org-roam-ql org-transclusion))
+		 gruvbox-theme htmlize langtool magit org-contrib
+		 org-roam org-roam-ql org-transclusion solarized-theme
+		 undo-tree zenburn-theme))
  '(recentf-filename-handlers '(abbreviate-file-name)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.

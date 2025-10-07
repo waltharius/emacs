@@ -113,7 +113,7 @@
 
 ;; Mouse scroll settings
 (setq mouse-wheel-scroll-amount '(1 ((shift) . 1)))  ; One line at a time
-(setq mouse-wheel-progressive-speed nil)             ; Don't accelerate
+(setq mouse-wheel-progressive-speed t)             ; Don't accelerate
 (setq mouse-wheel-follow-mouse 't)                   ; Scroll window under mouse
 
 ;; ============================================================

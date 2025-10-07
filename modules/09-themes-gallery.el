@@ -122,10 +122,10 @@
 ;; Popular external themes you can install:
 ;;
 ;; 1. Doom Themes (popular, beautiful!)
-    (use-package doom-themes
-      :ensure t
-      :config
-      (load-theme 'doom-one t))
+;;    (use-package doom-themes
+;;      :ensure t
+;;      :config
+;;      (load-theme 'doom-one t))
 ;;
 ;; 2. Dracula (purple, vibrant)
 ;;    (use-package dracula-theme
@@ -146,10 +146,10 @@
 ;;      (load-theme 'zenburn t))
 ;;
 ;; 5. Gruvbox (retro, warm)
-;;    (use-package gruvbox-theme
-;;      :ensure t
-;;      :config
-;;      (load-theme 'gruvbox-dark-medium t))
+    (use-package gruvbox-theme
+      :ensure t
+      :config
+      (load-theme 'gruvbox-dark-medium t))
 
 ;; ============================================================
 ;; END OF THEMES GALLERY
