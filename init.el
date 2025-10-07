@@ -76,11 +76,7 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(package-selected-packages
-   '(ample-theme consult-denote diff-hl doom-themes flyspell-correct-ivy
-		 gruvbox-theme htmlize langtool magit org-contrib
-		 org-roam org-roam-ql org-transclusion solarized-theme
-		 undo-tree zenburn-theme))
+ '(package-selected-packages nil)
  '(recentf-filename-handlers '(abbreviate-file-name)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
