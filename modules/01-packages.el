@@ -496,20 +496,7 @@
   (define-key dashboard-mode-map (kbd "g") 'my/set-daily-goals)
   (define-key dashboard-mode-map (kbd "r") 'dashboard-refresh-buffer)
   (define-key dashboard-mode-map (kbd "q") 'quit-window)
-
-
-  
-  ;; Setup Dashboard
-  (dashboard-setup-startup-hook))
-;; Always show dashboard on startup (simple!)
-(setq initial-buffer-choice (lambda ()
-                              (dashboard-refresh-buffer)
-                              (get-buffer "*dashboard*")))
-
-;; Always show dashboard on startup (simple!)
-(setq initial-buffer-choice (lambda ()
-                               (dashboard-refresh-buffer)
-                               (get-buffer "*dashboard*")))
+)
 
 (provide '01-packages)
 ;;; 01-packages.el ends here

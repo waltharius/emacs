@@ -359,5 +359,42 @@
 ;; END OF MODERN CONVENIENCES
 ;; ============================================================
 
+;; ============================================================
+;; DESKTOP SAVE MODE (Save window layout!)
+;; ============================================================
+
+(desktop-save-mode 1)
+
+;; Where to save
+(setq desktop-dirname user-emacs-directory)
+(setq desktop-path (list user-emacs-directory))
+(setq desktop-base-file-name "desktop")
+(setq desktop-base-lock-name "desktop.lock")
+
+;; What to save
+(setq desktop-restore-frames t)           ; Save frame/window config!
+(setq desktop-restore-in-current-display t)
+(setq desktop-restore-eager 5)            ; Restore 5 buffers immediately
+
+;; Save on exit
+(setq desktop-save t)                     ; Always save (no prompt!)
+
+;; Load desktop on startup
+(setq desktop-load-locked-desktop t)      ; Load even if locked
+
+;; Don't save certain buffers
+(setq desktop-buffers-not-to-save
+      (concat "\\("
+              "^nn\\.a[0-9]+\\|\\.log\\|(ftp)\\|^tags\\|^TAGS"
+              "\\|\\.emacs.*\\|\\.diary\\|\\.bbdb"
+              "\\|\\*Messages\\*\\|\\*dashboard\\*"  ; Don't save *dashboard*!
+              "\\)$"))
+
+;; Restore desktop
+(desktop-read)
+
+;; Auto-save every 5 minutes
+(run-with-idle-timer 300 t 'desktop-save-in-desktop-dir)
+
 (provide '08-modern-conveniences)
 ;;; 08-modern-conveniences.el ends here
