@@ -58,8 +58,8 @@
 (my/load-module "05a-folgezettel.el")
 (my/load-module "06-keybindings.el")
 (my/load-module "07-git.el")
-(my/load-module "08-modern-conveniences")
-(my/load-module "09-themes-gallery")
+(my/load-module "08-modern-conveniences.el")
+(my/load-module "09-themes-gallery.el")
 
 ;; ============================================================
 ;; DASHBOARD FIX: Refresh after startup
