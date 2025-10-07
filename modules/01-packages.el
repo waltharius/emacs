@@ -499,32 +499,39 @@
 )
 
 ;; ============================================================
-;; DASHBOARD AUTO-RESTORE (after Desktop loads!)
+;; DASHBOARD AUTO-RESTORE (unified approach!)
 ;; ============================================================
 
-(defun my/restore-dashboard-after-desktop ()
-  "Restore dashboard in windows that show 'Old buffer *dashboard*'."
-  (when (bound-and-true-p desktop-save-mode)
-    ;; Iterate through all windows
-    (dolist (win (window-list))
-      (with-selected-window win
-        (when (and (buffer-live-p (window-buffer win))
-                   (string-match-p "\\*dashboard\\*" (buffer-name (window-buffer win))))
-          ;; This window had dashboard - restore it!
-          (dashboard-open))))))
-
-;; Hook to run AFTER desktop restore
-(add-hook 'desktop-after-read-hook #'my/restore-dashboard-after-desktop)
-
-;; Also restore if no desktop file exists (first start)
-(defun my/first-start-dashboard ()
-  "Open dashboard on first start (no desktop-save file)."
-  (let ((desktop-file (expand-file-name "desktop-save" user-emacs-directory)))
-    (unless (file-exists-p desktop-file)
+(defun my/restore-dashboard-unified ()
+  "Restore dashboard: either from Desktop session or open fresh one."
+  (let ((desktop-file (expand-file-name "desktop-save" user-emacs-directory))
+        (dashboard-restored nil))
+    
+    ;; Check if Desktop loaded
+    (when (bound-and-true-p desktop-save-mode)
+      ;; Iterate through windows and restore dashboard where it was
+      (dolist (win (window-list))
+        (with-selected-window win
+          (when (and (buffer-live-p (window-buffer win))
+                     (string-match-p "\\*dashboard\\*" (buffer-name (window-buffer win))))
+            ;; Found dashboard window - restore it!
+            (dashboard-open)
+            (setq dashboard-restored t)))))
+    
+    ;; If no desktop file exists (first start), open dashboard
+    (unless (or dashboard-restored (file-exists-p desktop-file))
       (dashboard-open))))
 
-(add-hook 'emacs-startup-hook #'my/first-start-dashboard)
+;; Hook ONLY after desktop restore (runs even if no desktop file)
+(add-hook 'desktop-after-read-hook #'my/restore-dashboard-unified)
+
+;; IMPORTANT: For very first start (no desktop at all), use emacs-startup-hook
+(defun my/first-start-fallback ()
+  "Open dashboard if Desktop didn't run at all."
+  (unless (bound-and-true-p desktop-save-mode)
+    (dashboard-open)))
+
+(add-hook 'emacs-startup-hook #'my/first-start-fallback)
 
 (provide '01-packages)
 ;;; 01-packages.el ends here
-
