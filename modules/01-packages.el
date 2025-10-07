@@ -513,13 +513,7 @@
                    (string-match-p "\\*dashboard\\*" (buffer-name (window-buffer win))))
           (dashboard-open)
           (setq dashboard-restored t))))
-    
-    ;; Second: if no dashboard was restored, check if this is first start
-    (unless dashboard-restored
-      (let ((desktop-file (expand-file-name "desktop-save" user-emacs-directory)))
-        (unless (file-exists-p desktop-file)
-          ;; First start - open dashboard
-          (dashboard-open))))))
+
 
 ;; Single hook - handles everything!
 (add-hook 'desktop-after-read-hook #'my/smart-dashboard-restore)
