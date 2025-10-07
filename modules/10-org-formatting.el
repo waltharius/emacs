@@ -128,10 +128,10 @@
 
 ;; Keybindings (org-mode specific)
 (with-eval-after-load 'org
-  (define-key org-mode-map (kbd "C-c C-v b") 'my/org-toggle-bold)
-  (define-key org-mode-map (kbd "C-c C-v i") 'my/org-toggle-italic)
-  (define-key org-mode-map (kbd "C-c C-v s") 'my/org-toggle-strikethrough)
-  (define-key org-mode-map (kbd "C-c C-v u") 'my/org-toggle-uppercase))
+  (define-key org-mode-map (kbd "C-c C-x b") 'my/org-toggle-bold)
+  (define-key org-mode-map (kbd "C-c C-x i") 'my/org-toggle-italic)
+  (define-key org-mode-map (kbd "C-c C-x s") 'my/org-toggle-strikethrough)
+  (define-key org-mode-map (kbd "C-c C-x u") 'my/org-toggle-uppercase))
 
 ;; ============================================================
 ;; PREVIEW MODE (hide emphasis markers)
