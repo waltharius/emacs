@@ -71,7 +71,7 @@
       (load-theme 'modus-vivendi t)
       (message "Switched to DARK theme (modus-vivendi)"))))
 
-;; Keybinding: C-c R = toggle theme
+;; Keybinding: C-c  = toggle theme
 (global-set-key (kbd "C-c T") 'my/toggle-theme)
 
 ;; ============================================================
@@ -159,7 +159,9 @@
     ;; - 'soft   → Soft contrast (easy on eyes!)
     ;; - 'medium → Medium contrast (default)
     ;; - 'hard   → Hard contrast (high contrast!)
-    (setq gruvbox-contrast 'medium)    ; Try: soft, medium, hard
+    (setq gruvbox-contrast 'soft)    ; Try: soft, medium, hard
+    ;; Load theme
+    (load-theme 'gruvbox-dark-medium t))
 
 ;; ============================================================
 ;; END OF THEMES GALLERY
