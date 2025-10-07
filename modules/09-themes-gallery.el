@@ -71,7 +71,7 @@
       (load-theme 'modus-vivendi t)
       (message "Switched to DARK theme (modus-vivendi)"))))
 
-;; Keybinding: C-c t = toggle theme
+;; Keybinding: C-c R = toggle theme
 (global-set-key (kbd "C-c T") 'my/toggle-theme)
 
 ;; ============================================================
@@ -147,9 +147,19 @@
 ;;
 ;; 5. Gruvbox (retro, warm)
     (use-package gruvbox-theme
-      :ensure t
-      :config
-      (load-theme 'gruvbox-dark-medium t))
+    :ensure t
+    :config
+    ;; Customize Gruvbox before loading
+    (setq gruvbox-bold t)              ; Use bold
+    (setq gruvbox-italic t)            ; Use italic
+    (setq gruvbox-underline t)         ; Use underline
+    (setq gruvbox-undercurl t)         ; Use undercurl
+  
+    ;; Contrast options:
+    ;; - 'soft   → Soft contrast (easy on eyes!)
+    ;; - 'medium → Medium contrast (default)
+    ;; - 'hard   → Hard contrast (high contrast!)
+    (setq gruvbox-contrast 'medium)    ; Try: soft, medium, hard
 
 ;; ============================================================
 ;; END OF THEMES GALLERY
