@@ -14,6 +14,7 @@
 ;;   - modules/07-git.el              : Konfiguracja git
 ;;   - modules/08-modern-conveniences : Usprawnienia Emacs bez pisania kodu
 ;;   - modules/09-themes-gallery      : Galeria szablonów zmieniających wygląd Emacs
+;;   - modules/10-org-formatting      : Skróty do formatowania tekstu i inne przydatne bajery z tekstem związane
 ;;
 ;;; Code:
 ;; ============================================================
@@ -60,6 +61,7 @@
 (my/load-module "07-git.el")
 (my/load-module "08-modern-conveniences.el")
 (my/load-module "09-themes-gallery.el")
+(my/load-module "10-org-formatting.el")
 
 ;; ============================================================
 ;; DASHBOARD FIX: Refresh after startup
