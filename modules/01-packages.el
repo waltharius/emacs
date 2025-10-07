@@ -499,24 +499,25 @@
 )
 
 ;; ============================================================
-;; DASHBOARD CONDITIONAL STARTUP (only if no Desktop session!)
+;; DASHBOARD CONDITIONAL STARTUP
 ;; ============================================================
 
-;; Dashboard startup - SIMPLE!
 (defun my/open-dashboard ()
   "Open dashboard in current window."
   (interactive)
   (dashboard-open))
 
-;; Auto-open dashboard ONLY on first tab (PKM workspace)
-(defun my/dashboard-workspace-hook ()
-  "Show dashboard in PKM workspace."
-  (when (string= (tab-bar-tab-name-current) "PKM")
-    (my/open-dashboard)))
+;; Show dashboard TYLKO jeśli nie ma zapisanej sesji Desktop
+(defun my/dashboard-maybe-open ()
+  "Open dashboard only if no Desktop session exists."
+  (let ((desktop-file (expand-file-name "desktop-save" user-emacs-directory)))
+    (unless (file-exists-p desktop-file)
+      ;; No desktop file - show dashboard
+      (dashboard-open))))
 
-;; Hook after workspace setup
-(add-hook 'emacs-startup-hook 
-          (lambda () (run-with-idle-timer 1 nil 'my/dashboard-workspace-hook)))
+;; Hook: show dashboard conditionally on startup
+(add-hook 'emacs-startup-hook #'my/dashboard-maybe-open)
 
 (provide '01-packages)
 ;;; 01-packages.el ends here
+

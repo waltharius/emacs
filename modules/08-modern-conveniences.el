@@ -359,40 +359,6 @@
 ;; END OF MODERN CONVENIENCES
 ;; ============================================================
 
-;; ============================================================
-;; WORKSPACES + SESSION SAVE (Better than desktop!)
-;; ============================================================
-
-;; Enable tab-bar for workspaces
-(tab-bar-mode 1)
-(setq tab-bar-show 1) ; Always show tabs
-
-;; Session management (lightweight, reliable!)
-(require 'session)
-(add-hook 'after-init-hook 'session-initialize)
-
-;; What to save in sessions
-(setq session-save-file (expand-file-name ".session" user-emacs-directory))
-(setq session-name-disable-regexp "\\(?:\\`'/tmp\\|\\.git/\\|/\\.#\\|#.*#\\'\\)")
-(setq session-save-file-coding-system 'utf-8)
-
-;; Auto-save session every 5 minutes
-(run-with-idle-timer 300 t 'session-save-session)
-
-;; Save on exit
-(add-hook 'kill-emacs-hook 'session-save-session)
-
-;; Create default workspaces
-(defun my/setup-workspaces ()
-  "Set up default workspaces after init."
-  (tab-bar-new-tab)
-  (tab-bar-rename-tab "PKM")
-  (tab-bar-new-tab) 
-  (tab-bar-rename-tab "Config")
-  (tab-bar-select-tab 1)) ; Go back to first tab
-
-(add-hook 'emacs-startup-hook 'my/setup-workspaces)
-
 
 (provide '08-modern-conveniences)
 ;;; 08-modern-conveniences.el ends here
