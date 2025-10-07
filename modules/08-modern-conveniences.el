@@ -366,9 +366,9 @@
 (desktop-save-mode 1)
 
 ;; Where to save
-(setq desktop-dirname user-emacs-directory)
+(setq desktop-dirname "~/.emacs.d/")
 (setq desktop-path (list user-emacs-directory))
-(setq desktop-base-file-name "desktop")
+(setq desktop-base-file-name "~/.emacs.d/desktop")
 (setq desktop-base-lock-name "desktop.lock")
 
 ;; What to save

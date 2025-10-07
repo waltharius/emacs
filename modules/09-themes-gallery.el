@@ -162,13 +162,13 @@
     (setq gruvbox-contrast 'medium)    ; Try: soft, medium, hard
     ;; Load theme
     (load-theme 'gruvbox-light-medium t))
-(with-eval-after-load 'gruvbox-theme
-  (with-eval-after-load 'org-faces
-    (set-face-foreground 'org-level-1 "#fb4934")
-    (set-face-foreground 'org-level-2 "#b8bb26")
-    (set-face-foreground 'org-level-3 "#fabd2f")
-    (set-face-attribute  'org-level-1 nil :height 1.0)))
 
+(with-eval-after-load 'gruvbox-theme
+  (require 'org)  ; ← Wymusza załadowanie org-faces przed modyfikacją
+  (set-face-foreground 'org-level-1 "#fb4934")
+  (set-face-foreground 'org-level-2 "#b8bb26")
+  (set-face-foreground 'org-level-3 "#fabd2f")
+  (set-face-attribute  'org-level-1 nil :height 1.0))
 ;; ============================================================
 ;; END OF THEMES GALLERY
 ;; ============================================================

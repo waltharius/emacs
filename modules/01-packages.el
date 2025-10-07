@@ -498,5 +498,20 @@
   (define-key dashboard-mode-map (kbd "q") 'quit-window)
 )
 
+;; ============================================================
+;; DASHBOARD CONDITIONAL STARTUP (only if no Desktop session!)
+;; ============================================================
+
+(defun my/dashboard-maybe-open ()
+  "Open dashboard only if no Desktop session exists."
+  (let ((desktop-file (expand-file-name "desktop" user-emacs-directory)))
+    (unless (and (bound-and-true-p desktop-save-mode)
+                 (file-exists-p desktop-file))
+      ;; No desktop file - show dashboard
+      (dashboard-open))))
+
+;; Hook: show dashboard conditionally on startup
+(add-hook 'emacs-startup-hook #'my/dashboard-maybe-open)
+
 (provide '01-packages)
 ;;; 01-packages.el ends here
