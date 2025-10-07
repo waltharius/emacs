@@ -80,8 +80,8 @@
 
 ;; Uncomment ONE of these:
 
-   (load-theme 'modus-vivendi t)    ; Dark (RECOMMENDED!)
-:: (load-theme 'modus-operandi t)   ; Light (RECOMMENDED!)
+;;   (load-theme 'modus-vivendi t)    ; Dark (RECOMMENDED!)
+;; (load-theme 'modus-operandi t)   ; Light (RECOMMENDED!)
 ;; (load-theme 'tango-dark t)       ; Colorful dark
 ;; (load-theme 'leuven t)           ; Clean light
 ;; (load-theme 'wombat t)           ; Soft dark
@@ -122,10 +122,10 @@
 ;; Popular external themes you can install:
 ;;
 ;; 1. Doom Themes (popular, beautiful!)
-;;    (use-package doom-themes
-;;      :ensure t
-;;      :config
-;;      (load-theme 'doom-one t))
+    (use-package doom-themes
+      :ensure t
+      :config
+      (load-theme 'doom-one t))
 ;;
 ;; 2. Dracula (purple, vibrant)
 ;;    (use-package dracula-theme
