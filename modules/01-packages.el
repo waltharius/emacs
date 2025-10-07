@@ -507,6 +507,33 @@
   (interactive)
   (dashboard-open))
 
+;; ============================================================
+;; DASHBOARD AUTO-RESTORE (after Desktop loads!)
+;; ============================================================
+
+(defun my/restore-dashboard-after-desktop ()
+  "Restore dashboard in windows that show 'Old buffer *dashboard*'."
+  (when (bound-and-true-p desktop-save-mode)
+    ;; Iterate through all windows
+    (dolist (win (window-list))
+      (with-selected-window win
+        (when (and (buffer-live-p (window-buffer win))
+                   (string-match-p "\\*dashboard\\*" (buffer-name (window-buffer win))))
+          ;; This window had dashboard - restore it!
+          (dashboard-open))))))
+
+;; Hook to run AFTER desktop restore
+(add-hook 'desktop-after-read-hook #'my/restore-dashboard-after-desktop)
+
+;; Also restore if no desktop file exists (first start)
+(defun my/first-start-dashboard ()
+  "Open dashboard on first start (no desktop-save file)."
+  (let ((desktop-file (expand-file-name "desktop-save" user-emacs-directory)))
+    (unless (file-exists-p desktop-file)
+      (dashboard-open))))
+
+(add-hook 'emacs-startup-hook #'my/first-start-dashboard)
+
 (provide '01-packages)
 ;;; 01-packages.el ends here
 
