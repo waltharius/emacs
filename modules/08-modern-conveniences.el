@@ -360,41 +360,39 @@
 ;; ============================================================
 
 ;; ============================================================
-;; DESKTOP SAVE MODE (Save window layout!)
+;; WORKSPACES + SESSION SAVE (Better than desktop!)
 ;; ============================================================
 
-(desktop-save-mode 1)
+;; Enable tab-bar for workspaces
+(tab-bar-mode 1)
+(setq tab-bar-show 1) ; Always show tabs
 
-;; Where to save
-(setq desktop-dirname "~/.emacs.d/")
-(setq desktop-path (list user-emacs-directory))
-(setq desktop-base-file-name "~/.emacs.d/desktop")
-(setq desktop-base-lock-name "desktop.lock")
+;; Session management (lightweight, reliable!)
+(require 'session)
+(add-hook 'after-init-hook 'session-initialize)
 
-;; What to save
-(setq desktop-restore-frames t)           ; Save frame/window config!
-(setq desktop-restore-in-current-display t)
-(setq desktop-restore-eager 5)            ; Restore 5 buffers immediately
+;; What to save in sessions
+(setq session-save-file (expand-file-name ".session" user-emacs-directory))
+(setq session-name-disable-regexp "\\(?:\\`'/tmp\\|\\.git/\\|/\\.#\\|#.*#\\'\\)")
+(setq session-save-file-coding-system 'utf-8)
+
+;; Auto-save session every 5 minutes
+(run-with-idle-timer 300 t 'session-save-session)
 
 ;; Save on exit
-(setq desktop-save t)                     ; Always save (no prompt!)
+(add-hook 'kill-emacs-hook 'session-save-session)
 
-;; Load desktop on startup
-(setq desktop-load-locked-desktop t)      ; Load even if locked
+;; Create default workspaces
+(defun my/setup-workspaces ()
+  "Set up default workspaces after init."
+  (tab-bar-new-tab)
+  (tab-bar-rename-tab "PKM")
+  (tab-bar-new-tab) 
+  (tab-bar-rename-tab "Config")
+  (tab-bar-select-tab 1)) ; Go back to first tab
 
-;; Don't save certain buffers
-(setq desktop-buffers-not-to-save
-      (concat "\\("
-              "^nn\\.a[0-9]+\\|\\.log\\|(ftp)\\|^tags\\|^TAGS"
-              "\\|\\.emacs.*\\|\\.diary\\|\\.bbdb"
-              "\\|\\*Messages\\*\\|\\*dashboard\\*"  ; Don't save *dashboard*!
-              "\\)$"))
+(add-hook 'emacs-startup-hook 'my/setup-workspaces)
 
-;; Restore desktop
-(desktop-read)
-
-;; Auto-save every 5 minutes
-(run-with-idle-timer 300 t 'desktop-save-in-desktop-dir)
 
 (provide '08-modern-conveniences)
 ;;; 08-modern-conveniences.el ends here
