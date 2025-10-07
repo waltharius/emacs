@@ -507,17 +507,6 @@
   (interactive)
   (dashboard-open))
 
-;; Show dashboard TYLKO jeśli nie ma zapisanej sesji Desktop
-(defun my/dashboard-maybe-open ()
-  "Open dashboard only if no Desktop session exists."
-  (let ((desktop-file (expand-file-name "desktop-save" user-emacs-directory)))
-    (unless (file-exists-p desktop-file)
-      ;; No desktop file - show dashboard
-      (dashboard-open))))
-
-;; Hook: show dashboard conditionally on startup
-(add-hook 'emacs-startup-hook #'my/dashboard-maybe-open)
-
 (provide '01-packages)
 ;;; 01-packages.el ends here
 
