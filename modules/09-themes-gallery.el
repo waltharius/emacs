@@ -159,10 +159,15 @@
     ;; - 'soft   → Soft contrast (easy on eyes!)
     ;; - 'medium → Medium contrast (default)
     ;; - 'hard   → Hard contrast (high contrast!)
-    (setq gruvbox-contrast 'soft)    ; Try: soft, medium, hard
+    (setq gruvbox-contrast 'medium)    ; Try: soft, medium, hard
     ;; Load theme
     (load-theme 'gruvbox-light-medium t))
-
+(with-eval-after-load 'gruvbox-theme
+  ;; Custom faces (after theme loads)
+  (set-face-foreground 'org-level-1 "#fb4934")  ; Red headers
+  (set-face-foreground 'org-level-2 "#b8bb26")  ; Green
+  (set-face-foreground 'org-level-3 "#fabd2f")  ; Yellow
+  (set-face-attribute 'org-level-1 nil :height 1.0)) 
 ;; ============================================================
 ;; END OF THEMES GALLERY
 ;; ============================================================
