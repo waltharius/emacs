@@ -511,13 +511,5 @@
                                (dashboard-refresh-buffer)
                                (get-buffer "*dashboard*")))
 
-;; Force dashboard to leftmost window
-(add-hook 'dashboard-after-initialize-hook
-          (lambda ()
-            (let ((dash-win (get-buffer-window "*dashboard*")))
-              (when dash-win
-                (select-window dash-win)
-                (delete-other-windows)))))  ; Optional: fullscreen dashboard
-
 (provide '01-packages)
 ;;; 01-packages.el ends here
