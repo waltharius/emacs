@@ -108,7 +108,7 @@
 (global-set-key (kbd "C-c n u") 'org-roam-ui-mode)
 
 (global-set-key (kbd "C-c d r") 'dashboard-refresh-buffer)
-(global-set-key (kbd "C-c d d") 'dashboard-open)
+(global-set-key (kbd "C-c d d") 'my/dashboard-open)
 
 ;; Bookmarks
 (global-set-key (kbd "C-c b m") 'bookmark-set)      ; Ustaw bookmark
