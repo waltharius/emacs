@@ -12,6 +12,8 @@
 ;;   - modules/05-denote-functions.el : Custom funkcje Denote
 ;;   - modules/06-keybindings.el      : Skróty klawiszowe
 ;;   - modules/07-git.el              : Konfiguracja git
+;;   - modules/08-modern-conveniences : Usprawnienia Emacs bez pisania kodu
+;;   - modules/09-themes-gallery      : Galeria szablonów zmieniających wygląd Emacs
 ;;
 ;;; Code:
 ;; ============================================================
@@ -56,6 +58,8 @@
 (my/load-module "05a-folgezettel.el")
 (my/load-module "06-keybindings.el")
 (my/load-module "07-git.el")
+(my/load-module "08-modern-conveniences")
+(my/load-module "09-themes-gallery")
 
 ;; ============================================================
 ;; DASHBOARD FIX: Refresh after startup
@@ -81,7 +85,8 @@
  '(package-selected-packages
    '(ample-theme consult-denote diff-hl flyspell-correct-ivy htmlize
 		 langtool magit org-contrib org-roam org-roam-ql
-		 org-transclusion)))
+		 org-transclusion))
+ '(recentf-filename-handlers '(abbreviate-file-name)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
