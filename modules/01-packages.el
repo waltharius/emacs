@@ -499,15 +499,6 @@
 )
 
 ;; ============================================================
-;; DASHBOARD CONDITIONAL STARTUP
-;; ============================================================
-
-(defun my/open-dashboard ()
-  "Open dashboard in current window."
-  (interactive)
-  (dashboard-open))
-
-;; ============================================================
 ;; DASHBOARD AUTO-RESTORE (after Desktop loads!)
 ;; ============================================================
 
