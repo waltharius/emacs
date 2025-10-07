@@ -72,7 +72,7 @@
       (message "Switched to DARK theme (modus-vivendi)"))))
 
 ;; Keybinding: C-c t = toggle theme
-(global-set-key (kbd "C-c t") 'my/toggle-theme)
+(global-set-key (kbd "C-c T") 'my/toggle-theme)
 
 ;; ============================================================
 ;; DEFAULT THEME (Set your favorite!)
