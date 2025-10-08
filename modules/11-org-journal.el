@@ -57,30 +57,59 @@
 ;; PREV/NEXT JOURNAL NAVIGATION
 ;; ============================================
 
-(defun my/journal-find-by-offset (days)
-  "Find journal file offset by DAYS from today."
-  (let* ((current-time (current-time))
-         (target-time (time-add current-time (days-to-time days)))
-         (target-date (format-time-string "%Y-%m-%d" target-time))
-         (pattern (concat "-" target-date "-journal")))
-    ;; Szukaj pliku z tą datą
-    (car (directory-files my-notes-dir t pattern))))
+(defun my/journal-get-current-date ()
+  "Get date from current journal file, or today if not in journal."
+  (if (and buffer-file-name
+           (string-match "\\([0-9]\\{4\\}\\)-\\([0-9]\\{2\\}\\)-\\([0-9]\\{2\\}\\)"
+                         (file-name-nondirectory buffer-file-name)))
+      (match-string 0 (file-name-nondirectory buffer-file-name))
+    (format-time-string "%Y-%m-%d")))
+
+(defun my/journal-get-all-dates ()
+  "Get sorted list of all journal dates (YYYY-MM-DD)."
+  (let ((dates '()))
+    (dolist (file (directory-files my-notes-dir t "-journal\\.org$"))
+      (when (string-match "\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)"
+                          (file-name-nondirectory file))
+        (push (match-string 1 (file-name-nondirectory file)) dates)))
+    (sort dates 'string<)))
+
+(defun my/journal-find-by-direction (direction)
+  "Find journal in DIRECTION ('prev or 'next) from current file."
+  (let* ((current-date (my/journal-get-current-date))
+         (all-dates (my/journal-get-all-dates))
+         (target-date nil))
+    (cond
+     ((eq direction 'prev)
+      ;; Znajdź poprzedni
+      (dolist (date all-dates)
+        (when (string< date current-date)
+          (setq target-date date))))
+     ((eq direction 'next)
+      ;; Znajdź następny
+      (setq target-date
+            (car (seq-filter (lambda (d) (string> d current-date))
+                            all-dates)))))
+    ;; Zwróć pełną ścieżkę
+    (when target-date
+      (car (directory-files my-notes-dir t
+                           (concat "-" target-date "-journal\\.org$"))))))
 
 (defun my/journal-prev ()
   "Open previous journal entry."
   (interactive)
-  (let ((prev-file (my/journal-find-by-offset -1)))
+  (let ((prev-file (my/journal-find-by-direction 'prev)))
     (if prev-file
         (find-file prev-file)
-      (message "No previous journal found. Create one with C-c n j!"))))
+      (message "No previous journal found. This is the first one! 🎉"))))
 
 (defun my/journal-next ()
   "Open next journal entry."
   (interactive)
-  (let ((next-file (my/journal-find-by-offset 1)))
+  (let ((next-file (my/journal-find-by-direction 'next)))
     (if next-file
         (find-file next-file)
-      (message "No next journal found. Maybe future? 🔮"))))
+      (message "No next journal found. This is the latest! 🚀"))))
 
 ;; ============================================
 ;; ENHANCED MY/JOURNAL (dodajemy elisp linki)

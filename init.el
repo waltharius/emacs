@@ -74,7 +74,7 @@
 (my/load-module "09-themes-gallery.el")
 (my/load-module "10-org-formatting.el")
 ;; Journal calendar + navigation
-(load (expand-file-name "modules/11-journal.el" user-emacs-directory))
+(load (expand-file-name "modules/11-org-journal.el" user-emacs-directory))
 
 
 (message "Emacs configuration loaded successfully! ✨")
