@@ -122,7 +122,6 @@ Zachowaj litery, cyfry i kropki."
 \\usepackage[T1]{fontenc}
 \\usepackage[polish]{babel}
 \\usepackage{graphicx}
-\\usepackage[no-math]{fontspec}
 \\usepackage{longtable}
 \\usepackage{hyperref}
 \\hypersetup{colorlinks=true,linkcolor=blue}"
