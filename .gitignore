@@ -15,6 +15,7 @@ quelpa/
 # Ignoruj pliki cache
 auto-save-list/
 recentf
+recentf~
 places
 bookmarks
 saveplace
@@ -22,6 +23,11 @@ eshell/
 transient/
 url/
 eln-cache/
+ido.last
+projectile-bookmarks.eld
+projectile.cache
+smex-items
+network-security.data
 
 # Ignoruj desktopy
 desktop/
@@ -57,4 +63,9 @@ undo-tree-history/
 # Syncthing
 .stversions/
 .sync-conflict-*
-ido.last
+
+# Org-mode generated
+.org-id-locations
+org-roam.db
+org-roam.db-shm
+org-roam.db-wal
