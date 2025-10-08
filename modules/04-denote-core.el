@@ -98,7 +98,8 @@ Zachowaj litery, cyfry i kropki."
 ;; ORG PDF/LATEX EXPORT
 ;; ============================================================
 
-(with-eval-after-load 'org
+;; Konfiguracja LaTeX - załaduj DOPIERO gdy ox-latex jest załadowany
+(with-eval-after-load 'ox-latex
   ;; LaTeX compiler (pdflatex = default, szybki)
   (setq org-latex-compiler "pdflatex")
 
@@ -121,6 +122,7 @@ Zachowaj litery, cyfry i kropki."
 \\usepackage[T1]{fontenc}
 \\usepackage[polish]{babel}
 \\usepackage{graphicx}
+\\usepackage[no-math]{fontspec}
 \\usepackage{longtable}
 \\usepackage{hyperref}
 \\hypersetup{colorlinks=true,linkcolor=blue}"
@@ -146,8 +148,9 @@ Zachowaj litery, cyfry i kropki."
         (message "✅ PDF: %s" target-pdf)
         target-pdf))))
 
-;; Apply advice to PDF export
-(advice-add 'org-latex-export-to-pdf :around #'my/org-latex-export-advice)
+;; Apply advice to PDF export (tylko jak ox-latex jest załadowany)
+(with-eval-after-load 'ox-latex
+  (advice-add 'org-latex-export-to-pdf :around #'my/org-latex-export-advice))
 
 (provide '04-denote-core)
 ;;; 04-denote-core.el ends here
