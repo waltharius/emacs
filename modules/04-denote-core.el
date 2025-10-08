@@ -62,40 +62,36 @@ Zachowaj litery, cyfry i kropki."
       "%40ITEM(Tytuł) %10STATUS %8YEAR %6PAGES %10PROJECT")
 
 ;; ============================================================
-;; ORG EXPORT - OSOBNE FOLDERY
+;; ORG HTML EXPORT - DEDICATED FOLDER + AUTO-CLEANUP
 ;; ============================================================
 
-;; HTML export → ~/notes/html/
-(setq org-html-publishing-directory (expand-file-name "html" my/notes-dir))
+;; Create html/ folder if not exists
+(let ((html-dir (expand-file-name "html" my/notes-dir)))
+  (unless (file-directory-p html-dir)
+    (make-directory html-dir t)))
 
-;; LaTeX/PDF artifacts → ~/notes/.latex-tmp/
-(setq org-latex-logfiles-extensions 
-      '("aux" "bcf" "blg" "fdb_latexmk" "fls" "figlist" 
-        "idx" "log" "nav" "out" "ptc" "run.xml" "snm" 
-        "toc" "vrb" "xdv" "tex"))
-
-;; Temporary LaTeX files → ~/notes/.latex-tmp/
-(defun my/org-latex-export-cleanup ()
-  "Przenieś LaTeX artifacts do .latex-tmp/."
+;; Auto-cleanup LaTeX artifacts AFTER export completes
+(defun my/org-export-cleanup ()
+  "Usuń LaTeX artifacts i przenieś HTML do ~/notes/html/ po eksporcie."
   (let* ((base-name (file-name-sans-extension (buffer-file-name)))
-         (latex-tmp-dir (expand-file-name ".latex-tmp" my/notes-dir)))
-    ;; Stwórz folder jeśli nie istnieje
-    (unless (file-directory-p latex-tmp-dir)
-      (make-directory latex-tmp-dir t))
-    ;; Przenieś LaTeX artifacts
-    (dolist (ext org-latex-logfiles-extensions)
-      (let ((artifact-file (concat base-name "." ext)))
-        (when (file-exists-p artifact-file)
-          (rename-file artifact-file 
-                       (expand-file-name (file-name-nondirectory artifact-file) latex-tmp-dir)
-                       t))))))
+         (html-file (concat base-name ".html"))
+         (html-dir (expand-file-name "html" my/notes-dir)))
+    ;; 1. Delete LaTeX artifacts
+    (dolist (ext '("aux" "log" "tex" "fdb_latexmk" "fls" "out" "toc" "nav" "snm"))
+      (let ((artifact (concat base-name "." ext)))
+        (when (file-exists-p artifact)
+          (delete-file artifact))))
+    ;; 2. Move HTML to dedicated folder
+    (when (file-exists-p html-file)
+      (let ((target-html (expand-file-name (file-name-nondirectory html-file) html-dir)))
+        (rename-file html-file target-html t)
+        (message "✅ HTML: %s" target-html)))))
 
-;; Auto-cleanup po eksporcie
-(add-hook 'org-export-before-processing-hook 'my/org-latex-export-cleanup)
-
-;; Ensure HTML export directory exists
-(unless (file-directory-p org-html-publishing-directory)
-  (make-directory org-html-publishing-directory t))
+;; Hook: Run cleanup AFTER export finishes
+(add-hook 'org-export-finished-functions 
+          (lambda (backend) 
+            (when (eq backend 'html)
+              (my/org-export-cleanup))))
 
 (provide '04-denote-core)
 ;;; 04-denote-core.el ends here

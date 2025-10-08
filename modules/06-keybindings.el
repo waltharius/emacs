@@ -118,9 +118,6 @@
 ;; Cele dzienne interaktywne
 (global-set-key (kbd "C-c g s") 'my/set-daily-goals)
 
-;; Export HTML to dedicated folder
-(global-set-key (kbd "C-c e h") 'my/org-html-export-to-html-folder)
-
 ;; ============================================================
 ;; WHICH-KEY GROUP LABELS (organized C-c menu)
 ;; ============================================================
