@@ -5,6 +5,7 @@
 ;; Zachowuje 100% Twojego workflow (my/journal)
 ;; Dodaje: calendar view, prev/next journal, search
 ;; BONUS: Klik na dzień = search by identifier!
+;; BONUS 2: 'i' = liczba notatek na dzień (Obsidian-style!)
 
 ;;; Code:
 
@@ -33,7 +34,7 @@
   ;; Usuń poprzednie marki (refresh!)
   (calendar-unmark)
   (let ((journal-dates '()))
-    (dolist (file (directory-files my-notes-dir t "\\.org$"))
+    (dolist (file (directory-files my-notes-dir t "__journal\\.org$"))
       (when (string-match "\\([0-9]\\{4\\}\\)-\\([0-9]\\{2\\}\\)-\\([0-9]\\{2\\}\\)"
                           (file-name-nondirectory file))
         (let ((year (string-to-number (match-string 1 (file-name-nondirectory file))))
@@ -55,7 +56,6 @@
   ;; Poczekaj na otwarcie, POTEM oznacz!
   (run-at-time "0.1 sec" nil 'my/journal-mark-calendar))
 
-
 ;; ============================================
 ;; CLICK ON DAY = SEARCH BY IDENTIFIER
 ;; ============================================
@@ -67,7 +67,8 @@
          (month (calendar-extract-month date))
          (day (calendar-extract-day date))
          (identifier-pattern (format "%04d%02d%02d" year month day)))
-    (consult-ripgrep my-notes-dir (concat ":identifier: " identifier-pattern))))
+    ;; FIXED: "identifier: " (bez dwukropka na początku!)
+    (consult-ripgrep my-notes-dir (concat "identifier: " identifier-pattern))))
 
 (defun my/journal-calendar-open-day ()
   "Search notes from selected day in calendar."
@@ -95,7 +96,8 @@
 (defun my/journal-get-all-dates ()
   "Get sorted list of all journal dates (YYYY-MM-DD)."
   (let ((dates '()))
-    (dolist (file (directory-files my-notes-dir t "-journal\\.org$"))
+    ;; FIXED: __journal.org (nie -journal.org!)
+    (dolist (file (directory-files my-notes-dir t "-journal__"))
       (when (string-match "\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)"
                           (file-name-nondirectory file))
         (push (match-string 1 (file-name-nondirectory file)) dates)))
@@ -117,10 +119,10 @@
       (setq target-date
             (car (seq-filter (lambda (d) (string> d current-date))
                             all-dates)))))
-    ;; Zwróć pełną ścieżkę
+    ;; FIXED: __journal.org (nie -journal.org!)
     (when target-date
-      (car (directory-files my-notes-dir t
-                           (concat "-" target-date "-journal\\.org$"))))))
+      (car (directory-files my-notes-dir t 
+                           (concat "-" target-date "-journal__journal\\.org$"))))))
 
 (defun my/journal-prev ()
   "Open previous journal entry."
@@ -155,7 +157,7 @@
 (defun my/journal-setup-navigation ()
   "Setup navigation links in journal files."
   (when (and buffer-file-name
-             (string-match "-journal\\.org$" buffer-file-name))
+             (string-match "__journal\\.org$" buffer-file-name))
     (my/journal-add-navigation-links)))
 
 (add-hook 'org-mode-hook 'my/journal-setup-navigation)
@@ -167,7 +169,7 @@
 (defun my/journal-search (query)
   "Search through all journal files for QUERY."
   (interactive "sSearch journals: ")
-  (consult-ripgrep my-notes-dir (concat query " *journal*.org")))
+  (consult-ripgrep my-notes-dir (concat query " __journal.org")))
 
 ;; ============================================
 ;; BONUS: LICZBA WPISÓW NA DZIEŃ (jak Obsidian!)
@@ -190,12 +192,12 @@
   (interactive)
   (let* ((date (calendar-cursor-to-date))
          (count (my/journal-count-notes-on-day date))
-         (date-str (format "%04d-%02d-%02d"
+         (date-str (format "%04d-%02d-%02d" 
                           (calendar-extract-year date)
                           (calendar-extract-month date)
                           (calendar-extract-day date))))
     (if (> count 0)
-        (message "📝 %s: %d note%s"
+        (message "📝 %s: %d note%s" 
                  date-str count (if (= count 1) "" "s"))
       (message "No notes on %s" date-str))))
 
