@@ -5,16 +5,13 @@
 ;;
 ;;; Code:
 
-;; --- Zmienna globalna: katalog notatek ---
-(defvar my-notes-dir (expand-file-name "~/notes/")
-  "Katalog dla notatek Denote.")
 
 ;; --- Denote: prosty system notatek ---
 (use-package denote
   :ensure t
   :custom
-  (denote-directory my-notes-dir)
-  (denote-known-keywords '("zettel" "osoba" "projekt"))
+  (denote-directory my/notes-dir)
+  (denote-known-keywords my/denote-keywords)
   (denote-infer-keywords t)
   (denote-sort-keywords t)
   (denote-file-type nil)
@@ -48,10 +45,10 @@ Zachowaj litery, cyfry i kropki."
 (defun my/denote-auto-fill-setup ()
   "Włącz auto-fill-mode dla notatek Denote (wrap na 80 znaków)."
   (when (and (buffer-file-name)
-             (string-match-p (expand-file-name my-notes-dir) 
+             (string-match-p (expand-file-name my/notes-dir) 
                              (buffer-file-name)))
     (auto-fill-mode 1)
-    (setq fill-column 84)))
+    (setq fill-column my/fill-column)
 
 (add-hook 'find-file-hook 'my/denote-auto-fill-setup)
 (add-hook 'org-mode-hook 'my/denote-auto-fill-setup)
