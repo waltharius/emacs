@@ -76,6 +76,15 @@
   (setq org-roam-ui-follow t)
   (setq org-roam-ui-update-on-save t))
 
+;; yasnippert automatyczne parowanie znaczników bloku kodu
+(use-package yasnippet
+  :ensure t
+  :config
+  (yas-global-mode 1))
+
+(use-package yasnippet-snippets
+  :ensure t)
+
 ;; ============================================================
 ;; UNDO TREE (Persistent undo + visualization)
 ;; ============================================================

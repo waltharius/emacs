@@ -70,28 +70,29 @@ Zachowaj litery, cyfry i kropki."
   (unless (file-directory-p html-dir)
     (make-directory html-dir t)))
 
-;; Auto-cleanup LaTeX artifacts AFTER export completes
-(defun my/org-export-cleanup ()
-  "Usuń LaTeX artifacts i przenieś HTML do ~/notes/html/ po eksporcie."
-  (let* ((base-name (file-name-sans-extension (buffer-file-name)))
-         (html-file (concat base-name ".html"))
+;; Advice: Intercept HTML export and move file BEFORE browser opens
+(defun my/org-html-export-advice (orig-fun &rest args)
+  "Przechwyt HTML export - przenieś do ~/notes/html/ + cleanup LaTeX."
+  (let* ((result (apply orig-fun args))
+         (html-file result)
+         (base-name (file-name-sans-extension (buffer-file-name)))
          (html-dir (expand-file-name "html" my/notes-dir)))
-    ;; 1. Delete LaTeX artifacts
+    ;; 1. Cleanup LaTeX artifacts
     (dolist (ext '("aux" "log" "tex" "fdb_latexmk" "fls" "out" "toc" "nav" "snm"))
       (let ((artifact (concat base-name "." ext)))
         (when (file-exists-p artifact)
           (delete-file artifact))))
-    ;; 2. Move HTML to dedicated folder
-    (when (file-exists-p html-file)
+    ;; 2. Move HTML to dedicated folder (if exists)
+    (when (and html-file (stringp html-file) (file-exists-p html-file))
       (let ((target-html (expand-file-name (file-name-nondirectory html-file) html-dir)))
         (rename-file html-file target-html t)
-        (message "✅ HTML: %s" target-html)))))
+        (message "✅ HTML: %s" target-html)
+        ;; Return new path (important for browser open!)
+        target-html))))
 
-;; Hook: Run cleanup AFTER export finishes
-(add-hook 'org-export-finished-functions 
-          (lambda (backend) 
-            (when (eq backend 'html)
-              (my/org-export-cleanup))))
+;; Apply advice to BOTH export functions
+(advice-add 'org-html-export-to-html :around #'my/org-html-export-advice)
+(advice-add 'org-html-export-to-html-and-open :around #'my/org-html-export-advice)
 
 (provide '04-denote-core)
 ;;; 04-denote-core.el ends here
