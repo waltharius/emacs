@@ -94,5 +94,59 @@ Zachowaj litery, cyfry i kropki."
 (advice-add 'org-html-export-to-html :around #'my/org-html-export-advice)
 (advice-add 'org-html-export-to-html-and-open :around #'my/org-html-export-advice)
 
+;; ============================================================
+;; ORG PDF/LATEX EXPORT
+;; ============================================================
+
+;; LaTeX compiler (pdflatex = default, szybki)
+(setq org-latex-compiler "pdflatex")
+
+;; LaTeX to PDF process (3 passes for cross-references)
+(setq org-latex-pdf-process
+      '("pdflatex -interaction nonstopmode -output-directory=%o %f"
+        "pdflatex -interaction nonstopmode -output-directory=%o %f"
+        "pdflatex -interaction nonstopmode -output-directory=%o %f"))
+
+;; Polish language support
+(add-to-list 'org-latex-packages-alist '("AUTO" "babel" t ("pdflatex")))
+(add-to-list 'org-latex-packages-alist '("AUTO" "fontenc" t ("pdflatex")))
+(add-to-list 'org-latex-packages-alist '("utf8" "inputenc" t ("pdflatex")))
+
+;; Better default LaTeX class (article with polish support)
+(add-to-list 'org-latex-classes
+             '("article-polish"
+               "\\documentclass[11pt,a4paper]{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage[polish]{babel}
+\\usepackage{graphicx}
+\\usepackage{longtable}
+\\usepackage{hyperref}
+\\hypersetup{colorlinks=true,linkcolor=blue}"
+               ("\\section{%s}" . "\\section*{%s}")
+               ("\\subsection{%s}" . "\\subsection*{%s}")
+               ("\\subsubsection{%s}" . "\\subsubsection*{%s}")))
+
+;; Default class for export
+(setq org-latex-default-class "article-polish")
+
+;; Advice: Intercept PDF export and move file
+(defun my/org-latex-export-advice (orig-fun &rest args)
+  "Przechwyt PDF export - przenieś do ~/notes/pdf/."
+  (let* ((result (apply orig-fun args))
+         (pdf-file result)
+         (pdf-dir (expand-file-name "pdf" my/notes-dir)))
+    ;; Move PDF to dedicated folder (if exists)
+    (when (and pdf-file (stringp pdf-file) (file-exists-p pdf-file))
+      (unless (file-directory-p pdf-dir)
+        (make-directory pdf-dir t))
+      (let ((target-pdf (expand-file-name (file-name-nondirectory pdf-file) pdf-dir)))
+        (rename-file pdf-file target-pdf t)
+        (message "✅ PDF: %s" target-pdf)
+        target-pdf))))
+
+;; Apply advice to PDF export
+(advice-add 'org-latex-export-to-pdf :around #'my/org-latex-export-advice)
+
 (provide '04-denote-core)
 ;;; 04-denote-core.el ends here
