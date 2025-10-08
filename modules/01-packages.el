@@ -85,6 +85,13 @@
 (use-package yasnippet-snippets
   :ensure t)
 
+;; --- Flycheck: syntax checking on-the-fly ---
+(use-package flycheck
+  :ensure t
+  :init (global-flycheck-mode)
+  :config
+  (setq flycheck-emacs-lisp-load-path 'inherit))  ; Używaj load-path z Emacsa
+
 ;; ============================================================
 ;; UNDO TREE (Persistent undo + visualization)
 ;; ============================================================

@@ -48,10 +48,10 @@ Zachowaj litery, cyfry i kropki."
              (string-match-p (expand-file-name my/notes-dir) 
                              (buffer-file-name)))
     (auto-fill-mode 1)
-    (setq fill-column my/fill-column)
+    (setq fill-column my/fill-column)))
 
 (add-hook 'find-file-hook 'my/denote-auto-fill-setup)
-(add-hook 'org-mode-hook 'my/denote-auto-fill-setup)))
+(add-hook 'org-mode-hook 'my/denote-auto-fill-setup)
 
 (setq org-list-allow-alphabetical t)
 (setq org-list-demote-modify-bullet
@@ -98,24 +98,25 @@ Zachowaj litery, cyfry i kropki."
 ;; ORG PDF/LATEX EXPORT
 ;; ============================================================
 
-;; LaTeX compiler (pdflatex = default, szybki)
-(setq org-latex-compiler "pdflatex")
+(with-eval-after-load 'org
+  ;; LaTeX compiler (pdflatex = default, szybki)
+  (setq org-latex-compiler "pdflatex")
 
-;; LaTeX to PDF process (3 passes for cross-references)
-(setq org-latex-pdf-process
-      '("pdflatex -interaction nonstopmode -output-directory=%o %f"
-        "pdflatex -interaction nonstopmode -output-directory=%o %f"
-        "pdflatex -interaction nonstopmode -output-directory=%o %f"))
+  ;; LaTeX to PDF process (3 passes for cross-references)
+  (setq org-latex-pdf-process
+        '("pdflatex -interaction nonstopmode -output-directory=%o %f"
+          "pdflatex -interaction nonstopmode -output-directory=%o %f"
+          "pdflatex -interaction nonstopmode -output-directory=%o %f"))
 
-;; Polish language support
-(add-to-list 'org-latex-packages-alist '("AUTO" "babel" t ("pdflatex")))
-(add-to-list 'org-latex-packages-alist '("AUTO" "fontenc" t ("pdflatex")))
-(add-to-list 'org-latex-packages-alist '("utf8" "inputenc" t ("pdflatex")))
+  ;; Polish language support
+  (add-to-list 'org-latex-packages-alist '("AUTO" "babel" t ("pdflatex")))
+  (add-to-list 'org-latex-packages-alist '("T1" "fontenc" t ("pdflatex")))
+  (add-to-list 'org-latex-packages-alist '("utf8" "inputenc" t ("pdflatex")))
 
-;; Better default LaTeX class (article with polish support)
-(add-to-list 'org-latex-classes
-             '("article-polish"
-               "\\documentclass[11pt,a4paper]{article}
+  ;; Better default LaTeX class (article with polish support)
+  (add-to-list 'org-latex-classes
+               '("article-polish"
+                 "\\documentclass[11pt,a4paper]{article}
 \\usepackage[utf8]{inputenc}
 \\usepackage[T1]{fontenc}
 \\usepackage[polish]{babel}
@@ -123,12 +124,12 @@ Zachowaj litery, cyfry i kropki."
 \\usepackage{longtable}
 \\usepackage{hyperref}
 \\hypersetup{colorlinks=true,linkcolor=blue}"
-               ("\\section{%s}" . "\\section*{%s}")
-               ("\\subsection{%s}" . "\\subsection*{%s}")
-               ("\\subsubsection{%s}" . "\\subsubsection*{%s}")))
+                 ("\\section{%s}" . "\\section*{%s}")
+                 ("\\subsection{%s}" . "\\subsection*{%s}")
+                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")))
 
-;; Default class for export
-(setq org-latex-default-class "article-polish")
+  ;; Default class for export
+  (setq org-latex-default-class "article-polish"))
 
 ;; Advice: Intercept PDF export and move file
 (defun my/org-latex-export-advice (orig-fun &rest args)
