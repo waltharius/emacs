@@ -161,5 +161,12 @@ Zachowaj litery, cyfry i kropki."
 ;; Left mouse click follows links
 (setq org-mouse-1-follows-link t)
 
+;; ============================================
+;; DISABLE CONFIRMATION FOR ELISP LINKS
+;; ============================================
+
+;; Don't ask for confirmation when executing elisp links
+(setq org-confirm-elisp-link-function nil)
+
 (provide '04-denote-core)
 ;;; 04-denote-core.el ends here

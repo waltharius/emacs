@@ -148,29 +148,6 @@
       (message "No next journal found. This is the latest! 🚀"))))
 
 ;; ============================================
-;; AUTO-INSERT NAVIGATION LINKS!
-;; ============================================
-
-(defun my/journal-add-navigation-links ()
-  "Add prev/next navigation links at top of journal."
-  (save-excursion
-    (goto-char (point-min))
-    (when (re-search-forward "^:END:" nil t)
-      (forward-line 1)
-      (unless (looking-at "^\\[\\[elisp:")
-        (insert "\n[[elisp:(my/journal-prev)][← Poprzedni]] | ")
-        (insert "[[elisp:(my/journal-next)][Następny →]]\n")))))
-
-(defun my/journal-setup-navigation ()
-  "Setup navigation links in journal files (AUTO!)."
-  (when (and buffer-file-name
-             (string-match-p "-[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}-journal__.*\\.org$"
-                            buffer-file-name))
-    (my/journal-add-navigation-links)))
-
-(add-hook 'org-mode-hook 'my/journal-setup-navigation)
-
-;; ============================================
 ;; JOURNAL SEARCH
 ;; ============================================
 
@@ -206,7 +183,7 @@
                           (calendar-extract-month date)
                           (calendar-extract-day date))))
     (if (> count 0)
-        (message "📝 %s: %d journal entr%s" 
+        (message "📝 %s: %d journal entr%s"
                  date-str count (if (= count 1) "y" "ies"))
       (message "No journals on %s" date-str))))
 
