@@ -164,7 +164,8 @@
 (defun my/journal-setup-navigation ()
   "Setup navigation links in journal files (AUTO!)."
   (when (and buffer-file-name
-             (string-match-p "-journal__" buffer-file-name))
+             (string-match-p "-[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}-journal__.*\\.org$"
+                            buffer-file-name))
     (my/journal-add-navigation-links)))
 
 (add-hook 'org-mode-hook 'my/journal-setup-navigation)

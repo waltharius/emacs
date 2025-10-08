@@ -45,7 +45,7 @@ Zachowaj litery, cyfry i kropki."
 (defun my/denote-auto-fill-setup ()
   "Włącz auto-fill-mode dla notatek Denote (wrap na 80 znaków)."
   (when (and (buffer-file-name)
-             (string-match-p (expand-file-name my/notes-dir) 
+             (string-match-p (expand-file-name my/notes-dir)
                              (buffer-file-name)))
     (auto-fill-mode 1)
     (setq fill-column my/fill-column)))
@@ -150,6 +150,16 @@ Zachowaj litery, cyfry i kropki."
 ;; Apply advice to PDF export (tylko jak ox-latex jest załadowany)
 (with-eval-after-load 'ox-latex
   (advice-add 'org-latex-export-to-pdf :around #'my/org-latex-export-advice))
+
+;; ============================================
+;; ORG-MODE LINK BEHAVIOR
+;; ============================================
+
+;; RET follows links (easier!)
+(setq org-return-follows-link t)
+
+;; Left mouse click follows links
+(setq org-mouse-1-follows-link t)
 
 (provide '04-denote-core)
 ;;; 04-denote-core.el ends here
