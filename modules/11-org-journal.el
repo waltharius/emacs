@@ -110,13 +110,12 @@
 ;; KEYBINDINGS (org-mode tylko!)
 ;; ============================================
 
+
+
+;; [ i ] TYLKO w org-mode!
 (with-eval-after-load 'org
-  ;; [ i ] działa TYLKO w org-mode!
   (define-key org-mode-map (kbd "[") 'my/journal-prev)
-  (define-key org-mode-map (kbd "]") 'my/journal-next)
-  
-  ;; C-c n c - calendar view
-  (global-set-key (kbd "C-c n c") 'my/journal-calendar))
+  (define-key org-mode-map (kbd "]") 'my/journal-next))
 
 ;; ============================================
 ;; JOURNAL SEARCH (bonus!)
