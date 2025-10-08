@@ -118,5 +118,11 @@
 ;; Cele dzienne interaktywne
 (global-set-key (kbd "C-c g s") 'my/set-daily-goals)
 
+;; Which-key group labels
+(which-key-add-key-based-replacements
+  "C-c n" "notes"
+  "C-c f" "flyspell"
+  "C-c g" "grammar")
+
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here
