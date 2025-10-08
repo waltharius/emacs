@@ -125,8 +125,8 @@
 
 ;; [ i ] TYLKO w org-mode!
 (with-eval-after-load 'org
-  (define-key org-mode-map (kbd "[") 'my/journal-prev)
-  (define-key org-mode-map (kbd "]") 'my/journal-next))
+  (define-key org-mode-map (kbd "M-p") 'my/journal-prev)
+  (define-key org-mode-map (kbd "M-n") 'my/journal-next))
 
 
 ;; ============================================================
