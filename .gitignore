@@ -57,3 +57,4 @@ undo-tree-history/
 # Syncthing
 .stversions/
 .sync-conflict-*
+ido.last

@@ -51,13 +51,7 @@ Zachowaj litery, cyfry i kropki."
     (setq fill-column my/fill-column)
 
 (add-hook 'find-file-hook 'my/denote-auto-fill-setup)
-(add-hook 'org-mode-hook 'my/denote-auto-fill-setup)
-
-;; --- Org-mode: wyłącz auto-indent, włącz lepsze listy ---
-(add-hook 'org-mode-hook
-          (lambda ()
-            (electric-indent-local-mode -1)
-            (setq-local electric-indent-chars nil)))
+(add-hook 'org-mode-hook 'my/denote-auto-fill-setup)))
 
 (setq org-list-allow-alphabetical t)
 (setq org-list-demote-modify-bullet
