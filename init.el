@@ -5,6 +5,7 @@
 ;; Description: Modułowa konfiguracja Emacsa z systemem notatek Denote
 ;;
 ;; Struktura:
+;;   - modules/00-variables.el        : Plik ze wszystkimi zmiennymi. MUSI być na początku!!
 ;;   - modules/01-packages.el         : Zarządzanie pakietami
 ;;   - modules/02-spelling.el         : Sprawdzanie pisowni i gramatyki
 ;;   - modules/03-ui.el               : Ustawienia interfejsu
@@ -17,6 +18,12 @@
 ;;   - modules/10-org-formatting      : Skróty do formatowania tekstu i inne przydatne bajery z tekstem związane
 ;;
 ;;; Code:
+;; ============================================================
+;; PERFORMANCE: Garbage collection optimization (startup only)
+;; ============================================================
+
+(setq gc-cons-threshold most-positive-fixnum)  ; Disable GC during startup
+
 ;; ============================================================
 ;; CRITICAL: Load fresh .el files (prevent cache issues)
 ;; ============================================================
@@ -49,8 +56,12 @@
           (load-file module-file))
       (message "Warning: Module %s not found!" module-name))))
 
-;; Load all modules in order
 (message "Loading Emacs configuration...")
+;; 00-variables.el MUST BE FIRST - defines all paths and settings
+(my/load-module "00-variables.el")
+
+;; Load all modules in order
+
 (my/load-module "01-packages.el")
 (my/load-module "02-spelling.el")
 (my/load-module "03-ui.el")
@@ -63,24 +74,17 @@
 (my/load-module "09-themes-gallery.el")
 (my/load-module "10-org-formatting.el")
 
-;; ============================================================
-;; DASHBOARD FIX: Refresh after startup
-;; ============================================================
 
 (message "Emacs configuration loaded successfully! ✨")
 
+;; ============================================================
+;; CUSTOM FILE (keep custom-set-variables out of init.el)
+;; ============================================================
+
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+(when (file-exists-p custom-file)
+  (load custom-file))
+
 (provide 'init)
 ;;; init.el ends here
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(package-selected-packages nil)
- '(recentf-filename-handlers '(abbreviate-file-name)))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
+
