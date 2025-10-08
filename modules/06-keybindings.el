@@ -118,11 +118,28 @@
 ;; Cele dzienne interaktywne
 (global-set-key (kbd "C-c g s") 'my/set-daily-goals)
 
-;; Which-key group labels
 (which-key-add-key-based-replacements
+  ;; Main groups
   "C-c n" "notes"
   "C-c f" "flyspell"
-  "C-c g" "grammar")
+  "C-c g" "grammar"
+  "C-c b" "bookmarks"
+  "C-c s" "statistics"
+  "C-c t" "transclusion"
+  
+  ;; Subgroups for notes
+  "C-c n n" "new note"
+  "C-c n j" "journal"
+  "C-c n z" "zettel"
+  "C-c n o" "person"
+  "C-c n l" "literature"
+  "C-c n p" "project"
+  "C-c n b" "base"
+  "C-c n s" "shortcuts"
+  "C-c n w" "well-being"
+  "C-c n f" "find/filter"
+  "C-c n r" "rename"
+  "C-c n d" "dashboard")
 
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here
