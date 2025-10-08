@@ -119,15 +119,15 @@
 (global-set-key (kbd "C-c g s") 'my/set-daily-goals)
 
 ;;; --- Journal (org-journal integration) ---
-;; WAŻNE: Te funkcje są w 11-org-journal.el (load AFTER!)
 (with-eval-after-load '11-org-journal
-  (global-set-key (kbd "C-c n c") 'calendar)  ; Otwórz calendar (auto-mark!)
+  (global-set-key (kbd "C-c n c") 'my/open-journal-calendar)  ; Otwórz calendar (auto-mark FIXED!)
   (global-set-key (kbd "C-c n s") 'my/journal-search))
 
 ;; [ i ] TYLKO w org-mode!
 (with-eval-after-load 'org
   (define-key org-mode-map (kbd "[") 'my/journal-prev)
   (define-key org-mode-map (kbd "]") 'my/journal-next))
+
 
 ;; ============================================================
 ;; WHICH-KEY GROUP LABELS (organized C-c menu)

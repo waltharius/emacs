@@ -30,6 +30,8 @@
 (defun my/journal-mark-calendar ()
   "Mark all journal days in calendar."
   (interactive)
+  ;; Usuń poprzednie marki (refresh!)
+  (calendar-unmark)
   (let ((journal-dates '()))
     (dolist (file (directory-files my-notes-dir t "\\.org$"))
       (when (string-match "\\([0-9]\\{4\\}\\)-\\([0-9]\\{2\\}\\)-\\([0-9]\\{2\\}\\)"
@@ -39,10 +41,20 @@
               (day (string-to-number (match-string 3 (file-name-nondirectory file)))))
           (push (list month day year) journal-dates))))
     (dolist (date journal-dates)
-      (calendar-mark-visible-date date))))
+      (calendar-mark-visible-date date))
+    (message "Marked %d journal days! 📅" (length journal-dates))))
 
-;; Auto-mark gdy otwierasz calendar
-(add-hook 'calendar-mode-hook 'my/journal-mark-calendar)
+;; Wywołaj marking po zmianie miesiąca
+(add-hook 'calendar-move-hook 'my/journal-mark-calendar)
+
+;; WAŻNE: Wywołaj marking ZARAZ po otwarciu calendara!
+(defun my/open-journal-calendar ()
+  "Open calendar and mark journal days (fixed version!)."
+  (interactive)
+  (calendar)
+  ;; Poczekaj na otwarcie, POTEM oznacz!
+  (run-at-time "0.1 sec" nil 'my/journal-mark-calendar))
+
 
 ;; ============================================
 ;; CLICK ON DAY = SEARCH BY IDENTIFIER
@@ -156,6 +168,41 @@
   "Search through all journal files for QUERY."
   (interactive "sSearch journals: ")
   (consult-ripgrep my-notes-dir (concat query " *journal*.org")))
+
+;; ============================================
+;; BONUS: LICZBA WPISÓW NA DZIEŃ (jak Obsidian!)
+;; ============================================
+
+(defun my/journal-count-notes-on-day (date)
+  "Count all notes created on DATE (YYYYMMDD)."
+  (let* ((year (calendar-extract-year date))
+         (month (calendar-extract-month date))
+         (day (calendar-extract-day date))
+         (identifier-pattern (format "%04d%02d%02d" year month day))
+         (count 0))
+    (dolist (file (directory-files my-notes-dir t "\\.org$"))
+      (when (string-match identifier-pattern (file-name-nondirectory file))
+        (setq count (1+ count))))
+    count))
+
+(defun my/journal-show-day-info ()
+  "Show number of notes on selected day (Obsidian-style!)."
+  (interactive)
+  (let* ((date (calendar-cursor-to-date))
+         (count (my/journal-count-notes-on-day date))
+         (date-str (format "%04d-%02d-%02d"
+                          (calendar-extract-year date)
+                          (calendar-extract-month date)
+                          (calendar-extract-day date))))
+    (if (> count 0)
+        (message "📝 %s: %d note%s"
+                 date-str count (if (= count 1) "" "s"))
+      (message "No notes on %s" date-str))))
+
+;; Bind 'i' (info) w calendar
+(add-hook 'calendar-mode-hook
+          (lambda ()
+            (local-set-key (kbd "i") 'my/journal-show-day-info)))
 
 (provide '11-org-journal)
 ;;; 11-org-journal.el ends here
