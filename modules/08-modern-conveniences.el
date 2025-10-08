@@ -7,25 +7,23 @@
 ;;; Code:
 
 ;; ============================================================
-;; CUA MODE (Ctrl-C/V/X for Copy/Paste/Cut)
+;; MODERN KEYBINDINGS (without CUA mode)
 ;; ============================================================
 
-;; Enable CUA mode for modern keybindings
-;; C-c = Copy (when region active)
-;; C-v = Paste
-;; C-x = Cut (when region active)
-;; C-z = Undo
-;; IMPORTANT: C-c and C-x work NORMALLY when nothing is selected!
+;; CUA mode DISABLED - conflicts with Denote C-c prefix
+;; Use native Emacs bindings:
+;;   M-w = Copy
+;;   C-w = Cut
+;;   C-y = Paste (yank)
+;;   C-/ = Undo
 
-(cua-mode t)
+;; Keep convenient modern-style bindings
+(global-set-key (kbd "C-a") 'mark-whole-buffer)  ; Select all
+(global-set-key (kbd "C-f") 'isearch-forward)    ; Find
+(global-set-key (kbd "C-s") 'save-buffer)        ; Save
 
-;; Configure CUA to not override C-x/C-c when no selection
-(setq cua-keep-region-after-copy t)  ; Keep selection after copy
-
-;; Additional modern keybindings
-(global-set-key (kbd "C-a") 'mark-whole-buffer)  ; Ctrl-A = Select all
-(global-set-key (kbd "C-f") 'isearch-forward)    ; Ctrl-F = Find/Search
-(global-set-key (kbd "C-s") 'save-buffer)        ; Ctrl-S = Save (override isearch)
+;; Alternative undo (more intuitive than C-/)
+(global-set-key (kbd "C-z") 'undo)               ; Undo (standard)
 
 ;; Make isearch more intuitive
 (define-key isearch-mode-map (kbd "C-f") 'isearch-repeat-forward)
