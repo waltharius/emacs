@@ -21,30 +21,50 @@
 
 ;; --- Funkcja: Auto-commit notatek ---
 (defun my/auto-commit-notes ()
-  "Automatyczny commit wszystkich zmian w ~/notes/."
+  "Auto-commit notes TYLKO gdy coś się zmieniło, z lepszym message."
   (interactive)
   (let ((notes-dir (expand-file-name "~/notes/")))
     (when (file-directory-p (concat notes-dir ".git"))
       (let ((default-directory notes-dir))
-        (message "Auto-commit: ~/notes/")
-        (shell-command "git add -A 2>&1")
-        (shell-command (format "git commit -m 'Auto-commit: %s' 2>&1 || true" 
-                               (format-time-string "%Y-%m-%d %H:%M")))
-        (sit-for 0.2)))))
+        ;; Check if there are changes
+        (when (> (length (shell-command-to-string "git status --porcelain")) 0)
+          ;; Get list of changed files (only filenames, not paths)
+          (let* ((changed-files-raw (shell-command-to-string 
+                                     "git diff --name-only HEAD | head -5"))
+                 (changed-files (mapconcat 
+                                 (lambda (f) 
+                                   (file-name-nondirectory f))
+                                 (split-string changed-files-raw "\n" t)
+                                 "\n"))
+                 (commit-msg (format "Auto-commit: %s\n\nChanged:\n%s"
+                                     (format-time-string "%Y-%m-%d %H:%M")
+                                     changed-files)))
+            (shell-command "git add -A 2>&1")
+            (shell-command (format "git commit -m '%s' 2>&1 || true" commit-msg))
+            (message "✅ Notes committed: %s" changed-files)))))))
 
 ;; --- Funkcja: Auto-commit konfiguracji Emacsa ---
+;; --- Funkcja: Auto-commit konfiguracji Emacsa ---
 (defun my/auto-commit-emacs-config ()
-  "Automatyczny commit konfiguracji ~/.emacs.d/ (tylko init.el + modules/)."
+  "Auto-commit Emacs config TYLKO gdy coś się zmieniło, z lepszym message."
   (interactive)
-  (let ((emacs-dir (expand-file-name "~/.emacs.d/")))
-    (when (file-directory-p (concat emacs-dir ".git"))
-      (let ((default-directory emacs-dir))
-        (message "Auto-commit: ~/.emacs.d/")
-        ;; Dodaj TYLKO konfigurację (nie elpa, nie cache)
-        (shell-command "git add init.el modules/ .gitignore 2>&1")
-        (shell-command (format "git commit -m 'Auto-commit config: %s' 2>&1 || true" 
-                               (format-time-string "%Y-%m-%d %H:%M")))
-        (sit-for 0.2)))))
+  (let ((default-directory user-emacs-directory))
+    ;; Check if there are changes
+    (when (> (length (shell-command-to-string "git status --porcelain")) 0)
+      ;; Get list of changed files (only module names)
+      (let* ((changed-files-raw (shell-command-to-string 
+                                 "git diff --name-only HEAD | head -5"))
+             (changed-files (mapconcat 
+                             (lambda (f) 
+                               (file-name-nondirectory f))
+                             (split-string changed-files-raw "\n" t)
+                             "\n"))
+             (commit-msg (format "Auto-commit config: %s\n\nChanged:\n%s"
+                                 (format-time-string "%Y-%m-%d %H:%M")
+                                 changed-files)))
+        (shell-command "git add -A 2>&1")
+        (shell-command (format "git commit -m '%s' 2>&1 || true" commit-msg))
+        (message "✅ Emacs config committed: %s" changed-files)))))
 
 ;; --- Funkcja zbiorowa: Commit wszystkiego ---
 (defun my/auto-commit-all ()

@@ -1208,5 +1208,46 @@ ZAWSZE pyta o potwierdzenie!"
     (other-window 1))
   (call-interactively 'my/denote-filozof))
 
+;; ============================================================
+;; EXPORT TAGS LIST
+;; ============================================================
+
+(defun my/denote-export-all-tags ()
+  "Zrzuć wszystkie tagi z notatek do pliku tags-list.org."
+  (interactive)
+  (let* ((all-files (denote-directory-files))
+         (all-tags (delete-dups
+                    (sort
+                     (flatten-list
+                      (mapcar (lambda (file)
+                                (denote-extract-keywords-from-path file))
+                              all-files))
+                     #'string<)))
+         (tag-counts (mapcar (lambda (tag)
+                               (cons tag
+                                     (length (seq-filter
+                                              (lambda (file)
+                                                (member tag (denote-extract-keywords-from-path file)))
+                                              all-files))))
+                             all-tags))
+         (output-file (expand-file-name "tags-list.org" denote-directory)))
+    ;; Write to file
+    (with-temp-file output-file
+      (insert "#+TITLE: Lista Wszystkich Tagów\n")
+      (insert "#+DATE: " (format-time-string "%Y-%m-%d %H:%M") "\n\n")
+      (insert (format "Łącznie tagów: %d\n" (length all-tags)))
+      (insert (format "Łącznie notatek: %d\n\n" (length all-files)))
+      (insert "* Wszystkie tagi (z liczbą notatek)\n\n")
+      (insert "| Tag | Liczba notatek |\n")
+      (insert "|-----+----------------|\n")
+      (dolist (tag-count tag-counts)
+        (insert (format "| %s | %d |\n" (car tag-count) (cdr tag-count))))
+      (insert "\n* Lista alfabetyczna (tylko nazwy)\n\n")
+      (dolist (tag all-tags)
+        (insert (format "- %s\n" tag))))
+    ;; Open file
+    (find-file output-file)
+    (message "✅ Tagi wyeksportowane do: %s" output-file)))
+
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
