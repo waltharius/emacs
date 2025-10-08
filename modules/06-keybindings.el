@@ -118,8 +118,12 @@
 ;; Cele dzienne interaktywne
 (global-set-key (kbd "C-c g s") 'my/set-daily-goals)
 
+;; ============================================================
+;; WHICH-KEY GROUP LABELS (organized C-c menu)
+;; ============================================================
+
 (which-key-add-key-based-replacements
-  ;; Main groups
+  ;; === Main prefix groups ===
   "C-c n" "notes"
   "C-c f" "flyspell"
   "C-c g" "grammar"
@@ -127,19 +131,50 @@
   "C-c s" "statistics"
   "C-c t" "transclusion"
   
-  ;; Subgroups for notes
-  "C-c n n" "new note"
+  ;; === Notes subgroups (detailed) ===
+  "C-c n n" "new-note"
   "C-c n j" "journal"
+  "C-c n J" "journal-date"
   "C-c n z" "zettel"
   "C-c n o" "person"
-  "C-c n l" "literature"
+  "C-c n l" "literatura"
   "C-c n p" "project"
-  "C-c n b" "base"
-  "C-c n s" "shortcuts"
+  "C-c n b" "base-note"
+  "C-c n s" "shortcut"
   "C-c n w" "well-being"
-  "C-c n f" "find/filter"
+  "C-c n f" "find"
   "C-c n r" "rename"
-  "C-c n d" "dashboard")
+  "C-c n d" "dashboard"
+  "C-c n D" "delete"
+  "C-c n e" "edit-init"
+  "C-c n t" "zettel-tree"
+  
+  ;; === Flyspell subgroups ===
+  "C-c f n" "next-error"
+  "C-c f p" "prev-error"
+  "C-c f c" "correct"
+  
+  ;; === Grammar (LanguageTool) subgroups ===
+  "C-c g c" "check"
+  "C-c g d" "done"
+  "C-c g s" "show-error"
+  "C-c g n" "next-error"
+  "C-c g p" "prev-error"
+  "C-c g f" "fix-buffer"
+  
+  ;; === Statistics subgroups ===
+  "C-c s h" "wellbeing-history"
+  "C-c s s" "statistics"
+  
+  ;; === Bookmarks subgroups ===
+  "C-c b l" "list"
+  
+  ;; === Transclusion subgroups ===
+  "C-c t a" "add"
+  "C-c t t" "toggle-mode"
+  
+  ;; === Daily goals ===
+  "C-c g s" "set-goals")
 
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here
