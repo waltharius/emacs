@@ -39,6 +39,8 @@ desktop/
 *.backup
 *.backup.*
 init.el_v*.txt
+.backups/
+.autosaves/
 
 # Ignoruj tutorial
 tutorial/
@@ -51,3 +53,7 @@ tutorial/
 
 # Undo-tree history
 undo-tree-history/
+
+# Syncthing
+.stversions/
+.sync-conflict-*

@@ -30,6 +30,39 @@
 (define-key isearch-mode-map (kbd "C-g") 'isearch-abort)
 
 ;; ============================================================
+;; BACKUP FILES - separated by directory
+;; ============================================================
+
+(defvar my-notes-dir (expand-file-name "~/notes/"))
+(defvar my-notes-backups (expand-file-name "~/notes/.backups/"))
+(defvar my-emacs-backups (expand-file-name "~/.emacs.d/backups/"))
+
+(setq backup-directory-alist
+      `((,my-notes-dir . ,my-notes-backups)   ; notes → notes/.backups
+        (".*" . ,my-emacs-backups)))          ; wszystko inne → .emacs.d/backups
+
+;; ============================================================
+;; AUTOSAVE FILES - separated by directory
+;; ============================================================
+
+(defvar my-notes-autosaves (expand-file-name "~/notes/.autosaves/"))
+(defvar my-emacs-autosaves (expand-file-name "~/.emacs.d/autosaves/"))
+
+(setq auto-save-file-name-transforms
+      `((,(concat my-notes-dir ".*") ,my-notes-autosaves t)
+        (".*" ,my-emacs-autosaves t)))
+
+;; Disable lock files
+(setq create-lockfiles nil)
+
+;; Create directories
+(make-directory my-notes-backups t)
+(make-directory my-notes-autosaves t)
+(make-directory my-emacs-backups t)
+(make-directory my-emacs-autosaves t)
+
+
+;; ============================================================
 ;; LINE NUMBERS (Always visible!)
 ;; ============================================================
 
