@@ -392,6 +392,41 @@
 ;;             (push '("lambda" . ?λ) prettify-symbols-alist)))
 
 ;; ============================================================
+;; PARENTHESES HIGHLIGHTING (lepsze niż VIM!)
+;; ============================================================
+
+;; Rainbow delimiters - kolorowe nawiasy (każdy poziom inny kolor)
+(use-package rainbow-delimiters
+  :ensure t
+  :hook (prog-mode . rainbow-delimiters-mode))
+
+;; Highlight parentheses - podświetl WSZYSTKIE pary nawiasów (nie tylko pod kursorem!)
+(use-package highlight-parentheses
+  :ensure t
+  :config
+  (global-highlight-parentheses-mode 1)
+  :custom
+  (highlight-parentheses-colors '("#00ff00" "#ffff00" "#ff00ff" "#00ffff"))  ; Kolory dla poziomów
+  (highlight-parentheses-background-colors nil))  ; Bez tła (tylko obramowanie)
+
+;; Show paren - podświetl parę nawiasów pod kursorem (teraz CZERWONE gdy źle!)
+(show-paren-mode 1)
+(setq show-paren-delay 0)  ; Instant highlighting
+(setq show-paren-style 'parenthesis)  ; Podświetl tylko nawias (nie całe wyrażenie)
+
+;; CUSTOM: Czerwone podświetlenie dla NIEZAMKNIĘTYCH nawiasów
+(set-face-attribute 'show-paren-mismatch nil
+                    :background "#ff0000"  ; Czerwone tło
+                    :foreground "#ffffff"  ; Biały tekst
+                    :weight 'bold)
+
+(set-face-attribute 'show-paren-match nil
+                    :background nil  ; Bez tła
+                    :foreground "#00ff00"  ; Zielony kolor
+                    :weight 'bold)
+
+
+;; ============================================================
 ;; END OF MODERN CONVENIENCES
 ;; ============================================================
 
