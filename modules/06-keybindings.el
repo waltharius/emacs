@@ -118,9 +118,16 @@
 ;; Cele dzienne interaktywne
 (global-set-key (kbd "C-c g s") 'my/set-daily-goals)
 
-;; Org-journal calendar
-(global-set-key (kbd "C-c n c") 'my/journal-calendar)
-(global-set-key (kbd "C-c n s") 'my/journal-search)
+;;; --- Journal (org-journal integration) ---
+;; WAŻNE: Te funkcje są w 11-org-journal.el (load AFTER!)
+(with-eval-after-load '11-org-journal
+  (global-set-key (kbd "C-c n c") 'calendar)  ; Otwórz calendar (auto-mark!)
+  (global-set-key (kbd "C-c n s") 'my/journal-search))
+
+;; [ i ] TYLKO w org-mode!
+(with-eval-after-load 'org
+  (define-key org-mode-map (kbd "[") 'my/journal-prev)
+  (define-key org-mode-map (kbd "]") 'my/journal-next))
 
 ;; ============================================================
 ;; WHICH-KEY GROUP LABELS (organized C-c menu)
