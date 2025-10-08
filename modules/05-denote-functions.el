@@ -347,21 +347,65 @@
   (interactive)
   (insert (format-time-string "%H:%M")))
 
+;; ============================================================
+;; DASHBOARD PERFORMANCE CACHE
+;; ============================================================
+
+(defvar my/dashboard-cache nil
+  "Plist cache for expensive dashboard calculations.
+Format: (:total-words NUM :total-files NUM :last-update TIMESTAMP)")
+
+(defvar my/dashboard-cache-ttl 300
+  "Cache TTL in seconds (5 minutes).")
+
+(defun my/dashboard-cache-valid-p ()
+  "Check if dashboard cache is still valid."
+  (and my/dashboard-cache
+       (plist-get my/dashboard-cache :last-update)
+       (< (- (float-time) (plist-get my/dashboard-cache :last-update))
+          my/dashboard-cache-ttl)))
+
+(defun my/dashboard-invalidate-cache ()
+  "Invalidate dashboard cache (force recalculation)."
+  (interactive)
+  (setq my/dashboard-cache nil)
+  (message "Dashboard cache invalidated - next open will recalculate"))
+
+;; ============================================================
+;; STATISTICS FUNCTIONS (with cache)
+;; ============================================================
+
 ;; --- Statystyki: zlicz słowa we wszystkich notatkach ---
 (defun my/denote-count-words-all ()
-  "Zlicz słowa we wszystkich plikach Denote."
+  "Zlicz słowa we wszystkich plikach Denote (with cache).
+Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refresh."
   (interactive)
-  (let ((total-words 0)
-        (total-chars 0)
-        (file-count 0))
-    (dolist (file (directory-files-recursively my-notes-dir "\\.org$"))
-      (with-temp-buffer
-        (insert-file-contents file)
-        (setq total-words (+ total-words (count-words (point-min) (point-max))))
-        (setq total-chars (+ total-chars (- (point-max) (point-min))))
-        (setq file-count (1+ file-count))))
-    (message "📊 Statystyki: %d plików | %d słów | %d znaków"
-             file-count total-words total-chars)))
+  (if (my/dashboard-cache-valid-p)
+      ;; Return cached value
+      (plist-get my/dashboard-cache :total-words)
+    ;; Cache invalid - recalculate
+    (let ((total-words 0)
+          (total-chars 0)
+          (file-count 0))
+      (dolist (file (directory-files-recursively my-notes-dir "\\.org"))
+        (with-temp-buffer
+          (insert-file-contents file)
+          (setq total-words (+ total-words (count-words (point-min) (point-max))))
+          (setq total-chars (+ total-chars (- (point-max) (point-min))))
+          (setq file-count (1+ file-count))))
+      ;; Update cache
+      (setq my/dashboard-cache
+            (plist-put my/dashboard-cache :total-words total-words))
+      (setq my/dashboard-cache
+            (plist-put my/dashboard-cache :total-files file-count))
+      (setq my/dashboard-cache
+            (plist-put my/dashboard-cache :last-update (float-time)))
+      (message "Dashboard cache refreshed - %d files, %d words" file-count total-words)
+      (message "Statystyki: %d plików, %d słów, %d znaków"
+               file-count total-words total-chars)
+      total-words)))
+
+
 
 ;; --- Statystyki dzienne: ile słów napisałem dziś? ---
 (defun my/denote-count-words-today ()
