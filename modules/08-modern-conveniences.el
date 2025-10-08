@@ -55,12 +55,17 @@
 ;; Disable lock files
 (setq create-lockfiles nil)
 
+;; Keep more backup versions for notes (safety!)
+(setq version-control t)           ; Use version numbers
+(setq kept-new-versions 10)        ; Keep 10 newest versions
+(setq kept-old-versions 5)         ; Keep 5 oldest versions
+(setq delete-old-versions t)       ; Delete old versions without asking
+
 ;; Create directories
 (make-directory my-notes-backups t)
 (make-directory my-notes-autosaves t)
 (make-directory my-emacs-backups t)
 (make-directory my-emacs-autosaves t)
-
 
 ;; ============================================================
 ;; LINE NUMBERS (Always visible!)
