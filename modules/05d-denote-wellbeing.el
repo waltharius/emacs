@@ -23,7 +23,6 @@
 ;; - [ ] Import from Obsidian (bulk import with keywords)
 ;;
 ;;; Code:
-
 ;; ============================================================
 ;; ENTRY - Add well-being score to today's journal
 ;; ============================================================
@@ -58,28 +57,33 @@ Optionally add keywords (e.g. 'śpiący zła-pogoda ból-głowy')."
             ;; Find or create PROPERTIES drawer
             (if (re-search-forward "^:PROPERTIES:" nil t)
                 ;; Properties exist - update or add well-being
-                (progn
-                  (let ((props-end (save-excursion
-                                     (re-search-forward "^:END:" nil t)
-                                     (point))))
-                    (goto-char (match-beginning 0))
-                    (forward-line 1)
-                    (if (re-search-forward "^:well-being:" props-end t)
-                        ;; Update existing value
-                        (progn
-                          (beginning-of-line)
-                          (kill-line)
-                          (insert (format ":well-being: %d" score)))
-                      ;; Add new well-being property
-                      (goto-char (- props-end 6))  ; Before :END:
-                      (insert (format ":well-being: %d\n" score)))))
+                (let* ((props-start (match-beginning 0))
+                       (props-end (save-excursion
+                                    (goto-char props-start)
+                                    (re-search-forward "^:END:" nil t)
+                                    (point))))
+                  (goto-char props-start)
+                  (forward-line 1)
+                  
+                  (if (re-search-forward "^:well-being:" props-end t)
+                      ;; Update existing value
+                      (progn
+                        (beginning-of-line)
+                        (kill-line)
+                        (insert (format ":well-being: %d" score)))
+                    ;; Add new well-being property
+                    (goto-char props-end)
+                    (forward-line -1)  ; ← FIX: Move to line before :END:
+                    (end-of-line)
+                    (insert (format "\n:well-being: %d" score))))
+              
               ;; No properties - create drawer
               (goto-char (point-min))
-              (re-search-forward "^#\\+identifier:" nil t)
-              (forward-line 1)
-              (insert ":PROPERTIES:\n")
-              (insert (format ":well-being: %d\n" score))
-              (insert ":END:\n"))
+              (when (re-search-forward "^#\\+identifier:" nil t)
+                (forward-line 1)
+                (insert ":PROPERTIES:\n")
+                (insert (format ":well-being: %d\n" score))
+                (insert ":END:\n")))
             
             ;; Add keywords if provided
             (when (and keywords (not (string-empty-p keywords)))
@@ -92,7 +96,7 @@ Optionally add keywords (e.g. 'śpiący zła-pogoda ból-głowy')."
             
             (save-buffer)
             (message "✓ Well-being: %d %s" score
-                     (if (string-empty-p keywords) "" 
+                     (if (string-empty-p keywords) ""
                        (concat "| Keywords: " keywords))))
         
         ;; No journal today - create one with well-being
@@ -166,7 +170,7 @@ Optionally add keywords (e.g. 'śpiący zła-pogoda ból-głowy')."
             (erase-buffer)
             (insert (format "** Journals with well-being %d-%d\n\n" min-score max-score))
             (dolist (entry (sort matching-files (lambda (a b) (> (cdr a) (cdr b)))))
-              (insert (format "- [%d] %s\n" (cdr entry) 
+              (insert (format "- [%d] %s\n" (cdr entry)
                               (file-name-nondirectory (car entry)))))
             (insert "\n[q] Close\n")
             (goto-char (point-min))
