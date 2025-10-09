@@ -18,6 +18,8 @@
 ;;   - modules/10-org-formatting      : Skróty do formatowania tekstu i inne przydatne bajery z tekstem związane
 ;;
 ;;; Code:
+;; Enable use-package statistics
+(setq use-package-compute-statistics t)
 ;; ============================================================
 ;; PERFORMANCE: Garbage collection optimization (startup only)
 ;; ============================================================
