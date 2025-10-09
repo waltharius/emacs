@@ -47,8 +47,8 @@
 ;; Helper function to load modules
 (defun my/load-module (module-name)
   "Load module from ~/.emacs.d/modules/ directory."
-  (let ((module-file (expand-file-name 
-                      (concat "modules/" module-name) 
+  (let ((module-file (expand-file-name
+                      (concat "modules/" module-name)
                       user-emacs-directory)))
     (if (file-exists-p module-file)
         (progn
@@ -71,6 +71,7 @@
 (my/load-module "10-org-formatting.el")
 (my/load-module "11-org-journal.el")
 (my/load-module "13-project-management.el")
+(my/load-module "14-transient-menus.el")
 
 ;; ← 06-keybindings.el MUST BE LAST (after all function definitions)
 (my/load-module "06-keybindings.el")
