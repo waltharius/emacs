@@ -147,8 +147,7 @@
 ;;
 ;; 5. Gruvbox (retro, warm)
     (use-package gruvbox-theme
-      :ensure t
-      :defer t
+    :ensure t
     :config
     ;; Customize Gruvbox before loading
     (setq gruvbox-bold t)              ; Use bold

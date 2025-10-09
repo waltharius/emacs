@@ -59,7 +59,8 @@
       ;; Times
       (insert (format "Emacs init-time:         %.3fs (official)\n" official-time))
       (insert (format "Actual measured time:    %.3fs\n" total-time))
-      (insert (format "Missing time (desktop):  %.3fs (%.0f%%)\n\n"
+      (insert (format "Missing time (desktop):  %.3fs (%.0f%%)\n\n"g
+		      
                       (- total-time official-time)
                       (* 100 (/ (- total-time official-time) total-time))))
       
