@@ -128,6 +128,20 @@
   (define-key org-mode-map (kbd "M-p") 'my/journal-prev)
   (define-key org-mode-map (kbd "M-n") 'my/journal-next))
 
+;; --- Project Management (Org-agenda + Kanban) ---
+(global-set-key (kbd "C-c a") 'org-agenda)           ; Agenda dispatcher
+(global-set-key (kbd "C-c p o") 'my/open-project-file) ; Open project file
+(global-set-key (kbd "C-c p %") 'my/org-project-completion-percentage) ; Project progress
+(global-set-key (kbd "C-c p t") 'my/org-time-summary) ; Time summary
+(global-set-key (kbd "C-c k") 'org-kanban/initialize) ; Kanban board
+
+;; Time tracking (clock in/out)
+(global-set-key (kbd "C-c C-x C-i") 'org-clock-in)
+(global-set-key (kbd "C-c C-x C-o") 'org-clock-out)
+(global-set-key (kbd "C-c C-x C-x") 'org-clock-in-last)
+(global-set-key (kbd "C-c C-x C-j") 'org-clock-goto)
+(global-set-key (kbd "C-c C-x C-r") 'org-clock-report)
+(global-set-key (kbd "C-c m") 'my/org-update-modified-property)
 
 ;; ============================================================
 ;; WHICH-KEY GROUP LABELS (organized C-c menu)
@@ -186,7 +200,6 @@
   
   ;; === Daily goals ===
   "C-c g s" "set-goals")
-
 
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here

@@ -275,10 +275,6 @@ Displays total clocked time and estimate vs actual."
                                       (float total-estimate))))
                  "on track")))))
 
-;; Add keybindings
-(global-set-key (kbd "C-c p %") 'my/org-project-completion-percentage)
-(global-set-key (kbd "C-c p t") 'my/org-time-summary)
-
 ;; ============================================================
 ;; HELPER FUNCTIONS
 ;; ============================================================
@@ -299,8 +295,6 @@ Searches for files matching pattern '*--PROJECT-NAME__project.org'."
     (if file
         (find-file file)
       (message "Project file not found: %s" project-name))))
-
-(global-set-key (kbd "C-c p o") 'my/open-project-file)
 
 ;; ============================================================
 ;; TODO KEYWORDS & PRIORITIES
@@ -337,6 +331,32 @@ Searches for files matching pattern '*--PROJECT-NAME__project.org'."
 ;; Effort estimates
 (setq org-global-properties
       '(("Effort_ALL" . "0:15 0:30 1:00 2:00 4:00 8:00 16:00 24:00")))
+
+;; ============================================================
+;; AUTO-UPDATE :MODIFIED: PROPERTY
+;; ============================================================
+
+(defun my/org-update-modified-property ()
+  "Update :MODIFIED: property in current heading to current timestamp."
+  (interactive)
+  (when (and (eq major-mode 'org-mode)
+             (org-entry-get nil "CREATED")) ; Only if heading has :CREATED:
+    (org-entry-put nil "MODIFIED" 
+                   (format-time-string "[%Y-%m-%d %a %H:%M]"))))
+
+;; Auto-update on save (only for project files)
+(defun my/org-auto-update-modified ()
+  "Update MODIFIED property on save if file is a project."
+  (when (and (eq major-mode 'org-mode)
+             (buffer-file-name)
+             (string-match-p "__project\\.org$" (buffer-file-name)))
+    (save-excursion
+      (goto-char (point-min))
+      ;; Find first heading with :CREATED: property
+      (when (re-search-forward "^\\*+ " nil t)
+        (my/org-update-modified-property)))))
+
+(add-hook 'before-save-hook 'my/org-auto-update-modified)
 
 (provide '13-project-management)
 ;;; 13-project-management.el ends here

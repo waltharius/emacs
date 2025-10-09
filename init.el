@@ -65,7 +65,6 @@
 (my/load-module "04-denote-core.el")
 (my/load-module "05-denote-functions.el")
 (my/load-module "05a-folgezettel.el")
-(my/load-module "06-keybindings.el")
 (my/load-module "07-git.el")
 (my/load-module "08-modern-conveniences.el")
 (my/load-module "09-themes-gallery.el")
@@ -73,7 +72,8 @@
 (my/load-module "11-org-journal.el")
 (my/load-module "13-project-management.el")
 
-
+;; ← 06-keybindings.el MUST BE LAST (after all function definitions)
+(my/load-module "06-keybindings.el")
 (message "Emacs configuration loaded successfully! ✨")
 
 ;; ============================================================
