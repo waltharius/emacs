@@ -1159,7 +1159,7 @@ ZAWSZE pyta o potwierdzenie!"
 (defun my/denote-find-by-property (property value)
   "Znajdź notatki gdzie PROPERTY = VALUE."
   (interactive
-   (list (read-string "Property: " "STATUS")
+   (list (read-string "Property: " "CATEGORY")
          (read-string "Value: ")))
   (let ((results '()))
     (dolist (file (directory-files my-notes-dir t "\\.org$"))

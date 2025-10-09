@@ -29,6 +29,9 @@
 ;; UTILITY PACKAGES
 ;; ============================================================
 
+(use-package transient
+  :ensure t)
+
 ;; Which-key: Show keybinding hints
 (use-package which-key
   :ensure t

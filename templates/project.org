@@ -15,6 +15,20 @@
 #   - Update kanban: C-c C-c on #+BEGIN line
 #   - Update clocktable: C-c C-c on #+BEGIN line
 #   - Track time: C-c C-x C-i (clock in), C-c C-x C-o (clock out)
+#
+# USAGE:
+#   Create new project: C-c n p
+#   Open project: C-c p o
+#   View all projects in agenda: C-c a p
+#
+# TIPS:
+#   - Keep phases focused (3-5 major phases max)
+#   - Break large tasks into subtasks with [/] or [%]
+#   - Use priorities: [#A] urgent, [#B] important, [#C] nice-to-have
+#   - Set DEADLINE for time-sensitive tasks
+#   - Set SCHEDULED for planned work
+#   - Clock in when starting work (C-c C-x C-i)
+#   - Use :PROPERTIES: for metadata (effort, context, etc.)
 
 #+startup: overview
 #+todo: TODO NEXT INPROGRESS WAITING | DONE CANCELLED
@@ -31,12 +45,15 @@
 ** Project Overview
 
 *** Purpose
-Describe the purpose of {{TITLE}}.
+Describe the purpose and goals of {{TITLE}}.
+
+What problem does this project solve?
+What value does it provide?
 
 *** Success Criteria [0/3]
-- [ ] Criterion 1
-- [ ] Criterion 2
-- [ ] Criterion 3
+- [ ] Criterion 1: Specific, measurable outcome
+- [ ] Criterion 2: Deliverable or milestone
+- [ ] Criterion 3: Quality or acceptance standard
 
 *** Timeline
 - Start: {{DATE}}
@@ -44,9 +61,17 @@ Describe the purpose of {{TITLE}}.
 - Review milestone: 
 
 *** Key Stakeholders
-- Owner: 
+- Project owner: 
 - Contributors: 
 - Reviewers: 
+- Beneficiaries: 
+
+*** Key Decisions Log
+| Date | Decision | Rationale | Status |
+|------+----------+-----------+--------|
+|      |          |           |        |
+
+Document major decisions here with date, reasoning, and current status.
 
 ** KANBAN VIEW
 #+BEGIN: kanban :scope tree :layout ("TODO" "NEXT" "INPROGRESS" "WAITING" "|" "DONE" "CANCELLED")
@@ -68,21 +93,33 @@ DEADLINE: <{{DEADLINE}}>
 :Effort: 2:00
 :END:
 
-Clarify project boundaries, deliverables, and constraints.
+Clarify:
+- Project boundaries (what's in/out of scope)
+- Key deliverables
+- Constraints (time, budget, resources)
+- Dependencies on other projects/systems
 
 *** TODO [#B] Create detailed timeline
 :PROPERTIES:
 :Effort: 1:00
 :END:
 
-Break down project into milestones and tasks.
+Break down project into:
+- Major milestones
+- Phase deliverables
+- Task estimates
+- Critical path
 
 *** TODO [#C] Setup project infrastructure
 :PROPERTIES:
 :Effort: 4:00
 :END:
 
-Prepare necessary tools, repositories, documentation structure.
+Prepare:
+- Development environment
+- Documentation structure
+- Version control
+- Communication channels
 
 ** PHASE 2: Execution [0/0]                                           :phase-2:
 :PROPERTIES:
@@ -90,7 +127,13 @@ Prepare necessary tools, repositories, documentation structure.
 :COOKIE_DATA: todo recursive
 :END:
 
-Add tasks here as project progresses.
+Add implementation tasks here as planning progresses.
+
+Use this structure for each task:
+- Clear action verb in title
+- Effort estimate
+- Dependencies (if any)
+- Acceptance criteria (what "done" means)
 
 ** PHASE 3: Review & Delivery [0/0]                                   :phase-3:
 :PROPERTIES:
@@ -98,7 +141,11 @@ Add tasks here as project progresses.
 :COOKIE_DATA: todo recursive
 :END:
 
-Add final tasks here (testing, documentation, deployment).
+Final phase tasks:
+- Testing & quality assurance
+- Documentation completion
+- Handoff preparation
+- Post-mortem planning
 
 ** Project Statistics
 
@@ -112,40 +159,100 @@ Add final tasks here (testing, documentation, deployment).
 Press =C-c C-c= on #+BEGIN line to update time summary.
 
 *** Progress Overview
-| Phase | Status | Progress | Effort Spent | Effort Estimated |
-|-------+--------+----------+--------------+------------------|
-|       |        |          |              |                  |
+| Phase           | Status         | Progress | Effort Spent | Effort Estimated | Variance |
+|-----------------+----------------+----------+--------------+------------------+----------|
+| Phase 1         | Not Started    | 0%       | 0:00         | 7:00             | 0%       |
+| Phase 2         | Not Started    | 0%       | 0:00         | TBD              | -        |
+| Phase 3         | Not Started    | 0%       | 0:00         | TBD              | -        |
+|-----------------+----------------+----------+--------------+------------------+----------|
+| *TOTAL*         | *Not Started*  | *0%*     | *0:00*       | *TBD*            | -        |
 
-Update manually or use =C-c p %= for completion percentage.
+Update manually after major milestones.
+Use =C-c p %= to calculate completion percentage.
 
 ** Notes & Ideas
 
 *** Key Decisions
-Document important decisions with date and rationale.
+Date decisions with rationale:
+
+- [{{DATE}}] Decision 1: Description and reasoning
 
 *** Challenges & Solutions
-Track problems encountered and how they were solved.
+Track problems and solutions:
+
+*Problem:* 
+*Solution:* 
+*Outcome:*
 
 *** Lessons Learned
-What went well? What could be improved?
+Document insights for future projects:
+
+*What went well:*
+- 
+
+*What could be improved:*
+- 
+
+*Best practices discovered:*
+- 
 
 *** Next Steps
-Immediate action items.
+Immediate action items and priorities:
+
+1. 
+2. 
+3. 
 
 ** Resources & References
-- Documentation: 
-- Related projects: 
-- External links: 
+
+*** Documentation
+- Internal docs: 
+- External references: 
+
+*** Related Projects
+- Previous work: 
+- Dependencies: 
+- Related initiatives: 
+
+*** External Links
+- GitHub: 
+- Confluence: 
+- Jira: 
+- Other: 
 
 ** Meeting Log
 
-*** {{DATETIME}} - Kickoff Meeting
+*** {{DATETIME}} - Project Kickoff
 *Participants:* 
 *Duration:* 
-*Summary:*
+*Agenda:*
+1. 
+2. 
 
-*Action items:*
-- [ ] 
+*Discussion Summary:*
+
+
+*Decisions Made:*
+- 
+
+*Action Items:*
+- [ ] Task 1 (Owner: , Due: )
+- [ ] Task 2 (Owner: , Due: )
+
+*Next Meeting:* 
+
+** Risks & Issues
+
+*** Active Risks
+| Risk | Impact | Probability | Mitigation | Owner | Status |
+|------+--------+-------------+------------+-------+--------|
+|      | H/M/L  | H/M/L       |            |       |        |
+
+*** Resolved Issues
+Archive resolved problems here for reference.
 
 ** Archive
-Old or cancelled tasks can be moved here.
+
+Move completed or cancelled tasks here to keep active sections clean.
+
+Use: =C-c C-x C-a= (org-archive-subtree) to archive automatically.

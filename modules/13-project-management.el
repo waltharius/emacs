@@ -372,5 +372,31 @@ Displays total clocked time and estimate vs actual."
 
 (add-hook 'before-save-hook 'my/org-auto-update-modified)
 
+;; ---- Transient Menu
+(require 'transient)
+
+(transient-define-prefix my/project-menu ()
+  "Project management menu with live preview"
+  ["Project Actions"
+   ["Create & Open"
+    ("n" "New project" my/denote-create-project)
+    ("o" "Open project" my/open-project-file)
+    ("f" "Find by category" my/denote-find-by-property)]
+   ["Statistics"
+    ("%" "Completion %" my/org-project-completion-percentage)
+    ("t" "Time summary" my/org-time-summary)
+    ("s" "Project stats" my/denote-project-stats)]
+   ["Agenda & Kanban"
+    ("a" "Agenda" org-agenda)
+    ("k" "Kanban board" org-kanban/initialize)]
+   ["Time Tracking"
+    ("i" "Clock in" org-clock-in)
+    ("o" "Clock out" org-clock-out)
+    ("r" "Clock report" org-clock-report)]]
+  ["Navigation"
+   ("q" "Quit" transient-quit-one)])
+
+;; Keybinding
+(global-set-key (kbd "C-c p") 'my/project-menu)
 (provide '13-project-management)
 ;;; 13-project-management.el ends here

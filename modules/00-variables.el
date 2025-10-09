@@ -40,11 +40,6 @@ Used by: Denote core, Dashboard, Folgezettel, all note functions.")
   (expand-file-name "undo-tree-history/" user-emacs-directory)
   "Persistent undo history directory.")
 
-(defvar my/project-files
-  (list (expand-file-name "20251009--PKM-refactoring__project.org" my/notes-dir))
-  "List of Org files to include in agenda.
-Add new project files here to track them in Org-agenda.")
-
 ;; ============================================================
 ;; TEMPLATES DIRECTORY
 ;; ============================================================
