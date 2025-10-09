@@ -130,19 +130,22 @@
   (define-key org-mode-map (kbd "M-n") 'my/journal-next))
 
 ;; --- Project Management (Org-agenda + Kanban) ---
-(global-set-key (kbd "C-c a") 'org-agenda)           ; Agenda dispatcher
-(global-set-key (kbd "C-c p o") 'my/open-project-file) ; Open project file
-(global-set-key (kbd "C-c p %") 'my/org-project-completion-percentage) ; Project progress
-(global-set-key (kbd "C-c p t") 'my/org-time-summary) ; Time summary
-(global-set-key (kbd "C-c k") 'org-kanban/initialize) ; Kanban board
+;; Main menu: C-c p (opens Transient menu)
+(global-set-key (kbd "C-c p") 'my/project-transient-menu)
 
-;; Time tracking (clock in/out)
+;; Org-agenda (standalone, not under C-c p)
+(global-set-key (kbd "C-c a") 'org-agenda)
+
+;; Time tracking (Org-mode defaults, keep these)
 (global-set-key (kbd "C-c C-x C-i") 'org-clock-in)
 (global-set-key (kbd "C-c C-x C-o") 'org-clock-out)
 (global-set-key (kbd "C-c C-x C-x") 'org-clock-in-last)
 (global-set-key (kbd "C-c C-x C-j") 'org-clock-goto)
 (global-set-key (kbd "C-c C-x C-r") 'org-clock-report)
+
+;; Update modified timestamp (optional)
 (global-set-key (kbd "C-c m") 'my/org-update-modified-property)
+
 
 ;; ============================================================
 ;; WHICH-KEY GROUP LABELS (organized C-c menu)

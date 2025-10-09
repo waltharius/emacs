@@ -372,31 +372,38 @@ Displays total clocked time and estimate vs actual."
 
 (add-hook 'before-save-hook 'my/org-auto-update-modified)
 
-;; ---- Transient Menu
+;; ============================================================
+;; TRANSIENT PROJECT MENU
+;; ============================================================
+
 (require 'transient)
 
-(transient-define-prefix my/project-menu ()
-  "Project management menu with live preview"
-  ["Project Actions"
+(transient-define-prefix my/project-transient-menu ()
+  "Project management transient menu"
+  ["📁 Project Management"
    ["Create & Open"
     ("n" "New project" my/denote-create-project)
     ("o" "Open project" my/open-project-file)
-    ("f" "Find by category" my/denote-find-by-property)]
-   ["Statistics"
+    ("x" "Find by category" my/denote-find-by-property)]
+   
+   ["📊 Statistics"
     ("%" "Completion %" my/org-project-completion-percentage)
-    ("t" "Time summary" my/org-time-summary)
-    ("s" "Project stats" my/denote-project-stats)]
-   ["Agenda & Kanban"
+    ("t" "Time summary" my/org-time-summary)]
+   
+   ["📅 View"
     ("a" "Agenda" org-agenda)
-    ("k" "Kanban board" org-kanban/initialize)]
-   ["Time Tracking"
+    ("k" "Kanban" org-kanban/initialize)]]
+  
+  ["⏱️ Time Tracking"
+   ["Clock"
     ("i" "Clock in" org-clock-in)
-    ("o" "Clock out" org-clock-out)
+    ("c" "Clock out" org-clock-out)
+    ("j" "Clock goto" org-clock-goto)]
+   
+   ["Reports"
     ("r" "Clock report" org-clock-report)]]
-  ["Navigation"
-   ("q" "Quit" transient-quit-one)])
+  
+  [("q" "Quit" transient-quit-one)])
 
-;; Keybinding
-(global-set-key (kbd "C-c p") 'my/project-menu)
 (provide '13-project-management)
 ;;; 13-project-management.el ends here
