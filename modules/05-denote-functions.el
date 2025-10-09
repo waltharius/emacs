@@ -1,5 +1,5 @@
 ;;; 05-denote-functions.el --- Custom Denote functions  -*- lexical-binding: t; -*-
-;;
+;;; Commentary:
 ;; Description: Journal, Journal z datą, Zettelkasten, Osoba,
 ;;              Shortcuts, Base, pomocnicze funkcje
 ;;
@@ -73,9 +73,9 @@
   (interactive)
   (let* ((date-input (org-read-date nil nil nil "Data wpisu: "))
          (parsed-time (org-parse-time-string date-input))
-         (date-formatted (format-time-string "%Y-%m-%d" 
+         (date-formatted (format-time-string "%Y-%m-%d"
                                               (apply 'encode-time parsed-time)))
-         (title (read-string "Tytuł (Enter = domyślny): " 
+         (title (read-string "Tytuł (Enter = domyślny): "
                              (format "%s Journal" date-formatted)))
          (keywords-input (read-string "Tagi (Enter = 'journal'): " "journal"))
          (keywords (split-string keywords-input))
@@ -83,17 +83,17 @@
     
     (let* ((id (format-time-string "%Y%m%dT%H%M%S" (apply 'encode-time parsed-time)))
            (slug (replace-regexp-in-string "[^[:alnum:]]+" "-" (downcase title)))
-           (keywords-slug (mapconcat (lambda (k) 
-                                       (replace-regexp-in-string 
-                                        "[^[:alnum:]]+" "-" (downcase k))) 
+           (keywords-slug (mapconcat (lambda (k)
+                                       (replace-regexp-in-string
+                                        "[^[:alnum:]]+" "-" (downcase k)))
                                      keywords "_"))
            (filename (format "%s--%s__%s.org" id slug keywords-slug))
            (filepath (expand-file-name filename my-notes-dir)))
       
       (find-file filepath)
       (insert (format "#+title:      %s\n" title))
-      (insert (format "#+date:       %s\n" 
-                      (format-time-string "[%Y-%m-%d %a %H:%M]" 
+      (insert (format "#+date:       %s\n"
+                      (format-time-string "[%Y-%m-%d %a %H:%M]"
                                           (apply 'encode-time parsed-time))))
       (insert (format "#+filetags:   :%s:\n" (mapconcat 'identity keywords ":")))
       (insert (format "#+identifier: %s\n\n" id))
@@ -115,9 +115,9 @@
     
     (let* ((id (format-time-string "%Y%m%dT%H%M%S"))
            (slug (replace-regexp-in-string "[^[:alnum:]]+" "-" (downcase title)))
-           (keywords-slug (mapconcat (lambda (k) 
-                                       (replace-regexp-in-string 
-                                        "[^[:alnum:]]+" "-" (downcase k))) 
+           (keywords-slug (mapconcat (lambda (k)
+                                       (replace-regexp-in-string
+                                        "[^[:alnum:]]+" "-" (downcase k)))
                                      keywords "_"))
            (filename (format "%s==%s--%s__%s.org" id signature slug keywords-slug))
            (filepath (expand-file-name filename my-notes-dir)))
@@ -256,7 +256,7 @@
          ;; PROPERTIES - pyta o wszystko, domyślne wartości
          (year (read-string "Rok wydania (opcjonalnie): " ""))
          (pages (read-string "Strony/długość (opcjonalnie): " ""))
-         (status (completing-read "Status: " 
+         (status (completing-read "Status: "
                                  '("TODO" "READING" "DONE" "PAUSED")
                                  nil nil "READING"))
          (project (read-string "Projekt (opcjonalnie): " ""))
@@ -328,6 +328,126 @@
     (goto-char (point-min))
     (re-search-forward "^- Przedmiot: " nil t)))
 
+;; ============================================================
+;; PROJECT NOTE CREATION (with Org-agenda structure)
+;; ============================================================
+
+(defun my/denote-create-project ()
+  "Create new project note with Org-agenda/Kanban structure.
+Uses standard Denote workflow (title + tags), then adds project template.
+Filename follows lowercase convention automatically (handled by Denote)."
+  (interactive)
+  (let* ((project-name (read-string "Project name: "))
+         (title project-name)  ; Normal capitalization for frontmatter
+         (tags-input (read-string "Tags (space-separated, 'project' will be added): "))
+         ;; Parse tags and ensure 'project' tag is included
+         (tags-list (split-string tags-input " " t))
+         (tags-list (if (member "project" tags-list)
+                        tags-list
+                      (cons "project" tags-list)))
+         ;; Denote will sort tags automatically (denote-sort-keywords t)
+         (keywords tags-list))
+    
+    ;; Create note using standard Denote (handles lowercase filename + tag sorting)
+    (denote title keywords)
+    
+    ;; Insert project structure AFTER frontmatter
+    (save-excursion
+      (goto-char (point-max))
+      
+      ;; Add project-specific Org-mode settings
+      (insert "\n#+startup: overview\n")
+      (insert "#+todo: TODO NEXT INPROGRESS WAITING | DONE CANCELLED\n")
+      (insert "#+property: Effort_ALL 0:15 0:30 1:00 2:00 4:00 8:00 16:00\n")
+      (insert "#+columns: %50ITEM(Task) %TODO %3PRIORITY %10Effort(Estimate){:} %10CLOCKSUM(Clocked) %TAGS\n\n")
+      
+      ;; Main project heading (NORMAL capitalization)
+      (insert (format "* PROJECT: %s\n" project-name))
+      (insert ":PROPERTIES:\n")
+      (insert (format ":CREATED: %s\n" (format-time-string "[%Y-%m-%d %a %H:%M]")))
+      ;; Category: simplified project name (for agenda display)
+      (let ((category (replace-regexp-in-string " " "-"
+                        (replace-regexp-in-string "[^a-zA-Z0-9 -]" "" project-name))))
+        (insert (format ":CATEGORY: %s\n" category)))
+      (insert ":COOKIE_DATA: todo recursive\n")
+      (insert ":END:\n\n")
+      
+      ;; Overview section (NORMAL capitalization)
+      (insert "** Project Overview\n\n")
+      (insert "*** Purpose\n")
+      (insert (format "Describe the purpose of %s.\n\n" project-name))
+      
+      (insert "*** Success Criteria [0/3]\n")
+      (insert "- [ ] Criterion 1\n")
+      (insert "- [ ] Criterion 2\n")
+      (insert "- [ ] Criterion 3\n\n")
+      
+      (insert "*** Timeline\n")
+      (insert (format "- Start: %s\n" (format-time-string "%Y-%m-%d")))
+      (insert "- Target completion: \n")
+      (insert "- Review milestone: \n\n")
+      
+      ;; Kanban board
+      (insert "** KANBAN VIEW\n")
+      (insert "#+BEGIN: kanban :scope tree :layout (\"TODO\" \"NEXT\" \"INPROGRESS\" \"WAITING\" \"|\" \"DONE\" \"CANCELLED\")\n")
+      (insert "| TODO | NEXT | INPROGRESS | WAITING | DONE | CANCELLED |\n")
+      (insert "|------+------+------------+---------+------+-----------|\n")
+      (insert "#+END:\n\n")
+      (insert "Press =C-c C-c= on the #+BEGIN line to update kanban board.\n\n")
+      
+      ;; Phase 1 - starting template
+      (insert "** PHASE 1: Planning [0/3]                                           :phase-1:\n")
+      (insert ":PROPERTIES:\n")
+      (insert ":CATEGORY: Phase-1\n")
+      (insert ":COOKIE_DATA: todo recursive\n")
+      (insert ":END:\n\n")
+      
+      (insert "*** TODO [#A] Define project scope\n")
+      (insert (format "DEADLINE: <%s>\n"
+                      (format-time-string "%Y-%m-%d %a"
+                                        (time-add (current-time) (* 7 24 60 60)))))
+      (insert ":PROPERTIES:\n")
+      (insert ":Effort: 2:00\n")
+      (insert ":END:\n\n")
+      
+      (insert "*** TODO [#B] Create detailed timeline\n")
+      (insert ":PROPERTIES:\n")
+      (insert ":Effort: 1:00\n")
+      (insert ":END:\n\n")
+      
+      (insert "*** TODO [#C] Setup project infrastructure\n")
+      (insert ":PROPERTIES:\n")
+      (insert ":Effort: 4:00\n")
+      (insert ":END:\n\n")
+      
+      ;; Statistics section
+      (insert "** Project Statistics\n\n")
+      (insert "*** Time Tracking Summary\n")
+      (insert "#+BEGIN: clocktable :scope file :maxlevel 3 :emphasize nil :link t\n")
+      (insert "#+CAPTION: Clock summary\n")
+      (insert "| Headline | Time |\n")
+      (insert "|----------+------|\n")
+      (insert "#+END:\n\n")
+      (insert "Press =C-c C-c= on #+BEGIN line to update time summary.\n\n")
+      
+      ;; Notes section
+      (insert "** Notes & Ideas\n\n")
+      (insert "*** Key Decisions\n\n")
+      (insert "*** Challenges & Solutions\n\n")
+      (insert "*** Next Steps\n\n")
+      
+      (insert "** Resources & References\n\n")
+      
+      ;; Save buffer
+      (save-buffer))
+    
+    ;; Position cursor at purpose description
+    (goto-char (point-min))
+    (when (search-forward "Describe the purpose" nil t)
+      (beginning-of-line))
+    
+    (message "✅ Created project: %s (with Org-agenda structure)" project-name)))
+
 ;; --- POPRAWKA: Base note z pytaniem o tytuł i tagi ---
 (defun my/denote-base ()
   "Utwórz prostą notatkę (z pytaniem o tytuł i tagi)."
@@ -375,7 +495,8 @@ Format: (:total-words NUM :total-files NUM :last-update TIMESTAMP)")
 ;; --- Statystyki: zlicz słowa we wszystkich notatkach ---
 (defun my/denote-count-words-all ()
   "Zlicz słowa we wszystkich plikach Denote (with cache).
-Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refresh."
+Cache valid for 5 minutes.
+Use M-x my/dashboard-invalidate-cache to force refresh."
   (interactive)
   (if (my/dashboard-cache-valid-p)
       ;; Return cached value
@@ -466,7 +587,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
             (insert-file-contents file)
             (setq total-words (+ total-words (count-words (point-min) (point-max))))
             (setq total-files (1+ total-files))))
-        (insert (format "📚 Wszystkie notatki: %d plików, %d słów\n\n" 
+        (insert (format "📚 Wszystkie notatki: %d plików, %d słów\n\n"
                        total-files total-words)))
       
       ;; Statystyki dzienne
@@ -479,7 +600,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
               (insert-file-contents file)
               (setq today-words (+ today-words (count-words (point-min) (point-max))))
               (setq today-files (1+ today-files)))))
-        (insert (format "📝 Dzisiaj: %d plików, %d słów\n\n" 
+        (insert (format "📝 Dzisiaj: %d plików, %d słów\n\n"
                        today-files today-words))
         
         ;; Cel dzienny
@@ -526,7 +647,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
 (defun my/denote-project-stats ()
   "Zlicz słowa w wybranym projekcie (przez tag)."
   (interactive)
-  (let* ((project-tag (completing-read "Tag projektu: " 
+  (let* ((project-tag (completing-read "Tag projektu: "
                                        '("arystoteles" "kant" "hume" "projekt")))
          (total-words 0)
          (file-count 0))
@@ -537,7 +658,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
         (when (re-search-forward (format ":%s:" project-tag) nil t)
           (setq total-words (+ total-words (count-words (point-min) (point-max))))
           (setq file-count (1+ file-count)))))
-    (message "📊 Projekt '%s': %d plików | %d słów" 
+    (message "📊 Projekt '%s': %d plików | %d słów"
              project-tag file-count total-words)))
 
 ;; --- Cel dzienny dla projektu ---
@@ -548,7 +669,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
 (defun my/denote-project-goal ()
   "Sprawdź postęp względem celu dziennego PROJEKTU."
   (interactive)
-  (let* ((project-tag (completing-read "Tag projektu: " 
+  (let* ((project-tag (completing-read "Tag projektu: "
                                        (mapcar 'car my/project-daily-goals)))
          (goal (or (cdr (assoc project-tag my/project-daily-goals)) 1000))
          (today (format-time-string "%Y-%m-%d"))
@@ -580,7 +701,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
 (defun my/denote-projects-menu ()
   "Interaktywne menu zarządzania projektami."
   (interactive)
-  (let ((choice (completing-read 
+  (let ((choice (completing-read
                  "Projekty - wybierz akcję: "
                  '("📊 Pokaż wszystkie projekty"
                    "➕ Dodaj nowy projekt"
@@ -612,7 +733,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
       (read-only-mode -1)
       (erase-buffer)
       (insert "╔════════════════════════════════════╗\n")
-      (insert "║   🎯 MOJE PROJEKTY 🎯            ║\n")
+      (insert "║   🎯 MOJE PROJEKTY 🎯              ║\n")
       (insert "╚════════════════════════════════════╝\n\n")
       
       (insert (format "%-20s | %s\n" "Projekt" "Cel dzienny"))
@@ -654,10 +775,10 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
 (defun my/denote-project-edit ()
   "Edytuj cel projektu."
   (interactive)
-  (let* ((project-name (completing-read "Projekt do edycji: " 
+  (let* ((project-name (completing-read "Projekt do edycji: "
                                         (mapcar 'car my/project-daily-goals)))
          (old-goal (cdr (assoc project-name my/project-daily-goals)))
-         (new-goal (read-number (format "Nowy cel dla '%s' (było: %d): " 
+         (new-goal (read-number (format "Nowy cel dla '%s' (było: %d): "
                                        project-name old-goal)
                                old-goal)))
     (setf (cdr (assoc project-name my/project-daily-goals)) new-goal)
@@ -670,7 +791,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
 (defun my/denote-project-delete ()
   "Usuń projekt."
   (interactive)
-  (let ((project-name (completing-read "Projekt do usunięcia: " 
+  (let ((project-name (completing-read "Projekt do usunięcia: "
                                        (mapcar 'car my/project-daily-goals))))
     (when (yes-or-no-p (format "Usunąć projekt '%s'? " project-name))
       (setq my/project-daily-goals
@@ -731,9 +852,9 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
               (when (string-match-p today file)
                 (setq today-words (+ today-words words))
                 (setq today-files (1+ today-files))))))
-        (insert (format "- Wszystkie notatki: *%d plików* | *%d słów*\n" 
+        (insert (format "- Wszystkie notatki: *%d plików* | *%d słów*\n"
                        total-files total-words))
-        (insert (format "- Dzisiaj: *%d plików* | *%d słów*\n\n" 
+        (insert (format "- Dzisiaj: *%d plików* | *%d słów*\n\n"
                        today-files today-words)))
       
       ;; Sekcja Projekty
@@ -769,12 +890,12 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
                 (dolist (tag (split-string tags-string ":" t))
                   (puthash tag (1+ (gethash tag tags-count 0)) tags-count))))))
         (let ((sorted-tags (sort (hash-table-keys tags-count)
-                                (lambda (a b) 
-                                  (> (gethash a tags-count) 
+                                (lambda (a b)
+                                  (> (gethash a tags-count)
                                      (gethash b tags-count))))))
           (dotimes (i (min 10 (length sorted-tags)))
             (let ((tag (nth i sorted-tags)))
-              (insert (format "%d. *%s* (%d)\n" 
+              (insert (format "%d. *%s* (%d)\n"
                              (1+ i) tag (gethash tag tags-count)))))))
       (insert "\n")
 
@@ -801,7 +922,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
 			      ((>= score 7) "🙂")
 			      ((>= score 5) "😐")
 			      (t "😕"))))
-	    (insert (format "  %s %s: %d\n" 
+	    (insert (format "  %s %s: %d\n"
 			    (substring date 4 8) emoji score)))))
 
       ;; Sekcja Missing Well-being
@@ -830,7 +951,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
 		(let* ((date (car entry))
                        (file (cadr entry))
                        (filename (file-name-nondirectory file))
-                       (date-fmt (format "%s-%s-%s" 
+                       (date-fmt (format "%s-%s-%s"
 					 (substring date 0 4)
 					 (substring date 4 6)
 					 (substring date 6 8))))
@@ -878,7 +999,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
         (progn
           (message "Znaleziono %d journali bez well-being" (length missing))
           (dolist (file missing)
-            (when (y-or-n-p (format "Ustaw well-being dla %s? " 
+            (when (y-or-n-p (format "Ustaw well-being dla %s? "
                                    (file-name-nondirectory file)))
               (my/denote-set-wellbeing-for-file file))))
       (message "✅ Wszystkie journale mają well-being!"))))
@@ -928,7 +1049,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
         (let* ((date (car entry))
                (score (cadr entry))
                (file (caddr entry))
-               (date-fmt (format "%s-%s-%s" 
+               (date-fmt (format "%s-%s-%s"
                                (substring date 0 4)
                                (substring date 4 6)
                                (substring date 6 8)))
@@ -973,7 +1094,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
       (read-only-mode -1)
       (erase-buffer)
       (insert "╔════════════════════════════════════╗\n")
-      (insert "║   📊 Graf Well-being (0-10)       ║\n")
+      (insert "║   📊 Graf Well-being (0-10)        ║\n")
       (insert "╚════════════════════════════════════╝\n\n")
       (dolist (entry results)
         (let* ((date (car entry))
@@ -984,7 +1105,7 @@ Cache valid for 5 minutes. Use M-x my/dashboard-invalidate-cache to force refres
                            ((>= score 5) "😐")
                            ((>= score 3) "😕")
                            (t "😔"))))
-          (insert (format "%s %s | %s %d\n" 
+          (insert (format "%s %s | %s %d\n"
                          date emoji bar score))))
       (insert "\n────────────────────────────────────\n")
       (insert "Zamknij: q\n")
@@ -1070,7 +1191,7 @@ ZAWSZE pyta o potwierdzenie!"
       (when (yes-or-no-p (format "🗑️  Usunąć notatkę: %s? " name))
         ;; Sprawdź czy w Git repo
         (if (and (executable-find "git")
-                 (= 0 (call-process "git" nil nil nil 
+                 (= 0 (call-process "git" nil nil nil
                                    "ls-files" "--error-unmatch" file)))
             ;; W Git - użyj git rm
             (progn
@@ -1093,7 +1214,7 @@ ZAWSZE pyta o potwierdzenie!"
     (when (yes-or-no-p (format "🗑️  Na pewno usunąć: %s? " choice))
       ;; Git-aware delete
       (if (and (executable-find "git")
-               (= 0 (call-process "git" nil nil nil 
+               (= 0 (call-process "git" nil nil nil
                                  "ls-files" "--error-unmatch" file)))
           (progn
             (shell-command (format "git rm -f '%s'" file))
@@ -1107,7 +1228,7 @@ ZAWSZE pyta o potwierdzenie!"
 
 (defun my/denote-find-by-property (property value)
   "Znajdź notatki gdzie PROPERTY = VALUE."
-  (interactive 
+  (interactive
    (list (read-string "Property: " "STATUS")
          (read-string "Value: ")))
   (let ((results '()))
@@ -1115,8 +1236,8 @@ ZAWSZE pyta o potwierdzenie!"
       (with-temp-buffer
         (insert-file-contents file)
         (goto-char (point-min))
-        (when (re-search-forward 
-               (format "^:%s: +%s" property (regexp-quote value)) 
+        (when (re-search-forward
+               (format "^:%s: +%s" property (regexp-quote value))
                nil t)
           (let ((title (progn
                         (goto-char (point-min))
@@ -1276,5 +1397,5 @@ ZAWSZE pyta o potwierdzenie!"
 ;; Hook: Run cleanup AFTER export finishes (note: this hook takes 3 args, but we only use 1)
 (add-hook 'org-export-finished-hook 'my/org-export-cleanup)
 
-(provide '04-denote-core)
-;;; 04-denote-core.el ends here
+(provide '05-denote-functions)
+;;; 05-denote-functions.el ends here

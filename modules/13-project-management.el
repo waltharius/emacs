@@ -214,13 +214,6 @@
   ;; Clock modeline - show current task
   (setq org-clock-clocked-in-display 'mode-line))
 
-;; Keybindings for clocking
-(global-set-key (kbd "C-c C-x C-i") 'org-clock-in)
-(global-set-key (kbd "C-c C-x C-o") 'org-clock-out)
-(global-set-key (kbd "C-c C-x C-x") 'org-clock-in-last)
-(global-set-key (kbd "C-c C-x C-j") 'org-clock-goto)
-(global-set-key (kbd "C-c C-x C-r") 'org-clock-report)
-
 ;; ============================================================
 ;; CUSTOM STATISTICS FUNCTIONS
 ;; ============================================================
@@ -279,22 +272,43 @@ Displays total clocked time and estimate vs actual."
 ;; HELPER FUNCTIONS
 ;; ============================================================
 
-(defun my/open-project-file (project-name)
-  "Open project file by PROJECT-NAME.
-Searches for files matching pattern '*--PROJECT-NAME__project.org'."
-  (interactive
-   (list (completing-read "Project: "
-                         (mapcar
-                          (lambda (f)
-                            (if (string-match "--\\(.*\\)__project" f)
-                                (match-string 1 f)
-                              f))
-                          (directory-files my/notes-dir nil ".*__project\\.org$")))))
-  (let ((file (car (directory-files my/notes-dir t
-                                   (concat "--" project-name "__project\\.org$")))))
-    (if file
-        (find-file file)
-      (message "Project file not found: %s" project-name))))
+(defun my/open-project-file ()
+  "Open project file interactively from list of available projects."
+  (interactive)
+  (let* ((all-files (directory-files my/notes-dir nil "\\.org$"))
+         ;; Filter files containing __project OR :project: tag
+         (project-files (seq-filter
+                         (lambda (f)
+                           (or (string-match-p "__project" f)
+                               (string-match-p "__.*project" f)))
+                         all-files)))
+    
+    (if (zerop (length project-files))
+        (message "No project files found. Create one with C-c n p")
+      
+      ;; Extract clean names for completion
+      (let* ((project-choices
+              (mapcar
+               (lambda (filename)
+                 ;; Extract title from --TITLE__ pattern
+                 (if (string-match "--\\([^_]+\\)" filename)
+                     (replace-regexp-in-string "-" " " (match-string 1 filename))
+                   filename))
+               project-files))
+             
+             ;; Create alist: (display-name . filename)
+             (project-alist (cl-mapcar #'cons project-choices project-files))
+             
+             ;; Let user choose
+             (choice (completing-read "Project: " project-choices nil t))
+             
+             ;; Get corresponding filename
+             (selected-file (cdr (assoc choice project-alist))))
+        
+        ;; Open file
+        (if selected-file
+            (find-file (expand-file-name selected-file my/notes-dir))
+          (message "File not found: %s" choice))))))
 
 ;; ============================================================
 ;; TODO KEYWORDS & PRIORITIES
@@ -341,7 +355,7 @@ Searches for files matching pattern '*--PROJECT-NAME__project.org'."
   (interactive)
   (when (and (eq major-mode 'org-mode)
              (org-entry-get nil "CREATED")) ; Only if heading has :CREATED:
-    (org-entry-put nil "MODIFIED" 
+    (org-entry-put nil "MODIFIED"
                    (format-time-string "[%Y-%m-%d %a %H:%M]"))))
 
 ;; Auto-update on save (only for project files)

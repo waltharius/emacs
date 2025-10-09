@@ -1,5 +1,5 @@
 ;;; 06-keybindings.el --- All keyboard shortcuts  -*- lexical-binding: t; -*-
-;;
+;;; Commentary:
 ;; Description: Centralne miejsce na wszystkie skróty klawiszowe
 ;;
 ;;; Code:
@@ -29,6 +29,7 @@
 (global-set-key (kbd "C-c n o") 'my/denote-osoba)
 (global-set-key (kbd "C-c n s") 'my/denote-skroty)
 (global-set-key (kbd "C-c n b") 'my/denote-base)
+(global-set-key (kbd "C-c n p") 'my/denote-create-project)
 (global-set-key (kbd "C-c n h") 'insert-current-time)
 
 ;; --- Denote: wyszukiwanie ---
