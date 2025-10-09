@@ -329,116 +329,46 @@
     (re-search-forward "^- Przedmiot: " nil t)))
 
 ;; ============================================================
-;; PROJECT NOTE CREATION (with Org-agenda structure)
+;; PROJECT NOTE CREATION (with template system)
 ;; ============================================================
 
 (defun my/denote-create-project ()
-  "Create new project note with Org-agenda/Kanban structure.
-Uses standard Denote workflow (title + tags), then adds project template.
-Filename follows lowercase convention automatically (handled by Denote)."
+  "Create new project note using template from ~/.emacs.d/templates/project.org.
+Template contains project standards and conventions as reference."
   (interactive)
+  
+  ;; Check if template exists
+  (unless (my/template-available-p "project")
+    (error "Project template not found.  Please create ~/.emacs.d/templates/project.org"))
+  
   (let* ((project-name (read-string "Project name: "))
-         (title project-name)  ; Normal capitalization for frontmatter
+         (title project-name)
          (tags-input (read-string "Tags (space-separated, 'project' will be added): "))
          ;; Parse tags and ensure 'project' tag is included
          (tags-list (split-string tags-input " " t))
          (tags-list (if (member "project" tags-list)
                         tags-list
                       (cons "project" tags-list)))
-         ;; Denote will sort tags automatically (denote-sort-keywords t)
-         (keywords tags-list))
+         (keywords tags-list)
+         ;; Prepare placeholders
+         (category (replace-regexp-in-string " " "-"
+                     (replace-regexp-in-string "[^a-zA-Z0-9 -]" "" project-name)))
+         (deadline-date (format-time-string "%Y-%m-%d %a"
+                                           (time-add (current-time) (* 7 24 60 60))))
+         (placeholders `(("{{TITLE}}" . ,project-name)
+                        ("{{DATE}}" . ,(format-time-string "%Y-%m-%d"))
+                        ("{{DATETIME}}" . ,(format-time-string "[%Y-%m-%d %a %H:%M]"))
+                        ("{{CATEGORY}}" . ,category)
+                        ("{{DEADLINE}}" . ,deadline-date))))
     
-    ;; Create note using standard Denote (handles lowercase filename + tag sorting)
+    ;; Create note using standard Denote
     (denote title keywords)
     
-    ;; Insert project structure AFTER frontmatter
+    ;; Load and insert template
     (save-excursion
       (goto-char (point-max))
-      
-      ;; Add project-specific Org-mode settings
-      (insert "\n#+startup: overview\n")
-      (insert "#+todo: TODO NEXT INPROGRESS WAITING | DONE CANCELLED\n")
-      (insert "#+property: Effort_ALL 0:15 0:30 1:00 2:00 4:00 8:00 16:00\n")
-      (insert "#+columns: %50ITEM(Task) %TODO %3PRIORITY %10Effort(Estimate){:} %10CLOCKSUM(Clocked) %TAGS\n\n")
-      
-      ;; Main project heading (NORMAL capitalization)
-      (insert (format "* PROJECT: %s\n" project-name))
-      (insert ":PROPERTIES:\n")
-      (insert (format ":CREATED: %s\n" (format-time-string "[%Y-%m-%d %a %H:%M]")))
-      ;; Category: simplified project name (for agenda display)
-      (let ((category (replace-regexp-in-string " " "-"
-                        (replace-regexp-in-string "[^a-zA-Z0-9 -]" "" project-name))))
-        (insert (format ":CATEGORY: %s\n" category)))
-      (insert ":COOKIE_DATA: todo recursive\n")
-      (insert ":END:\n\n")
-      
-      ;; Overview section (NORMAL capitalization)
-      (insert "** Project Overview\n\n")
-      (insert "*** Purpose\n")
-      (insert (format "Describe the purpose of %s.\n\n" project-name))
-      
-      (insert "*** Success Criteria [0/3]\n")
-      (insert "- [ ] Criterion 1\n")
-      (insert "- [ ] Criterion 2\n")
-      (insert "- [ ] Criterion 3\n\n")
-      
-      (insert "*** Timeline\n")
-      (insert (format "- Start: %s\n" (format-time-string "%Y-%m-%d")))
-      (insert "- Target completion: \n")
-      (insert "- Review milestone: \n\n")
-      
-      ;; Kanban board
-      (insert "** KANBAN VIEW\n")
-      (insert "#+BEGIN: kanban :scope tree :layout (\"TODO\" \"NEXT\" \"INPROGRESS\" \"WAITING\" \"|\" \"DONE\" \"CANCELLED\")\n")
-      (insert "| TODO | NEXT | INPROGRESS | WAITING | DONE | CANCELLED |\n")
-      (insert "|------+------+------------+---------+------+-----------|\n")
-      (insert "#+END:\n\n")
-      (insert "Press =C-c C-c= on the #+BEGIN line to update kanban board.\n\n")
-      
-      ;; Phase 1 - starting template
-      (insert "** PHASE 1: Planning [0/3]                                           :phase-1:\n")
-      (insert ":PROPERTIES:\n")
-      (insert ":CATEGORY: Phase-1\n")
-      (insert ":COOKIE_DATA: todo recursive\n")
-      (insert ":END:\n\n")
-      
-      (insert "*** TODO [#A] Define project scope\n")
-      (insert (format "DEADLINE: <%s>\n"
-                      (format-time-string "%Y-%m-%d %a"
-                                        (time-add (current-time) (* 7 24 60 60)))))
-      (insert ":PROPERTIES:\n")
-      (insert ":Effort: 2:00\n")
-      (insert ":END:\n\n")
-      
-      (insert "*** TODO [#B] Create detailed timeline\n")
-      (insert ":PROPERTIES:\n")
-      (insert ":Effort: 1:00\n")
-      (insert ":END:\n\n")
-      
-      (insert "*** TODO [#C] Setup project infrastructure\n")
-      (insert ":PROPERTIES:\n")
-      (insert ":Effort: 4:00\n")
-      (insert ":END:\n\n")
-      
-      ;; Statistics section
-      (insert "** Project Statistics\n\n")
-      (insert "*** Time Tracking Summary\n")
-      (insert "#+BEGIN: clocktable :scope file :maxlevel 3 :emphasize nil :link t\n")
-      (insert "#+CAPTION: Clock summary\n")
-      (insert "| Headline | Time |\n")
-      (insert "|----------+------|\n")
-      (insert "#+END:\n\n")
-      (insert "Press =C-c C-c= on #+BEGIN line to update time summary.\n\n")
-      
-      ;; Notes section
-      (insert "** Notes & Ideas\n\n")
-      (insert "*** Key Decisions\n\n")
-      (insert "*** Challenges & Solutions\n\n")
-      (insert "*** Next Steps\n\n")
-      
-      (insert "** Resources & References\n\n")
-      
-      ;; Save buffer
+      (insert "\n")
+      (insert (my/load-template "project" placeholders))
       (save-buffer))
     
     ;; Position cursor at purpose description
@@ -446,7 +376,7 @@ Filename follows lowercase convention automatically (handled by Denote)."
     (when (search-forward "Describe the purpose" nil t)
       (beginning-of-line))
     
-    (message "✅ Created project: %s (with Org-agenda structure)" project-name)))
+    (message "✅ Created project: %s (from template)" project-name)))
 
 ;; --- POPRAWKA: Base note z pytaniem o tytuł i tagi ---
 (defun my/denote-base ()
@@ -1396,6 +1326,40 @@ ZAWSZE pyta o potwierdzenie!"
 
 ;; Hook: Run cleanup AFTER export finishes (note: this hook takes 3 args, but we only use 1)
 (add-hook 'org-export-finished-hook 'my/org-export-cleanup)
+
+;; ============================================================
+;; TEMPLATE ENGINE
+;; ============================================================
+
+(defun my/load-template (template-name placeholders)
+  "Load template from TEMPLATE-NAME and replace PLACEHOLDERS.
+TEMPLATE-NAME is filename without extension (e.g., 'project').
+PLACEHOLDERS is alist: ((\"{{TITLE}}\" . \"My Project\") ...)
+Returns template content as string."
+  (let* ((template-file (expand-file-name
+                         (concat template-name ".org")
+                         my/templates-dir))
+         (content (if (file-exists-p template-file)
+                      (with-temp-buffer
+                        (insert-file-contents template-file)
+                        (buffer-string))
+                    (error "Template not found: %s" template-file))))
+    
+    ;; Replace all placeholders
+    (dolist (placeholder placeholders)
+      (setq content (replace-regexp-in-string
+                     (regexp-quote (car placeholder))
+                     (cdr placeholder)
+                     content
+                     t t)))
+    
+    content))
+
+(defun my/template-available-p (template-name)
+  "Check if TEMPLATE-NAME exists in templates directory."
+  (file-exists-p (expand-file-name
+                  (concat template-name ".org")
+                  my/templates-dir)))
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here

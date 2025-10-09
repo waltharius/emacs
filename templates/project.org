@@ -1,0 +1,151 @@
+# PROJECT TEMPLATE v1.0
+# This file defines the standard structure for all project notes.
+# 
+# PLACEHOLDERS (automatically replaced):
+#   {{TITLE}}      - Project name from user input
+#   {{DATE}}       - Current date (YYYY-MM-DD)
+#   {{DATETIME}}   - Current date and time ([YYYY-MM-DD Www HH:MM])
+#   {{CATEGORY}}   - Sanitized project name for Org-agenda
+#   {{DEADLINE}}   - Default deadline (7 days from now)
+#
+# CONVENTIONS:
+#   - Use TODO/NEXT/INPROGRESS/WAITING/DONE/CANCELLED states
+#   - Effort estimates: 0:15, 0:30, 1:00, 2:00, 4:00, 8:00, 16:00
+#   - Each phase tagged with :phase-N:
+#   - Update kanban: C-c C-c on #+BEGIN line
+#   - Update clocktable: C-c C-c on #+BEGIN line
+#   - Track time: C-c C-x C-i (clock in), C-c C-x C-o (clock out)
+
+#+startup: overview
+#+todo: TODO NEXT INPROGRESS WAITING | DONE CANCELLED
+#+property: Effort_ALL 0:15 0:30 1:00 2:00 4:00 8:00 16:00
+#+columns: %50ITEM(Task) %TODO %3PRIORITY %10Effort(Estimate){:} %10CLOCKSUM(Clocked) %TAGS
+
+* PROJECT: {{TITLE}}
+:PROPERTIES:
+:CREATED: {{DATETIME}}
+:CATEGORY: {{CATEGORY}}
+:COOKIE_DATA: todo recursive
+:END:
+
+** Project Overview
+
+*** Purpose
+Describe the purpose of {{TITLE}}.
+
+*** Success Criteria [0/3]
+- [ ] Criterion 1
+- [ ] Criterion 2
+- [ ] Criterion 3
+
+*** Timeline
+- Start: {{DATE}}
+- Target completion: 
+- Review milestone: 
+
+*** Key Stakeholders
+- Owner: 
+- Contributors: 
+- Reviewers: 
+
+** KANBAN VIEW
+#+BEGIN: kanban :scope tree :layout ("TODO" "NEXT" "INPROGRESS" "WAITING" "|" "DONE" "CANCELLED")
+| TODO | NEXT | INPROGRESS | WAITING | DONE | CANCELLED |
+|------+------+------------+---------+------+-----------|
+#+END:
+
+Press =C-c C-c= on the #+BEGIN line to update kanban board.
+
+** PHASE 1: Planning [0/3]                                            :phase-1:
+:PROPERTIES:
+:CATEGORY: Phase-1
+:COOKIE_DATA: todo recursive
+:END:
+
+*** TODO [#A] Define project scope
+DEADLINE: <{{DEADLINE}}>
+:PROPERTIES:
+:Effort: 2:00
+:END:
+
+Clarify project boundaries, deliverables, and constraints.
+
+*** TODO [#B] Create detailed timeline
+:PROPERTIES:
+:Effort: 1:00
+:END:
+
+Break down project into milestones and tasks.
+
+*** TODO [#C] Setup project infrastructure
+:PROPERTIES:
+:Effort: 4:00
+:END:
+
+Prepare necessary tools, repositories, documentation structure.
+
+** PHASE 2: Execution [0/0]                                           :phase-2:
+:PROPERTIES:
+:CATEGORY: Phase-2
+:COOKIE_DATA: todo recursive
+:END:
+
+Add tasks here as project progresses.
+
+** PHASE 3: Review & Delivery [0/0]                                   :phase-3:
+:PROPERTIES:
+:CATEGORY: Phase-3
+:COOKIE_DATA: todo recursive
+:END:
+
+Add final tasks here (testing, documentation, deployment).
+
+** Project Statistics
+
+*** Time Tracking Summary
+#+BEGIN: clocktable :scope file :maxlevel 3 :emphasize nil :link t
+#+CAPTION: Clock summary
+| Headline | Time |
+|----------+------|
+#+END:
+
+Press =C-c C-c= on #+BEGIN line to update time summary.
+
+*** Progress Overview
+| Phase | Status | Progress | Effort Spent | Effort Estimated |
+|-------+--------+----------+--------------+------------------|
+|       |        |          |              |                  |
+
+Update manually or use =C-c p %= for completion percentage.
+
+** Notes & Ideas
+
+*** Key Decisions
+Document important decisions with date and rationale.
+
+*** Challenges & Solutions
+Track problems encountered and how they were solved.
+
+*** Lessons Learned
+What went well? What could be improved?
+
+*** Next Steps
+Immediate action items.
+
+** Resources & References
+- Documentation: 
+- Related projects: 
+- External links: 
+
+** Meeting Log
+
+*** {{DATETIME}} - Kickoff Meeting
+*Participants:* 
+*Duration:* 
+*Summary:*
+
+*Action items:*
+- [ ] 
+
+** Archive
+Old or cancelled tasks can be moved here.

@@ -45,6 +45,20 @@ Used by: Denote core, Dashboard, Folgezettel, all note functions.")
   "List of Org files to include in agenda.
 Add new project files here to track them in Org-agenda.")
 
+;; ============================================================
+;; TEMPLATES DIRECTORY
+;; ============================================================
+
+(defvar my/templates-dir
+  (expand-file-name "templates/" user-emacs-directory)
+  "Directory containing note templates.
+Templates are Org files with placeholders like {{TITLE}}, {{DATE}}, etc.")
+
+;; Ensure templates directory exists
+(unless (file-directory-p my/templates-dir)
+  (make-directory my/templates-dir t)
+  (message "Created templates directory: %s" my/templates-dir))
+
 
 ;; ============================================================
 ;; DENOTE CONFIGURATION
