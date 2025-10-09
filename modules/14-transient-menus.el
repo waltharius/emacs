@@ -110,25 +110,14 @@
 ;; ============================================================
 
 (transient-define-prefix my/wellbeing-transient-menu ()
-  "Well-being tracking and visualization"
+  "Well-being tracking and visualization."
   ["Well-being Tracking"
-   ["Track"
-    ("w" "Set well-being" my/denote-set-wellbeing)
-    ("f" "Fill missing" my/denote-wellbeing-fill-missing)]
-   
-   ["View"
-    ("h" "History" my/denote-wellbeing-history)
-    ("g" "Graph" my/denote-wellbeing-graph)
-    ("p" "Plot" my/denote-wellbeing-plot)]
-   
-   ["Reports"
-    ("7" "Last 7 days" (lambda () (interactive) (my/denote-wellbeing-history 7)))
-    ("3" "Last 30 days" (lambda () (interactive) (my/denote-wellbeing-history 30)))
-    ("9" "Last 90 days" (lambda () (interactive) (my/denote-wellbeing-history 90)))]]
-  
-  [["Navigation"
-    ("q" "Quit" transient-quit-one)
-    ("?" "Help" describe-mode)]])
+   ("e" "Add entry (1-10)" my/denote-wellbeing-entry)
+   ("s" "Statistics" my/denote-wellbeing-stats)
+   ("j" "Filter journal" my/denote-wellbeing-journal)]
+  ["Navigation"
+   ("q" "Quit" transient-quit-one)
+   ("?" "Help" describe-mode)])
 
 ;; ============================================================
 ;; STATISTICS & DASHBOARDS MENU
