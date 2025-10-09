@@ -10,8 +10,8 @@
 ;; ============================================================
 
 ;; Master help menu (guide + cheatsheet)
-(global-set-key (kbd "C-c h") 'my/help-master-menu)
-(global-set-key (kbd "C-c ?") 'my/help-master-menu)  ; Alternative
+(global-set-key (kbd "C-c z") 'my/help-master-menu)
+(global-set-key (kbd "C-c Z") 'my/help-master-menu)  ; Alternative
 
 ;; Core menus
 (global-set-key (kbd "C-c n") 'my/notes-transient-menu)      ; Notes & Denote

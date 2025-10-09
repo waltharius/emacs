@@ -9,10 +9,10 @@
 ;; - Help & Cheatsheet (C-c h) - master menu with guide
 ;; - Well-being tracking (C-c w)
 ;; - Statistics & dashboards (C-c s)
-;; - Flyspell & spelling (C-c f)
-;; - Grammar checking (C-c g)
-;; - Org-transclusion (C-c t)
-;; - Bookmarks (C-c b)
+;; - Flyspell & spelling (C-c F)
+;; - Grammar checking (C-c G)
+;; - Org-transclusion (C-c T)
+;; - Bookmarks (C-c B)
 ;;
 ;;; Code:
 
@@ -50,10 +50,10 @@
     ("s" "Statistics" my/statistics-transient-menu)]
    
    ["Quick Tools"
-    ("f" "Spelling" my/spelling-transient-menu)
-    ("g" "Grammar" my/grammar-transient-menu)
-    ("t" "Transclusion" my/transclusion-transient-menu)
-    ("b" "Bookmarks" my/bookmarks-transient-menu)]]
+    ("F" "Spelling" my/spelling-transient-menu)
+    ("G" "Grammar" my/grammar-transient-menu)
+    ("T" "Transclusion" my/transclusion-transient-menu)
+    ("B" "Bookmarks" my/bookmarks-transient-menu)]]
   
   ["Org-mode Reference"
    ["Structure"
