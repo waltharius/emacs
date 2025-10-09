@@ -18,6 +18,36 @@
 ;;   - modules/10-org-formatting      : Skróty do formatowania tekstu i inne przydatne bajery z tekstem związane
 ;;
 ;;; Code:
+;;; === PERFORMANCE LOGGING ===
+(defvar my/init-benchmark-data nil
+  "List of (file-name . load-time) pairs.")
+
+(defvar my/log-file "~/.emacs.d/startup.log"
+  "Log file for startup times.")
+
+(defun my/log-load-time (file)
+  "Log loading time of FILE."
+  (let ((start-time (current-time)))
+    (load file)
+    (let* ((end-time (current-time))
+           (elapsed (float-time (time-subtract end-time start-time))))
+      (push (cons file elapsed) my/init-benchmark-data)
+      (message "Loaded %s in %.3fs" file elapsed))))
+
+(defun my/save-startup-log ()
+  "Save startup benchmark to log file."
+  (with-temp-buffer
+    (insert (format "=== Emacs Startup Log - %s ===\n\n"
+                    (format-time-string "%Y-%m-%d %H:%M:%S")))
+    (insert (format "Total startup time: %s\n\n" (emacs-init-time)))
+    (insert "Module load times:\n")
+    (dolist (entry (reverse my/init-benchmark-data))
+      (insert (format "  %-40s %.3fs\n" (car entry) (cdr entry))))
+    (insert "\n")
+    (write-region (point-min) (point-max) my/log-file t)))
+
+(add-hook 'after-init-hook 'my/save-startup-log)
+
 ;; Enable use-package statistics
 (setq use-package-compute-statistics t)
 ;; ============================================================

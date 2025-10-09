@@ -5,7 +5,7 @@
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
    '(all-the-icons ample-theme consult-denote dashboard diff-hl
-		   doom-themes flyspell-correct-ivy gnuplot
+		   doom-themes esup flyspell-correct-ivy gnuplot
 		   gruvbox-theme htmlize langtool magit marginalia
 		   orderless org-appear org-contrib org-kanban
 		   org-roam-ql org-roam-ui org-transclusion
