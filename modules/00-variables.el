@@ -70,7 +70,7 @@ Default: 84 characters.")
 
 (defvar my/dashboard-cache-ttl 300
   "Dashboard cache time-to-live in seconds.
-Default: 300 (5 minutes). Set to 0 to disable caching.")
+Default: 300 (5 minutes).  Set to 0 to disable caching.")
 
 (defvar my/project-daily-goals
   '(("kant" . 300)

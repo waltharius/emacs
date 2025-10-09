@@ -59,9 +59,6 @@
 (message "Loading Emacs configuration...")
 ;; 00-variables.el MUST BE FIRST - defines all paths and settings
 (my/load-module "00-variables.el")
-
-;; Load all modules in order
-
 (my/load-module "01-packages.el")
 (my/load-module "02-spelling.el")
 (my/load-module "03-ui.el")
@@ -69,14 +66,12 @@
 (my/load-module "05-denote-functions.el")
 (my/load-module "05a-folgezettel.el")
 (my/load-module "06-keybindings.el")
-;; Project Management: Org-agenda, Kanban, time tracking
-(load (expand-file-name "modules/13-project-management.el" user-emacs-directory))
 (my/load-module "07-git.el")
 (my/load-module "08-modern-conveniences.el")
 (my/load-module "09-themes-gallery.el")
 (my/load-module "10-org-formatting.el")
-;; Journal calendar + navigation
-(load (expand-file-name "modules/11-org-journal.el" user-emacs-directory))
+(my/load-module "11-org-journal.el")
+(my/load-module "13-project-management.el")
 
 
 (message "Emacs configuration loaded successfully! ✨")
