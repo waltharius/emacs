@@ -82,6 +82,7 @@
 ;; yasnippert automatyczne parowanie znaczników bloku kodu
 (use-package yasnippet
   :ensure t
+  :defer 2
   :config
   (yas-global-mode 1))
 
@@ -91,6 +92,7 @@
 ;; --- Flycheck: syntax checking on-the-fly ---
 (use-package flycheck
   :ensure t
+  :defer t
   :init (global-flycheck-mode)
   :config
   (setq flycheck-emacs-lisp-load-path 'inherit))  ; Używaj load-path z Emacsa

@@ -1,0 +1,15 @@
+╔═══════════════════════════════════════════════════════════╗
+║  EMACS STARTUP BENCHMARK - 2025-10-09 19:09:23  ║
+╚═══════════════════════════════════════════════════════════╝
+
+Emacs init-time (official):  0.351s
+Actual measured time:        0.043s
+Missing time (UI/desktop):   -0.308s (-711%)
+
+Module load times (sorted by duration):
+─────────────────────────────────────────────────────────
+
+Total modules loaded:   0
+Average per module:     -nans
+
+Log saved to: ~/.emacs.d/logs/startup-20251009-190923.log

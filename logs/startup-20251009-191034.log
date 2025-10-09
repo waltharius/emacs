@@ -1,0 +1,28 @@
+╔═══════════════════════════════════════════════════════════╗
+║  EMACS STARTUP BENCHMARK - 2025-10-09 19:10:38  ║
+╚═══════════════════════════════════════════════════════════╝
+
+Emacs init-time:         2.149s (official)
+Actual measured time:    3.615s
+Missing time (desktop):  1.466s (41%)
+
+Module load times (sorted by duration):
+─────────────────────────────────────────────────────────
+  01-packages.el                            1.290s  ( 36%)
+  09-themes-gallery.el                      0.121s  (  3%)
+  02-spelling.el                            0.065s  (  2%)
+  04-denote-core.el                         0.060s  (  2%)
+  13-project-management.el                  0.046s  (  1%)
+  03-ui.el                                  0.022s  (  1%)
+  08-modern-conveniences.el                 0.012s  (  0%)
+  14-transient-menus.el                     0.006s  (  0%)
+  05-denote-functions.el                    0.003s  (  0%)
+  06-keybindings.el                         0.002s  (  0%)
+  00-variables.el                           0.001s  (  0%)
+  07-git.el                                 0.001s  (  0%)
+  05a-folgezettel.el                        0.001s  (  0%)
+  10-org-formatting.el                      0.001s  (  0%)
+  11-org-journal.el                         0.001s  (  0%)
+
+Total modules: 15
+Log file: /home/marcin/.emacs.d/logs/startup-20251009-191034.log
