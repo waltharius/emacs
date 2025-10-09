@@ -1425,5 +1425,11 @@ Returns template content as string."
     ("q" "Quit" transient-quit-one)
     ("?" "Help" describe-mode)]])
 
+;;; --- Journal search ---
+(defun my/journal-search ()
+  "Search through journal entries using consult-denote."
+  (interactive)
+  (consult-denote-grep "journal"))
+
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
