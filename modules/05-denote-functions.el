@@ -1455,5 +1455,17 @@ Returns template content as string."
             (switch-to-buffer (current-buffer)))
         (message "No matches found for \"%s\"" search-term)))))
 
+;; Manual desktop cleanup (kill invisible buffers NOW)
+(defun my/kill-invisible-buffers ()
+  "Kill all file buffers not visible in any window."
+  (interactive)
+  (let ((killed 0))
+    (dolist (buf (buffer-list))
+      (unless (get-buffer-window buf t)
+        (when (buffer-file-name buf)
+          (kill-buffer buf)
+          (setq killed (1+ killed)))))
+    (message "Killed %d invisible buffer(s)" killed)))
+
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here

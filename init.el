@@ -16,117 +16,164 @@
 ;;   - modules/08-modern-conveniences : Usprawnienia Emacs bez pisania kodu
 ;;   - modules/09-themes-gallery      : Galeria szablonów zmieniających wygląd Emacs
 ;;   - modules/10-org-formatting      : Skróty do formatowania tekstu i inne przydatne bajery z tekstem związane
+;;   - modules/11-org-journal         : Integracja z calendar i nawigacja
+;;   - modules/13-project-management  : Org-agenda, kanban, time tracking
+;;   - modules/14-transient-menus     : Unified transient menus
 ;;
 ;;; Code:
-;;; === PERFORMANCE LOGGING ===
-(defvar my/init-benchmark-data nil
-  "List of (file-name . load-time) pairs.")
 
-(defvar my/log-file "~/.emacs.d/startup.log"
-  "Log file for startup times.")
+;; ============================================================
+;; PERFORMANCE MONITORING SETUP
+;; ============================================================
 
-(defun my/log-load-time (file)
-  "Log loading time of FILE."
-  (let ((start-time (current-time)))
-    (load file)
-    (let* ((end-time (current-time))
-           (elapsed (float-time (time-subtract end-time start-time))))
-      (push (cons file elapsed) my/init-benchmark-data)
-      (message "Loaded %s in %.3fs" file elapsed))))
+;; Store actual startup time (before anything loads)
+(defvar my/emacs-start-time (current-time)
+  "Time when Emacs started loading init.el.")
 
-(defun my/save-startup-log ()
-  "Save startup benchmark to log file."
-  (with-temp-buffer
-    (insert (format "=== Emacs Startup Log - %s ===\n\n"
-                    (format-time-string "%Y-%m-%d %H:%M:%S")))
-    (insert (format "Total startup time: %s\n\n" (emacs-init-time)))
-    (insert "Module load times:\n")
-    (dolist (entry (reverse my/init-benchmark-data))
-      (insert (format "  %-40s %.3fs\n" (car entry) (cdr entry))))
-    (insert "\n")
-    (write-region (point-min) (point-max) my/log-file t)))
+;; Create logs directory
+(unless (file-exists-p (concat user-emacs-directory "logs/"))
+  (make-directory (concat user-emacs-directory "logs/")))
 
-(add-hook 'after-init-hook 'my/save-startup-log)
+;; Log file with timestamp
+(defvar my/startup-log-file
+  (concat user-emacs-directory
+          "logs/startup-"
+          (format-time-string "%Y%m%d-%H%M%S")
+          ".log")
+  "Log file for this session's startup benchmark.")
 
-;; Enable use-package statistics
-(setq use-package-compute-statistics t)
+;; Benchmark data storage
+(defvar my/benchmark-data nil
+  "List of (module-name . load-time) pairs.")
+
+;; Module loading with benchmark
+(defun my/load-module (module-name)
+  "Load MODULE-NAME from ~/.emacs.d/modules/ and benchmark it."
+  (let* ((module-file (expand-file-name
+                       (concat "modules/" module-name)
+                       user-emacs-directory))
+         (start-time (current-time)))
+    (if (file-exists-p module-file)
+        (progn
+          (message "[Loading] %s..." module-name)
+          (load-file module-file)
+          (let* ((end-time (current-time))
+                 (elapsed (float-time (time-subtract end-time start-time))))
+            (push (cons module-name elapsed) my/benchmark-data)
+            (message "[✓ %.3fs] %s" elapsed module-name)))
+      (message "[ERROR] Module %s not found!" module-name))))
+
+;; Save benchmark log
+(defun my/save-benchmark-log ()
+  "Write detailed startup benchmark to log file."
+  (let ((total-time (float-time (time-subtract (current-time) my/emacs-start-time)))
+        (official-time (string-to-number (car (split-string (emacs-init-time))))))
+    (with-temp-buffer
+      (insert "╔═══════════════════════════════════════════════════════════╗\n")
+      (insert (format "║  EMACS STARTUP BENCHMARK - %s  ║\n"
+                      (format-time-string "%Y-%m-%d %H:%M:%S")))
+      (insert "╚═══════════════════════════════════════════════════════════╝\n\n")
+      
+      ;; Total times
+      (insert (format "Emacs init-time (official):  %.3fs\n" official-time))
+      (insert (format "Actual measured time:        %.3fs\n" total-time))
+      (insert (format "Missing time (UI/desktop):   %.3fs (%.0f%%)\n\n"
+                      (- total-time official-time)
+                      (* 100 (/ (- total-time official-time) total-time))))
+      
+      ;; Module breakdown
+      (insert "Module load times (sorted by duration):\n")
+      (insert "─────────────────────────────────────────────────────────\n")
+      (dolist (entry (sort my/benchmark-data (lambda (a b) (> (cdr a) (cdr b)))))
+        (insert (format "  %-45s %6.3fs  (%3.0f%%)\n"
+                        (car entry)
+                        (cdr entry)
+                        (* 100 (/ (cdr entry) total-time)))))
+      
+      ;; Summary
+      (insert "\n")
+      (insert (format "Total modules loaded:   %d\n" (length my/benchmark-data)))
+      (insert (format "Average per module:     %.3fs\n"
+                      (/ (apply '+ (mapcar 'cdr my/benchmark-data))
+                         (float (length my/benchmark-data)))))
+      (insert (format "\nLog saved to: %s\n" my/startup-log-file))
+      
+      (write-region (point-min) (point-max) my/startup-log-file)
+      (message "📊 Startup benchmark saved: %s" (file-name-nondirectory my/startup-log-file)))))
+
+;; Hook to save log after init
+(add-hook 'after-init-hook 'my/save-benchmark-log)
+
+;; Command to view last log
+(defun my/view-startup-log ()
+  "Open the most recent startup log file."
+  (interactive)
+  (let* ((logs-dir (concat user-emacs-directory "logs/"))
+         (logs (directory-files logs-dir t "startup-.*\\.log$"))
+         (latest (car (sort logs 'string>))))
+    (if latest
+        (find-file latest)
+      (message "No startup logs found in %s" logs-dir))))
+
 ;; ============================================================
 ;; PERFORMANCE: Garbage collection optimization (startup only)
 ;; ============================================================
 
 (setq gc-cons-threshold most-positive-fixnum)  ; Disable GC during startup
 
+;; Reset GC after startup
+(add-hook 'after-init-hook
+          (lambda ()
+            (setq gc-cons-threshold (* 16 1024 1024))  ; 16MB (reasonable)
+            (message "GC threshold reset to 16MB")))
+
 ;; ============================================================
 ;; CRITICAL: Load fresh .el files (prevent cache issues)
 ;; ============================================================
 
 (setq load-prefer-newer t)
-;; Enable recentf mode GLOBALLY (before loading modules!)
+
+;; ============================================================
+;; USE-PACKAGE STATISTICS (must be BEFORE packages load!)
+;; ============================================================
+
+(setq use-package-compute-statistics t
+      use-package-verbose t)  ; Show loading messages
+
+;; ============================================================
+;; RECENTF MODE (before modules)
+;; ============================================================
+
 (recentf-mode 1)
-(setq recentf-max-saved-items 100)
-(setq recentf-auto-cleanup 'never)
-(setq recentf-exclude '("\\.git/"
+(setq recentf-max-saved-items 100
+      recentf-auto-cleanup 'never
+      recentf-exclude '("\\.git/"
                         "COMMIT_EDITMSG"
                         "\\.elc$"
                         "/elpa/"
                         "^/tmp/"
-                        "^#.*#$"        ; Ignore auto-save files
-                        "^\\.#"))       ; Ignore lock files!
+                        "^#.*#$"        ; Auto-save files
+                        "^\\.#"))       ; Lock files
 
 ;; ============================================================
-;; LOAD MODULES
-;; ============================================================
-;; Helper function to load modules
-(defun my/load-module (module-name)
-  "Load module from ~/.emacs.d/modules/ directory."
-  (let ((module-file (expand-file-name
-                      (concat "modules/" module-name)
-                      user-emacs-directory)))
-    (if (file-exists-p module-file)
-        (progn
-          (message "Loading %s..." module-name)
-          (load-file module-file))
-      (message "Warning: Module %s not found!" module-name))))
-
-(message "Loading Emacs configuration...")
-;; 00-variables.el MUST BE FIRST - defines all paths and settings
-(my/load-module "00-variables.el")
-;; (my/load-module "01-packages.el")
-(my/log-load-time (concat modules-dir "01-packages.el"))
-(my/load-module "02-spelling.el")
-(my/load-module "03-ui.el")
-(my/load-module "04-denote-core.el")
-(my/load-module "05-denote-functions.el")
-(my/load-module "05a-folgezettel.el")
-(my/load-module "07-git.el")
-(my/load-module "08-modern-conveniences.el")
-(my/load-module "09-themes-gallery.el")
-(my/load-module "10-org-formatting.el")
-(my/load-module "11-org-journal.el")
-(my/load-module "13-project-management.el")
-(my/load-module "14-transient-menus.el")
-
-;; ← 06-keybindings.el MUST BE LAST (after all function definitions)
-(my/load-module "06-keybindings.el")
-(message "Emacs configuration loaded successfully! ✨")
-
-;; ============================================================
-;; CUSTOM FILE (keep custom-set-variables out of init.el)
+;; DESKTOP RESTORE - SMART (only visible buffers!)
 ;; ============================================================
 
-(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
-(when (file-exists-p custom-file)
-  (load custom-file))
+;; Custom function to restore only visible buffers
+(defun my/desktop-save-only-visible-buffers ()
+  "Save desktop but exclude buffers not visible in windows."
+  (let* ((visible-buffers (mapcar 'window-buffer (window-list)))
+         (visible-buffer-names (mapcar 'buffer-name visible-buffers)))
+    ;; Filter desktop-buffer-list to only include visible buffers
+    (setq desktop-saved-frameset nil)  ; Don't save frames (faster)
+    (let ((desktop-buffers-not-to-save-function
+           (lambda (filename bufname mode &rest _)
+             (not (member bufname visible-buffer-names)))))
+      (desktop-save user-emacs-directory))))
 
-;; Auto clock-out on Emacs exit
-(add-hook 'kill-emacs-hook 'org-clock-out nil t)
-
-;; Auto-update statistics cookies
-(setq org-checkbox-hierarchical-statistics nil)  ; Count all, not just direct children
-
-;; Disable code execution during export
-(setq org-export-use-babel nil)
-
+;; Configure desktop mode
+(setq desktop-restore-frames nil          ; Don't restore frame geometry (faster!)
+      desktop-restore-eager
+      
 (provide 'init)
 ;;; init.el ends here
-

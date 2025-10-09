@@ -90,5 +90,8 @@
     "C-c d r" "refresh"
     "C-c d d" "open"))
 
+;; View startup log
+(global-set-key (kbd "C-c h l") 'my/view-startup-log)
+(global-set-key (kbd "C-c h k") 'my/kill-invisible-buffers)
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here
