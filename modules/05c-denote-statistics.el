@@ -3,6 +3,68 @@
 ;; Description: Note counting, word statistics, project tracking, and dashboards
 ;;
 ;;; Code:
+;;; 05c-denote-statistics.el --- Denote statistics and dashboards -*- lexical-binding: t; -*-
+;;
+;; Description: Note counting, word statistics, project tracking, and dashboards
+;;
+;; TODO (improvements for later):
+;; - [ ] Better project tracking (auto-detect projects from tags)
+;; - [ ] Weekly/monthly statistics (not just today)
+;; - [ ] Graph visualization (sparklines?)
+;; - [ ] Export statistics to CSV/JSON
+;; - [ ] Compare stats between time periods
+;; - [ ] Streak tracking (consecutive days writing)
+;; - [ ] Better dashboard formatting (tables?)
+;; - [ ] Performance optimization (cache more aggressively)
+;; - [ ] Notifications when goal reached (desktop notification?)
+;; - [ ] Integration with org-habit for writing habits
+;;; 05d-denote-wellbeing.el --- Well-being & mood tracking -*- lexical-binding: t; -*-
+;;
+;; Description: Scientific mood tracking with visualizations
+;;
+;; TRACKING MODEL (Circumplex Model - Russell 1980):
+;;   - Valence (1-10): negative ← → positive
+;;   - Arousal (1-10): low energy ← → high energy
+;;   - Emotions: joy, anxiety, sadness, calm, excitement, boredom...
+;;   - Context: activity, people, location
+;;
+;; TODO - Visualization & Analytics (research-backed):
+;; - [ ] TIER 1: Core Visualizations
+;;   - [ ] Time-series line graphs (7/30/90 days) [JMIR Mental Health 2022]
+;;   - [ ] Calendar heatmaps (emoji-based mood calendar)
+;;   - [ ] Circumplex scatter plot (valence × arousal)
+;;   - [ ] Distribution histograms (mood frequency)
+;;
+;; - [ ] TIER 2: Pattern Detection
+;;   - [ ] Auto-correlations (sleep, exercise, social → mood)
+;;   - [ ] Activity-mood associations ("feel best after X")
+;;   - [ ] Time-of-day patterns (morning vs evening mood)
+;;   - [ ] Weekly/monthly trends (moving averages)
+;;
+;; - [ ] TIER 3: Advanced Analytics
+;;   - [ ] Emotional granularity tracking (27 emotions, Barrett 2007)
+;;   - [ ] Mood stability metrics (standard deviation over time)
+;;   - [ ] Streak tracking (consecutive days with positive mood)
+;;   - [ ] Regression to identify triggers
+;;
+;; - [ ] TIER 4: Clinical/Export Features
+;;   - [ ] PDF report generation (graphs + summary)
+;;   - [ ] CSV export for therapist review
+;;   - [ ] Standardized questionnaires (PHQ-9, GAD-7 integration)
+;;
+;; - [ ] TIER 5: UX Improvements
+;;   - [ ] Quick entry widget (3 taps: mood + energy + save)
+;;   - [ ] Smart prompts ("How do you feel after [activity]?")
+;;   - [ ] Voice entry support (org-mode audio notes)
+;;   - [ ] Emacs notifications for check-ins
+;;
+;; RESEARCH SOURCES:
+;;   - JMIR Mental Health 2022: Data visualization preferences
+;;   - Lisa Feldman Barrett: Emotional granularity theory
+;;   - Quantified Self community: Best practices
+;;   - NIH study on mood tracking apps (2021)
+;;
+;;; Code:
 
 ;; ============================================================
 ;; CONFIGURATION
