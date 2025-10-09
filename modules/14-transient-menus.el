@@ -103,7 +103,7 @@
   
   [["Exit"
     ("q" "Quit" transient-quit-one)
-    ("?" "Emacs help" help-command)]])
+    ("?" "Help system" describe-mode)]])
 
 ;; ============================================================
 ;; WELL-BEING TRACKING MENU
