@@ -1362,60 +1362,68 @@ Returns template content as string."
                   my/templates-dir)))
 
 ;; ============================================================
-;; TRANSIENT NOTES MENU
+;; TRANSIENT NOTES MENU (replaces all C-c n X keybindings)
 ;; ============================================================
 
 (require 'transient)
 
 (transient-define-prefix my/notes-transient-menu ()
-  "Denote notes creation and management menu"
+  "Denote notes - all functions (verified from keybindings)"
   ["Denote Notes"
-   ["Create Notes"
+   ["Create Basic"
     ("n" "New note" denote)
-    ("j" "Journal (today)" my/denote-journal)
-    ("J" "Journal (date)" my/denote-journal-date)
+    ("j" "Journal today" my/denote-journal)
+    ("J" "Journal date" my/denote-journal-date)
     ("z" "Zettelkasten" my/denote-zettel)
     ("o" "Person" my/denote-osoba)
-    ("p" "Project" my/denote-create-project)]
+    ("b" "Base note" my/denote-base)
+    ("p" "Project" my/denote-create-project)
+    ("s" "Shortcut" my/denote-skroty)]
    
-   ["Academic & Essays"
+   ["Create Advanced"
     ("P" "Philosopher" my/denote-philosopher)
     ("L" "Literature" my/denote-literature)
     ("E" "Essay" my/denote-essay)
-    ("b" "Base note" my/denote-base)
-    ("s" "Shortcut" my/denote-skroty)]
+    ("Z" "Smart Zettel" my/denote-zettel-smart)]
    
    ["Search & Find"
-    ("f" "Find file" consult-denote-find)
+    ("f" "Open/create" denote-open-or-create)
     ("g" "Grep notes" consult-denote-grep)
+    ("F" "Find file" consult-denote-find)
     ("x" "Find property" my/denote-find-by-property)
-    ("l" "Insert link" denote-link)
-    ("r" "Rename file" denote-rename-file)]
+    ("/" "Journal search" my/journal-search)]
    
-   ["Well-being"
-    ("w" "Set well-being" my/denote-set-wellbeing)]
+   ["Linking"
+    ("i" "Insert link" denote-link)
+    ("I" "Link or create" denote-link-or-create)
+    ("B" "Backlinks" denote-backlinks)
+    ("l" "Add links" denote-add-links)
+    ("A" "Link after create" denote-link-after-creating)]]
+  
+  ["Management"
+   ["Rename & Tags"
+    ("r" "Rename file" denote-rename-file)
+    ("R" "Rename frontm." denote-rename-file-using-front-matter)
+    ("t" "Add keywords" denote-keywords-add)
+    ("T" "Remove keywords" denote-keywords-remove)]
    
-  ["Statistics & Management"
-   ["Stats"
-    ("#" "Word count" count-words)
-    ("%" "Note stats" my/denote-stats)
-    ("@" "Dashboard" my/pkm-dashboard)]
+   ["Folgezettel"
+    (">" "Zettel tree" my/denote-zettel-tree)
+    ("<" "Find children" my/denote-find-children)]
    
-   ["Export & Sync"
-    ("h" "Export HTML" my/denote-export-to-html)
-    ("H" "Export all HTML" my/denote-export-all-to-html)
-    ("m" "Export Markdown" org-md-export-to-markdown)
-    ("M" "Export PDF" org-latex-export-to-pdf)]
+   ["Delete"
+    ("d" "Delete note" my/denote-delete-note)
+    ("D" "Delete from list" my/denote-delete-from-list)]
    
-   ["Utilities"
-    ("t" "Insert time" insert-current-time)
-    ("d" "Insert date" org-time-stamp)
-    ("i" "Insert ID" denote-link-insert-file-name-as-heading)
-    ("k" "Keywords" denote-keywords-add)]]
+   ["UI & Tools"
+    ("e" "Edit init.el" open-init-el-bottom-split)
+    ("h" "Insert time" insert-current-time)
+    ("c" "Journal calendar" my/open-journal-calendar)
+    ("u" "Roam UI graph" org-roam-ui-mode)]]
   
   [["Navigation"
     ("q" "Quit" transient-quit-one)
-    ("?" "Help" describe-mode)]]
+    ("?" "Help" describe-mode)]])
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
