@@ -85,6 +85,15 @@
 (when (file-exists-p custom-file)
   (load custom-file))
 
+;; Auto clock-out on Emacs exit
+(add-hook 'kill-emacs-hook 'org-clock-out nil t)
+
+;; Auto-update statistics cookies
+(setq org-checkbox-hierarchical-statistics nil)  ; Count all, not just direct children
+
+;; Disable code execution during export
+(setq org-export-use-babel nil)
+
 (provide 'init)
 ;;; init.el ends here
 
