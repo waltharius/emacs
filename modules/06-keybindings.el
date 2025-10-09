@@ -32,6 +32,13 @@
 (global-set-key (kbd "C-c n p") 'my/denote-create-project)
 (global-set-key (kbd "C-c n h") 'insert-current-time)
 
+;; Main notes menu
+(global-set-key (kbd "C-c n") 'my/notes-transient-menu)
+
+;; Keep most-used as direct shortcuts (optional)
+(global-set-key (kbd "C-c n n") 'denote)  ; Quick access
+(global-set-key (kbd "C-c n j") 'my/denote-journal)  ; Daily use
+
 ;; --- Denote: wyszukiwanie ---
 (autoload 'denote-open-or-create "denote" nil t)
 (autoload 'consult-denote-grep "consult-denote" nil t)

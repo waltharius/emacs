@@ -380,30 +380,59 @@ Displays total clocked time and estimate vs actual."
 
 (transient-define-prefix my/project-transient-menu ()
   "Project management transient menu"
-  ["📁 Project Management"
+  ["Project Management"
    ["Create & Open"
     ("n" "New project" my/denote-create-project)
     ("o" "Open project" my/open-project-file)
-    ("x" "Find by category" my/denote-find-by-property)]
+    ("x" "Find by property" my/denote-find-by-property)]
    
-   ["📊 Statistics"
+   ["Statistics"
     ("%" "Completion %" my/org-project-completion-percentage)
-    ("t" "Time summary" my/org-time-summary)]
+    ("t" "Time summary" my/org-time-summary)
+    ("m" "Update modified" my/org-update-modified-property)]
    
-   ["📅 View"
-    ("a" "Agenda" org-agenda)
-    ("k" "Kanban" org-kanban/initialize)]]
+   ["Agenda Views"
+    ("a" "Agenda dispatch" org-agenda)
+    ("A" "All projects" (lambda () (interactive) (org-agenda nil "p")))
+    ("d" "Daily" (lambda () (interactive) (org-agenda nil "d")))
+    ("w" "Weekly review" (lambda () (interactive) (org-agenda nil "w")))]
+   
+   ["Kanban & Reports"
+    ("k" "Kanban board" org-kanban/initialize)
+    ("K" "Shift task" org-kanban/shift)
+    ("R" "Clock report" org-clock-report)
+    ("C" "Columns view" org-columns)]]
   
-  ["⏱️ Time Tracking"
+  ["Time Tracking"
    ["Clock"
     ("i" "Clock in" org-clock-in)
     ("c" "Clock out" org-clock-out)
-    ("j" "Clock goto" org-clock-goto)]
+    ("j" "Goto clocked" org-clock-goto)
+    ("l" "Clock last" org-clock-in-last)]
    
-   ["Reports"
-    ("r" "Clock report" org-clock-report)]]
+   ["Effort & Display"
+    ("e" "Set effort" org-set-effort)
+    ("E" "Inc effort" org-inc-effort)
+    ("h" "Show clocks" org-clock-display)
+    ("H" "Remove display" org-clock-remove-overlays)]]
   
-  [("q" "Quit" transient-quit-one)])
+  ["Task Management"
+   ["TODO & Priority"
+    ("s" "Set TODO" org-todo)
+    ("S" "Schedule" org-schedule)
+    ("," "Priority" org-priority)
+    ("." "Priority up" org-priority-up)
+    ("/" "Priority down" org-priority-down)]
+   
+   ["Deadline & Tags"
+    ("D" "Deadline" org-deadline)
+    ("T" "Set tags" org-set-tags-command)
+    ("P" "Set property" org-set-property)
+    ("r" "Refile" org-refile)]]
+  
+  [["Navigation"
+    ("q" "Quit" transient-quit-one)
+    ("?" "Help" describe-mode)]])
 
 (provide '13-project-management)
 ;;; 13-project-management.el ends here

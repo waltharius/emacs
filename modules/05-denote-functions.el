@@ -1361,5 +1361,61 @@ Returns template content as string."
                   (concat template-name ".org")
                   my/templates-dir)))
 
+;; ============================================================
+;; TRANSIENT NOTES MENU
+;; ============================================================
+
+(require 'transient)
+
+(transient-define-prefix my/notes-transient-menu ()
+  "Denote notes creation and management menu"
+  ["Denote Notes"
+   ["Create Notes"
+    ("n" "New note" denote)
+    ("j" "Journal (today)" my/denote-journal)
+    ("J" "Journal (date)" my/denote-journal-date)
+    ("z" "Zettelkasten" my/denote-zettel)
+    ("o" "Person" my/denote-osoba)
+    ("p" "Project" my/denote-create-project)]
+   
+   ["Academic & Essays"
+    ("P" "Philosopher" my/denote-philosopher)
+    ("L" "Literature" my/denote-literature)
+    ("E" "Essay" my/denote-essay)
+    ("b" "Base note" my/denote-base)
+    ("s" "Shortcut" my/denote-skroty)]
+   
+   ["Search & Find"
+    ("f" "Find file" consult-denote-find)
+    ("g" "Grep notes" consult-denote-grep)
+    ("x" "Find property" my/denote-find-by-property)
+    ("l" "Insert link" denote-link)
+    ("r" "Rename file" denote-rename-file)]
+   
+   ["Well-being"
+    ("w" "Set well-being" my/denote-set-wellbeing)]
+   
+  ["Statistics & Management"
+   ["Stats"
+    ("#" "Word count" count-words)
+    ("%" "Note stats" my/denote-stats)
+    ("@" "Dashboard" my/pkm-dashboard)]
+   
+   ["Export & Sync"
+    ("h" "Export HTML" my/denote-export-to-html)
+    ("H" "Export all HTML" my/denote-export-all-to-html)
+    ("m" "Export Markdown" org-md-export-to-markdown)
+    ("M" "Export PDF" org-latex-export-to-pdf)]
+   
+   ["Utilities"
+    ("t" "Insert time" insert-current-time)
+    ("d" "Insert date" org-time-stamp)
+    ("i" "Insert ID" denote-link-insert-file-name-as-heading)
+    ("k" "Keywords" denote-keywords-add)]]
+  
+  [["Navigation"
+    ("q" "Quit" transient-quit-one)
+    ("?" "Help" describe-mode)]]
+
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
