@@ -36,16 +36,22 @@ Used by: Denote core, Dashboard, Folgezettel, all note functions.")
 (defvar my/emacs-autosaves-dir (expand-file-name "~/.emacs.d/autosaves/")
   "Autosave directory for Emacs config files.")
 
-(defvar my/emacs-undo-tree-dir 
+(defvar my/emacs-undo-tree-dir
   (expand-file-name "undo-tree-history/" user-emacs-directory)
   "Persistent undo history directory.")
+
+(defvar my/project-files
+  (list (expand-file-name "20251009--PKM-refactoring__project.org" my/notes-dir))
+  "List of Org files to include in agenda.
+Add new project files here to track them in Org-agenda.")
+
 
 ;; ============================================================
 ;; DENOTE CONFIGURATION
 ;; ============================================================
 
-(defvar my/denote-keywords 
-  '("zettel" "osoba" "projekt" "journal" "lektura" "filozof" 
+(defvar my/denote-keywords
+  '("zettel" "osoba" "projekt" "journal" "lektura" "filozof"
     "fleeting" "esej" "skroty")
   "Available keywords (tags) for Denote notes.
 Used by: denote-known-keywords, Dashboard statistics.")
@@ -58,7 +64,7 @@ Default: 84 characters.")
 ;; DASHBOARD & STATISTICS
 ;; ============================================================
 
-(defvar my/daily-goals-file 
+(defvar my/daily-goals-file
   (expand-file-name "daily-goals.el" user-emacs-directory)
   "File storing daily writing goals (persistent across sessions).")
 
@@ -66,7 +72,7 @@ Default: 84 characters.")
   "Dashboard cache time-to-live in seconds.
 Default: 300 (5 minutes). Set to 0 to disable caching.")
 
-(defvar my/project-daily-goals 
+(defvar my/project-daily-goals
   '(("kant" . 300)
     ("hume" . 200)
     ("sartre" . 250))
@@ -126,7 +132,7 @@ Options: 'gruvbox, 'doom-one, 'zenburn, etc.")
 ;; WELL-BEING TRACKING
 ;; ============================================================
 
-(defvar my/well-being-file 
+(defvar my/well-being-file
   (expand-file-name "well-being.org" my/notes-dir)
   "Main well-being tracking file.")
 
@@ -156,7 +162,7 @@ Windows: C:/Program Files/LanguageTool/languagetool-commandline.jar")
   "Org-mode default folding on file open.
 Options: 'overview (fold all), 'content (show headings), 'showall (expand all).")
 
-(defvar my/org-columns-format 
+(defvar my/org-columns-format
   "%40ITEM(Tytuł) %10STATUS %8YEAR %6PAGES %10PROJECT"
   "Org columns display format for properties view.")
 

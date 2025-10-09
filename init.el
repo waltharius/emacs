@@ -69,6 +69,8 @@
 (my/load-module "05-denote-functions.el")
 (my/load-module "05a-folgezettel.el")
 (my/load-module "06-keybindings.el")
+;; Project Management: Org-agenda, Kanban, time tracking
+(load (expand-file-name "modules/13-project-management.el" user-emacs-directory))
 (my/load-module "07-git.el")
 (my/load-module "08-modern-conveniences.el")
 (my/load-module "09-themes-gallery.el")

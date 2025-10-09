@@ -355,9 +355,6 @@
   "Plist cache for expensive dashboard calculations.
 Format: (:total-words NUM :total-files NUM :last-update TIMESTAMP)")
 
-(defvar my/dashboard-cache-ttl 300
-  "Cache TTL in seconds (5 minutes).")
-
 (defun my/dashboard-cache-valid-p ()
   "Check if dashboard cache is still valid."
   (and my/dashboard-cache

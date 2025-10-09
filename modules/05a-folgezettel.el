@@ -22,66 +22,6 @@
 (require 'denote)
 
 ;; ============================================================
-;; GŁÓWNA FUNKCJA: Smart Zettel Creator
-;; ============================================================
-(defun my/denote-zettel-smart ()
-  "Utwórz Zettel z inteligentnym Folgezettel signature.
-Automatycznie generuje signature, linkuje do parenta i dodaje backlink."
-  (interactive)
-  (let* ((parent-sig (read-string "Parent signature (Enter = nowy root): "))
-         (new-sig (if (string-empty-p parent-sig)
-                      ;; Nowy top-level - znajdź następny numer
-                      (my/folge-next-top-level)
-                    ;; Child - wybierz typ
-                    (my/folge-next-child parent-sig)))
-         (title (read-string "Tytuł: "))
-         (keywords-string (read-string "Tagi (opcjonalnie): " "zettel"))
-         (keywords (split-string keywords-string " " t))
-         ;; Generuj nazwę pliku RĘCZNIE (Denote style)
-         (id (format-time-string "%Y%m%dT%H%M%S"))
-         (slug (denote-sluggify 'title title))
-         (keyword-string (mapconcat #'identity keywords "_"))
-         (filename (format "%s==%s--%s__%s.org" 
-                          id new-sig slug keyword-string))
-         (filepath (expand-file-name filename my-notes-dir)))
-    
-    ;; ✅ KLUCZOWE: Utwórz NOWY plik!
-    (find-file filepath)
-    
-    ;; Wstaw front matter
-    (insert (format "#+title:      %s\n" title))
-    (insert (format "#+date:       %s\n" 
-                    (format-time-string "[%Y-%m-%d %a %H:%M]")))
-    (insert (format "#+filetags:   :%s:\n" keyword-string))
-    (insert (format "#+identifier: %s\n" id))
-    (insert (format "#+signature:  %s\n\n" new-sig))
-    
-    ;; Dodaj link do parenta (jeśli istnieje)
-    (when (not (string-empty-p parent-sig))
-      (let ((parent-file (my/folge-find-file-by-sig parent-sig)))
-        (when parent-file
-          (insert "\n* Parent\n")
-          (insert (format "← [[denote:%s][%s]]\n\n" 
-                         (my/folge-get-id-from-file parent-file)
-                         parent-sig))
-          
-          ;; Dodaj backlink w parent
-          (with-current-buffer (find-file-noselect parent-file)
-            (goto-char (point-max))
-            (unless (re-search-backward "^\\* Children$" nil t)
-              (goto-char (point-max))
-              (insert "\n* Children\n"))
-            (goto-char (point-max))
-            (insert (format "→ [[denote:%s][%s: %s]]\n"
-                           id
-                           new-sig
-                           title))
-            (save-buffer)))))
-    
-    (save-buffer)
-    (message "✅ Stworzono Zettel: %s (%s)" new-sig filepath)))
-
-;; ============================================================
 ;; NUMERACJA: Top-level (NX)
 ;; ============================================================
 
@@ -261,7 +201,7 @@ Czyta signature z NAZWY PLIKU (==NX), nie z treści!"
     ;; Wyświetl
     (with-current-buffer (get-buffer-create "*Zettel Tree*")
       (read-only-mode -1)
-      (erase-buffer)kq
+      (erase-buffer)
       (org-mode)
       (insert "#+title: Folgezettel Tree\n")
       (insert "#+startup: overview\n\n")
