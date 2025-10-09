@@ -20,10 +20,10 @@
 (global-set-key (kbd "C-c s") 'my/statistics-transient-menu) ; Statistics
 
 ;; Tool menus
-(global-set-key (kbd "C-c y") 'my/spelling-transient-menu)      ; Flyspell
-(global-set-key (kbd "C-c g") 'my/grammar-transient-menu)       ; LanguageTool
-(global-set-key (kbd "C-c t") 'my/transclusion-transient-menu)  ; Org-transclusion
-(global-set-key (kbd "C-c b") 'my/bookmarks-transient-menu)     ; Bookmarks
+(global-set-key (kbd "C-c F") 'my/spelling-transient-menu)      ; Flyspell
+(global-set-key (kbd "C-c G") 'my/grammar-transient-menu)       ; LanguageTool
+(global-set-key (kbd "C-c T") 'my/transclusion-transient-menu)  ; Org-transclusion
+(global-set-key (kbd "C-c B") 'my/bookmarks-transient-menu)     ; Bookmarks
 
 ;; ============================================================
 ;; STANDALONE SHORTCUTS (not in menus)
