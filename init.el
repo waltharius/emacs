@@ -68,6 +68,7 @@
   (load (concat modules-dir "04-denote-core.el"))
   (load (concat modules-dir "05-denote-functions.el"))
   (load (concat modules-dir "05b-denote-export.el"))
+  (load (concat modules-dir "05c-denote-statistics.el"))
   (load (concat modules-dir "05a-folgezettel.el"))
   (load (concat modules-dir "07-git.el"))
   (load (concat modules-dir "08-modern-conveniences.el"))
