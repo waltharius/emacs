@@ -1425,11 +1425,35 @@ Returns template content as string."
     ("q" "Quit" transient-quit-one)
     ("?" "Help" describe-mode)]])
 
-;;; --- Journal search ---
+;;; --- FUNCJA: Journal search ---
 (defun my/journal-search ()
-  "Search through journal entries using consult-denote."
+  "Search through journal files only."
   (interactive)
-  (consult-denote-grep "journal"))
+  (let* ((search-term (read-string "Search journals: "))
+         (journal-files (directory-files my-notes-dir t ".*journal.*\\.org$"))
+         (results '()))
+    (if (not journal-files)
+        (message "No journal files found!")
+      (dolist (file journal-files)
+        (with-temp-buffer
+          (insert-file-contents file)
+          (goto-char (point-min))
+          (while (search-forward search-term nil t)
+            (let ((line (buffer-substring-no-properties
+                         (line-beginning-position)
+                         (line-end-position))))
+              (push (cons (file-name-nondirectory file) line) results)))))
+      (if results
+          (with-current-buffer (get-buffer-create "*Journal Search*")
+            (read-only-mode -1)
+            (erase-buffer)
+            (insert (format "Search results for: \"%s\"\n\n" search-term))
+            (dolist (result (reverse results))
+              (insert (format "- %s: %s\n" (car result) (cdr result))))
+            (goto-char (point-min))
+            (read-only-mode 1)
+            (switch-to-buffer (current-buffer)))
+        (message "No matches found for \"%s\"" search-term)))))
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
