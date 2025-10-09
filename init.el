@@ -91,7 +91,8 @@
 (message "Loading Emacs configuration...")
 ;; 00-variables.el MUST BE FIRST - defines all paths and settings
 (my/load-module "00-variables.el")
-(my/load-module "01-packages.el")
+;; (my/load-module "01-packages.el")
+(my/log-load-time (concat modules-dir "01-packages.el"))
 (my/load-module "02-spelling.el")
 (my/load-module "03-ui.el")
 (my/load-module "04-denote-core.el")
