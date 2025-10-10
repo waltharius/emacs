@@ -93,5 +93,22 @@
 ;; View startup log
 (global-set-key (kbd "C-c h l") 'my/view-startup-log)
 (global-set-key (kbd "C-c h k") 'my/kill-invisible-buffers)
+
+;; ============================================================
+;; WINDOW MANAGEMENT - Swap windows
+;; ============================================================
+
+;; Swap windows with directional keys
+(global-set-key (kbd "C-c <left>")  'windmove-swap-states-left)
+(global-set-key (kbd "C-c <right>") 'windmove-swap-states-right)
+(global-set-key (kbd "C-c <up>")    'windmove-swap-states-up)
+(global-set-key (kbd "C-c <down>")  'windmove-swap-states-down)
+
+;; Navigate windows (jeśli jeszcze nie masz)
+(global-set-key (kbd "M-<left>")  'windmove-left)
+(global-set-key (kbd "M-<right>") 'windmove-right)
+(global-set-key (kbd "M-<up>")    'windmove-up)
+(global-set-key (kbd "M-<down>")  'windmove-down)
+
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here
