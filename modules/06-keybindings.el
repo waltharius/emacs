@@ -92,23 +92,28 @@
 
 ;; View startup log
 (global-set-key (kbd "C-c h l") 'my/view-startup-log)
-(global-set-key (kbd "C-c h k") 'my/kill-invisible-buffers)
 
 ;; ============================================================
-;; WINDOW MANAGEMENT - Swap windows
+;; WINDOW MANAGEMENT - Navigation, Swap, and Transient Menu
 ;; ============================================================
 
-;; Swap windows with directional keys
-(global-set-key (kbd "C-c <left>")  'windmove-swap-states-left)
-(global-set-key (kbd "C-c <right>") 'windmove-swap-states-right)
-(global-set-key (kbd "C-c <up>")    'windmove-swap-states-up)
-(global-set-key (kbd "C-c <down>")  'windmove-swap-states-down)
+;; Quick swap windows with Ctrl+Super+Arrow (won't conflict with Fedora!)
+(global-set-key (kbd "C-s-<left>")  'windmove-swap-states-left)
+(global-set-key (kbd "C-s-<right>") 'windmove-swap-states-right)
+(global-set-key (kbd "C-s-<up>")    'windmove-swap-states-up)
+(global-set-key (kbd "C-s-<down>")  'windmove-swap-states-down)
 
-;; Navigate windows (jeśli jeszcze nie masz)
-(global-set-key (kbd "M-<left>")  'windmove-left)
-(global-set-key (kbd "M-<right>") 'windmove-right)
-(global-set-key (kbd "M-<up>")    'windmove-up)
-(global-set-key (kbd "M-<down>")  'windmove-down)
+;; Navigate between windows with Ctrl+Shift+Arrow
+(global-set-key (kbd "C-S-<left>")  'windmove-left)
+(global-set-key (kbd "C-S-<right>") 'windmove-right)
+(global-set-key (kbd "C-S-<up>")    'windmove-up)
+(global-set-key (kbd "C-S-<down>")  'windmove-down)
+
+;; Winner-mode undo/redo (keep default C-c <left>/<right>)
+;; Already enabled in 08-modern-conveniences.el - no changes needed!
+
+;; Advanced window menu (capital W to avoid conflict with wellbeing)
+(global-set-key (kbd "C-c W") 'my/window-transient-menu)
 
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here

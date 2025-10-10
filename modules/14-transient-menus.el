@@ -251,5 +251,50 @@
     ("q" "Quit" transient-quit-one)
     ("?" "Help" describe-mode)]])
 
+;; ============================================================
+;; WINDOW MANAGEMENT MENU
+;; ============================================================
+
+(transient-define-prefix my/window-transient-menu ()
+  "Advanced window management - navigate, swap, resize, layout."
+  :transient-suffix 'transient--do-stay
+  :transient-non-suffix 'transient--do-warn
+  
+  ["Navigate Windows"
+   :class transient-row
+   ("h" "← Left" windmove-left :transient t)
+   ("j" "↓ Down" windmove-down :transient t)
+   ("k" "↑ Up" windmove-up :transient t)
+   ("l" "→ Right" windmove-right :transient t)]
+  
+  ["Swap Windows"
+   :class transient-row
+   ("H" "⇄ Swap left" windmove-swap-states-left :transient t)
+   ("J" "⇅ Swap down" windmove-swap-states-down :transient t)
+   ("K" "⇅ Swap up" windmove-swap-states-up :transient t)
+   ("L" "⇄ Swap right" windmove-swap-states-right :transient t)]
+  
+  ["Split & Delete"
+   ("2" "Split horizontal" split-window-below :transient t)
+   ("3" "Split vertical" split-window-right :transient t)
+   ("0" "Delete this window" delete-window :transient t)
+   ("1" "Delete other windows" delete-other-windows :transient t)]
+  
+  ["Layout"
+   ("u" "Undo layout" winner-undo :transient t)
+   ("r" "Redo layout" winner-redo :transient t)
+   ("b" "Balance windows" balance-windows :transient t)
+   ("=" "Balance windows" balance-windows :transient t)]
+  
+  ["Resize"
+   ("{" "Shrink horizontal" shrink-window-horizontally :transient t)
+   ("}" "Enlarge horizontal" enlarge-window-horizontally :transient t)
+   ("[" "Shrink vertical" shrink-window :transient t)
+   ("]" "Enlarge vertical" enlarge-window :transient t)]
+  
+  ["Navigation"
+   ("q" "Quit" transient-quit-one)
+   ("?" "Help" describe-mode)])
+
 (provide '14-transient-menus)
 ;;; 14-transient-menus.el ends here
