@@ -67,8 +67,8 @@
 (with-eval-after-load 'which-key
   (which-key-add-key-based-replacements
     ;; === Main menu groups ===
-    "C-c h" "help-menu"
-    "C-c ?" "help-menu"
+    "C-c z" "help-menu"
+    "C-c Z" "help-menu"
     "C-c n" "notes-menu"
     "C-c p" "projects-menu"
     "C-c w" "wellbeing-menu"
