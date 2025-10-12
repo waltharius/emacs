@@ -34,6 +34,7 @@
       "  C-c p → Projects (agenda, kanban, time)\n"
       "  C-c w → Well-being tracking\n"
       "  C-c s → Statistics & dashboards\n"
+      "  C-c W → Windows (navigate, swap, layout)\n"
       "  C-c h → This help menu\n\n"
       (propertize "QUICK ACCESS:\n" 'face 'warning)
       "  C-c f → Spelling (Flyspell)\n"
@@ -41,13 +42,18 @@
       "  C-c t → Transclusion (embed)\n"
       "  C-c b → Bookmarks\n"
       "  C-c a → Agenda\n\n"
+      (propertize "QUICK SHORTCUTS:\n" 'face 'warning)
+      "  C-s-<arrow>  → Swap windows\n"                   ; ← NEW!
+      "  C-S-<arrow>  → Navigate windows\n"               ; ← NEW!
+      "  C-c <left>   → Undo layout (winner-mode)\n\n"    ; ← NEW!
       (propertize "Press key to open submenu or scroll for reference\n" 'face 'shadow)))
    
    ["Main Menus"
     ("n" "Notes" my/notes-transient-menu)
     ("p" "Projects" my/project-transient-menu)
     ("w" "Well-being" my/wellbeing-transient-menu)
-    ("s" "Statistics" my/statistics-transient-menu)]
+    ("s" "Statistics" my/statistics-transient-menu)
+    ("W" "Windows" my/window-transient-menu)]
    
    ["Quick Tools"
     ("F" "Spelling" my/spelling-transient-menu)

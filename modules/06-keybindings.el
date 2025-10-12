@@ -90,30 +90,29 @@
     "C-c d r" "refresh"
     "C-c d d" "open"))
 
-;; View startup log
-(global-set-key (kbd "C-c h l") 'my/view-startup-log)
-
 ;; ============================================================
-;; WINDOW MANAGEMENT - Navigation, Swap, and Transient Menu
+;; WINDOW MANAGEMENT - Vim hjkl (NO Gnome conflicts!)
 ;; ============================================================
 
-;; Quick swap windows with Ctrl+Super+Arrow (won't conflict with Fedora!)
-(global-set-key (kbd "C-s-<left>")  'windmove-swap-states-left)
-(global-set-key (kbd "C-s-<right>") 'windmove-swap-states-right)
-(global-set-key (kbd "C-s-<up>")    'windmove-swap-states-up)
-(global-set-key (kbd "C-s-<down>")  'windmove-swap-states-down)
+;; Navigate windows (Vim style - home row!)
+(global-set-key (kbd "C-c h") 'windmove-left)
+(global-set-key (kbd "C-c j") 'windmove-down)
+(global-set-key (kbd "C-c k") 'windmove-up)
+(global-set-key (kbd "C-c l") 'windmove-right)
 
-;; Navigate between windows with Ctrl+Shift+Arrow
-(global-set-key (kbd "C-S-<left>")  'windmove-left)
-(global-set-key (kbd "C-S-<right>") 'windmove-right)
-(global-set-key (kbd "C-S-<up>")    'windmove-up)
-(global-set-key (kbd "C-S-<down>")  'windmove-down)
+;; Swap windows (Vim with Shift)
+(global-set-key (kbd "C-c H") 'windmove-swap-states-left)
+(global-set-key (kbd "C-c J") 'windmove-swap-states-down)
+(global-set-key (kbd "C-c K") 'windmove-swap-states-up)
+(global-set-key (kbd "C-c L") 'windmove-swap-states-right)
 
-;; Winner-mode undo/redo (keep default C-c <left>/<right>)
-;; Already enabled in 08-modern-conveniences.el - no changes needed!
+;; Winner-mode (keep default - no conflict!)
+C-c <left>  ;; → Undo layout
+C-c <right> ;; → Redo layout
 
-;; Advanced window menu (capital W to avoid conflict with wellbeing)
+;; Advanced window menu
 (global-set-key (kbd "C-c W") 'my/window-transient-menu)
+
 
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here
