@@ -75,10 +75,10 @@
     "C-c s" "statistics-menu"
     
     ;; === Tool menu groups ===
-    "C-c f" "spelling-menu"
-    "C-c g" "grammar-menu"
-    "C-c t" "transclusion-menu"
-    "C-c b" "bookmarks-menu"
+    "C-c F" "spelling-menu"
+    "C-c G" "grammar-menu"
+    "C-c T" "transclusion-menu"
+    "C-c B" "bookmarks-menu"
     
     ;; === Standalone shortcuts ===
     "C-c a" "agenda"
