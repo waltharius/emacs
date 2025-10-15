@@ -222,7 +222,7 @@ Czyta signature z NAZWY PLIKU (==NX), nie z treści!"
 ;; ============================================================
 
 (defun my/folge-sig-depth (sig)
-  "Oblicz głębokość signature"
+  "Oblicz głębokość signature SIG.
 N1 → 0, N1.1 → 1, N1.1a → 2, N1.1a1 → 3"
   (let ((depth 0))
     (dolist (char (string-to-list sig))
@@ -235,14 +235,14 @@ N1 → 0, N1.1 → 1, N1.1a → 2, N1.1a1 → 3"
 ;; ============================================================
 
 (defun my/folge-sig-less-p (a b)
-  "Porównaj dwa signatures według kolejności Folgezettel.
+  "Porównaj dwa signatures A and B według kolejności Folgezettel.
 N1 < N1.1 < N1.1a < N1.1a1 < N1.1b < N1.2"
   (let ((parts-a (my/folge-parse-sig a))
         (parts-b (my/folge-parse-sig b)))
     (my/folge-parts-less-p parts-a parts-b)))
 
 (defun my/folge-parse-sig (sig)
-  "Parsuj signature na listę komponentów.
+  "Parsuj signature SIG na listę komponentów.
 N1.1a1 → (1 1 'a' 1)"
   (let ((parts '())
         (current ""))
@@ -265,7 +265,7 @@ N1.1a1 → (1 1 'a' 1)"
     (nreverse parts)))
 
 (defun my/folge-parts-less-p (a b)
-  "Porównaj dwie listy komponentów."
+  "Porównaj dwie listy A i B komponentów."
   (cond
    ((null a) (not (null b)))  ; a krótsze → mniejsze
    ((null b) nil)              ; b krótsze → a większe
