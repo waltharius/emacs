@@ -25,6 +25,12 @@
 ;; Disable native compilation warnings
 (setq native-comp-async-report-warnings-errors nil)
 
+;; ActivityWatch integration
+(use-package activity-watch-mode
+  :ensure t
+  :config
+  (global-activity-watch-mode))
+
 ;; ============================================================
 ;; UTILITY PACKAGES
 ;; ============================================================
