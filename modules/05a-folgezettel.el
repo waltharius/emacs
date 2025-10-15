@@ -58,11 +58,11 @@ Automatycznie generuje signature, linkuje do parenta i dodaje backlink."
          (keywords (split-string keywords-string " " t))
          ;; Generuj nazwę pliku RĘCZNIE (Denote style) - BEZ slugify!
          (id (format-time-string "%Y%m%dT%H%M%S"))
-         (slug (replace-regexp-in-string 
-                "[^[:alnum:]ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]+" "-" 
+         (slug (replace-regexp-in-string
+                "[^[:alnum:]ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]+" "-"
                 (downcase title)))
          (keyword-string (mapconcat #'identity keywords "_"))
-         (filename (format "%s==%s--%s__%s.org" 
+         (filename (format "%s==%s--%s__%s.org"
                           id new-sig slug keyword-string))
          (filepath (expand-file-name filename my-notes-dir)))
     
@@ -71,7 +71,7 @@ Automatycznie generuje signature, linkuje do parenta i dodaje backlink."
     
     ;; Wstaw front matter
     (insert (format "#+title:      %s\n" title))
-    (insert (format "#+date:       %s\n" 
+    (insert (format "#+date:       %s\n"
                     (format-time-string "[%Y-%m-%d %a %H:%M]")))
     (insert (format "#+filetags:   :%s:\n" keyword-string))
     (insert (format "#+identifier: %s\n" id))
@@ -82,7 +82,7 @@ Automatycznie generuje signature, linkuje do parenta i dodaje backlink."
       (let ((parent-file (my/folge-find-file-by-sig parent-sig)))
         (when parent-file
           (insert "\n* Parent\n")
-          (insert (format "← [[denote:%s][%s]]\n\n" 
+          (insert (format "← [[denote:%s][%s]]\n\n"
                          (my/folge-get-id-from-file parent-file)
                          parent-sig))
           
@@ -151,8 +151,8 @@ Przykład: N1 → szuka N1[a-z] → zwraca max(letter) + 1"
       (with-temp-buffer
         (insert-file-contents file)
         (goto-char (point-min))
-        (when (re-search-forward 
-               (format "^#\\+signature: *%s$" (regexp-quote signature)) 
+        (when (re-search-forward
+               (format "^#\\+signature: *%s$" (regexp-quote signature))
                nil t)
           (setq result file))))
     result))
@@ -195,7 +195,7 @@ Czyta signature z NAZWY PLIKU (==NX), nie z treści!"
     (setq sigs (delete-dups sigs))
     
     ;; Sortuj alfabetycznie (Folgezettel order)
-    (setq sigs (sort sigs (lambda (a b) 
+    (setq sigs (sort sigs (lambda (a b)
                            (my/folge-sig-less-p (car a) (car b)))))
     
     ;; Wyświetl
@@ -222,7 +222,7 @@ Czyta signature z NAZWY PLIKU (==NX), nie z treści!"
 ;; ============================================================
 
 (defun my/folge-sig-depth (sig)
-  "Oblicz głębokość signature.
+  "Oblicz głębokość signature"
 N1 → 0, N1.1 → 1, N1.1a → 2, N1.1a1 → 3"
   (let ((depth 0))
     (dolist (char (string-to-list sig))

@@ -107,8 +107,8 @@
 (global-set-key (kbd "C-c L") 'windmove-swap-states-right)
 
 ;; Winner-mode (keep default - no conflict!)
-C-c <left>  ;; → Undo layout
-C-c <right> ;; → Redo layout
+;; C-c <left>  ;; → Undo layout
+;; C-c <right> ;; → Redo layout
 
 ;; Advanced window menu
 (global-set-key (kbd "C-c W") 'my/window-transient-menu)
