@@ -181,5 +181,18 @@
 ;; RECOMMENDED: Use native scroll-margin instead (simpler!)
 (setq scroll-margin 8)  ; Keep 8 lines visible above/below cursor
 
+;; Ukryj gwiazdki na początku nagłówków (*** → •)
+(setq org-hide-leading-stars t)
+(setq org-superstar-leading-bullet ?\s)  ; Spacja zamiast gwiazdek
+
+;; Ładne kropki zamiast gwiazdek
+(use-package org-superstar
+  :ensure t
+  :hook (org-mode . org-superstar-mode)
+  :config
+  (setq org-superstar-headline-bullets-list '("◉" "○" "◆" "◇" "▶" "▷"))
+  (setq org-superstar-item-bullet-alist
+        '((?* . ?•) (?+ . ?➤) (?- . ?–))))
+
 (provide '10-org-formatting)
 ;;; 10-org-formatting.el ends here

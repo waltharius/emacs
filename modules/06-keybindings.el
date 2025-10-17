@@ -113,6 +113,8 @@
 ;; Advanced window menu
 (global-set-key (kbd "C-c W") 'my/window-transient-menu)
 
+;; Themes switcher for modus theme light and darl
+(global-set-key (kbd "C-c T") 'my/toggle-modus-theme)
 
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here
