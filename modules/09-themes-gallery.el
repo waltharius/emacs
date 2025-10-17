@@ -182,10 +182,10 @@
   
   ;; Nagłówki - większe, kolorowe
   (setq modus-themes-headings
-        '((1 . (rainbow variable-pitch 1.5))
-          (2 . (rainbow variable-pitch 1.3))
-          (3 . (rainbow variable-pitch 1.2))
-          (t . (variable-pitch 1.1))))
+        '((1 . (rainbow variable-pitch 1.3))
+          (2 . (rainbow variable-pitch 1.2))
+          (3 . (rainbow variable-pitch 1.1))
+          (t . (variable-pitch 1.0))))
   
   ;; Ukryj gwiazdki (*) w org-mode
   (setq modus-themes-org-blocks 'gray-background)
