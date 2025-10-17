@@ -103,17 +103,17 @@
 ;; ============================================================
 
 ;; Customize Modus themes (if using them)
-(with-eval-after-load 'modus-themes
+;; (with-eval-after-load 'modus-themes
   ;; Modus theme options
-  (setq modus-themes-bold-constructs t)      ; Use bold for keywords
-  (setq modus-themes-italic-constructs t)    ; Use italic for comments
-  (setq modus-themes-org-blocks 'gray-background)  ; Gray background for code blocks
-  (setq modus-themes-headings
-        '((1 . (1.3))      ; Level 1 headers = 1.3x size
-          (2 . (1.2))      ; Level 2 = 1.2x
-          (3 . (1.1))      ; Level 3 = 1.1x
-          (t . (1.0))))    ; Rest = normal
-  )
+;;  (setq modus-themes-bold-constructs t)      ; Use bold for keywords
+;;  (setq modus-themes-italic-constructs t)    ; Use italic for comments
+;;  (setq modus-themes-org-blocks 'gray-background)  ; Gray background for code blocks
+ ;; (setq modus-themes-headings
+;;        '((1 . (1.3))      ; Level 1 headers = 1.3x size
+;;          (2 . (1.2))      ; Level 2 = 1.2x
+;;          (3 . (1.1))      ; Level 3 = 1.1x
+;;          (t . (1.0))))    ; Rest = normal
+;;  )
 
 ;; ============================================================
 ;; INSTALL EXTERNAL THEMES (Optional - requires package installation)
@@ -146,29 +146,68 @@
 ;;      (load-theme 'zenburn t))
 ;;
 ;; 5. Gruvbox (retro, warm)
-    (use-package gruvbox-theme
-    :ensure t
-    :config
-    ;; Customize Gruvbox before loading
-    (setq gruvbox-bold t)              ; Use bold
-    (setq gruvbox-italic t)            ; Use italic
-    (setq gruvbox-underline t)         ; Use underline
-    (setq gruvbox-undercurl t)         ; Use undercurl
+;;    (use-package gruvbox-theme
+;;    :ensure t
+;;    :config
+;;    ;; Customize Gruvbox before loading
+;;    (setq gruvbox-bold t)              ; Use bold
+;;    (setq gruvbox-italic t)            ; Use italic
+;;    (setq gruvbox-underline t)         ; Use underline
+;;    (setq gruvbox-undercurl t)         ; Use undercurl
   
     ;; Contrast options:
     ;; - 'soft   → Soft contrast (easy on eyes!)
     ;; - 'medium → Medium contrast (default)
     ;; - 'hard   → Hard contrast (high contrast!)
-    (setq gruvbox-contrast 'medium)    ; Try: soft, medium, hard
+;;    (setq gruvbox-contrast 'medium)    ; Try: soft, medium, hard
     ;; Load theme
-    (load-theme 'gruvbox-light-medium t))
+;;    (load-theme 'gruvbox-light-medium t))
 
-(with-eval-after-load 'gruvbox-theme
-  (require 'org)  ; ← Wymusza załadowanie org-faces przed modyfikacją
-  (set-face-foreground 'org-level-1 "#fb4934")
-  (set-face-foreground 'org-level-2 "#b8bb26")
-  (set-face-foreground 'org-level-3 "#fabd2f")
-  (set-face-attribute  'org-level-1 nil :height 1.0))
+;;(with-eval-after-load 'gruvbox-theme
+;;  (require 'org)  ; ← Wymusza załadowanie org-faces przed modyfikacją
+;;  (set-face-foreground 'org-level-1 "#fb4934")
+;;  (set-face-foreground 'org-level-2 "#b8bb26")
+;;  (set-face-foreground 'org-level-3 "#fabd2f")
+;;  (set-face-attribute  'org-level-1 nil :height 1.0))
+
+(use-package modus-themes
+  :ensure t
+  :init
+  ;; Konfiguracja PRZED załadowaniem tematu
+  (setq modus-themes-italic-constructs t)
+  (setq modus-themes-bold-constructs t)
+  (setq modus-themes-mixed-fonts t)  ; WAŻNE dla mixed fonts!
+  (setq modus-themes-variable-pitch-ui nil)
+  (setq modus-themes-org-blocks 'gray-background)
+  
+  ;; Nagłówki - większe, kolorowe
+  (setq modus-themes-headings
+        '((1 . (rainbow variable-pitch 1.5))
+          (2 . (rainbow variable-pitch 1.3))
+          (3 . (rainbow variable-pitch 1.2))
+          (t . (variable-pitch 1.1))))
+  
+  ;; Ukryj gwiazdki (*) w org-mode
+  (setq modus-themes-org-blocks 'gray-background)
+  
+  :config
+  ;; Załaduj jasny temat jako domyślny
+  (load-theme 'modus-operandi t))
+
+;; Toggle ciemny/jasny
+(defun my/toggle-modus-theme ()
+  "Przełącz między modus-operandi (jasny) i modus-vivendi (ciemny)."
+  (interactive)
+  (if (member 'modus-vivendi custom-enabled-themes)
+      (progn
+        (disable-theme 'modus-vivendi)
+        (load-theme 'modus-operandi t)
+        (message "Jasny temat"))
+    (progn
+      (disable-theme 'modus-operandi)
+      (load-theme 'modus-vivendi t)
+      (message "Ciemny temat"))))
+
 ;; ============================================================
 ;; END OF THEMES GALLERY
 ;; ============================================================
