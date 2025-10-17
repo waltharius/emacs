@@ -55,26 +55,6 @@
   (load-theme 'wombat t))
 
 ;; ============================================================
-;; THEME TOGGLE (Dark ↔ Light)
-;; ============================================================
-
-(defun my/toggle-theme ()
-  "Toggle between dark and light theme."
-  (interactive)
-  (if (member 'modus-vivendi custom-enabled-themes)
-      (progn
-        (disable-theme 'modus-vivendi)
-        (load-theme 'modus-operandi t)
-        (message "Switched to LIGHT theme (modus-operandi)"))
-    (progn
-      (disable-theme 'modus-operandi)
-      (load-theme 'modus-vivendi t)
-      (message "Switched to DARK theme (modus-vivendi)"))))
-
-;; Keybinding: C-c  = toggle theme
-(global-set-key (kbd "C-c T") 'my/toggle-theme)
-
-;; ============================================================
 ;; DEFAULT THEME (Set your favorite!)
 ;; ============================================================
 
@@ -190,23 +170,23 @@
   ;; Ukryj gwiazdki (*) w org-mode
   (setq modus-themes-org-blocks 'gray-background)
   
-  :config
-  ;; Załaduj jasny temat jako domyślny
-  (load-theme 'modus-operandi t))
+:config
+;; Załaduj jasny TINTED temat jako domyślny
+(load-theme 'modus-operandi-tinted t))
 
-;; Toggle ciemny/jasny
+;; Toggle ciemny/jasny TINTED
 (defun my/toggle-modus-theme ()
-  "Przełącz między modus-operandi (jasny) i modus-vivendi (ciemny)."
+  "Przełącz między modus-operandi-tinted (jasny) i modus-vivendi-tinted (ciemny)."
   (interactive)
-  (if (member 'modus-vivendi custom-enabled-themes)
+  (if (member 'modus-vivendi-tinted custom-enabled-themes)
       (progn
-        (disable-theme 'modus-vivendi)
-        (load-theme 'modus-operandi t)
-        (message "Jasny temat"))
+        (disable-theme 'modus-vivendi-tinted)
+        (load-theme 'modus-operandi-tinted t)
+        (message "Jasny temat (tinted)"))
     (progn
-      (disable-theme 'modus-operandi)
-      (load-theme 'modus-vivendi t)
-      (message "Ciemny temat"))))
+      (disable-theme 'modus-operandi-tinted)
+      (load-theme 'modus-vivendi-tinted t)
+      (message "Ciemny temat (tinted)"))))
 
 ;; ============================================================
 ;; END OF THEMES GALLERY

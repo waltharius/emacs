@@ -12,7 +12,7 @@
 ;; Opcje: "Snell Roundhand", "Bradley Hand", "Noteworthy"
 ;; lub zainstaluj: Dancing Script, Cedarville Cursive
 (set-face-attribute 'variable-pitch nil 
-                    :font "Dancing Script-16"
+                    :font "Playpen Sans Hebrew"
                     :weight 'normal)
 
 ;; Włącz mixed fonts w org-mode
