@@ -35,8 +35,8 @@
   (when (and (buffer-file-name)
              (string-match-p "journal" (buffer-file-name)))
     (face-remap-add-relative 'variable-pitch 
-                             :family "Dancing Script" 
-                             :height 1.3)))
+                             :family "Indie Flower" 
+                             :height 1.0)))
 
 (add-hook 'org-mode-hook 'my/journal-font-setup)
 
