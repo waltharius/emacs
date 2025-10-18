@@ -223,5 +223,11 @@ Values: 'gnu/linux, 'windows-nt, 'darwin (macOS)")
 
 (message "✅ Variables loaded: notes=%s" my/notes-dir)
 
+;; --- Fleeeting notes
+(defvar my-denote-keywords
+  '("zettel" "osoba" "projekt" "journal" "lektura"
+    "filozof" "fleeting" "esej" "skróty")  ; Dodaj "fleeting"
+  "Available keywords/tags for Denote notes.")
+
 (provide '00-variables)
 ;;; 00-variables.el ends here

@@ -71,7 +71,7 @@
   (load (concat modules-dir "05c-denote-statistics.el"))
   (load (concat modules-dir "05d-denote-wellbeing.el"))
   (load (concat modules-dir "05a-folgezettel.el"))
-  (load (concat modules-dir "05j-quote-capture.el"))
+  (load (concat modules-dir "05j-fleeting-quote.el"))
   (load (concat modules-dir "07-git.el"))
   (load (concat modules-dir "08-modern-conveniences.el"))
   (load (concat modules-dir "09-themes-gallery.el"))
