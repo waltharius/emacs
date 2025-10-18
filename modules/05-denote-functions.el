@@ -878,8 +878,8 @@ Returns template content as string."
     ("b" "Base note" my/denote-base)
     ("p" "Project" my/denote-create-project)
     ("s" "Shortcut" my/denote-skroty)
-    ("q" "Quote from selection" my/insert-quote-block)
-    ("Q" "Smart quote (clipboard)" my/smart-quote-from-clipboard)]
+    ("q" "Fleeting quote" my/fleeting-quote)
+    ("Q" "Smart fleeting quote" my/fleeting-quote-smart)]
    
    ["Create Advanced"
     ("P" "Philosopher" my/denote-philosopher)
