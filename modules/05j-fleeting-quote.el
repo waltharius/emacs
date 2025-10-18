@@ -1,57 +1,61 @@
 ;;; 05j-fleeting-quote.el --- Fleeting notes for quotes -*- lexical-binding: t; -*-
+
 ;;; Commentary:
-;; Quick fleeting notes for web quotes with WORKING styling!
+;; Quick fleeting notes for web quotes - SIMPLIFIED STYLING
 
 ;;; Code:
 
+(require 'denote)
+
 ;; ============================================================================
-;; STYLING - Beautiful quote blocks (ACTUALLY WORKS!)
+;; SIMPLE STYLING - No fancy boxes, just colors and italic
 ;; ============================================================================
 
-;; Method 1: Custom faces with defface (proper way!)
-(defface my-org-quote-face
-  '((((background dark))
-     (:background "#2a2a3a"
-      :foreground "#d0d0d0"
-      :slant italic
-      :extend t))
-    (((background light))
-     (:background "#f0f4f8"
-      :foreground "#2d3748"
-      :slant italic
-      :extend t)))
-  "Face for 'org-mode' quote blocks."
-  :group 'org-faces)
-
-(defface my-org-quote-border-face
-  '((((background dark))
-     (:background "#2a2a3a"
-      :box (:line-width (5 . 0) :color "#5f87af" :style nil)))
-    (((background light))
-     (:background "#f0f4f8"
-      :box (:line-width (5 . 0) :color "#4299e1" :style nil))))
-  "Face for quote block border."
-  :group 'org-faces)
-
-;; Apply custom faces to org-quote
 (defun my/setup-quote-styling ()
-  "Apply custom styling to org quote blocks."
-  (face-remap-add-relative 'org-quote 'my-org-quote-face)
-  (face-remap-add-relative 'org-quote 'my-org-quote-border-face)
-  ;; Style BEGIN/END lines
-  (face-remap-add-relative 'org-block-begin-line
-                          '(:foreground "#718096" :height 0.9 :underline t))
-  (face-remap-add-relative 'org-block-end-line
-                          '(:foreground "#718096" :height 0.9 :overline t)))
+  "Apply simple but beautiful styling to quote blocks."
+  (interactive)
+  ;; For dark themes
+  (when (eq (frame-parameter nil 'background-mode) 'dark)
+    (set-face-attribute 'org-quote nil
+                        :background "#1e2a3a"
+                        :foreground "#d0d0e0"
+                        :slant 'italic
+                        :extend t)
+    (set-face-attribute 'org-block-begin-line nil
+                        :foreground "#6b7a8f"
+                        :background "#15202b"
+                        :height 0.9
+                        :underline t)
+    (set-face-attribute 'org-block-end-line nil
+                        :foreground "#6b7a8f"
+                        :background "#15202b"
+                        :height 0.9
+                        :overline t))
+  
+  ;; For light themes
+  (when (eq (frame-parameter nil 'background-mode) 'light)
+    (set-face-attribute 'org-quote nil
+                        :background "#f5f8fa"
+                        :foreground "#2d3748"
+                        :slant 'italic
+                        :extend t)
+    (set-face-attribute 'org-block-begin-line nil
+                        :foreground "#a0aec0"
+                        :background "#edf2f7"
+                        :height 0.9
+                        :underline t)
+    (set-face-attribute 'org-block-end-line nil
+                        :foreground "#a0aec0"
+                        :background "#edf2f7"
+                        :height 0.9
+                        :overline t)))
 
-;; Hook to all org-mode buffers
+;; Apply on org-mode load
 (add-hook 'org-mode-hook #'my/setup-quote-styling)
 
-;; Apply to existing buffers
-(dolist (buffer (buffer-list))
-  (with-current-buffer buffer
-    (when (derived-mode-p 'org-mode)
-      (my/setup-quote-styling))))
+;; Apply to current buffer if already in org-mode
+(when (derived-mode-p 'org-mode)
+  (my/setup-quote-styling))
 
 ;; ============================================================================
 ;; MAIN FUNCTION - Create fleeting note
@@ -59,7 +63,7 @@
 
 (defun my/fleeting-quote ()
   "Create a fleeting note for a quote.
-Properly tags with 'fleeting' and stores metadata in PROPERTIES drawer."
+Tags with 'fleeting' and stores metadata in PROPERTIES drawer."
   (interactive)
   (let* ((title (read-string "📝 Note title: "))
          (source-url (read-string "🔗 Source URL: "))
@@ -76,7 +80,7 @@ Properly tags with 'fleeting' and stores metadata in PROPERTIES drawer."
     ;; Create Denote note
     (denote title tags)
     
-    ;; Add PROPERTIES drawer (org-mode standard!)
+    ;; Add PROPERTIES drawer
     (save-excursion
       (goto-char (point-min))
       (when (re-search-forward "^#\\+identifier:" nil t)
@@ -87,7 +91,7 @@ Properly tags with 'fleeting' and stores metadata in PROPERTIES drawer."
         (unless (string-empty-p source-title)
           (insert (format ":SOURCE_TITLE: %s\n" source-title)))
         (insert (format ":CAPTURED: %s\n" (format-time-string "[%Y-%m-%d %a %H:%M]")))
-        (insert ":FLEETING: unprocessed\n")  ;; For counting!
+        (insert ":FLEETING: unprocessed\n")
         (insert ":END:\n\n")))
     
     ;; Add content
@@ -110,7 +114,7 @@ Properly tags with 'fleeting' and stores metadata in PROPERTIES drawer."
     (insert "- [ ] Link to related notes\n")
     (insert "- [ ] Create permanent note if valuable\n")
     
-    ;; Apply styling and save
+    ;; Apply styling
     (my/setup-quote-styling)
     (save-buffer)
     
@@ -188,18 +192,17 @@ Properly tags with 'fleeting' and stores metadata in PROPERTIES drawer."
     (message "✅ Fleeting note created: %s" title)))
 
 ;; ============================================================================
-;; UTILITIES - FIXED counting!
+;; UTILITIES
 ;; ============================================================================
 
 (defun my/count-fleeting-notes ()
-  "Count unprocessed fleeting notes (check FLEETING property!)."
+  "Count unprocessed fleeting notes."
   (interactive)
   (let ((count 0))
     (dolist (file (directory-files my-notes-dir t "\\.org$"))
       (with-temp-buffer
         (insert-file-contents file)
         (goto-char (point-min))
-        ;; Check for :FLEETING: unprocessed in PROPERTIES drawer
         (when (and (re-search-forward "^#\\+filetags:.*:fleeting:" nil t)
                    (progn
                      (goto-char (point-min))
