@@ -53,7 +53,9 @@
     ("p" "Projects" my/project-transient-menu)
     ("w" "Well-being" my/wellbeing-transient-menu)
     ("s" "Statistics" my/statistics-transient-menu)
-    ("W" "Windows" my/window-transient-menu)]
+    ("W" "Windows" my/window-transient-menu)
+    ("q" "Quote from selection" my/insert-quote-block)
+    ("Q" "Smart quote (clipboard)" my/smart-quote-from-clipboard)]
    
    ["Quick Tools"
     ("F" "Spelling" my/spelling-transient-menu)
