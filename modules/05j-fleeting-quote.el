@@ -1,84 +1,40 @@
 ;;; 05j-fleeting-quote.el --- Fleeting notes for quotes -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Quick fleeting notes for web quotes with WORKING styling!
+;; Minimalist fleeting notes - focus on functionality over fancy styling
 
 ;;; Code:
 
 (require 'denote)
 
 ;; ============================================================================
-;; STYLING - Reapply after theme changes!
+;; SIMPLE VISUAL IMPROVEMENTS (that actually work!)
 ;; ============================================================================
 
 (defun my/setup-quote-styling ()
-  "Apply styling to quote blocks (theme-aware)."
+  "Apply MINIMAL but working styling to quotes."
   (interactive)
-  ;; Detect dark vs light
+  ;; Just make quote text italic and slightly different color
   (let ((is-dark (eq (frame-parameter nil 'background-mode) 'dark)))
-    (if is-dark
-        ;; Dark theme styling
-        (progn
-          (set-face-attribute 'org-quote nil
-                              :background "#1a2332"
-                              :foreground "#d5d8df"
-                              :slant 'italic
-                              :extend t
-                              :inherit 'default)
-          (set-face-attribute 'org-block-begin-line nil
-                              :foreground "#5a6b8f"
-                              :background "#0f1722"
-                              :height 0.85
-                              :underline t
-                              :inherit 'shadow)
-          (set-face-attribute 'org-block-end-line nil
-                              :foreground "#5a6b8f"
-                              :background "#0f1722"
-                              :height 0.85
-                              :overline t
-                              :inherit 'shadow))
-      ;; Light theme styling
-      (progn
-        (set-face-attribute 'org-quote nil
-                            :background "#f7f9fb"
-                            :foreground "#2a3240"
-                            :slant 'italic
-                            :extend t
-                            :inherit 'default)
-        (set-face-attribute 'org-block-begin-line nil
-                            :foreground "#8896ab"
-                            :background "#e8ecf0"
-                            :height 0.85
-                            :underline t
-                            :inherit 'shadow)
-        (set-face-attribute 'org-block-end-line nil
-                            :foreground "#8896ab"
-                            :background "#e8ecf0"
-                            :height 0.85
-                            :overline t
-                            :inherit 'shadow)))))
+    (set-face-attribute 'org-quote nil
+                        :slant 'italic
+                        :foreground (if is-dark "#c0c5ce" "#3a3f4b"))))
 
-;; Apply styling on org-mode load
+;; Apply when entering org-mode
 (add-hook 'org-mode-hook #'my/setup-quote-styling)
 
-;; ⚠️ CRITICAL: Reapply styling after theme changes!
+;; Reapply after theme change
 (advice-add 'load-theme :after
             (lambda (&rest _)
-              (dolist (buffer (buffer-list))
-                (with-current-buffer buffer
-                  (when (derived-mode-p 'org-mode)
-                    (my/setup-quote-styling))))))
-
-;; Apply to current buffer if already in org-mode
-(when (derived-mode-p 'org-mode)
-  (my/setup-quote-styling))
+              (run-with-timer 0.1 nil #'my/setup-quote-styling)))
 
 ;; ============================================================================
-;; MAIN FUNCTION - Create fleeting note
+;; MAIN FUNCTION - Create fleeting note (FIXED PROPERTIES!)
 ;; ============================================================================
 
 (defun my/fleeting-quote ()
-  "Create a fleeting note for a quote."
+  "Create a fleeting note for a quote.
+Uses standard org-mode PROPERTIES drawer."
   (interactive)
   (let* ((title (read-string "📝 Note title: "))
          (source-url (read-string "🔗 Source URL: "))
@@ -92,8 +48,10 @@
     (when (string-empty-p quote-text)
       (user-error "Quote text cannot be empty!"))
     
+    ;; Create Denote note
     (denote title tags)
     
+    ;; Add STANDARD org-mode PROPERTIES drawer
     (save-excursion
       (goto-char (point-min))
       (when (re-search-forward "^#\\+identifier:" nil t)
@@ -107,30 +65,38 @@
         (insert ":FLEETING: unprocessed\n")
         (insert ":END:\n\n")))
     
+    ;; Add content with visual separators
     (goto-char (point-max))
-    (insert "\n* Quote\n\n")
+    (insert "\n* 📖 Quote\n\n")
     (insert "#+BEGIN_QUOTE\n")
     (insert quote-text "\n")
     (insert "#+END_QUOTE\n\n")
+    
+    ;; Source line with emoji
     (insert "📚 *Source:* " source-title)
     (unless (string-empty-p source-url)
       (insert (format " – [[%s][🔗 Link]]" source-url)))
     (insert "\n\n")
     
+    ;; Reflection
     (when (not (string-empty-p reflection))
-      (insert "* Reflection\n\n")
-      (insert "💭 " reflection "\n\n"))
+      (insert "* 💭 Reflection\n\n")
+      (insert reflection "\n\n"))
     
-    (insert "* Process into permanent note\n\n")
+    ;; Processing checklist
+    (insert "* ✅ Process into permanent note\n\n")
     (insert "- [ ] Expand reflection\n")
     (insert "- [ ] Link to related notes\n")
     (insert "- [ ] Create permanent note if valuable\n")
+    (insert "- [ ] Remove =:fleeting:= tag when done\n")
     
+    ;; Apply styling and save
     (my/setup-quote-styling)
     (save-buffer)
     
+    ;; Position cursor at reflection
     (goto-char (point-min))
-    (when (search-forward "* Reflection" nil t)
+    (when (search-forward "* 💭 Reflection" nil t)
       (forward-line 2))
     
     (message "✅ Fleeting note created: %s" title)))
@@ -174,7 +140,7 @@
         (insert ":END:\n\n")))
     
     (goto-char (point-max))
-    (insert "\n* Quote\n\n")
+    (insert "\n* 📖 Quote\n\n")
     (insert "#+BEGIN_QUOTE\n")
     (insert quote-text "\n")
     (insert "#+END_QUOTE\n\n")
@@ -184,19 +150,20 @@
     (insert "\n\n")
     
     (when (not (string-empty-p reflection))
-      (insert "* Reflection\n\n")
-      (insert "💭 " reflection "\n\n"))
+      (insert "* 💭 Reflection\n\n")
+      (insert reflection "\n\n"))
     
-    (insert "* Process into permanent note\n\n")
+    (insert "* ✅ Process into permanent note\n\n")
     (insert "- [ ] Expand reflection\n")
     (insert "- [ ] Link to related notes\n")
     (insert "- [ ] Create permanent note if valuable\n")
+    (insert "- [ ] Remove =:fleeting:= tag when done\n")
     
     (my/setup-quote-styling)
     (save-buffer)
     
     (goto-char (point-min))
-    (when (search-forward "* Reflection" nil t)
+    (when (search-forward "* 💭 Reflection" nil t)
       (forward-line 2))
     
     (message "✅ Fleeting note created: %s" title)))
@@ -232,7 +199,7 @@
                              (re-search-forward "^#\\+filetags:.*:fleeting:" nil t)))
                          (directory-files my-notes-dir t "\\.org$"))))
     (if fleeting-files
-        (let ((choice (completing-read "Fleeting notes: "
+        (let ((choice (completing-read "📑 Fleeting notes: "
                                       (mapcar #'file-name-nondirectory fleeting-files))))
           (find-file (expand-file-name choice my-notes-dir)))
       (message "No fleeting notes found!"))))
