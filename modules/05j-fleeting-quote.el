@@ -8,33 +8,12 @@
 (require 'denote)
 
 ;; ============================================================================
-;; SIMPLE VISUAL IMPROVEMENTS (that actually work!)
-;; ============================================================================
-
-(defun my/setup-quote-styling ()
-  "Apply MINIMAL but working styling to quotes."
-  (interactive)
-  ;; Just make quote text italic and slightly different color
-  (let ((is-dark (eq (frame-parameter nil 'background-mode) 'dark)))
-    (set-face-attribute 'org-quote nil
-                        :slant 'italic
-                        :foreground (if is-dark "#c0c5ce" "#3a3f4b"))))
-
-;; Apply when entering org-mode
-(add-hook 'org-mode-hook #'my/setup-quote-styling)
-
-;; Reapply after theme change
-(advice-add 'load-theme :after
-            (lambda (&rest _)
-              (run-with-timer 0.1 nil #'my/setup-quote-styling)))
-
-;; ============================================================================
 ;; MAIN FUNCTION - Create fleeting note (FIXED PROPERTIES!)
 ;; ============================================================================
 
 (defun my/fleeting-quote ()
   "Create a fleeting note for a quote.
-Uses standard org-mode PROPERTIES drawer."
+Uses standard 'org-mode' PROPERTIES drawer."
   (interactive)
   (let* ((title (read-string "📝 Note title: "))
          (source-url (read-string "🔗 Source URL: "))

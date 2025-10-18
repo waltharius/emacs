@@ -41,5 +41,28 @@
 
 (add-hook 'org-mode-hook 'my/journal-font-setup)
 
+;; ============================================================
+;; FLEETING NOTES - Beautiful quote styling with serif font
+;; ============================================================
+
+(with-eval-after-load 'org
+  ;; Quotes get serif font (like in books!)
+  (set-face-attribute 'org-quote nil
+                      :family "Georgia"         ; Serif font for quotes
+                      :slant 'italic
+                      :height 1.1               ; Slightly bigger
+                      :foreground nil)
+  
+  ;; BEGIN/END stay small and monospace
+  (set-face-attribute 'org-block-begin-line nil
+                      :inherit 'fixed-pitch
+                      :foreground "#888888"
+                      :height 0.85)
+  
+  (set-face-attribute 'org-block-end-line nil
+                      :inherit 'fixed-pitch
+                      :foreground "#888888"
+                      :height 0.85))
+
 (provide '03b-fonts)
 ;;; 03b-fonts.el ends here
