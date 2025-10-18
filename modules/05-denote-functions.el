@@ -877,7 +877,9 @@ Returns template content as string."
     ("o" "Person" my/denote-osoba)
     ("b" "Base note" my/denote-base)
     ("p" "Project" my/denote-create-project)
-    ("s" "Shortcut" my/denote-skroty)]
+    ("s" "Shortcut" my/denote-skroty)
+    ("q" "Quote from selection" my/insert-quote-block)
+    ("Q" "Smart quote (clipboard)" my/smart-quote-from-clipboard)]
    
    ["Create Advanced"
     ("P" "Philosopher" my/denote-philosopher)
