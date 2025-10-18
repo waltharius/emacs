@@ -1,57 +1,73 @@
 ;;; 05j-fleeting-quote.el --- Fleeting notes for quotes -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Quick fleeting notes for web quotes - SIMPLIFIED STYLING
+;; Quick fleeting notes for web quotes with WORKING styling!
 
 ;;; Code:
 
 (require 'denote)
 
 ;; ============================================================================
-;; SIMPLE STYLING - No fancy boxes, just colors and italic
+;; STYLING - Reapply after theme changes!
 ;; ============================================================================
 
 (defun my/setup-quote-styling ()
-  "Apply simple but beautiful styling to quote blocks."
+  "Apply styling to quote blocks (theme-aware)."
   (interactive)
-  ;; For dark themes
-  (when (eq (frame-parameter nil 'background-mode) 'dark)
-    (set-face-attribute 'org-quote nil
-                        :background "#1e2a3a"
-                        :foreground "#d0d0e0"
-                        :slant 'italic
-                        :extend t)
-    (set-face-attribute 'org-block-begin-line nil
-                        :foreground "#6b7a8f"
-                        :background "#15202b"
-                        :height 0.9
-                        :underline t)
-    (set-face-attribute 'org-block-end-line nil
-                        :foreground "#6b7a8f"
-                        :background "#15202b"
-                        :height 0.9
-                        :overline t))
-  
-  ;; For light themes
-  (when (eq (frame-parameter nil 'background-mode) 'light)
-    (set-face-attribute 'org-quote nil
-                        :background "#f5f8fa"
-                        :foreground "#2d3748"
-                        :slant 'italic
-                        :extend t)
-    (set-face-attribute 'org-block-begin-line nil
-                        :foreground "#a0aec0"
-                        :background "#edf2f7"
-                        :height 0.9
-                        :underline t)
-    (set-face-attribute 'org-block-end-line nil
-                        :foreground "#a0aec0"
-                        :background "#edf2f7"
-                        :height 0.9
-                        :overline t)))
+  ;; Detect dark vs light
+  (let ((is-dark (eq (frame-parameter nil 'background-mode) 'dark)))
+    (if is-dark
+        ;; Dark theme styling
+        (progn
+          (set-face-attribute 'org-quote nil
+                              :background "#1a2332"
+                              :foreground "#d5d8df"
+                              :slant 'italic
+                              :extend t
+                              :inherit 'default)
+          (set-face-attribute 'org-block-begin-line nil
+                              :foreground "#5a6b8f"
+                              :background "#0f1722"
+                              :height 0.85
+                              :underline t
+                              :inherit 'shadow)
+          (set-face-attribute 'org-block-end-line nil
+                              :foreground "#5a6b8f"
+                              :background "#0f1722"
+                              :height 0.85
+                              :overline t
+                              :inherit 'shadow))
+      ;; Light theme styling
+      (progn
+        (set-face-attribute 'org-quote nil
+                            :background "#f7f9fb"
+                            :foreground "#2a3240"
+                            :slant 'italic
+                            :extend t
+                            :inherit 'default)
+        (set-face-attribute 'org-block-begin-line nil
+                            :foreground "#8896ab"
+                            :background "#e8ecf0"
+                            :height 0.85
+                            :underline t
+                            :inherit 'shadow)
+        (set-face-attribute 'org-block-end-line nil
+                            :foreground "#8896ab"
+                            :background "#e8ecf0"
+                            :height 0.85
+                            :overline t
+                            :inherit 'shadow)))))
 
-;; Apply on org-mode load
+;; Apply styling on org-mode load
 (add-hook 'org-mode-hook #'my/setup-quote-styling)
+
+;; ⚠️ CRITICAL: Reapply styling after theme changes!
+(advice-add 'load-theme :after
+            (lambda (&rest _)
+              (dolist (buffer (buffer-list))
+                (with-current-buffer buffer
+                  (when (derived-mode-p 'org-mode)
+                    (my/setup-quote-styling))))))
 
 ;; Apply to current buffer if already in org-mode
 (when (derived-mode-p 'org-mode)
@@ -62,8 +78,7 @@
 ;; ============================================================================
 
 (defun my/fleeting-quote ()
-  "Create a fleeting note for a quote.
-Tags with 'fleeting' and stores metadata in PROPERTIES drawer."
+  "Create a fleeting note for a quote."
   (interactive)
   (let* ((title (read-string "📝 Note title: "))
          (source-url (read-string "🔗 Source URL: "))
@@ -77,10 +92,8 @@ Tags with 'fleeting' and stores metadata in PROPERTIES drawer."
     (when (string-empty-p quote-text)
       (user-error "Quote text cannot be empty!"))
     
-    ;; Create Denote note
     (denote title tags)
     
-    ;; Add PROPERTIES drawer
     (save-excursion
       (goto-char (point-min))
       (when (re-search-forward "^#\\+identifier:" nil t)
@@ -94,7 +107,6 @@ Tags with 'fleeting' and stores metadata in PROPERTIES drawer."
         (insert ":FLEETING: unprocessed\n")
         (insert ":END:\n\n")))
     
-    ;; Add content
     (goto-char (point-max))
     (insert "\n* Quote\n\n")
     (insert "#+BEGIN_QUOTE\n")
@@ -114,11 +126,9 @@ Tags with 'fleeting' and stores metadata in PROPERTIES drawer."
     (insert "- [ ] Link to related notes\n")
     (insert "- [ ] Create permanent note if valuable\n")
     
-    ;; Apply styling
     (my/setup-quote-styling)
     (save-buffer)
     
-    ;; Position cursor
     (goto-char (point-min))
     (when (search-forward "* Reflection" nil t)
       (forward-line 2))
@@ -126,7 +136,7 @@ Tags with 'fleeting' and stores metadata in PROPERTIES drawer."
     (message "✅ Fleeting note created: %s" title)))
 
 ;; ============================================================================
-;; SMART VERSION with clipboard detection
+;; SMART VERSION
 ;; ============================================================================
 
 (defun my/fleeting-quote-smart ()
@@ -144,7 +154,7 @@ Tags with 'fleeting' and stores metadata in PROPERTIES drawer."
                            (if (and source-title (not (string-empty-p source-title)))
                                (substring source-title 0 (min 50 (length source-title)))
                              "")))
-         (quote-text (read-string "📖 Quote (paste here): "))
+         (quote-text (read-string "📖 Quote: "))
          (reflection (read-string "💭 Reflection: "))
          (tags '("fleeting")))
     
