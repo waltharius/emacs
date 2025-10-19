@@ -116,5 +116,9 @@
 ;; Themes switcher for modus theme light and darl
 (global-set-key (kbd "C-c T") 'my/toggle-modus-theme)
 
+
+;; Recent notes keybinding
+(global-set-key (kbd "C-c n r") 'my/denote-recent-notes)
+
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here

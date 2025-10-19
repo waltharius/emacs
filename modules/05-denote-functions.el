@@ -956,5 +956,19 @@ Returns template content as string."
             (switch-to-buffer (current-buffer)))
         (message "No matches found for \"%s\"" search-term)))))
 
+(defun my/denote-recent-notes (n)
+  "Open one of N most recently modified notes."
+  (interactive "p")
+  (let* ((files (directory-files my-notes-dir t "\\.org$"))
+         (sorted (sort files (lambda (a b)
+                              (time-less-p (nth 5 (file-attributes b))
+                                          (nth 5 (file-attributes a))))))
+         (recent (seq-take sorted (or n 10)))
+         (choice (completing-read "Recent note: " 
+                                 (mapcar #'file-name-nondirectory recent))))
+    (find-file (car (seq-filter (lambda (f) 
+                                  (string= (file-name-nondirectory f) choice))
+                                recent)))))
+
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here

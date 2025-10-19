@@ -43,6 +43,18 @@ UWAGA: Używa NX (nie NX.1) jako root."
 ;; ============================================================
 ;; NUMERACJA: Child signatures
 ;; ============================================================
+
+(defun my/folge-next-child (parent-sig)
+  "Generate next child signature for PARENT-SIG.
+Asks user whether to create sequential (.N) or branch (a-z) child."
+  (let ((choice (completing-read
+                 (format "Child type for %s: " parent-sig)
+                 '("sequential (.1, .2, .3...)" "branch (a, b, c...)")
+                 nil t)))
+    (if (string-match-p "sequential" choice)
+        (format "%s.%d" parent-sig (my/folge-find-next-number parent-sig))
+      (format "%s%c" parent-sig (my/folge-find-next-letter parent-sig)))))
+
 (defun my/denote-zettel-smart ()
   "Utwórz Zettel z inteligentnym Folgezettel signature.
 Automatycznie generuje signature, linkuje do parenta i dodaje backlink."
