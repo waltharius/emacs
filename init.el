@@ -80,7 +80,7 @@
   (load (concat modules-dir "13-project-management.el"))
   (load (concat modules-dir "14-transient-menus.el"))
   (load (concat modules-dir "03b-fonts.el"))
-  (load (concat modules-dir "15-sidebars.el"))
+;;  (load (concat modules-dir "15-sidebars.el"))
   
   ;; ← 06-keybindings.el MUST BE LAST (after all function definitions)
   (load (concat modules-dir "06-keybindings.el")))
