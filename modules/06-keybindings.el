@@ -118,7 +118,7 @@
 
 
 ;; Recent notes keybinding
-(global-set-key (kbd "C-c n r") 'my/denote-recent-notes)
+;;(global-set-key (kbd "C-c n r") 'my/denote-recent-notes)
 
 (provide '06-keybindings)
 ;;; 06-keybindings.el ends here
