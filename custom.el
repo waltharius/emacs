@@ -5,13 +5,13 @@
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
    '(activity-watch-mode all-the-icons ample-theme consult-denote
-			 dashboard diff-hl doom-themes esup
+			 dashboard diff-hl doom-themes eglot erc esup
 			 flyspell-correct-ivy gnuplot gruvbox-theme
 			 htmlize langtool magit marginalia orderless
-			 org-appear org-contrib org-kanban org-roam-ql
-			 org-roam-ui org-transclusion solarized-theme
-			 undo-tree vertico wc-mode yasnippet
-			 yasnippet-snippets zenburn-theme))
+			 org org-appear org-contrib org-kanban
+			 org-roam-ql org-roam-ui org-transclusion
+			 solarized-theme undo-tree vertico wc-mode
+			 yasnippet yasnippet-snippets zenburn-theme))
  '(recentf-filename-handlers '(abbreviate-file-name)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
