@@ -9,9 +9,14 @@
 ;; PACKAGE INSTALLATION
 ;; ============================================================
 
-(unless (package-installed-p 'org-readwise)
-  (straight-use-package
-   '(org-readwise :type git :host github :repo "CountGreven/org-readwise")))
+;;(unless (package-installed-p 'org-readwise)
+;;  (straight-use-package
+;;   '(org-readwise :type git :host github :repo "CountGreven/org-readwise")))
+;;(require 'org-readwise)
+
+
+(add-to-list 'load-path 
+             (expand-file-name "org-readwise" user-emacs-directory))
 (require 'org-readwise)
 
 ;; ============================================================
