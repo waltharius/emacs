@@ -302,18 +302,5 @@
    ("q" "Quit" transient-quit-one)
    ("?" "Help" describe-mode)])
 
-;; ============================================================
-;; Readwise Menu
-;; ============================================================
-["Readwise"
- ("w s" "Sync from Readwise" org-readwise-sync)
- ("w p" "Process to literature" my/readwise-to-literature)
- ("w a" "New article" my/denote-article)
- ("w o" "Open raw file" (lambda ()
-                          (interactive)
-                          (find-file (expand-file-name
-                                     "readwise-raw.org"
-                                     my/notes-dir))))]
-
 (provide '14-transient-menus)
 ;;; 14-transient-menus.el ends here

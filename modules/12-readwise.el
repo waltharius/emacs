@@ -9,15 +9,15 @@
 ;; PACKAGE INSTALLATION
 ;; ============================================================
 
-;;(unless (package-installed-p 'org-readwise)
-;;  (straight-use-package
-;;   '(org-readwise :type git :host github :repo "CountGreven/org-readwise")))
-;;(require 'org-readwise)
-
-
-(add-to-list 'load-path
+(add-to-list 'load-path 
              (expand-file-name "org-readwise" user-emacs-directory))
-(require 'org-readwise)
+
+;; Load package
+(require 'org-readwise nil t)  ;; nil t = don't error if not found
+
+;; Verify it loaded
+(unless (featurep 'org-readwise)
+  (message "⚠️  org-readwise not loaded! Check ~/.emacs.d/org-readwise/"))
 
 ;; ============================================================
 ;; FUZZY MATCHING (using built-in string-distance)

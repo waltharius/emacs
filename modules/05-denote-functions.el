@@ -900,6 +900,15 @@ Returns template content as string."
     ("B" "Backlinks" denote-backlinks)
     ("l" "Add links" denote-add-links)
     ("A" "Link after create" denote-link-after-creating)]]
+
+    ["Readwise"
+   ("w s" "Sync highlights" org-readwise-sync)
+   ("w p" "Process to notes" my/readwise-to-literature)
+   ("w a" "New article" my/denote-article)
+   ("w o" "Open raw file"
+    (lambda ()
+      (interactive)
+      (find-file (expand-file-name "readwise-raw.org" my/notes-dir))))]
   
   ["Management"
    ["Rename & Tags"
