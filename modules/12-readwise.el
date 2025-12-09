@@ -9,8 +9,9 @@
 ;; PACKAGE INSTALLATION
 ;; ============================================================
 
-(straight-use-package
- '(org-readwise :type git :host github :repo "CountGreven/org-readwise"))
+(unless (package-installed-p 'org-readwise)
+  (straight-use-package
+   '(org-readwise :type git :host github :repo "CountGreven/org-readwise")))
 (require 'org-readwise)
 
 ;; ============================================================
