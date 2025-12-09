@@ -15,7 +15,7 @@
 ;;(require 'org-readwise)
 
 
-(add-to-list 'load-path 
+(add-to-list 'load-path
              (expand-file-name "org-readwise" user-emacs-directory))
 (require 'org-readwise)
 
