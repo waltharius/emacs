@@ -17,6 +17,7 @@
 ;;   - modules/09-themes-gallery      : Galeria szablonów zmieniających wygląd Emacs
 ;;   - modules/10-org-formatting      : Skróty do formatowania tekstu i inne przydatne bajery z tekstem związane
 ;;   - modules/11-org-journal         : Integracja z calendar i nawigacja
+;;   - modules/21-readwise            : Integracja z serwisem readwise.io
 ;;   - modules/13-project-management  : Org-agenda, kanban, time tracking
 ;;   - modules/14-transient-menus     : Unified transient menus
 ;;
@@ -77,6 +78,7 @@
   (load (concat modules-dir "09-themes-gallery.el"))
   (load (concat modules-dir "10-org-formatting.el"))
   (load (concat modules-dir "11-org-journal.el"))
+  (load (concat modules-dir "12-readwise.el"))
   (load (concat modules-dir "13-project-management.el"))
   (load (concat modules-dir "14-transient-menus.el"))
   (load (concat modules-dir "03b-fonts.el"))
