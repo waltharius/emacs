@@ -973,11 +973,186 @@ Returns template content as string."
                               (time-less-p (nth 5 (file-attributes b))
                                           (nth 5 (file-attributes a))))))
          (recent (seq-take sorted (or n 10)))
-         (choice (completing-read "Recent note: " 
+         (choice (completing-read "Recent note: "
                                  (mapcar #'file-name-nondirectory recent))))
-    (find-file (car (seq-filter (lambda (f) 
+    (find-file (car (seq-filter (lambda (f)
                                   (string= (file-name-nondirectory f) choice))
                                 recent)))))
+
+;; ============================================================
+;; READWISE PROCESSING
+;; ============================================================
+
+(defun my/readwise-to-literature ()
+  "Process readwise-raw.org into individual literature notes.
+Automatically extracts author from properties, creates one file per book.
+Works with or without CATEGORY property."
+  (interactive)
+  (let* ((raw-file (expand-file-name "readwise-raw.org" my/notes-dir))
+         (processed-count 0)
+         (skipped-count 0))
+    
+    (unless (file-exists-p raw-file)
+      (error "The readwise-raw.org not found! Run sync first (C-c n w s)"))
+    
+    ;; Open readwise-raw.org
+    (with-current-buffer (find-file-noselect raw-file)
+      (goto-char (point-min))
+      
+      ;; Find all top-level headings (books/articles)
+      (while (re-search-forward "^\\* \\(.+\\)$" nil t)
+        (let* ((title (match-string 1))
+               (title-clean (replace-regexp-in-string "^[ \t]+" "" title))
+               (entry-start (point))
+               (entry-end nil)
+               (author nil)
+               (category "book")  ; Default to "book" if no category
+               (url nil)
+               (book-id nil)
+               (highlights '()))
+          
+          ;; Save heading position
+          (save-excursion
+            ;; Find end of this entry (next * heading or end of file)
+            (if (re-search-forward "^\\* " nil t)
+                (setq entry-end (match-beginning 0))
+              (setq entry-end (point-max)))
+            
+            ;; Go back to entry start
+            (goto-char entry-start)
+            
+            ;; Extract properties (ID is REQUIRED to detect if already processed)
+            (when (re-search-forward ":ID: *\\(.+\\)$" entry-end t)
+              (setq book-id (string-trim (match-string 1))))
+            
+            (goto-char entry-start)
+            (when (re-search-forward ":AUTHOR: *\\(.+\\)$" entry-end t)
+              (setq author (string-trim (match-string 1))))
+            
+            (goto-char entry-start)
+            (when (re-search-forward ":CATEGORY: *\\(.+\\)$" entry-end t)
+              (setq category (string-trim (match-string 1))))
+            
+            (goto-char entry-start)
+            (when (re-search-forward ":URL: *\\(.+\\)$" entry-end t)
+              (setq url (string-trim (match-string 1))))
+            
+            ;; Extract all highlights (** headings OR lines starting with "- ")
+            (goto-char entry-start)
+            (while (re-search-forward "^\\*\\* \\(.+\\)$" entry-end t)
+              (let ((highlight-text (match-string 1)))
+                (push highlight-text highlights)))
+            
+            ;; Also try finding highlights as list items
+            (goto-char entry-start)
+            (while (re-search-forward "^- \\(.+\\)$" entry-end t)
+              (let ((highlight-text (match-string 1)))
+                (push highlight-text highlights))))
+          
+          ;; Skip if no ID (can't track if processed)
+          (unless book-id
+            (message "⚠️  Skipping '%s' (no ID property)" title-clean)
+            (setq skipped-count (1+ skipped-count)))
+          
+          ;; Only process if has ID and highlights
+          (when (and book-id highlights)
+            ;; Check if already processed (by searching for ID in existing files)
+            (let* ((already-exists nil))
+              (dolist (file (directory-files my/notes-dir t "\\.org$"))
+                (with-temp-buffer
+                  (insert-file-contents file)
+                  (when (search-forward (format ":READWISE_ID: %s" book-id) nil t)
+                    (setq already-exists file))))
+              
+              (if already-exists
+                  (progn
+                    (message "⏭️  Skipping '%s' (already processed)" title-clean)
+                    (setq skipped-count (1+ skipped-count)))
+                
+                ;; Create literature note
+                (let* ((author-final (or author "Unknown Author"))
+                       (note-title (format "%s - %s" author-final title-clean))
+                       (tags (list "literature" "readwise" category))
+                       (slug (replace-regexp-in-string "[^[:alnum:]]+" "-"
+                                                       (downcase note-title)))
+                       (id (format-time-string "%Y%m%dT%H%M%S"))
+                       (filename (format "%s--%s__literature_readwise.org" id slug))
+                       (filepath (expand-file-name filename my/notes-dir)))
+                  
+                  (with-temp-file filepath
+                    (insert (format "#+title:      %s\n" note-title))
+                    (insert (format "#+date:       %s\n"
+                                    (format-time-string "[%Y-%m-%d %a %H:%M]")))
+                    (insert (format "#+filetags:   :%s:\n"
+                                    (mapconcat 'identity tags ":")))
+                    (insert (format "#+identifier: %s\n" id))
+                    (when url
+                      (insert (format "#+source_url: %s\n" url)))
+                    (insert "\n")
+                    
+                    ;; Properties (including Readwise ID to prevent duplicates)
+                    (insert ":PROPERTIES:\n")
+                    (insert (format ":AUTHOR: %s\n" author-final))
+                    (insert (format ":CATEGORY: %s\n" category))
+                    (insert (format ":READWISE_ID: %s\n" book-id))  ; KEY!
+                    (insert (format ":IMPORT_DATE: %s\n"
+                                    (format-time-string "[%Y-%m-%d %a]")))
+                    (insert ":END:\n\n")
+                    
+                    ;; Book/article info
+                    (insert "* About\n\n")
+                    (when url
+                      (insert (format "Source: [[%s][View on Readwise]]\n\n" url)))
+                    
+                    ;; Highlights
+                    (insert "* Highlights\n\n")
+                    (dolist (highlight (reverse highlights))
+                      (insert (format "- %s\n" highlight)))
+                    (insert "\n")
+                    
+                    ;; Standard literature note sections
+                    (insert "* Main Thesis\n\n")
+                    (insert "* Key Concepts\n\n")
+                    (insert "* Arguments\n\n")
+                    (insert "* My Questions\n\n")
+                    (insert "* Related Notes\n\n"))
+                  
+                  (setq processed-count (1+ processed-count))
+                  (message "✅ Created: %s" note-title))))))))
+    
+    (message "✅ Processed: %d | ⏭️  Skipped: %d | Total books: %d"
+             processed-count skipped-count (+ processed-count skipped-count))))
+
+
+(defun my/denote-article ()
+  "Create article note (web article, not from Readwise)."
+  (interactive)
+  (let* ((title (read-string "Article title: "))
+         (author (read-string "Author: "))
+         (url (read-string "URL: "))
+         (note-title (if (string-empty-p author)
+                         title
+                       (format "%s - %s" author title)))
+         (tags (list "article" "literature")))
+    (denote note-title tags)
+    (save-excursion
+      (goto-char (point-max))
+      (insert "\n:PROPERTIES:\n")
+      (when (not (string-empty-p author))
+        (insert (format ":AUTHOR: %s\n" author)))
+      (when (not (string-empty-p url))
+        (insert (format ":URL: %s\n" url)))
+      (insert (format ":READ_DATE: %s\n" (format-time-string "[%Y-%m-%d %a]")))
+      (insert ":END:\n\n")
+      (when (not (string-empty-p url))
+        (insert (format "Source: [[%s][Original article]]\n\n" url)))
+      (insert "* Summary\n\n")
+      (insert "* Key Points\n\n")
+      (insert "* My Notes\n\n")
+      (save-buffer))
+    (goto-char (point-min))
+    (re-search-forward "^\\* Summary" nil t)
+    (message "✅ Created article note: %s" title)))
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
