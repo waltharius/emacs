@@ -982,25 +982,24 @@ Returns template content as string."
 ;; ============================================================
 ;; READWISE PROCESSING
 ;; ============================================================
+
 (defun my/readwise-to-literature ()
   "Process readwise-raw.org into individual literature notes.
-Reads raw file content without org-mode formatting."
+Uses 1-second delays to maintain standard Denote ID format."
   (interactive)
   (let* ((raw-file (expand-file-name "readwise-raw.org" my/notes-dir))
          (processed-count 0)
          (skipped-count 0))
     
     (unless (file-exists-p raw-file)
-      (error "readwise-raw.org not found! Run sync first (C-c n w s)"))
+      (error "The readwise-raw.org not found! Run sync first (C-c n w s)"))
     
     (message "🔄 Przetwarzam readwise-raw.org...")
     
-    ;; Use temporary buffer with RAW content (no org-mode formatting!)
     (with-temp-buffer
       (insert-file-contents raw-file)
       (goto-char (point-min))
       
-      ;; Now search for ** (raw file content)
       (while (re-search-forward "^\\* \\([^*].*\\)$" nil t)
         (let* ((title (match-string 1))
                (title-clean (string-trim title))
@@ -1008,50 +1007,61 @@ Reads raw file content without org-mode formatting."
                entry-end author category url book-id highlights-list)
           
           (save-excursion
-            ;; Find end of this book entry
+            ;; Find end of this book
             (if (re-search-forward "^\\* [^*]" nil t)
                 (setq entry-end (match-beginning 0))
               (setq entry-end (point-max)))
             
-            ;; Extract book properties
+            ;; Look for PROPERTIES drawer (may have leading whitespace)
             (goto-char entry-start)
-            (when (re-search-forward "^:ID: *\\([0-9]+\\)" entry-end t)
-              (setq book-id (match-string 1)))
+            (when (re-search-forward "^ *:PROPERTIES:$" entry-end t)
+              (let ((props-start (point))
+                    (props-end (when (re-search-forward "^ *:END:$" entry-end t)
+                                 (point))))
+                
+                (when props-end
+                  ;; Extract ID (may have leading whitespace)
+                  (goto-char props-start)
+                  (when (re-search-forward "^ *:ID: *\\([0-9]+\\)" props-end t)
+                    (setq book-id (match-string 1)))
+                  
+                  ;; Extract AUTHOR
+                  (goto-char props-start)
+                  (when (re-search-forward "^ *:AUTHOR: *\\(.+\\)$" props-end t)
+                    (setq author (string-trim (match-string 1))))
+                  
+                  ;; Extract CATEGORY
+                  (goto-char props-start)
+                  (when (re-search-forward "^ *:CATEGORY: *\\(.+\\)$" props-end t)
+                    (setq category (string-trim (match-string 1))))
+                  
+                  ;; Extract URL
+                  (goto-char props-start)
+                  (when (re-search-forward "^ *:URL: *\\(.+\\)$" props-end t)
+                    (setq url (string-trim (match-string 1)))))))
             
-            (goto-char entry-start)
-            (when (re-search-forward "^:AUTHOR: *\\(.+\\)$" entry-end t)
-              (setq author (string-trim (match-string 1))))
-            
-            (goto-char entry-start)
-            (when (re-search-forward "^:CATEGORY: *\\(.+\\)$" entry-end t)
-              (setq category (string-trim (match-string 1))))
-            
-            (goto-char entry-start)
-            (when (re-search-forward "^:URL: *\\(.+\\)$" entry-end t)
-              (setq url (string-trim (match-string 1))))
-            
-            ;; Extract highlights (** Highlight in raw file)
+            ;; Extract highlights (** Highlight)
             (goto-char entry-start)
             (while (re-search-forward "^\\*\\* Highlight$" entry-end t)
               (let ((highlight-start (point)))
-                ;; Skip properties drawer if exists
-                (when (looking-at "[\n\r]*:PROPERTIES:")
-                  (re-search-forward "^:END:$" entry-end t)
+                ;; Skip highlight's properties drawer
+                (when (looking-at "[\n\r]* *:PROPERTIES:")
+                  (re-search-forward "^ *:END:$" entry-end t)
                   (forward-line 1)
                   (setq highlight-start (point)))
                 
-                ;; Get text until next ** Highlight or end of book
+                ;; Get text until next highlight or end
                 (let ((highlight-end (if (re-search-forward "^\\*\\* Highlight$" entry-end t)
                                          (match-beginning 0)
                                        entry-end)))
-                  (let ((highlight-text (buffer-substring-no-properties 
+                  (let ((highlight-text (buffer-substring-no-properties
                                         highlight-start highlight-end)))
                     (setq highlight-text (string-trim highlight-text))
                     (when (not (string-empty-p highlight-text))
                       (push highlight-text highlights-list)))
                   (goto-char highlight-end)))))
           
-          ;; Validate and process
+          ;; Process book
           (cond
            ((not book-id)
             (message "⚠️  Pomijam '%s' (brak ID)" title-clean)
@@ -1080,16 +1090,15 @@ Reads raw file content without org-mode formatting."
                 (condition-case err
                     (let* ((author-final (or author "Nieznany Autor"))
                            (note-title (format "%s - %s" author-final title-clean))
-                           (tags (list "literature" "readwise" (or category "book")))
-                           (id (format "%s%03d%02d"
-                                      (format-time-string "%Y%m%dT%H%M%S")
-                                      (mod (string-to-number (format-time-string "%3N")) 1000)
-                                      (random 100)))
+                           (tags (list "literatura" "readwise" (or category "książka")))
+                           ;; STANDARD DENOTE ID FORMAT - clean!
+                           (id (format-time-string "%Y%m%dT%H%M%S"))
                            (slug (denote-sluggify 'title note-title))
-                           (filename (format "%s--%s__literature_readwise.org" id slug))
+                           (filename (format "%s--%s__literatura_readwise.org" id slug))
                            (filepath (expand-file-name filename my/notes-dir)))
                       
-                      (sleep-for 0.002)
+                      ;; Wait 1 second before next file (ensures unique IDs)
+                      (sleep-for 2)
                       
                       (with-temp-file filepath
                         (insert (format "#+title:      %s\n" note-title))
@@ -1100,7 +1109,7 @@ Reads raw file content without org-mode formatting."
                           (insert (format "#+source_url: %s\n" url)))
                         (insert "\n:PROPERTIES:\n")
                         (insert (format ":AUTHOR: %s\n" author-final))
-                        (insert (format ":CATEGORY: %s\n" (or category "book")))
+                        (insert (format ":CATEGORY: %s\n" (or category "książka")))
                         (insert (format ":READWISE_ID: %s\n" book-id))
                         (insert (format ":IMPORT_DATE: %s\n" (format-time-string "[%Y-%m-%d %a]")))
                         (insert ":END:\n\n")
@@ -1111,7 +1120,7 @@ Reads raw file content without org-mode formatting."
                         
                         (insert "* Cytaty\n\n")
                         (dolist (highlight (reverse highlights-list))
-                          (insert (format "- %s\n\n" highlight)))
+                          (insert (format "#+begin_quote\n%s\n#+end_quote\n\n" highlight)))
                         
                         (insert "* Główna teza\n\n")
                         (insert "* Kluczowe koncepty\n\n")
@@ -1129,35 +1138,6 @@ Reads raw file content without org-mode formatting."
     (message "✅ Przetworzono: %d książek | ⏭️  Pominięto: %d"
              processed-count skipped-count)))
 
-(defun my/denote-article ()
-  "Create article note (web article, not from Readwise)."
-  (interactive)
-  (let* ((title (read-string "Article title: "))
-         (author (read-string "Author: "))
-         (url (read-string "URL: "))
-         (note-title (if (string-empty-p author)
-                         title
-                       (format "%s - %s" author title)))
-         (tags (list "article" "literature")))
-    (denote note-title tags)
-    (save-excursion
-      (goto-char (point-max))
-      (insert "\n:PROPERTIES:\n")
-      (when (not (string-empty-p author))
-        (insert (format ":AUTHOR: %s\n" author)))
-      (when (not (string-empty-p url))
-        (insert (format ":URL: %s\n" url)))
-      (insert (format ":READ_DATE: %s\n" (format-time-string "[%Y-%m-%d %a]")))
-      (insert ":END:\n\n")
-      (when (not (string-empty-p url))
-        (insert (format "Source: [[%s][Original article]]\n\n" url)))
-      (insert "* Summary\n\n")
-      (insert "* Key Points\n\n")
-      (insert "* My Notes\n\n")
-      (save-buffer))
-    (goto-char (point-min))
-    (re-search-forward "^\\* Summary" nil t)
-    (message "✅ Created article note: %s" title)))
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
