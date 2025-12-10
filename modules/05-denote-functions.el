@@ -1168,7 +1168,7 @@ Preserves all your existing manual notes and edits."
                                     added-count (file-name-nondirectory existing-file))))
                       
                       (message "⚠️  Brak sekcji '* Cytaty' w: %s"
-                              (file-name-nondirectory existing-file)))))))))))
+                              (file-name-nondirectory existing-file))))))))))))
     
     (if (> updated-count 0)
         (message "✅ Zaktualizowano %d notatek! Dodano łącznie %d nowych cytatów."
