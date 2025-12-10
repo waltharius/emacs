@@ -9,7 +9,7 @@
 ;; PACKAGE INSTALLATION
 ;; ============================================================
 
-(add-to-list 'load-path 
+(add-to-list 'load-path
              (expand-file-name "org-readwise" user-emacs-directory))
 
 ;; Load package
@@ -36,7 +36,7 @@ Uses Levenshtein distance (built-in since Emacs 27)."
       (* 100 (- 1.0 (/ (float distance) max-len))))))
 
 (defun my/readwise-contains-substring-p (haystack needle)
-  "Check if HAYSTACK contains NEEDLE (case-insensitive, normalized).
+  "Check if HAYSTACK contain NEEDLE (case-insensitive, normalized).
 Handles Polish characters and special characters."
   (let ((h (downcase (string-trim haystack)))
         (n (downcase (string-trim needle))))
@@ -198,7 +198,7 @@ Looks for URL or asks user."
         (read-string "Source/Author: " "")))))
 
 (defun my/readwise-collect-highlights ()
-  "Collect all highlights under current heading.
+  "Collect all highlight under current heading.
 Returns list of strings."
   (let ((highlights '())
         (end (save-excursion
@@ -288,7 +288,7 @@ Returns filepath or nil."
 ;; ============================================================
 
 (defun my/readwise-to-literature ()
-  "Process Readwise highlights into Denote literature notes.
+  "Process Readwise highlight into Denote literature notes.
 Handles both books and articles separately."
   (interactive)
   
@@ -389,7 +389,7 @@ Adds 'readwise' tag automatically."
     (insert "* Argumenty\n\n")
     (insert "* Moje pytania\n\n")
     (insert "* Powiązania\n\n")
-    (insert "* Cytaty kluczowe\n")
+    (insert "* Cytaty\n")
     (insert "#+begin_quote\n\n#+end_quote\n\n")
     (insert "* Fleeting Notes (czytanie 1)\n\n")
     
