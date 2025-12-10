@@ -861,126 +861,6 @@ Returns template content as string."
                   my/templates-dir)))
 
 ;; ============================================================
-;; TRANSIENT NOTES MENU (replaces all C-c n X keybindings)
-;; ============================================================
-
-(require 'transient)
-
-(transient-define-prefix my/notes-transient-menu ()
-  "Denote notes - all functions (verified from keybindings)"
-  ["Denote Notes"
-   ["Create Basic"
-    ("n" "New note" denote)
-    ("j" "Journal today" my/denote-journal)
-    ("J" "Journal date" my/denote-journal-date)
-    ("z" "Zettelkasten" my/denote-zettel)
-    ("o" "Person" my/denote-osoba)
-    ("b" "Base note" my/denote-base)
-    ("p" "Project" my/denote-create-project)
-    ("s" "Shortcut" my/denote-skroty)
-    ("q" "Fleeting quote" my/fleeting-quote)
-    ("Q" "Smart fleeting quote" my/fleeting-quote-smart)]
-   
-   ["Create Advanced"
-    ("P" "Philosopher" my/denote-philosopher)
-    ("L" "Literature" my/denote-literature)
-    ("E" "Essay" my/denote-essay)
-    ("Z" "Smart Zettel" my/denote-zettel-smart)]
-   
-   ["Search & Find"
-    ("f" "Open/create" denote-open-or-create)
-    ("g" "Grep notes" consult-denote-grep)
-    ("F" "Find file" consult-denote-find)
-    ("x" "Find property" my/denote-find-by-property)
-    ("/" "Journal search" my/journal-search)]
-   
-   ["Linking"
-    ("i" "Insert link" denote-link)
-    ("I" "Link or create" denote-link-or-create)
-    ("B" "Backlinks" denote-backlinks)
-    ("l" "Add links" denote-add-links)
-    ("A" "Link after create" denote-link-after-creating)]]
-
-    ["Readwise"
-   ("w s" "Sync highlights" org-readwise-sync)
-   ("w p" "Process to notes" my/readwise-to-literature)
-   ("w u" "Update existing" my/readwise-update-existing-notes)
-   ("w a" "New article" my/denote-article)
-   ("w o" "Open raw file"
-    (lambda ()
-      (interactive)
-      (find-file (expand-file-name "readwise-raw.org" my/notes-dir))))]
-  
-  ["Management"
-   ["Rename & Tags"
-    ("r" "Rename file" denote-rename-file)
-    ("R" "Rename frontm." denote-rename-file-using-front-matter)
-    ("t" "Add keywords" denote-keywords-add)
-    ("T" "Remove keywords" denote-keywords-remove)]
-   
-   ["Folgezettel"
-    (">" "Zettel tree" my/denote-zettel-tree)
-    ("<" "Find children" my/denote-find-children)]
-   
-   ["Delete"
-    ("d" "Delete note" my/denote-delete-note)
-    ("D" "Delete from list" my/denote-delete-from-list)]
-   
-   ["UI & Tools"
-    ("e" "Edit init.el" open-init-el-bottom-split)
-    ("h" "Insert time" insert-current-time)
-    ("c" "Journal calendar" my/open-journal-calendar)
-    ("u" "Roam UI graph" org-roam-ui-mode)]]
-  
-  [["Navigation"
-    ("q" "Quit" transient-quit-one)
-    ("?" "Help" describe-mode)]])
-
-;;; --- FUNCJA: Journal search ---
-(defun my/journal-search ()
-  "Search through journal files only."
-  (interactive)
-  (let* ((search-term (read-string "Search journals: "))
-         (journal-files (directory-files my-notes-dir t ".*journal.*\\.org$"))
-         (results '()))
-    (if (not journal-files)
-        (message "No journal files found!")
-      (dolist (file journal-files)
-        (with-temp-buffer
-          (insert-file-contents file)
-          (goto-char (point-min))
-          (while (search-forward search-term nil t)
-            (let ((line (buffer-substring-no-properties
-                         (line-beginning-position)
-                         (line-end-position))))
-              (push (cons (file-name-nondirectory file) line) results)))))
-      (if results
-          (with-current-buffer (get-buffer-create "*Journal Search*")
-            (read-only-mode -1)
-            (erase-buffer)
-            (insert (format "Search results for: \"%s\"\n\n" search-term))
-            (dolist (result (reverse results))
-              (insert (format "- %s: %s\n" (car result) (cdr result))))
-            (goto-char (point-min))
-            (read-only-mode 1)
-            (switch-to-buffer (current-buffer)))
-        (message "No matches found for \"%s\"" search-term)))))
-
-(defun my/denote-recent-notes (n)
-  "Open one of N most recently modified notes."
-  (interactive "p")
-  (let* ((files (directory-files my-notes-dir t "\\.org$"))
-         (sorted (sort files (lambda (a b)
-                              (time-less-p (nth 5 (file-attributes b))
-                                          (nth 5 (file-attributes a))))))
-         (recent (seq-take sorted (or n 10)))
-         (choice (completing-read "Recent note: "
-                                 (mapcar #'file-name-nondirectory recent))))
-    (find-file (car (seq-filter (lambda (f)
-                                  (string= (file-name-nondirectory f) choice))
-                                recent)))))
-
-;; ============================================================
 ;; READWISE PROCESSING
 ;; ============================================================
 
@@ -1280,6 +1160,127 @@ Preserves all your existing manual notes and edits."
     (goto-char (point-min))
     (re-search-forward "^\\* Summary" nil t)
     (message "✅ Created article note: %s" title)))
+
+;; ALWAYS AT THE END OF THE FILE
+;; ============================================================
+;; TRANSIENT NOTES MENU (replaces all C-c n X keybindings)
+;; ============================================================
+
+(require 'transient)
+
+(transient-define-prefix my/notes-transient-menu ()
+  "Denote notes - all functions (verified from keybindings)"
+  ["Denote Notes"
+   ["Create Basic"
+    ("n" "New note" denote)
+    ("j" "Journal today" my/denote-journal)
+    ("J" "Journal date" my/denote-journal-date)
+    ("z" "Zettelkasten" my/denote-zettel)
+    ("o" "Person" my/denote-osoba)
+    ("b" "Base note" my/denote-base)
+    ("p" "Project" my/denote-create-project)
+    ("s" "Shortcut" my/denote-skroty)
+    ("q" "Fleeting quote" my/fleeting-quote)
+    ("Q" "Smart fleeting quote" my/fleeting-quote-smart)]
+   
+   ["Create Advanced"
+    ("P" "Philosopher" my/denote-philosopher)
+    ("L" "Literature" my/denote-literature)
+    ("E" "Essay" my/denote-essay)
+    ("Z" "Smart Zettel" my/denote-zettel-smart)]
+   
+   ["Search & Find"
+    ("f" "Open/create" denote-open-or-create)
+    ("g" "Grep notes" consult-denote-grep)
+    ("F" "Find file" consult-denote-find)
+    ("x" "Find property" my/denote-find-by-property)
+    ("/" "Journal search" my/journal-search)]
+   
+   ["Linking"
+    ("i" "Insert link" denote-link)
+    ("I" "Link or create" denote-link-or-create)
+    ("B" "Backlinks" denote-backlinks)
+    ("l" "Add links" denote-add-links)
+    ("A" "Link after create" denote-link-after-creating)]]
+
+    ["Readwise"
+   ("w s" "Sync highlights" org-readwise-sync)
+   ("w p" "Process to notes" my/readwise-to-literature)
+   ("w u" "Update existing" my/readwise-update-existing-notes)
+   ("w a" "New article" my/denote-article)
+   ("w o" "Open raw file"
+    (lambda ()
+      (interactive)
+      (find-file (expand-file-name "readwise-raw.org" my/notes-dir))))]
+  
+  ["Management"
+   ["Rename & Tags"
+    ("r" "Rename file" denote-rename-file)
+    ("R" "Rename frontm." denote-rename-file-using-front-matter)
+    ("t" "Add keywords" denote-keywords-add)
+    ("T" "Remove keywords" denote-keywords-remove)]
+   
+   ["Folgezettel"
+    (">" "Zettel tree" my/denote-zettel-tree)
+    ("<" "Find children" my/denote-find-children)]
+   
+   ["Delete"
+    ("d" "Delete note" my/denote-delete-note)
+    ("D" "Delete from list" my/denote-delete-from-list)]
+   
+   ["UI & Tools"
+    ("e" "Edit init.el" open-init-el-bottom-split)
+    ("h" "Insert time" insert-current-time)
+    ("c" "Journal calendar" my/open-journal-calendar)
+    ("u" "Roam UI graph" org-roam-ui-mode)]]
+  
+  [["Navigation"
+    ("q" "Quit" transient-quit-one)
+    ("?" "Help" describe-mode)]])
+
+;;; --- FUNCJA: Journal search ---
+(defun my/journal-search ()
+  "Search through journal files only."
+  (interactive)
+  (let* ((search-term (read-string "Search journals: "))
+         (journal-files (directory-files my-notes-dir t ".*journal.*\\.org$"))
+         (results '()))
+    (if (not journal-files)
+        (message "No journal files found!")
+      (dolist (file journal-files)
+        (with-temp-buffer
+          (insert-file-contents file)
+          (goto-char (point-min))
+          (while (search-forward search-term nil t)
+            (let ((line (buffer-substring-no-properties
+                         (line-beginning-position)
+                         (line-end-position))))
+              (push (cons (file-name-nondirectory file) line) results)))))
+      (if results
+          (with-current-buffer (get-buffer-create "*Journal Search*")
+            (read-only-mode -1)
+            (erase-buffer)
+            (insert (format "Search results for: \"%s\"\n\n" search-term))
+            (dolist (result (reverse results))
+              (insert (format "- %s: %s\n" (car result) (cdr result))))
+            (goto-char (point-min))
+            (read-only-mode 1)
+            (switch-to-buffer (current-buffer)))
+        (message "No matches found for \"%s\"" search-term)))))
+
+(defun my/denote-recent-notes (n)
+  "Open one of N most recently modified notes."
+  (interactive "p")
+  (let* ((files (directory-files my-notes-dir t "\\.org$"))
+         (sorted (sort files (lambda (a b)
+                              (time-less-p (nth 5 (file-attributes b))
+                                          (nth 5 (file-attributes a))))))
+         (recent (seq-take sorted (or n 10)))
+         (choice (completing-read "Recent note: "
+                                 (mapcar #'file-name-nondirectory recent))))
+    (find-file (car (seq-filter (lambda (f)
+                                  (string= (file-name-nondirectory f) choice))
+                                recent)))))
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
