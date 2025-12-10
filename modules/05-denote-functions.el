@@ -904,6 +904,7 @@ Returns template content as string."
     ["Readwise"
    ("w s" "Sync highlights" org-readwise-sync)
    ("w p" "Process to notes" my/readwise-to-literature)
+   ("w u" "Update existing" my/readwise-update-existing-notes)
    ("w a" "New article" my/denote-article)
    ("w o" "Open raw file"
     (lambda ()
@@ -985,14 +986,14 @@ Returns template content as string."
 
 (defun my/readwise-to-literature ()
   "Process readwise-raw.org into individual literature notes.
-Uses 1-second delays to maintain standard Denote ID format."
+Uses 2-second delays to maintain standard Denote ID format."
   (interactive)
   (let* ((raw-file (expand-file-name "readwise-raw.org" my/notes-dir))
          (processed-count 0)
          (skipped-count 0))
     
     (unless (file-exists-p raw-file)
-      (error "The readwise-raw.org not found! Run sync first (C-c n w s)"))
+      (error "readwise-raw.org not found! Run sync first (C-c n w s)"))
     
     (message "🔄 Przetwarzam readwise-raw.org...")
     
@@ -1097,7 +1098,7 @@ Uses 1-second delays to maintain standard Denote ID format."
                            (filename (format "%s--%s__literatura_readwise.org" id slug))
                            (filepath (expand-file-name filename my/notes-dir)))
                       
-                      ;; Wait 1 second before next file (ensures unique IDs)
+                      ;; Wait 2 seconds before next file (ensures unique IDs)
                       (sleep-for 2)
                       
                       (with-temp-file filepath
@@ -1138,6 +1139,147 @@ Uses 1-second delays to maintain standard Denote ID format."
     (message "✅ Przetworzono: %d książek | ⏭️  Pominięto: %d"
              processed-count skipped-count)))
 
+(defun my/readwise-update-existing-notes ()
+  "Update existing literature notes with new highlights from readwise-raw.org.
+Only adds NEW highlights that don't already exist in the note.
+Preserves all your existing manual notes and edits."
+  (interactive)
+  (let* ((raw-file (expand-file-name "readwise-raw.org" my/notes-dir))
+         (updated-count 0)
+         (total-new-highlights 0))
+    
+    (unless (file-exists-p raw-file)
+      (error "readwise-raw.org not found! Run sync first (C-c n w s)"))
+    
+    (message "🔄 Sprawdzam nowe podświetlenia...")
+    
+    ;; Parse readwise-raw.org
+    (with-temp-buffer
+      (insert-file-contents raw-file)
+      (goto-char (point-min))
+      
+      (while (re-search-forward "^\\* \\([^*].*\\)$" nil t)
+        (let* ((title (string-trim (match-string 1)))
+               (entry-start (point))
+               entry-end book-id new-highlights)
+          
+          (save-excursion
+            (if (re-search-forward "^\\* [^*]" nil t)
+                (setq entry-end (match-beginning 0))
+              (setq entry-end (point-max)))
+            
+            ;; Get book ID
+            (goto-char entry-start)
+            (when (re-search-forward "^ *:PROPERTIES:$" entry-end t)
+              (let ((props-start (point))
+                    (props-end (when (re-search-forward "^ *:END:$" entry-end t)
+                                 (point))))
+                (when props-end
+                  (goto-char props-start)
+                  (when (re-search-forward "^ *:ID: *\\([0-9]+\\)" props-end t)
+                    (setq book-id (match-string 1))))))
+            
+            ;; Get all highlights from readwise
+            (goto-char entry-start)
+            (while (re-search-forward "^\\*\\* Highlight$" entry-end t)
+              (let ((highlight-start (point)))
+                (when (looking-at "[\n\r]* *:PROPERTIES:")
+                  (re-search-forward "^ *:END:$" entry-end t)
+                  (forward-line 1)
+                  (setq highlight-start (point)))
+                
+                (let ((highlight-end (if (re-search-forward "^\\*\\* Highlight$" entry-end t)
+                                         (match-beginning 0)
+                                       entry-end)))
+                  (let ((highlight-text (string-trim 
+                                        (buffer-substring-no-properties 
+                                         highlight-start highlight-end))))
+                    (when (not (string-empty-p highlight-text))
+                      (push highlight-text new-highlights)))
+                  (goto-char highlight-end)))))
+          
+          ;; Find existing note for this book
+          (when book-id
+            (let ((existing-file nil))
+              (dolist (file (directory-files my/notes-dir t "\\.org$"))
+                (ignore-errors
+                  (with-temp-buffer
+                    (insert-file-contents file)
+                    (when (search-forward (format ":READWISE_ID: %s" book-id) nil t)
+                      (setq existing-file file)))))
+              
+              ;; Update file if found
+              (when existing-file
+                (with-current-buffer (find-file-noselect existing-file)
+                  (save-excursion
+                    (goto-char (point-min))
+                    
+                    ;; Find "* Cytaty" section
+                    (if (re-search-forward "^\\* Cytaty$" nil t)
+                        (let ((citations-start (point))
+                              (citations-end (if (re-search-forward "^\\* " nil t)
+                                               (match-beginning 0)
+                                             (point-max)))
+                              (added-count 0))
+                          
+                          ;; Check each new highlight
+                          (dolist (highlight new-highlights)
+                            (goto-char citations-start)
+                            ;; If highlight not already in the note
+                            (unless (search-forward highlight citations-end t)
+                              ;; Add it at the end of Cytaty section
+                              (goto-char citations-end)
+                              ;; Go back before next section header
+                              (when (looking-at "^\\* ")
+                                (forward-line -1)
+                                (end-of-line))
+                              (insert (format "\n#+begin_quote\n%s\n#+end_quote\n" highlight))
+                              (setq added-count (1+ added-count))
+                              (setq total-new-highlights (1+ total-new-highlights))))
+                          
+                          (when (> added-count 0)
+                            (save-buffer)
+                            (setq updated-count (1+ updated-count))
+                            (message "✅ Dodano %d nowych cytatów do: %s" 
+                                    added-count (file-name-nondirectory existing-file))))
+                      
+                      (message "⚠️  Brak sekcji '* Cytaty' w: %s" 
+                              (file-name-nondirectory existing-file))))))))))))
+    
+    (if (> updated-count 0)
+        (message "✅ Zaktualizowano %d notatek! Dodano łącznie %d nowych cytatów." 
+                 updated-count total-new-highlights)
+      (message "ℹ️  Brak nowych cytatów do dodania"))))
+
+(defun my/denote-article ()
+  "Create article note (web article, not from Readwise)."
+  (interactive)
+  (let* ((title (read-string "Article title: "))
+         (author (read-string "Author: "))
+         (url (read-string "URL: "))
+         (note-title (if (string-empty-p author)
+                         title
+                       (format "%s - %s" author title)))
+         (tags (list "article" "literature")))
+    (denote note-title tags)
+    (save-excursion
+      (goto-char (point-max))
+      (insert "\n:PROPERTIES:\n")
+      (when (not (string-empty-p author))
+        (insert (format ":AUTHOR: %s\n" author)))
+      (when (not (string-empty-p url))
+        (insert (format ":URL: %s\n" url)))
+      (insert (format ":READ_DATE: %s\n" (format-time-string "[%Y-%m-%d %a]")))
+      (insert ":END:\n\n")
+      (when (not (string-empty-p url))
+        (insert (format "Source: [[%s][Original article]]\n\n" url)))
+      (insert "* Summary\n\n")
+      (insert "* Key Points\n\n")
+      (insert "* My Notes\n\n")
+      (save-buffer))
+    (goto-char (point-min))
+    (re-search-forward "^\\* Summary" nil t)
+    (message "✅ Created article note: %s" title)))
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
