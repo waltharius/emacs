@@ -982,7 +982,6 @@ Returns template content as string."
 ;; ============================================================
 ;; READWISE PROCESSING
 ;; ============================================================
-
 (defun my/readwise-to-literature ()
   "Process readwise-raw.org into individual literature notes.
 Safe version with nil checks and better error handling."
@@ -996,35 +995,23 @@ Safe version with nil checks and better error handling."
     
     (message "🔄 Przetwarzam readwise-raw.org...")
     
-    ;; Open readwise-raw.org
     (with-current-buffer (find-file-noselect raw-file)
       (goto-char (point-min))
       
-      ;; Find all top-level headings (books/articles)
       (while (re-search-forward "^\\* \\(.+\\)$" nil t)
         (let* ((title (match-string 1))
                (title-clean (if title 
                                 (replace-regexp-in-string "^[ \t]+" "" title)
                               "Bez tytułu"))
                (entry-start (point))
-               (entry-end nil)
-               (author nil)
-               (category "book")
-               (url nil)
-               (book-id nil)
-               (highlights nil))
+               entry-end author category url book-id highlights)
           
-          ;; Save heading position
           (save-excursion
-            ;; Find end of this entry (next * heading or end of file)
             (if (re-search-forward "^\\* " nil t)
                 (setq entry-end (match-beginning 0))
               (setq entry-end (point-max)))
             
-            ;; Go back to entry start
             (goto-char entry-start)
-            
-            ;; Extract properties (with safety checks)
             (when (re-search-forward ":ID: *\\(.+\\)$" entry-end t)
               (setq book-id (string-trim (match-string 1))))
             
@@ -1040,34 +1027,19 @@ Safe version with nil checks and better error handling."
             (when (re-search-forward ":URL: *\\(.+\\)$" entry-end t)
               (setq url (string-trim (match-string 1))))
             
-            ;; Extract highlights content (SAFE version)
             (goto-char entry-start)
             (when (re-search-forward "^:END:\n" entry-end t)
               (let ((content-start (point)))
-                ;; Get raw content safely
                 (setq highlights (buffer-substring-no-properties content-start entry-end))
-                ;; Clean and validate
                 (when highlights
                   (setq highlights (string-trim highlights))
-                  ;; If empty after trimming, set to nil
                   (when (string-empty-p highlights)
                     (setq highlights nil))))))
           
-          ;; VALIDATION: Skip if critical data missing
-          (cond
-           ((not book-id)
-            (message "⚠️  Pomijam '%s' (brak ID)" title-clean)
-            (setq skipped-count (1+ skipped-count)))
-           
-           ((not highlights)
-            (message "⚠️  Pomijam '%s' (brak podświetleń)" title-clean)
-            (setq skipped-count (1+ skipped-count)))
-           
-           (t
-            ;; Check if already processed
-            (let* ((already-exists nil))
+          (unless (or (not book-id) (not highlights))
+            (let ((already-exists nil))
               (dolist (file (directory-files my/notes-dir t "\\.org$"))
-                (ignore-errors  ; Protect against unreadable files
+                (ignore-errors
                   (with-temp-buffer
                     (insert-file-contents file)
                     (when (search-forward (format ":READWISE_ID: %s" book-id) nil t)
@@ -1078,74 +1050,48 @@ Safe version with nil checks and better error handling."
                     (message "⏭️  Pomijam '%s' (już przetworzono)" title-clean)
                     (setq skipped-count (1+ skipped-count)))
                 
-                ;; Create literature note (with error handling)
                 (condition-case err
                     (let* ((author-final (or author "Nieznany Autor"))
                            (note-title (format "%s - %s" author-final title-clean))
-                           (tags (list "literature" "readwise" category))
-                           ;; UNIQUE ID: microseconds precision
+                           (tags (list "literature" "readwise" (or category "book")))
                            (id (format "%s%03d%02d"
                                       (format-time-string "%Y%m%dT%H%M%S")
-                                      (mod (string-to-number 
-                                            (format-time-string "%3N")) 1000)
+                                      (mod (string-to-number (format-time-string "%3N")) 1000)
                                       (random 100)))
-                           ;; UTF-8 safe slug using denote function
                            (slug (denote-sluggify 'title note-title))
                            (filename (format "%s--%s__literature_readwise.org" id slug))
                            (filepath (expand-file-name filename my/notes-dir)))
                       
-                      ;; Tiny delay for unique IDs
                       (sleep-for 0.002)
                       
-                      ;; Create file
                       (with-temp-file filepath
                         (insert (format "#+title:      %s\n" note-title))
-                        (insert (format "#+date:       %s\n" 
-                                        (format-time-string "[%Y-%m-%d %a %H:%M]")))
-                        (insert (format "#+filetags:   :%s:\n"
-                                        (mapconcat 'identity tags ":")))
+                        (insert (format "#+date:       %s\n" (format-time-string "[%Y-%m-%d %a %H:%M]")))
+                        (insert (format "#+filetags:   :%s:\n" (mapconcat 'identity tags ":")))
                         (insert (format "#+identifier: %s\n" id))
                         (when (and url (not (string-empty-p url)))
                           (insert (format "#+source_url: %s\n" url)))
-                        (insert "\n")
-                        
-                        ;; Properties
-                        (insert ":PROPERTIES:\n")
+                        (insert "\n:PROPERTIES:\n")
                         (insert (format ":AUTHOR: %s\n" author-final))
-                        (insert (format ":CATEGORY: %s\n" category))
+                        (insert (format ":CATEGORY: %s\n" (or category "book")))
                         (insert (format ":READWISE_ID: %s\n" book-id))
-                        (insert (format ":IMPORT_DATE: %s\n" 
-                                        (format-time-string "[%Y-%m-%d %a]")))
-                        (insert ":END:\n\n")
-                        
-                        ;; Polish sections
-                        (insert "* O książce\n\n")
+                        (insert (format ":IMPORT_DATE: %s\n" (format-time-string "[%Y-%m-%d %a]")))
+                        (insert ":END:\n\n* O książce\n\n")
                         (when (and url (not (string-empty-p url)))
                           (insert (format "Źródło: [[%s][Zobacz na Readwise]]\n\n" url)))
-                        
-                        ;; Highlights - safe insertion
                         (insert "* Cytaty\n\n")
-                        (when highlights
-                          (insert highlights))
-                        (insert "\n\n")
-                        
-                        ;; Standard sections
-                        (insert "* Główna teza\n\n")
-                        (insert "* Kluczowe koncepty\n\n")
-                        (insert "* Argumenty\n\n")
-                        (insert "* Moje pytania\n\n")
-                        (insert "* Powiązane notatki\n\n"))
+                        (when highlights (insert highlights))
+                        (insert "\n\n* Główna teza\n\n* Kluczowe koncepty\n\n* Argumenty\n\n* Moje pytania\n\n* Powiązane notatki\n\n"))
                       
                       (setq processed-count (1+ processed-count))
                       (message "✅ Utworzono: %s" note-title))
                   
-                  ;; Error handler - print detailed error
                   (error
                    (message "❌ BŁĄD przy '%s': %s" title-clean (error-message-string err))
                    (setq skipped-count (1+ skipped-count))))))))))
     
-    (message "✅ Przetworzono: %d | ⏭️  Pominięto: %d | Razem: %d"
-             processed-count skipped-count (+ processed-count skipped-count))))
+    (message "✅ Przetworzono: %d | ⏭️  Pominięto: %d"
+             processed-count skipped-count)))
 
 (defun my/denote-article ()
   "Create article note (web article, not from Readwise)."
