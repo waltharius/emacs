@@ -176,6 +176,50 @@
       (forward-line 1)
       (message "Utworzono notatkę: %s" tytul))))
 
+;;; --- FUNCJA: Journal search ---
+(defun my/journal-search ()
+  "Search through journal files only."
+  (interactive)
+  (let* ((search-term (read-string "Search journals: "))
+         (journal-files (directory-files my-notes-dir t ".*journal.*\\.org$"))
+         (results '()))
+    (if (not journal-files)
+        (message "No journal files found!")
+      (dolist (file journal-files)
+        (with-temp-buffer
+          (insert-file-contents file)
+          (goto-char (point-min))
+          (while (search-forward search-term nil t)
+            (let ((line (buffer-substring-no-properties
+                         (line-beginning-position)
+                         (line-end-position))))
+              (push (cons (file-name-nondirectory file) line) results)))))
+      (if results
+          (with-current-buffer (get-buffer-create "*Journal Search*")
+            (read-only-mode -1)
+            (erase-buffer)
+            (insert (format "Search results for: \"%s\"\n\n" search-term))
+            (dolist (result (reverse results))
+              (insert (format "- %s: %s\n" (car result) (cdr result))))
+            (goto-char (point-min))
+            (read-only-mode 1)
+            (switch-to-buffer (current-buffer)))
+        (message "No matches found for \"%s\"" search-term)))))
+
+(defun my/denote-recent-notes (n)
+  "Open one of N most recently modified notes."
+  (interactive "p")
+  (let* ((files (directory-files my-notes-dir t "\\.org$"))
+         (sorted (sort files (lambda (a b)
+                              (time-less-p (nth 5 (file-attributes b))
+                                          (nth 5 (file-attributes a))))))
+         (recent (seq-take sorted (or n 10)))
+         (choice (completing-read "Recent note: "
+                                 (mapcar #'file-name-nondirectory recent))))
+    (find-file (car (seq-filter (lambda (f)
+                                  (string= (file-name-nondirectory f) choice))
+                                recent)))))
+
 ;; --- FUNKCJA: Shortcuts (jeden plik) ---
 (defun my/denote-skroty ()
   "Otwórz/utwórz plik shortcuts i przejdź do nagłówka."
@@ -1238,49 +1282,7 @@ Preserves all your existing manual notes and edits."
     ("q" "Quit" transient-quit-one)
     ("?" "Help" describe-mode)]])
 
-;;; --- FUNCJA: Journal search ---
-(defun my/journal-search ()
-  "Search through journal files only."
-  (interactive)
-  (let* ((search-term (read-string "Search journals: "))
-         (journal-files (directory-files my-notes-dir t ".*journal.*\\.org$"))
-         (results '()))
-    (if (not journal-files)
-        (message "No journal files found!")
-      (dolist (file journal-files)
-        (with-temp-buffer
-          (insert-file-contents file)
-          (goto-char (point-min))
-          (while (search-forward search-term nil t)
-            (let ((line (buffer-substring-no-properties
-                         (line-beginning-position)
-                         (line-end-position))))
-              (push (cons (file-name-nondirectory file) line) results)))))
-      (if results
-          (with-current-buffer (get-buffer-create "*Journal Search*")
-            (read-only-mode -1)
-            (erase-buffer)
-            (insert (format "Search results for: \"%s\"\n\n" search-term))
-            (dolist (result (reverse results))
-              (insert (format "- %s: %s\n" (car result) (cdr result))))
-            (goto-char (point-min))
-            (read-only-mode 1)
-            (switch-to-buffer (current-buffer)))
-        (message "No matches found for \"%s\"" search-term)))))
 
-(defun my/denote-recent-notes (n)
-  "Open one of N most recently modified notes."
-  (interactive "p")
-  (let* ((files (directory-files my-notes-dir t "\\.org$"))
-         (sorted (sort files (lambda (a b)
-                              (time-less-p (nth 5 (file-attributes b))
-                                          (nth 5 (file-attributes a))))))
-         (recent (seq-take sorted (or n 10)))
-         (choice (completing-read "Recent note: "
-                                 (mapcar #'file-name-nondirectory recent))))
-    (find-file (car (seq-filter (lambda (f)
-                                  (string= (file-name-nondirectory f) choice))
-                                recent)))))
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
