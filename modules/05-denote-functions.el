@@ -984,7 +984,7 @@ Returns template content as string."
 ;; ============================================================
 (defun my/readwise-to-literature ()
   "Process readwise-raw.org into individual literature notes.
-Safe version with nil checks and better error handling."
+Reads raw file content without org-mode formatting."
   (interactive)
   (let* ((raw-file (expand-file-name "readwise-raw.org" my/notes-dir))
          (processed-count 0)
@@ -995,61 +995,88 @@ Safe version with nil checks and better error handling."
     
     (message "🔄 Przetwarzam readwise-raw.org...")
     
-    (with-current-buffer (find-file-noselect raw-file)
+    ;; Use temporary buffer with RAW content (no org-mode formatting!)
+    (with-temp-buffer
+      (insert-file-contents raw-file)
       (goto-char (point-min))
       
-      (while (re-search-forward "^\\* \\(.+\\)$" nil t)
+      ;; Now search for ** (raw file content)
+      (while (re-search-forward "^\\* \\([^*].*\\)$" nil t)
         (let* ((title (match-string 1))
-               (title-clean (if title 
-                                (replace-regexp-in-string "^[ \t]+" "" title)
-                              "Bez tytułu"))
+               (title-clean (string-trim title))
                (entry-start (point))
-               entry-end author category url book-id highlights)
+               entry-end author category url book-id highlights-list)
           
           (save-excursion
-            (if (re-search-forward "^\\* " nil t)
+            ;; Find end of this book entry
+            (if (re-search-forward "^\\* [^*]" nil t)
                 (setq entry-end (match-beginning 0))
               (setq entry-end (point-max)))
             
+            ;; Extract book properties
             (goto-char entry-start)
-            (when (re-search-forward ":ID: *\\(.+\\)$" entry-end t)
-              (setq book-id (string-trim (match-string 1))))
+            (when (re-search-forward "^:ID: *\\([0-9]+\\)" entry-end t)
+              (setq book-id (match-string 1)))
             
             (goto-char entry-start)
-            (when (re-search-forward ":AUTHOR: *\\(.+\\)$" entry-end t)
+            (when (re-search-forward "^:AUTHOR: *\\(.+\\)$" entry-end t)
               (setq author (string-trim (match-string 1))))
             
             (goto-char entry-start)
-            (when (re-search-forward ":CATEGORY: *\\(.+\\)$" entry-end t)
+            (when (re-search-forward "^:CATEGORY: *\\(.+\\)$" entry-end t)
               (setq category (string-trim (match-string 1))))
             
             (goto-char entry-start)
-            (when (re-search-forward ":URL: *\\(.+\\)$" entry-end t)
+            (when (re-search-forward "^:URL: *\\(.+\\)$" entry-end t)
               (setq url (string-trim (match-string 1))))
             
+            ;; Extract highlights (** Highlight in raw file)
             (goto-char entry-start)
-            (when (re-search-forward "^:END:\n" entry-end t)
-              (let ((content-start (point)))
-                (setq highlights (buffer-substring-no-properties content-start entry-end))
-                (when highlights
-                  (setq highlights (string-trim highlights))
-                  (when (string-empty-p highlights)
-                    (setq highlights nil))))))
+            (while (re-search-forward "^\\*\\* Highlight$" entry-end t)
+              (let ((highlight-start (point)))
+                ;; Skip properties drawer if exists
+                (when (looking-at "[\n\r]*:PROPERTIES:")
+                  (re-search-forward "^:END:$" entry-end t)
+                  (forward-line 1)
+                  (setq highlight-start (point)))
+                
+                ;; Get text until next ** Highlight or end of book
+                (let ((highlight-end (if (re-search-forward "^\\*\\* Highlight$" entry-end t)
+                                         (match-beginning 0)
+                                       entry-end)))
+                  (let ((highlight-text (buffer-substring-no-properties 
+                                        highlight-start highlight-end)))
+                    (setq highlight-text (string-trim highlight-text))
+                    (when (not (string-empty-p highlight-text))
+                      (push highlight-text highlights-list)))
+                  (goto-char highlight-end)))))
           
-          (unless (or (not book-id) (not highlights))
+          ;; Validate and process
+          (cond
+           ((not book-id)
+            (message "⚠️  Pomijam '%s' (brak ID)" title-clean)
+            (setq skipped-count (1+ skipped-count)))
+           
+           ((not highlights-list)
+            (message "⚠️  Pomijam '%s' (brak podświetleń)" title-clean)
+            (setq skipped-count (1+ skipped-count)))
+           
+           (t
+            ;; Check if already processed
             (let ((already-exists nil))
               (dolist (file (directory-files my/notes-dir t "\\.org$"))
                 (ignore-errors
                   (with-temp-buffer
                     (insert-file-contents file)
                     (when (search-forward (format ":READWISE_ID: %s" book-id) nil t)
-                      (setq already-exists file)))))
+                      (setq already-exists t)))))
               
               (if already-exists
                   (progn
                     (message "⏭️  Pomijam '%s' (już przetworzono)" title-clean)
                     (setq skipped-count (1+ skipped-count)))
                 
+                ;; Create literature note
                 (condition-case err
                     (let* ((author-final (or author "Nieznany Autor"))
                            (note-title (format "%s - %s" author-final title-clean))
@@ -1076,21 +1103,30 @@ Safe version with nil checks and better error handling."
                         (insert (format ":CATEGORY: %s\n" (or category "book")))
                         (insert (format ":READWISE_ID: %s\n" book-id))
                         (insert (format ":IMPORT_DATE: %s\n" (format-time-string "[%Y-%m-%d %a]")))
-                        (insert ":END:\n\n* O książce\n\n")
+                        (insert ":END:\n\n")
+                        
+                        (insert "* O książce\n\n")
                         (when (and url (not (string-empty-p url)))
                           (insert (format "Źródło: [[%s][Zobacz na Readwise]]\n\n" url)))
+                        
                         (insert "* Cytaty\n\n")
-                        (when highlights (insert highlights))
-                        (insert "\n\n* Główna teza\n\n* Kluczowe koncepty\n\n* Argumenty\n\n* Moje pytania\n\n* Powiązane notatki\n\n"))
+                        (dolist (highlight (reverse highlights-list))
+                          (insert (format "- %s\n\n" highlight)))
+                        
+                        (insert "* Główna teza\n\n")
+                        (insert "* Kluczowe koncepty\n\n")
+                        (insert "* Argumenty\n\n")
+                        (insert "* Moje pytania\n\n")
+                        (insert "* Powiązane notatki\n\n"))
                       
                       (setq processed-count (1+ processed-count))
-                      (message "✅ Utworzono: %s" note-title))
+                      (message "✅ Utworzono: %s (%d cytatów)" note-title (length highlights-list)))
                   
                   (error
                    (message "❌ BŁĄD przy '%s': %s" title-clean (error-message-string err))
                    (setq skipped-count (1+ skipped-count))))))))))
     
-    (message "✅ Przetworzono: %d | ⏭️  Pominięto: %d"
+    (message "✅ Przetworzono: %d książek | ⏭️  Pominięto: %d"
              processed-count skipped-count)))
 
 (defun my/denote-article ()
