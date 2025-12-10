@@ -1248,14 +1248,14 @@ Preserves all your existing manual notes and edits."
     ("A" "Link after create" denote-link-after-creating)]]
 
     ["Readwise"
-   ("w s" "Sync highlights" org-readwise-sync)
-   ("w p" "Process to notes" my/readwise-to-literature)
-   ("w u" "Update existing" my/readwise-update-existing-notes)
-   ("w a" "New article" my/denote-article)
-   ("w o" "Open raw file"
-    (lambda ()
-      (interactive)
-      (find-file (expand-file-name "readwise-raw.org" my/notes-dir))))]
+     ("w s" "Sync highlights" org-readwise-sync)
+     ("w u" "Update existing" my/readwise-update-existing-notes)
+     ("w p" "Process to notes" my/readwise-to-literature)
+     ("w a" "New article" my/denote-article)
+     ("w o" "Open raw file"
+      (lambda ()
+	(interactive)
+	(find-file (expand-file-name "readwise-raw.org" my/notes-dir))))]
   
   ["Management"
    ["Rename & Tags"
