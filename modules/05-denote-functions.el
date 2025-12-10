@@ -993,7 +993,7 @@ Uses 2-second delays to maintain standard Denote ID format."
          (skipped-count 0))
     
     (unless (file-exists-p raw-file)
-      (error "readwise-raw.org not found! Run sync first (C-c n w s)"))
+      (error "A readwise-raw.org not found! Run sync first (C-c n w s)"))
     
     (message "🔄 Przetwarzam readwise-raw.org...")
     
@@ -1149,7 +1149,7 @@ Preserves all your existing manual notes and edits."
          (total-new-highlights 0))
     
     (unless (file-exists-p raw-file)
-      (error "readwise-raw.org not found! Run sync first (C-c n w s)"))
+      (error "A readwise-raw.org not found! Run sync first (C-c n w s)"))
     
     (message "🔄 Sprawdzam nowe podświetlenia...")
     
@@ -1191,8 +1191,8 @@ Preserves all your existing manual notes and edits."
                 (let ((highlight-end (if (re-search-forward "^\\*\\* Highlight$" entry-end t)
                                          (match-beginning 0)
                                        entry-end)))
-                  (let ((highlight-text (string-trim 
-                                        (buffer-substring-no-properties 
+                  (let ((highlight-text (string-trim
+                                        (buffer-substring-no-properties
                                          highlight-start highlight-end))))
                     (when (not (string-empty-p highlight-text))
                       (push highlight-text new-highlights)))
@@ -1240,14 +1240,14 @@ Preserves all your existing manual notes and edits."
                           (when (> added-count 0)
                             (save-buffer)
                             (setq updated-count (1+ updated-count))
-                            (message "✅ Dodano %d nowych cytatów do: %s" 
+                            (message "✅ Dodano %d nowych cytatów do: %s"
                                     added-count (file-name-nondirectory existing-file))))
                       
-                      (message "⚠️  Brak sekcji '* Cytaty' w: %s" 
+                      (message "⚠️  Brak sekcji '* Cytaty' w: %s"
                               (file-name-nondirectory existing-file))))))))))))
     
     (if (> updated-count 0)
-        (message "✅ Zaktualizowano %d notatek! Dodano łącznie %d nowych cytatów." 
+        (message "✅ Zaktualizowano %d notatek! Dodano łącznie %d nowych cytatów."
                  updated-count total-new-highlights)
       (message "ℹ️  Brak nowych cytatów do dodania"))))
 
