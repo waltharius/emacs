@@ -78,7 +78,6 @@
   (load (concat modules-dir "09-themes-gallery.el"))
   (load (concat modules-dir "10-org-formatting.el"))
   (load (concat modules-dir "11-org-journal.el"))
-  (load (concat modules-dir "12-readwise.el"))
   (load (concat modules-dir "13-project-management.el"))
   (load (concat modules-dir "14-transient-menus.el"))
   (load (concat modules-dir "03b-fonts.el"))
