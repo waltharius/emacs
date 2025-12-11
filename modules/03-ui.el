@@ -140,6 +140,12 @@
                 mode-line-misc-info
                 mode-line-end-spaces))
 
+;; Zmiana wyglądu bloków cytatów w Org-mode
+(custom-set-faces
+ '(org-block-begin-line ((t (:background "#f0f0f0" :foreground "#888888" :slant italic))))
+ '(org-block ((t (:background "#fffef7" :extend t))))
+ '(org-block-end-line ((t (:background "#f0f0f0" :foreground "#888888" :slant italic)))))
+(setq org-fontify-quote-and-verse-blocks t)
 
 (provide '03-ui)
 ;;; 03-ui.el ends here
