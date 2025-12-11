@@ -16,7 +16,7 @@
 (use-package desktop
   :ensure nil
   :init
-  (setq desktop-dirname             "~/.emacs.d/desktop/"
+  (setq desktop-dirname             "~/.emacs.d.vanilla/desktop/"
         desktop-base-file-name      "emacs-desktop"
         desktop-base-lock-name      "lock"
         desktop-path               (list desktop-dirname)
@@ -35,7 +35,7 @@
 
 ;; --- Zapamiętywanie pozycji kursora ---
 (save-place-mode 1)
-(setq save-place-file "~/.emacs.d/saveplace")
+(setq save-place-file "~/.emacs.d.vanilla/saveplace")
 
 ;; --- Hard wrap na 80 znaków dla org-mode ---
 (add-hook 'org-mode-hook (lambda ()
@@ -46,7 +46,7 @@
 (defun open-init-el-bottom-split ()
   "Otwórz ~/.emacs.d/init.el w dolnej połowie okna."
   (interactive)
-  (let ((init-file (expand-file-name "~/.emacs.d/init.el")))
+  (let ((init-file (expand-file-name "~/.emacs.d.vanilla/init.el")))
     (split-window-below)
     (other-window 1)
     (find-file init-file)))
