@@ -1,5 +1,5 @@
 ;;; 03-ui.el --- UI settings and desktop save mode  -*- lexical-binding: t; -*-
-;;
+;;; Commentary:
 ;; Description: Ustawienia interfejsu, desktop-save-mode,
 ;;              save-place-mode, auto-fill dla org-mode
 ;;
@@ -16,7 +16,7 @@
 (use-package desktop
   :ensure nil
   :init
-  (setq desktop-dirname             "~/.emacs.d.vanilla/desktop/"
+  (setq desktop-dirname             "~/.emacs.d/desktop/"
         desktop-base-file-name      "vanilla-desktop"
         desktop-base-lock-name      "vanilla-desktop.lock"
         desktop-path               (list desktop-dirname)
@@ -35,7 +35,7 @@
 
 ;; --- Zapamiętywanie pozycji kursora ---
 (save-place-mode 1)
-(setq save-place-file "~/.emacs.d.vanilla/saveplace")
+(setq save-place-file "~/.emacs.d/saveplace")
 
 ;; --- Hard wrap na 80 znaków dla org-mode ---
 (add-hook 'org-mode-hook (lambda ()
@@ -46,7 +46,7 @@
 (defun open-init-el-bottom-split ()
   "Otwórz ~/.emacs.d/init.el w dolnej połowie okna."
   (interactive)
-  (let ((init-file (expand-file-name "~/.emacs.d.vanilla/init.el")))
+  (let ((init-file (expand-file-name "~/.emacs.d/init.el")))
     (split-window-below)
     (other-window 1)
     (find-file init-file)))
@@ -73,7 +73,7 @@
 
 ;; --- Desktop-save: wyłącz flyspell przed zapisem sesji ---
 (defun my/disable-flyspell-before-desktop-save ()
-  "Wyłącz flyspell-mode we wszystkich buforach przed zapisem sesji."
+  "Wyłącz 'flyspell-mode' we wszystkich buforach przed zapisem sesji."
   (dolist (buf (buffer-list))
     (with-current-buffer buf
       (when (bound-and-true-p flyspell-mode)
@@ -111,7 +111,7 @@
   (setq tab-bar-show t)                       ;; Pokaż bar ZAWSZE, nawet gdy tylko 1
   (setq tab-bar-new-tab-choice "*scratch*")   ;; Nowy tab = scratch
   (setq tab-bar-close-button-show t)          ;; POKAŻ przycisk X
-  (setq tab-bar-new-button-show t))           ;; POKAŻ przycisk +
+  (setq tab-bar-format t))                    ;; POKAŻ przycisk +
 
 ;; --- Word count w modeline (PRZED nazwą pliku) ---
 (defun my/word-count-modeline ()

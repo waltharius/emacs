@@ -30,10 +30,10 @@ Used by: Denote core, Dashboard, Folgezettel, all note functions.")
 (defvar my/notes-autosaves-dir (expand-file-name "~/notes/.autosaves/")
   "Autosave directory for notes files.")
 
-(defvar my/emacs-backups-dir (expand-file-name "~/.emacs.d.vanilla/backups/")
+(defvar my/emacs-backups-dir (expand-file-name "~/.emacs.d/backups/")
   "Backup directory for Emacs config files.")
 
-(defvar my/emacs-autosaves-dir (expand-file-name "~/.emacs.d.vanilla/autosaves/")
+(defvar my/emacs-autosaves-dir (expand-file-name "~/.emacs.d/autosaves/")
   "Autosave directory for Emacs config files.")
 
 (defvar my/emacs-undo-tree-dir
@@ -226,7 +226,7 @@ Values: 'gnu/linux, 'windows-nt, 'darwin (macOS)")
 ;; --- Fleeeting notes
 (defvar my-denote-keywords
   '("zettel" "osoba" "projekt" "journal" "lektura"
-    "filozof" "fleeting" "esej" "skróty")  ; Dodaj "fleeting"
+    "filozof" "fleeting" "esej" "skróty")
   "Available keywords/tags for Denote notes.")
 
 (provide '00-variables)

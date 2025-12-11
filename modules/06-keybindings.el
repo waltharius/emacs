@@ -114,7 +114,7 @@
 (global-set-key (kbd "C-c W") 'my/window-transient-menu)
 
 ;; Themes switcher for modus theme light and darl
-(global-set-key (kbd "C-c T") 'my/toggle-modus-theme)
+(global-set-key (kbd "C-c M") 'my/toggle-modus-theme)
 
 
 ;; Recent notes keybinding
