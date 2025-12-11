@@ -110,7 +110,7 @@
   :config
   (setq tab-bar-show t)                       ;; Pokaż bar ZAWSZE, nawet gdy tylko 1
   (setq tab-bar-new-tab-choice "*scratch*")   ;; Nowy tab = scratch
-  (setq tab-bar-close-button-show t)          ;; POKAŻ przycisk X
+  (setq tab-bar-close-button-show t))          ;; POKAŻ przycisk X
 
 ;; --- Word count w modeline (PRZED nazwą pliku) ---
 (defun my/word-count-modeline ()
@@ -146,6 +146,23 @@
  '(org-block-begin-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9))))
  '(org-block-end-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9)))))
 (setq org-fontify-quote-and-verse-blocks t)
+
+;; Zamień znaczniki bloków na symbole Unicode
+(setq-default prettify-symbols-alist
+              '(("#+BEGIN_QUOTE" . "❝")  ; lewy cudzysłów
+                ("#+END_QUOTE" . "❞")    ; prawy cudzysłów
+                ("#+begin_quote" . "❝")
+                ("#+end_quote" . "❞")
+                ("#+BEGIN_SRC" . "λ")    ; dla bloków kodu
+                ("#+END_SRC" . "λ")
+                ("#+begin_src" . "λ")
+                ("#+end_src" . "λ")))
+
+;; Pokaż prawdziwy tekst gdy kursor jest obok
+(setq prettify-symbols-unprettify-at-point 'right-edge)
+
+;; Włącz dla Org-mode
+(add-hook 'org-mode-hook 'prettify-symbols-mode)
 
 (provide '03-ui)
 ;;; 03-ui.el ends here
