@@ -1168,8 +1168,9 @@ Preserves all your existing manual notes and edits."
                                     added-count (file-name-nondirectory existing-file))))
                       
                       (message "⚠️  Brak sekcji '* Cytaty' w: %s"
-                              (file-name-nondirectory existing-file))))))))))))
+                              (file-name-nondirectory existing-file))))))))))
     
+    ;; Final message INSIDE the let* block
     (if (> updated-count 0)
         (message "✅ Zaktualizowano %d notatek! Dodano łącznie %d nowych cytatów."
                  updated-count total-new-highlights)
@@ -1250,7 +1251,7 @@ Preserves all your existing manual notes and edits."
   ["Readwise Integration"
    ["Readwise Sync"
     ("ws" "Sync highlights" org-readwise-sync)
-   ;; ("wu" "Update existing" my/readwise-update-existing-notes)
+    ("wu" "Update existing" my/readwise-update-existing-notes)
     ("wp" "Process to notes" my/readwise-to-literature)
     ("wa" "New article" my/denote-article)
     ("wo" "Open raw file"
