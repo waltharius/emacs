@@ -141,12 +141,11 @@
 
 ;; Zmiana wyglądu bloków cytatów w Org-mode
 (custom-set-faces
- '(org-block-begin-line ((t (:background nil :foreground "#cccccc" 
-                             :height 0.7))))
- '(org-block ((t (:background "#fafafa" :extend t 
-                  :box (:line-width 1 :color "#e0e0e0")))))
- '(org-block-end-line ((t (:background nil :foreground "#cccccc" 
-                           :height 0.7)))))
+ '(org-block-begin-line ((t (:background "#f5f5f5" :foreground "#999999"
+                             :slant italic :height 0.85))))
+ '(org-block ((t (:background "#fefcf5" :extend t))))
+ '(org-block-end-line ((t (:background "#f5f5f5" :foreground "#999999"
+                           :slant italic :height 0.85)))))
 (setq org-fontify-quote-and-verse-blocks t)
 
 ;; Zamień znaczniki bloków na symbole Unicode
