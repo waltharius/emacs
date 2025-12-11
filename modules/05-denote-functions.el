@@ -1214,7 +1214,7 @@ Preserves all your existing manual notes and edits."
 
 (transient-define-prefix my/notes-transient-menu ()
   "Denote notes - all functions (verified from keybindings)"
-  ["Denote Notes"
+  ["Denote Notes - Main Menu"
    ["Create Basic"
     ("n" "New note" denote)
     ("j" "Journal today" my/denote-journal)
@@ -1223,14 +1223,14 @@ Preserves all your existing manual notes and edits."
     ("o" "Person" my/denote-osoba)
     ("b" "Base note" my/denote-base)
     ("p" "Project" my/denote-create-project)
-    ("s" "Shortcut" my/denote-skroty)
-    ("q" "Fleeting quote" my/fleeting-quote)
-    ("Q" "Smart fleeting quote" my/fleeting-quote-smart)]
+    ("s" "Shortcut" my/denote-skroty)]
    
    ["Create Advanced"
     ("P" "Philosopher" my/denote-philosopher)
     ("L" "Literature" my/denote-literature)
     ("E" "Essay" my/denote-essay)
+    ("q" "Fleeting quote" my/fleeting-quote)
+    ("Q" "Smart fleeting quote" my/fleeting-quote-smart)
     ("Z" "Smart Zettel" my/denote-zettel-smart)]
    
    ["Search & Find"
@@ -1246,18 +1246,19 @@ Preserves all your existing manual notes and edits."
     ("B" "Backlinks" denote-backlinks)
     ("l" "Add links" denote-add-links)
     ("A" "Link after create" denote-link-after-creating)]]
-
-    ["Readwise"
-     ("w s" "Sync highlights" org-readwise-sync)
-     ("w u" "Update existing" my/readwise-update-existing-notes)
-     ("w p" "Process to notes" my/readwise-to-literature)
-     ("w a" "New article" my/denote-article)
-     ("w o" "Open raw file"
-      (lambda ()
-	(interactive)
-	(find-file (expand-file-name "readwise-raw.org" my/notes-dir))))]
   
-  ["Management"
+  ["Readwise Integration"
+   ["Readwise Sync"
+    ("ws" "Sync highlights" org-readwise-sync)
+   ;; ("wu" "Update existing" my/readwise-update-existing-notes)
+    ("wp" "Process to notes" my/readwise-to-literature)
+    ("wa" "New article" my/denote-article)
+    ("wo" "Open raw file"
+     (lambda ()
+       (interactive)
+       (find-file (expand-file-name "readwise-raw.org" my/notes-dir))))]]
+  
+  ["File Management"
    ["Rename & Tags"
     ("r" "Rename file" denote-rename-file)
     ("R" "Rename frontm." denote-rename-file-using-front-matter)
@@ -1278,11 +1279,9 @@ Preserves all your existing manual notes and edits."
     ("c" "Journal calendar" my/open-journal-calendar)
     ("u" "Roam UI graph" org-roam-ui-mode)]]
   
-  [["Navigation"
-    ("q" "Quit" transient-quit-one)
-    ("?" "Help" describe-mode)]])
-
-
+  ["Navigation"
+   ("q" "Quit" transient-quit-one)
+   ("?" "Help" describe-mode)])
 
 (provide '05-denote-functions)
 ;;; 05-denote-functions.el ends here
