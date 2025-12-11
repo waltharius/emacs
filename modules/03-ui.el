@@ -144,7 +144,7 @@
  '(org-quote ((t (:background "#f9f9f9" :slant italic :foreground "#555555"))))
  '(org-block ((t (:background "#fef8e0" :extend t :family "Georgia"))))
  '(org-block-begin-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9))))
- '(org-block-end-line ((t (:background "#e0e0e0" :foreground "#999999" :slant mono :height 0.9)))))
+ '(org-block-end-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9)))))
 (setq org-fontify-quote-and-verse-blocks t)
 
 ;; Zamień znaczniki bloków na symbole Unicode
