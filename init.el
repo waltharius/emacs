@@ -122,7 +122,5 @@
 
 ;;(setq auth-sources '("~/.authinfo.gpg"))
 
-(server-start)
-
 (provide 'init)
 ;;; init.el ends here
