@@ -120,7 +120,9 @@
 ;; Disable code execution during export
 (setq org-export-use-babel nil)
 
-(setq auth-sources '("~/.authinfo.gpg"))
+;;(setq auth-sources '("~/.authinfo.gpg"))
+
+(server-start)
 
 (provide 'init)
 ;;; init.el ends here
