@@ -27,6 +27,17 @@
 ;; PERFORMANCE: Garbage collection optimization (startup only)
 ;; ============================================================
 
+;;; === TYTUŁ OKNA dla przełączania ===
+
+(setq frame-title-format
+      '("Vanilla Emacs - " (:eval (if (buffer-file-name)
+                                       (file-name-nondirectory (buffer-file-name))
+                                     "%b"))))
+
+(add-hook 'after-init-hook
+          (lambda ()
+            (set-frame-parameter nil 'name "Vanilla Emacs")))
+
 (setq gc-cons-threshold most-positive-fixnum)  ; Disable GC during startup
 
 ;; Reset GC after startup (add to hook)

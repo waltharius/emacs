@@ -30,10 +30,10 @@ Used by: Denote core, Dashboard, Folgezettel, all note functions.")
 (defvar my/notes-autosaves-dir (expand-file-name "~/notes/.autosaves/")
   "Autosave directory for notes files.")
 
-(defvar my/emacs-backups-dir (expand-file-name "~/.emacs.d/backups/")
+(defvar my/emacs-backups-dir (expand-file-name "~/.emacs.d.vanilla/backups/")
   "Backup directory for Emacs config files.")
 
-(defvar my/emacs-autosaves-dir (expand-file-name "~/.emacs.d/autosaves/")
+(defvar my/emacs-autosaves-dir (expand-file-name "~/.emacs.d.vanilla/autosaves/")
   "Autosave directory for Emacs config files.")
 
 (defvar my/emacs-undo-tree-dir

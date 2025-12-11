@@ -17,8 +17,8 @@
   :ensure nil
   :init
   (setq desktop-dirname             "~/.emacs.d.vanilla/desktop/"
-        desktop-base-file-name      "emacs-desktop"
-        desktop-base-lock-name      "lock"
+        desktop-base-file-name      "vanilla-desktop"
+        desktop-base-lock-name      "vanilla-desktop.lock"
         desktop-path               (list desktop-dirname)
         desktop-save               t
         desktop-load-locked-desktop t)
