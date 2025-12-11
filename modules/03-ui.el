@@ -111,7 +111,6 @@
   (setq tab-bar-show t)                       ;; Pokaż bar ZAWSZE, nawet gdy tylko 1
   (setq tab-bar-new-tab-choice "*scratch*")   ;; Nowy tab = scratch
   (setq tab-bar-close-button-show t)          ;; POKAŻ przycisk X
-  (setq tab-bar-format t))                    ;; POKAŻ przycisk +
 
 ;; --- Word count w modeline (PRZED nazwą pliku) ---
 (defun my/word-count-modeline ()
@@ -142,9 +141,10 @@
 
 ;; Zmiana wyglądu bloków cytatów w Org-mode
 (custom-set-faces
- '(org-block-begin-line ((t (:background "#f0f0f0" :foreground "#888888" :slant italic))))
- '(org-block ((t (:background "#fffef7" :extend t))))
- '(org-block-end-line ((t (:background "#f0f0f0" :foreground "#888888" :slant italic)))))
+ '(org-quote ((t (:background "#f9f9f9" :slant italic :foreground "#555555"))))
+ '(org-block ((t (:background "#fef8e0" :extend t :family "Georgia"))))
+ '(org-block-begin-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9))))
+ '(org-block-end-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9)))))
 (setq org-fontify-quote-and-verse-blocks t)
 
 (provide '03-ui)
