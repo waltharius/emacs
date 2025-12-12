@@ -149,11 +149,11 @@
 
 ;; Zamień znaczniki bloków na symbole Unicode
 (setq-default prettify-symbols-alist
-              '(("#+BEGIN_QUOTE" . "💬")  ; lewy cudzysłów
-                ("#+END_QUOTE" . "💬")    ; prawy cudzysłów
+              '(("#+BEGIN_QUOTE" . "💬")
+                ("#+END_QUOTE" . "💬")
                 ("#+begin_quote" . "💬")
                 ("#+end_quote" . "💬")
-                ("#+BEGIN_SRC" . "λ")    ; dla bloków kodu
+                ("#+BEGIN_SRC" . "λ")
                 ("#+END_SRC" . "λ")
                 ("#+begin_src" . "λ")
                 ("#+end_src" . "λ")))
