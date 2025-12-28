@@ -952,7 +952,7 @@ Returns template content as string."
     ("r" "Rename file" denote-rename-file)
     ("R" "Rename frontm." denote-rename-file-using-front-matter)
     ("t" "Add keywords" denote-rename-file-keywords)
-    ("T" "Remove keywords" denote-keywords-remove)]
+    ("T" "Remove keywords" denote-rename-file-keywords)]
    
    ["Folgezettel"
     (">" "Zettel tree" my/denote-zettel-tree)
