@@ -951,7 +951,7 @@ Returns template content as string."
    ["Rename & Tags"
     ("r" "Rename file" denote-rename-file)
     ("R" "Rename frontm." denote-rename-file-using-front-matter)
-    ("t" "Add keywords" denote-keywords-add)
+    ("t" "Add keywords" denote-rename-file-keywords)
     ("T" "Remove keywords" denote-keywords-remove)]
    
    ["Folgezettel"
