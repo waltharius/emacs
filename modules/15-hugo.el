@@ -112,6 +112,7 @@ Handles acronyms and proper names like NixOS, SSH, UPS, etc."
                          ("gitlab" . "GitLab")
                          ("quadro" . "Quadro")
                          ("atuin" . "Atuin")
+                         ("run-or-rise" . "Run-or-Rise")
                          ))
         (title-words (split-string raw-title " " t)))
     
