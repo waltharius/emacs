@@ -79,16 +79,21 @@
         (make-directory cat-dir t)))))
 
 (defun hugo--file-has-hugosync-tag-p (file)
-  "Check if FILE has the hugosync tag."
+  "Check if FILE has the hugosync tag in filename or file content.
+Checks filename first (fast), then searches entire file header (thorough)."
   (when (and (file-exists-p file)
              (string-match-p "\\.org\\'" file))
-    (with-temp-buffer
-      (insert-file-contents file)
-      (goto-char (point-min))
-      (or (re-search-forward (format "\\b%s\\b" hugo-sync-tag) 
-                            (+ (point-min) 500) t)
-          (re-search-forward (format "^#\\+filetags:.*:%s:" hugo-sync-tag)
-                            (+ (point-min) 500) t)))))
+    (let ((file-name (file-name-nondirectory file)))
+      ;; Method 1: Check filename (Denote standard: __tag1_tag2.org)
+      (or (string-match-p (format "\\b%s\\b" hugo-sync-tag) file-name)
+          ;; Method 2: Check file content (search entire header, not just 500 chars)
+          (with-temp-buffer
+            (insert-file-contents file nil nil 2000)  ; Read first 2000 chars
+            (goto-char (point-min))
+            ;; Look for #+filetags: :tag1:hugosync:tag2:
+            (re-search-forward (format "^#\\+filetags:.*:%s:" hugo-sync-tag)
+                              nil t))))))
+
 
 (defun hugo--determine-category (file)
   "Determine category for FILE based on its tags/keywords."
