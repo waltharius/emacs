@@ -20,6 +20,7 @@
 ;;   - modules/21-readwise            : Integracja z serwisem readwise.io
 ;;   - modules/13-project-management  : Org-agenda, kanban, time tracking
 ;;   - modules/14-transient-menus     : Unified transient menus
+;;   - modules/15-hugo.el             : hugo module for documentation
 ;;
 ;;; Code:
 
@@ -92,6 +93,7 @@
   (load (concat modules-dir "13-project-management.el"))
   (load (concat modules-dir "14-transient-menus.el"))
   (load (concat modules-dir "03b-fonts.el"))
+  (load (concat modules-dir "15-hugo.el"))
 ;;  (load (concat modules-dir "15-sidebars.el"))
   
   ;; ← 06-keybindings.el MUST BE LAST (after all function definitions)
