@@ -384,25 +384,36 @@ Checks for 'deprecated' tag first, then uses weighted scoring."
             by-category)))
 
 (defun hugo-create-category-index ()
-  "Create _index.md files for all categories."
+  "Create _index.md files for all categories with proper collapse settings."
   (interactive)
   
   (let ((category-info
-         '(("infrastructure" 
-            "Infrastructure & Homelab"
-            "Server infrastructure, virtualization, networking, and homelab setup documentation.")
+         '(("deprecated"
+            "⚠️ Deprecated Documentation"
+            "Archived documentation that may be outdated but kept for reference."
+            99)  ;; Weight (higher = lower in list)
+           
+           ("infrastructure" 
+            "🏗️ Infrastructure & Homelab"
+            "Server infrastructure, virtualization, networking, and homelab setup documentation."
+            10)
+           
            ("systems"
-            "Operating Systems"
-            "Linux distributions, NixOS configurations, system administration, and OS-level configurations.")
+            "🐧 Operating Systems"
+            "Linux distributions, NixOS configurations, system administration, and OS-level configurations."
+            20)
+           
            ("tools"
-            "Development Tools"
-            "Editors, terminal tools, version control, and development environment configurations."))))
+            "🛠️ Development Tools"
+            "Editors, terminal tools, version control, and development environment configurations."
+            30))))
     
     (dolist (cat-entry hugo-category-keywords)
       (let* ((category (car cat-entry))
              (info (assoc category category-info))
              (display-name (if info (nth 1 info) (capitalize category)))
              (description (if info (nth 2 info) "Documentation"))
+             (weight (if info (nth 3 info) 50))
              (cat-dir (expand-file-name category hugo-content-dir))
              (index-file (expand-file-name "_index.md" cat-dir)))
         
@@ -412,15 +423,16 @@ Checks for 'deprecated' tag first, then uses weighted scoring."
         (with-temp-file index-file
           (insert "---\n")
           (insert "title: \"" display-name "\"\n")
-          (insert "weight: 10\n")
+          (insert "weight: " (number-to-string weight) "\n")
           (insert "bookFlatSection: false\n")
-          (insert "bookCollapseSection: false\n")
+          (insert "bookCollapseSection: true\n")  ;; ← COLLAPSED BY DEFAULT!
           (insert "bookToc: true\n")
           (insert "---\n\n")
           (insert "# " display-name "\n\n")
           (insert description "\n"))
         
         (message "✓ Created category index: %s" category)))))
+
 
 (defun hugo-add-sync-tag-to-documented-notes ()
   "Add :hugosync: tag to all notes with :docu: tag by renaming files."
