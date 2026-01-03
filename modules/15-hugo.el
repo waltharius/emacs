@@ -29,9 +29,13 @@
 ;; ============================================================
 ;; CATEGORY MAPPING - Three main documentation buckets
 ;; ============================================================
-
 (defvar hugo-category-keywords
-  '(;; INFRASTRUCTURE - Servers, networking, homelab
+  '(;; DEPRECATED - Old documentation (checked FIRST!)
+    ("deprecated" . (
+                     "deprecated" "obsolete" "archived" "old"
+                     ))
+    
+    ;; INFRASTRUCTURE - Servers, networking, homelab
     ("infrastructure" . (
                          "homelab" "server" "infrastructure" "hardware"
                          "proxmox" "vm" "lxc" "container" "virtualization"
@@ -64,7 +68,7 @@
                 "bash" "zsh" "fish" "shell" "script"
                 "docker" "kubernetes" "ci" "cd"
                 )))
-  "Three-tier category mapping for documentation organization.")
+  "Four-tier category mapping for documentation organization.")
 
 ;;;; Helper Functions
 
@@ -149,7 +153,7 @@ Checks filename first (fast), then searches entire file header (thorough)."
 
 (defun hugo--determine-category (file)
   "Determine category for FILE based on its tags/keywords.
-Uses weighted scoring: tool-specific keywords > infrastructure-specific > generic."
+Checks for 'deprecated' tag first, then uses weighted scoring."
   (let ((file-name (file-name-nondirectory file))
         (file-content "")
         (category-scores (make-hash-table :test 'equal)))
@@ -159,50 +163,57 @@ Uses weighted scoring: tool-specific keywords > infrastructure-specific > generi
       (insert-file-contents file nil nil 2000)
       (setq file-content (buffer-string)))
     
-    ;; Score each category based on keyword matches
-    (dolist (cat-entry hugo-category-keywords)
-      (let ((category (car cat-entry))
-            (keywords (cdr cat-entry))
-            (score 0))
-        
-        (dolist (keyword keywords)
-          (let ((weight 1))  ; Default weight
-            
-            ;; Assign higher weights to specific keywords
-            (cond
-             ;; Tool-specific keywords (highest priority)
-             ((member keyword '("tmux" "emacs" "denote" "vim" "neovim" "atuin" "git"))
-              (setq weight 10))
-             
-             ;; Infrastructure-specific keywords
-             ((member keyword '("proxmox" "pfsense" "freeipa" "ups"))
-              (setq weight 8))
-             
-             ;; NixOS-specific keywords  
-             ((member keyword '("nixos" "nix" "flake" "flakes"))
-              (setq weight 7))
-             
-             ;; Generic keywords (lowest priority)
-             ((member keyword '("linux" "docu" "documentation"))
-              (setq weight 1)))
-            
-            ;; Check filename and content for keyword
-            (when (or (string-match-p (regexp-quote keyword) file-name)
-                      (string-match-p (format "\\b%s\\b" keyword) file-content))
-              (setq score (+ score weight))))
+    ;; PRIORITY CHECK: If deprecated tag exists, use that category immediately
+    (if (or (string-match-p "\\bdeprecated\\b" file-name)
+            (string-match-p "\\bdeprecated\\b" file-content))
+        "deprecated"
+      
+      ;; Otherwise, use weighted scoring
+      (dolist (cat-entry hugo-category-keywords)
+        (let ((category (car cat-entry))
+              (keywords (cdr cat-entry))
+              (score 0))
           
-          (puthash category score category-scores))))
-    
-    ;; Return category with highest score
-    (let ((best-category "tools")  ; Default
-          (best-score 0))
-      (maphash (lambda (cat score)
-                 (when (> score best-score)
-                   (setq best-category cat
-                         best-score score)))
-               category-scores)
-      best-category)))
-
+          ;; Skip deprecated category in scoring (already checked above)
+          (unless (string= category "deprecated")
+            
+            (dolist (keyword keywords)
+              (let ((weight 1))
+                
+                ;; Assign higher weights to specific keywords
+                (cond
+                 ;; Tool-specific keywords (highest priority)
+                 ((member keyword '("tmux" "emacs" "denote" "vim" "neovim" "atuin" "git"))
+                  (setq weight 10))
+                 
+                 ;; Infrastructure-specific keywords
+                 ((member keyword '("proxmox" "pfsense" "freeipa" "ups"))
+                  (setq weight 8))
+                 
+                 ;; NixOS-specific keywords  
+                 ((member keyword '("nixos" "nix" "flake" "flakes"))
+                  (setq weight 7))
+                 
+                 ;; Generic keywords (lowest priority)
+                 ((member keyword '("linux" "docu" "documentation"))
+                  (setq weight 1)))
+                
+                ;; Check filename and content for keyword
+                (when (or (string-match-p (regexp-quote keyword) file-name)
+                          (string-match-p (format "\\b%s\\b" keyword) file-content))
+                  (setq score (+ score weight))))
+              
+              (puthash category score category-scores))))
+      
+      ;; Return category with highest score
+      (let ((best-category "tools")
+            (best-score 0))
+        (maphash (lambda (cat score)
+                   (when (> score best-score)
+                     (setq best-category cat
+                           best-score score)))
+                 category-scores)
+        best-category))))
 
 (defun hugo--extract-note-metadata (file)
   "Extract metadata from Denote note FILE."
