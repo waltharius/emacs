@@ -78,6 +78,58 @@
       (unless (file-directory-p cat-dir)
         (make-directory cat-dir t)))))
 
+(defun hugo--format-title (raw-title)
+  "Format RAW-TITLE with proper capitalization and special cases.
+Handles acronyms and proper names like NixOS, SSH, UPS, etc."
+  (let ((special-words '(("nixos" . "NixOS")
+                         ("tmux" . "Tmux")
+                         ("emacs" . "Emacs")
+                         ("dns" . "DNS")
+                         ("ssh" . "SSH")
+                         ("ups" . "UPS")
+                         ("iso" . "ISO")
+                         ("lxc" . "LXC")
+                         ("vm" . "VM")
+                         ("vpn" . "VPN")
+                         ("ssl" . "SSL")
+                         ("tls" . "TLS")
+                         ("dhcp" . "DHCP")
+                         ("btrfs" . "Btrfs")
+                         ("zfs" . "ZFS")
+                         ("usb" . "USB")
+                         ("api" . "API")
+                         ("cli" . "CLI")
+                         ("gui" . "GUI")
+                         ("pfsense" . "pfSense")
+                         ("freeipa" . "FreeIPA")
+                         ("nvidia" . "NVIDIA")
+                         ("fedora" . "Fedora")
+                         ("proxmox" . "Proxmox")
+                         ("gnome" . "GNOME")
+                         ("kde" . "KDE")
+                         ("xfce" . "XFCE")
+                         ("github" . "GitHub")
+                         ("gitlab" . "GitLab")
+                         ("quadro" . "Quadro")
+                         ("atuin" . "Atuin")
+                         ))
+        (title-words (split-string raw-title " " t)))
+    
+    ;; Capitalize each word
+    (setq title-words (mapcar #'capitalize title-words))
+    
+    ;; Replace special words with proper forms
+    (setq title-words
+          (mapcar (lambda (word)
+                    (let ((lower-word (downcase word)))
+                      (or (cdr (assoc lower-word special-words))
+                          word)))
+                  title-words))
+    
+    ;; Join back together
+    (mapconcat #'identity title-words " ")))
+
+
 (defun hugo--file-has-hugosync-tag-p (file)
   "Check if FILE has the hugosync tag in filename or file content.
 Checks filename first (fast), then searches entire file header (thorough)."
@@ -162,11 +214,12 @@ Uses weighted scoring: tool-specific keywords > infrastructure-specific > generi
                         (substring identifier 0 4)
                         (substring identifier 4 6)
                         (substring identifier 6 8))))
-    
+
     (when (string-match "--\\(.+?\\)__" file-name)
-      (setq title (replace-regexp-in-string 
-                   "-" " "
-                   (match-string 1 file-name))))
+      (let ((raw-title (replace-regexp-in-string
+                    "-" " "
+                    (match-string 1 file-name))))
+        (setq title (hugo--format-title raw-title))))
     
     (when (string-match "__\\(.+\\)\\.org$" file-name)
       (setq tags (split-string (match-string 1 file-name) "_")))
