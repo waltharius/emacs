@@ -375,6 +375,97 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
 (when hugo-auto-process-on-save
   (add-hook 'after-save-hook #'hugo--maybe-process-on-save))
 
+(defun hugo-add-sync-tag-to-documented-notes ()
+  "Add :hugosync: tag to all notes with :docu: tag by renaming files."
+  (interactive)
+  
+  (let ((notes-to-process '())
+        (notes-already-synced '()))
+    
+    ;; Scan all notes
+    (dolist (file (denote-directory-files))
+      (when (string-match-p "\\.org\\'" file)
+        (let ((name (file-name-nondirectory file)))
+          (cond
+           ;; Has docu but not hugosync
+           ((and (string-match-p "\\bdocu\\b" name)
+                 (not (string-match-p "\\bhugosync\\b" name)))
+            (push file notes-to-process))
+           ;; Already has both
+           ((and (string-match-p "\\bdocu\\b" name)
+                 (string-match-p "\\bhugosync\\b" name))
+            (push file notes-already-synced))))))
+    
+    ;; Show preview
+    (if (null notes-to-process)
+        (message "No notes found with :docu: tag missing :hugosync:")
+      
+      (let ((preview-buffer (get-buffer-create "*Hugo Sync Preview*")))
+        (with-current-buffer preview-buffer
+          (erase-buffer)
+          (insert "Notes that will get :hugosync: tag:\n\n")
+          (dolist (file (reverse notes-to-process))
+            (insert "  • " (file-name-nondirectory file) "\n"))
+          (insert (format "\nTotal: %d notes\n" (length notes-to-process)))
+          (when notes-already-synced
+            (insert (format "Already synced: %d notes\n" 
+                           (length notes-already-synced))))
+          (goto-char (point-min))
+          (special-mode))
+        
+        (pop-to-buffer preview-buffer)
+        
+        ;; Ask for confirmation
+        (when (yes-or-no-p (format "Add :hugosync: to %d notes? " 
+                                   (length notes-to-process)))
+          (let ((success 0)
+                (errors 0))
+            
+            (dolist (file notes-to-process)
+              (condition-case err
+                  (let* ((dir (file-name-directory file))
+                         (name (file-name-nondirectory file))
+                         ;; Parse: 20251111T182255--title__tags.org
+                         (parsed (string-match 
+                                 "^\\([0-9T]+\\)--\\([^_]+\\)__\\(.+\\)\\.org$" 
+                                 name))
+                         new-name)
+                    
+                    (when parsed
+                      (let* ((timestamp (match-string 1 name))
+                             (title (match-string 2 name))
+                             (tags (match-string 3 name))
+                             ;; Add hugosync and sort tags alphabetically
+                             (tag-list (split-string tags "_"))
+                             (new-tag-list (sort (cons "hugosync" tag-list) 'string<))
+                             (new-tags (mapconcat 'identity new-tag-list "_")))
+                        
+                        (setq new-name (format "%s--%s__%s.org" 
+                                              timestamp title new-tags))
+                        
+                        ;; Rename the file
+                        (rename-file file (concat dir new-name))
+                        (message "✓ Renamed: %s" name)
+                        (setq success (1+ success)))))
+                
+                (error
+                 (message "✗ Error processing %s: %s" 
+                         (file-name-nondirectory file) err)
+                 (setq errors (1+ errors)))))
+            
+            (message "✓ Added :hugosync: to %d notes (%d errors)" 
+                     success errors)
+            (kill-buffer preview-buffer)
+            
+            ;; Refresh dired if open
+            (dolist (buf (buffer-list))
+              (with-current-buffer buf
+                (when (eq major-mode 'dired-mode)
+                  (revert-buffer))))))))))
+
+;; Add to keymap (if not already there)
+(define-key hugo-command-map (kbd "a") #'hugo-add-sync-tag-to-documented-notes)
+
 ;;;; Keybindings
 
 (defvar hugo-command-map
