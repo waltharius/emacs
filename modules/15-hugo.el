@@ -33,55 +33,39 @@
 (defvar hugo-category-keywords
   '(;; INFRASTRUCTURE - Servers, networking, homelab
     ("infrastructure" . (
-                         ;; Homelab and servers
                          "homelab" "server" "infrastructure" "hardware"
-                         ;; Virtualization
                          "proxmox" "vm" "lxc" "container" "virtualization"
-                         ;; Networking
                          "network" "networking" "dns" "dhcp" "vpn"
                          "pfsense" "firewall" "router" "routing" "vlan"
                          "freeipa" "ldap"
-                         ;; Hardware and power
                          "ups" "dell" "raid" "disk" "storage"
                          ))
     
     ;; SYSTEMS - Operating systems, distributions, configurations
     ("systems" . (
-                  ;; NixOS (priority over generic Linux)
                   "nixos" "nix" "flake" "flakes" "home-manager"
                   "configuration" "module" "modules" "iso"
                   "derivation" "channel" "generation"
-                  ;; Other Linux distributions
                   "linux" "fedora" "ubuntu" "debian" "arch"
-                  ;; Desktop environments
                   "gnome" "kde" "plasma" "xfce" "i3" "wayland" "x11"
-                  ;; System components
                   "kernel" "systemd" "grub" "boot" "bootloader"
                   "driver" "nvidia" "graphics"
-                  ;; Filesystems
                   "btrfs" "ext4" "zfs" "filesystem"
-                  ;; Recovery and maintenance
                   "recovery" "backup" "restore" "snapshot"
                   ))
     
     ;; TOOLS - Development tools, editors, utilities
     ("tools" . (
-                ;; Editors
                 "emacs" "elisp" "vim" "neovim" "vscode"
-                ;; Note-taking and documentation
                 "denote" "org" "orgmode" "org-mode" "markdown"
                 "hugo" "documentation" "docu"
-                ;; Terminal and multiplexers
                 "tmux" "screen" "terminal" "alacritty" "atuin"
-                ;; Version control
                 "git" "github" "gitlab" "magit"
-                ;; Shell and scripting
                 "bash" "zsh" "fish" "shell" "script"
-                ;; Development tools
                 "docker" "kubernetes" "ci" "cd"
                 )))
-  "Three-tier category mapping for documentation organization.
-Notes are automatically categorized based on keyword matching.")
+  "Three-tier category mapping for documentation organization.")
+
 ;;;; Helper Functions
 
 (defun hugo--ensure-directories ()
@@ -107,18 +91,15 @@ Notes are automatically categorized based on keyword matching.")
                             (+ (point-min) 500) t)))))
 
 (defun hugo--determine-category (file)
-  "Determine category for FILE based on its tags/keywords.
-Returns category name or 'general' if no match."
+  "Determine category for FILE based on its tags/keywords."
   (let ((file-name (file-name-nondirectory file))
         (file-content "")
-        (matched-category "general"))
+        (matched-category "tools"))  ; Default to tools
     
-    ;; Get file tags from filename and content
     (with-temp-buffer
       (insert-file-contents file)
       (setq file-content (buffer-string)))
     
-    ;; Check each category's keywords
     (catch 'found
       (dolist (cat-entry hugo-category-keywords)
         (let ((category (car cat-entry))
@@ -132,34 +113,26 @@ Returns category name or 'general' if no match."
     matched-category))
 
 (defun hugo--extract-note-metadata (file)
-  "Extract metadata from Denote note FILE.
-Returns a plist with :date, :title, :tags, :identifier, :category."
+  "Extract metadata from Denote note FILE."
   (let ((file-name (file-name-nondirectory file))
         date title tags identifier category)
     
-    ;; Extract identifier (timestamp)
     (when (string-match "^\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)" file-name)
       (setq identifier (match-string 1 file-name))
-      ;; Convert 20260103T120502 to 2026-01-03
       (setq date (format "%s-%s-%s"
                         (substring identifier 0 4)
                         (substring identifier 4 6)
                         (substring identifier 6 8))))
     
-    ;; Extract title
     (when (string-match "--\\(.+?\\)__" file-name)
       (setq title (replace-regexp-in-string 
                    "-" " "
                    (match-string 1 file-name))))
     
-    ;; Extract tags
     (when (string-match "__\\(.+\\)\\.org$" file-name)
       (setq tags (split-string (match-string 1 file-name) "_")))
     
-    ;; Remove hugosync from tags
     (setq tags (delete hugo-sync-tag tags))
-    
-    ;; Determine category
     (setq category (hugo--determine-category file))
     
     (list :date date
@@ -173,10 +146,7 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
   (with-temp-buffer
     (insert-file-contents file)
     (goto-char (point-min))
-    
-    ;; Skip past all #+PROPERTY lines
     (while (re-search-forward "^#\\+[A-Z_]+:.*$" nil t))
-    
     (buffer-substring-no-properties (point) (point-max))))
 
 (defun hugo--create-temp-org-file (file metadata)
@@ -190,21 +160,18 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
          (content (hugo--get-org-file-content file)))
     
     (with-temp-file temp-file
-      ;; Hugo-specific org properties
       (insert "#+TITLE: " title "\n")
       (insert "#+DATE: " date "\n")
       (insert "#+HUGO_BASE_DIR: " hugo-base-dir "\n")
-      (insert "#+HUGO_SECTION: docs/" category "\n")  ;; Category folder!
+      (insert "#+HUGO_SECTION: docs/" category "\n")
       (insert "#+HUGO_AUTO_SET_LASTMOD: t\n")
       
-      ;; Add tags and category
       (when tags
         (insert "#+HUGO_TAGS: " (mapconcat 'identity tags " ") "\n"))
       (insert "#+HUGO_CATEGORIES: " category "\n")
       
       (insert "#+HUGO_CUSTOM_FRONT_MATTER: :identifier " identifier "\n")
       
-      ;; Clean filename
       (insert "#+EXPORT_FILE_NAME: " date "-" 
               (replace-regexp-in-string " " "-" (downcase title)) "\n")
       
@@ -214,19 +181,17 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
     temp-file))
 
 (defun hugo--export-note-to-hugo (file)
-  "Export Denote note FILE to Hugo markdown in correct category folder."
+  "Export Denote note FILE to Hugo markdown."
   (hugo--ensure-directories)
   
   (let* ((metadata (hugo--extract-note-metadata file))
          (temp-file (hugo--create-temp-org-file file metadata))
          (category (plist-get metadata :category)))
     
-    ;; Export using ox-hugo
     (with-current-buffer (find-file-noselect temp-file)
       (org-hugo-export-to-md)
       (kill-buffer))
     
-    ;; Clean up temp file
     (delete-file temp-file)
     
     (message "✓ Exported to Hugo [%s]: %s" 
@@ -244,7 +209,6 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
                                       " " "-" 
                                       (downcase current-title)))))
     
-    ;; Search all category directories
     (dolist (cat-entry hugo-category-keywords)
       (let* ((category (car cat-entry))
              (cat-dir (expand-file-name category hugo-content-dir)))
@@ -252,7 +216,6 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
           (dolist (hugo-file (directory-files cat-dir t "\\.md$"))
             (let ((base (file-name-sans-extension 
                         (file-name-nondirectory hugo-file))))
-              ;; Remove if same title but different date/identifier
               (when (and (string-match-p (regexp-quote (downcase current-title)) base)
                         (not (string= base current-export-base)))
                 (delete-file hugo-file)
@@ -270,7 +233,6 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
          (keywords (completing-read-multiple 
                    "Additional keywords (comma-separated): "
                    denote-known-keywords))
-         ;; Add category keyword + hugosync
          (all-keywords (cons hugo-sync-tag (cons category keywords))))
     (denote title all-keywords)
     (message "Created [%s] note: %s" category title)))
@@ -295,7 +257,6 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
   (let ((processed 0)
         (by-category (make-hash-table :test 'equal)))
     
-    ;; Optional: clean all
     (when (yes-or-no-p "Clean all Hugo exports and regenerate? ")
       (dolist (cat-entry hugo-category-keywords)
         (let ((cat-dir (expand-file-name (car cat-entry) hugo-content-dir)))
@@ -305,7 +266,6 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
                 (delete-file file))))))
       (message "🗑 Cleaned all Hugo exports"))
     
-    ;; Process all notes
     (dolist (file (denote-directory-files))
       (when (hugo--file-has-hugosync-tag-p file)
         (let* ((metadata (hugo--extract-note-metadata file))
@@ -314,17 +274,15 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
           (puthash category (1+ (gethash category by-category 0)) by-category)
           (setq processed (1+ processed)))))
     
-    ;; Show summary
     (message "Hugo export complete: %d notes processed" processed)
     (maphash (lambda (cat count)
               (message "  [%s]: %d notes" cat count))
             by-category)))
 
 (defun hugo-create-category-index ()
-  "Create _index.md files for all categories with descriptions."
+  "Create _index.md files for all categories."
   (interactive)
   
-  ;; Category descriptions
   (let ((category-info
          '(("infrastructure" 
             "Infrastructure & Homelab"
@@ -360,21 +318,6 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
         
         (message "✓ Created category index: %s" category)))))
 
-;;;; Auto-process on save
-
-(defun hugo--maybe-process-on-save ()
-  "Automatically process note for Hugo on save if it has hugosync tag."
-  (when (and (derived-mode-p 'org-mode)
-             (buffer-file-name)
-             (hugo--file-has-hugosync-tag-p (buffer-file-name)))
-    (hugo-process-current-note)))
-
-(defvar hugo-auto-process-on-save t
-  "When non-nil, automatically process notes with :hugosync: tag on save.")
-
-(when hugo-auto-process-on-save
-  (add-hook 'after-save-hook #'hugo--maybe-process-on-save))
-
 (defun hugo-add-sync-tag-to-documented-notes ()
   "Add :hugosync: tag to all notes with :docu: tag by renaming files."
   (interactive)
@@ -387,16 +330,13 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
       (when (string-match-p "\\.org\\'" file)
         (let ((name (file-name-nondirectory file)))
           (cond
-           ;; Has docu but not hugosync
            ((and (string-match-p "\\bdocu\\b" name)
                  (not (string-match-p "\\bhugosync\\b" name)))
             (push file notes-to-process))
-           ;; Already has both
            ((and (string-match-p "\\bdocu\\b" name)
                  (string-match-p "\\bhugosync\\b" name))
             (push file notes-already-synced))))))
     
-    ;; Show preview
     (if (null notes-to-process)
         (message "No notes found with :docu: tag missing :hugosync:")
       
@@ -415,7 +355,6 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
         
         (pop-to-buffer preview-buffer)
         
-        ;; Ask for confirmation
         (when (yes-or-no-p (format "Add :hugosync: to %d notes? " 
                                    (length notes-to-process)))
           (let ((success 0)
@@ -425,7 +364,6 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
               (condition-case err
                   (let* ((dir (file-name-directory file))
                          (name (file-name-nondirectory file))
-                         ;; Parse: 20251111T182255--title__tags.org
                          (parsed (string-match 
                                  "^\\([0-9T]+\\)--\\([^_]+\\)__\\(.+\\)\\.org$" 
                                  name))
@@ -435,7 +373,6 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
                       (let* ((timestamp (match-string 1 name))
                              (title (match-string 2 name))
                              (tags (match-string 3 name))
-                             ;; Add hugosync and sort tags alphabetically
                              (tag-list (split-string tags "_"))
                              (new-tag-list (sort (cons "hugosync" tag-list) 'string<))
                              (new-tags (mapconcat 'identity new-tag-list "_")))
@@ -443,7 +380,6 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
                         (setq new-name (format "%s--%s__%s.org" 
                                               timestamp title new-tags))
                         
-                        ;; Rename the file
                         (rename-file file (concat dir new-name))
                         (message "✓ Renamed: %s" name)
                         (setq success (1+ success)))))
@@ -457,29 +393,55 @@ Returns a plist with :date, :title, :tags, :identifier, :category."
                      success errors)
             (kill-buffer preview-buffer)
             
-            ;; Refresh dired if open
             (dolist (buf (buffer-list))
               (with-current-buffer buf
                 (when (eq major-mode 'dired-mode)
                   (revert-buffer))))))))))
 
-;; Add to keymap (if not already there)
-(define-key hugo-command-map (kbd "a") #'hugo-add-sync-tag-to-documented-notes)
+;;;; Auto-process on save
+
+(defun hugo--maybe-process-on-save ()
+  "Automatically process note for Hugo on save if it has hugosync tag."
+  (when (and (derived-mode-p 'org-mode)
+             (buffer-file-name)
+             (hugo--file-has-hugosync-tag-p (buffer-file-name)))
+    (hugo-process-current-note)))
+
+(defvar hugo-auto-process-on-save t
+  "When non-nil, automatically process notes with :hugosync: tag on save.")
+
+(when hugo-auto-process-on-save
+  (add-hook 'after-save-hook #'hugo--maybe-process-on-save))
 
 ;;;; Keybindings
 
-(defvar hugo-command-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "n") #'hugo-create-documentation-note)
-    (define-key map (kbd "p") #'hugo-process-current-note)
-    (define-key map (kbd "P") #'hugo-process-all-documentation-notes)
-    (define-key map (kbd "i") #'hugo-create-category-index)
-    (define-key map (kbd "s") #'hugo-serve)
-    (define-key map (kbd "b") #'hugo-build)
-    (define-key map (kbd "o") #'hugo-open-in-browser)
-    map)
+;; Create keymap BEFORE trying to use it
+(defvar hugo-command-map (make-sparse-keymap)
   "Keymap for Hugo documentation commands.")
 
+;; Now define keys on the keymap
+(define-key hugo-command-map (kbd "n") #'hugo-create-documentation-note)
+(define-key hugo-command-map (kbd "p") #'hugo-process-current-note)
+(define-key hugo-command-map (kbd "P") #'hugo-process-all-documentation-notes)
+(define-key hugo-command-map (kbd "i") #'hugo-create-category-index)
+(define-key hugo-command-map (kbd "a") #'hugo-add-sync-tag-to-documented-notes)
+(define-key hugo-command-map (kbd "o") #'hugo-open-in-browser)
+
+;; Helper functions for serving
+(defun hugo-serve ()
+  "Start Hugo development server."
+  (interactive)
+  (let ((default-directory hugo-base-dir))
+    (async-shell-command "hugo server --bind 127.0.0.1 --port 1313"
+                        "*Hugo Server*"))
+  (message "Hugo server starting at http://localhost:1313"))
+
+(defun hugo-open-in-browser ()
+  "Open Hugo documentation site in browser."
+  (interactive)
+  (browse-url "http://localhost:1313"))
+
+;; Bind to C-c x
 (global-set-key (kbd "C-c x") hugo-command-map)
 
 (provide 'hugo)
