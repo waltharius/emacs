@@ -61,7 +61,7 @@
       (insert-file-contents file)
       (goto-char (point-min))
       ;; Check both denote tags and org tags
-      (or (re-search-forward (format "\\b%s\\b" hugo-sync-tag) 
+      (or (re-search-forward (format "\\b%s\\b" hugo-sync-tag)
                             (+ (point-min) 500) t)
           (re-search-forward (format "^#\\+filetags:.*:%s:" hugo-sync-tag)
                             (+ (point-min) 500) t)))))
@@ -76,10 +76,10 @@
                       (format-time-string "%Y%m%dT%H%M%S")))
          ;; Extract title from denote filename format
          (title (if (string-match "--\\(.+?\\)\\(__\\|.org\\)" file-name)
-                   (replace-regexp-in-string "-" " " 
+                   (replace-regexp-in-string "-" " "
                      (match-string 1 file-name))
                  (file-name-base file-name)))
-         (hugo-file (expand-file-name 
+         (hugo-file (expand-file-name
                     (format "%s.org" identifier)
                     hugo-content-dir)))
     
@@ -123,7 +123,7 @@
   "Create a new Denote note tagged for Hugo documentation."
   (interactive)
   (let* ((title (read-string "Documentation title: "))
-         (keywords (completing-read-multiple 
+         (keywords (completing-read-multiple
                    "Additional keywords (comma-separated): "
                    denote-known-keywords))
          (all-keywords (cons hugo-sync-tag keywords)))
@@ -157,7 +157,7 @@
               (hugo--export-to-markdown hugo-file))
             (setq processed (1+ processed)))
         (setq skipped (1+ skipped))))
-    (message "Hugo export complete: %d processed, %d skipped" 
+    (message "Hugo export complete: %d processed, %d skipped"
              processed skipped)))
 
 (defun hugo-remove-note-from-hugo ()
@@ -167,7 +167,7 @@
          (file-name (file-name-nondirectory file))
          (identifier (when (string-match "^\\([0-9T]+\\)--" file-name)
                       (match-string 1 file-name)))
-         (hugo-org (expand-file-name (format "%s.org" identifier) 
+         (hugo-org (expand-file-name (format "%s.org" identifier)
                                     hugo-content-dir))
          (hugo-md (expand-file-name (format "%s.md" identifier)
                                    hugo-content-dir)))
