@@ -94,28 +94,62 @@ Checks filename first (fast), then searches entire file header (thorough)."
             (re-search-forward (format "^#\\+filetags:.*:%s:" hugo-sync-tag)
                               nil t))))))
 
-
 (defun hugo--determine-category (file)
-  "Determine category for FILE based on its tags/keywords."
+  "Determine category for FILE based on its tags/keywords.
+Uses weighted scoring: tool-specific keywords > infrastructure-specific > generic."
   (let ((file-name (file-name-nondirectory file))
         (file-content "")
-        (matched-category "tools"))  ; Default to tools
+        (category-scores (make-hash-table :test 'equal)))
     
+    ;; Read file content
     (with-temp-buffer
-      (insert-file-contents file)
+      (insert-file-contents file nil nil 2000)
       (setq file-content (buffer-string)))
     
-    (catch 'found
-      (dolist (cat-entry hugo-category-keywords)
-        (let ((category (car cat-entry))
-              (keywords (cdr cat-entry)))
-          (dolist (keyword keywords)
+    ;; Score each category based on keyword matches
+    (dolist (cat-entry hugo-category-keywords)
+      (let ((category (car cat-entry))
+            (keywords (cdr cat-entry))
+            (score 0))
+        
+        (dolist (keyword keywords)
+          (let ((weight 1))  ; Default weight
+            
+            ;; Assign higher weights to specific keywords
+            (cond
+             ;; Tool-specific keywords (highest priority)
+             ((member keyword '("tmux" "emacs" "denote" "vim" "neovim" "atuin" "git"))
+              (setq weight 10))
+             
+             ;; Infrastructure-specific keywords
+             ((member keyword '("proxmox" "pfsense" "freeipa" "ups"))
+              (setq weight 8))
+             
+             ;; NixOS-specific keywords  
+             ((member keyword '("nixos" "nix" "flake" "flakes"))
+              (setq weight 7))
+             
+             ;; Generic keywords (lowest priority)
+             ((member keyword '("linux" "docu" "documentation"))
+              (setq weight 1)))
+            
+            ;; Check filename and content for keyword
             (when (or (string-match-p (regexp-quote keyword) file-name)
                       (string-match-p (format "\\b%s\\b" keyword) file-content))
-              (setq matched-category category)
-              (throw 'found category))))))
+              (setq score (+ score weight))))
+          
+          (puthash category score category-scores))))
     
-    matched-category))
+    ;; Return category with highest score
+    (let ((best-category "tools")  ; Default
+          (best-score 0))
+      (maphash (lambda (cat score)
+                 (when (> score best-score)
+                   (setq best-category cat
+                         best-score score)))
+               category-scores)
+      best-category)))
+
 
 (defun hugo--extract-note-metadata (file)
   "Extract metadata from Denote note FILE."
