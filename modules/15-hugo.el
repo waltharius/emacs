@@ -7,6 +7,27 @@
 ;;; Code:
 
 (require 'denote)
+
+;; ============================================================
+;; INSTALL OX-HUGO
+;; ============================================================
+
+;; Ensure ox-hugo is installed from MELPA
+(use-package ox-hugo
+  :ensure t  ; Auto-install from MELPA if missing
+  :after ox  ; Load after org export backend
+  :config
+  (message "✅ ox-hugo loaded for Hugo export"))
+
+;; Alternative: if you use straight.el instead of use-package:
+;; (straight-use-package 'ox-hugo)
+;; (require 'ox-hugo)
+
+;;;; Configuration Variables
+
+(defvar hugo-base-dir (expand-file-name "~/syncthing/hugo/")
+  "Base directory for Hugo site.")
+
 (require 'ox-hugo)
 
 ;;;; Configuration Variables
