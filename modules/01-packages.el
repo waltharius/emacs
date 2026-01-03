@@ -35,6 +35,11 @@
 ;; UTILITY PACKAGES
 ;; ============================================================
 
+;; Ensure ox-hugo is installed (for Hugo export)
+(unless (package-installed-p 'ox-hugo)
+  (package-refresh-contents)
+  (package-install 'ox-hugo))
+
 (use-package transient
   :ensure t)
 
