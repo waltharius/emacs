@@ -6,18 +6,7 @@
  '(column-number-mode t)
  '(display-line-numbers-type 'relative)
  '(global-display-line-numbers-mode t)
- '(package-selected-packages
-   '(activity-watch-mode all-the-icons ample-theme consult-denote
-			 dashboard diff-hl doom-themes esup
-			 flycheck-package flyspell-correct-ivy gnuplot
-			 gruvbox-theme highlight-parentheses htmlize
-			 langtool magit marginalia modus-themes
-			 orderless org-appear org-contrib org-journal
-			 org-kanban org-roam-ql org-roam-ui
-			 org-superstar org-transclusion ox-hugo
-			 rainbow-delimiters solarized-theme undo-tree
-			 vertico wc-mode yasnippet-snippets
-			 zenburn-theme))
+ '(package-selected-packages nil)
  '(recentf-filename-handlers '(abbreviate-file-name))
  '(size-indication-mode t)
  '(tab-bar-mode t))
