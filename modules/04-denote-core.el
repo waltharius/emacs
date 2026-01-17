@@ -1,7 +1,7 @@
 ;;; 04-denote-core.el --- Core Denote configuration  -*- lexical-binding: t; -*-
 ;;
 ;; Description: Pakiet Denote, Consult-denote, fix signature (zachowanie kropek),
-;;              auto-fill dla notatek
+;;              visual wrap dla notatek
 ;;
 ;;; Code:
 
@@ -41,21 +41,22 @@ Zachowaj litery, cyfry i kropki."
             (electric-indent-local-mode -1)
             (setq-local electric-indent-chars nil)))
 
-;; --- Auto-fill dla wszystkich notatek Denote ---
-(defun my/denote-auto-fill-setup ()
-  "Włącz auto-fill-mode dla notatek Denote (wrap na 80 znaków)."
+;; --- Visual wrap dla wszystkich notatek Denote ---
+(defun my/denote-visual-wrap-setup ()
+  "Włącz visual-line-mode dla notatek Denote (soft wrap z wizualnym wskaźnikiem 80 znaków)."
   (when (and (buffer-file-name)
              (string-match-p (expand-file-name my/notes-dir)
                              (buffer-file-name)))
-    (auto-fill-mode 1)
-    (setq fill-column my/fill-column)))
+    (visual-line-mode 1)
+    (setq fill-column my/fill-column)
+    (display-fill-column-indicator-mode 1)))
 
-(add-hook 'find-file-hook 'my/denote-auto-fill-setup)
-(add-hook 'org-mode-hook 'my/denote-auto-fill-setup)
+(add-hook 'find-file-hook 'my/denote-visual-wrap-setup)
+(add-hook 'org-mode-hook 'my/denote-visual-wrap-setup)
 
 (setq org-list-allow-alphabetical t)
 (setq org-list-demote-modify-bullet
-      '(("+" . "-") ("-" . "+") ("*" . "-") ("1." . "a.")))
+      '((("+" . "-") ("-" . "+") ("*" . "-") ("1." . "a."))))
 
 ;; --- Kolumny do wyświetlenia w wyszukiwaniu po PROPERTIES ---
 (setq org-columns-default-format 
