@@ -81,6 +81,13 @@
   :custom
   (completion-styles '(orderless basic)))
 
+;; Visual-fill-column: Soft wrap at fill-column (80 chars)
+(use-package visual-fill-column
+  :ensure t
+  :config
+  (setq-default visual-fill-column-width 80)
+  (setq-default visual-fill-column-center-text nil)) ; Default: no center (will be overridden per file)
+
 ;; Org-roam-ui: Visual graph
 (use-package org-roam-ui
   :ensure t
@@ -128,7 +135,7 @@
   ;; Persistent undo (survive Emacs restart!)
   (setq undo-tree-auto-save-history t)
   (setq undo-tree-history-directory-alist
-        `(("." . ,(expand-file-name "undo-tree-history/" user-emacs-directory))))
+        `((".". ,(expand-file-name "undo-tree-history/" user-emacs-directory))))
   
   ;; Visualizer improvements
   (setq undo-tree-visualizer-timestamps t)  ; Show timestamps
@@ -548,5 +555,4 @@
 
 (provide '01-packages)
 ;;; 01-packages.el ends here
-
 
