@@ -965,6 +965,7 @@ Returns template content as string."
    ["UI & Tools"
     ("e" "Edit init.el" open-init-el-bottom-split)
     ("h" "Insert time" insert-current-time)
+    ("y" "Toggle centering" my/toggle-visual-fill-column-center)
     ("c" "Journal calendar" my/open-journal-calendar)
     ("u" "Roam UI graph" org-roam-ui-mode)]]
   
