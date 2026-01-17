@@ -37,10 +37,11 @@
 (save-place-mode 1)
 (setq save-place-file "~/.emacs.d/saveplace")
 
-;; --- Hard wrap na 80 znaków dla org-mode ---
+;; --- Soft wrap z wizualnym wskaźnikiem 80 znaków dla org-mode ---
 (add-hook 'org-mode-hook (lambda ()
-                           (auto-fill-mode 1)
-                           (setq fill-column 80)))
+                           (visual-line-mode 1)
+                           (setq fill-column 80)
+                           (display-fill-column-indicator-mode 1)))
 
 ;; --- Funkcja: szybkie otwarcie init.el ---
 (defun open-init-el-bottom-split ()
