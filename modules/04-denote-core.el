@@ -43,13 +43,31 @@ Zachowaj litery, cyfry i kropki."
 
 ;; --- Visual wrap dla wszystkich notatek Denote ---
 (defun my/denote-visual-wrap-setup ()
-  "Włącz visual-line-mode dla notatek Denote (soft wrap z wizualnym wskaźnikiem 80 znaków)."
+  "Włącz visual-line-mode + visual-fill-column dla notatek Denote.
+Wyśrodkowanie tylko jeśli plik NIE ma tagu __docu."
   (when (and (buffer-file-name)
              (string-match-p (expand-file-name my/notes-dir)
                              (buffer-file-name)))
+    ;; Włącz visual modes
     (visual-line-mode 1)
     (setq fill-column my/fill-column)
-    (display-fill-column-indicator-mode 1)))
+    (display-fill-column-indicator-mode 1)
+    (visual-fill-column-mode 1)
+    
+    ;; Sprawdź czy plik ma tag __docu
+    (let ((has-docu-tag nil))
+      (save-excursion
+        (goto-char (point-min))
+        (when (re-search-forward "^#\\+filetags:.*:__docu:" nil t)
+          (setq has-docu-tag t)))
+      
+      ;; Wyśrodkowanie TYLKO jeśli NIE ma __docu
+      (if has-docu-tag
+          (setq-local visual-fill-column-center-text nil)
+        (setq-local visual-fill-column-center-text t))
+      
+      ;; Zastosuj zmiany
+      (visual-fill-column--adjust-window))))
 
 (add-hook 'find-file-hook 'my/denote-visual-wrap-setup)
 (add-hook 'org-mode-hook 'my/denote-visual-wrap-setup)
@@ -135,7 +153,7 @@ Zachowaj litery, cyfry i kropki."
 
 ;; Advice: Intercept PDF export and move file
 (defun my/org-latex-export-advice (orig-fun &rest args)
-  "Przechwyt PDF export - przenieś do ~/notes/pdf/."
+  "Przechwyt PDF export - przynieś do ~/notes/pdf/."
   (let* ((result (apply orig-fun args))
          (pdf-file result)
          (pdf-dir (expand-file-name "pdf" my/notes-dir)))
