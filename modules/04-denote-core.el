@@ -44,33 +44,53 @@ Zachowaj litery, cyfry i kropki."
 ;; --- Visual wrap dla wszystkich notatek Denote ---
 (defun my/denote-visual-wrap-setup ()
   "Włącz visual-line-mode + visual-fill-column dla notatek Denote.
-Wyśrodkowanie tylko jeśli plik NIE ma tagu __docu."
+Dokumentacja (:docu:): 100 znaków, wyśrodkowana.
+Zwykłe notatki: 80 znaków, wyśrodkowane."
   (when (and (buffer-file-name)
              (string-match-p (expand-file-name my/notes-dir)
                              (buffer-file-name)))
     ;; Włącz visual modes
     (visual-line-mode 1)
-    (setq fill-column my/fill-column)
-    (display-fill-column-indicator-mode 1)
     (visual-fill-column-mode 1)
     
-    ;; Sprawdź czy plik ma tag __docu
-    (let ((has-docu-tag nil))
+    ;; Sprawdź czy plik ma tag :docu: w #+filetags:
+    (let ((is-documentation nil))
       (save-excursion
         (goto-char (point-min))
-        (when (re-search-forward "^#\\+filetags:.*:__docu:" nil t)
-          (setq has-docu-tag t)))
+        (when (re-search-forward "^#\\+filetags:.*:docu:" nil t)
+          (setq is-documentation t)))
       
-      ;; Wyśrodkowanie TYLKO jeśli NIE ma __docu
-      (if has-docu-tag
-          (setq-local visual-fill-column-center-text nil)
-        (setq-local visual-fill-column-center-text t))
+      ;; Ustaw szerokość w zależności od typu
+      (if is-documentation
+          (progn
+            (setq fill-column 100)
+            (setq-local visual-fill-column-width 100))
+        (progn
+          (setq fill-column my/fill-column)  ; 80 z init.el
+          (setq-local visual-fill-column-width my/fill-column)))
       
-      ;; Zastosuj zmiany
+      ;; OBA TYPY: wyśrodkowanie ON
+      (setq-local visual-fill-column-center-text t)
+      
+      ;; Wskaźnik kolumny + zastosuj zmiany
+      (display-fill-column-indicator-mode 1)
       (visual-fill-column--adjust-window))))
 
 (add-hook 'find-file-hook 'my/denote-visual-wrap-setup)
 (add-hook 'org-mode-hook 'my/denote-visual-wrap-setup)
+
+;; --- Toggle centering (ręczne przełączanie) ---
+(defun my/toggle-visual-fill-column-center ()
+  "Przełącz wyśrodkowanie tekstu w aktualnym buforze."
+  (interactive)
+  (if (bound-and-true-p visual-fill-column-mode)
+      (progn
+        (setq-local visual-fill-column-center-text 
+                    (not visual-fill-column-center-text))
+        (visual-fill-column--adjust-window)
+        (message "Wyśrodkowanie: %s" 
+                 (if visual-fill-column-center-text "✅ ON" "❌ OFF")))
+    (message "⚠️ visual-fill-column-mode nie jest aktywny!")))
 
 (setq org-list-allow-alphabetical t)
 (setq org-list-demote-modify-bullet
@@ -153,7 +173,7 @@ Wyśrodkowanie tylko jeśli plik NIE ma tagu __docu."
 
 ;; Advice: Intercept PDF export and move file
 (defun my/org-latex-export-advice (orig-fun &rest args)
-  "Przechwyt PDF export - przynieś do ~/notes/pdf/."
+  "Przechwyt PDF export - przenieś do ~/notes/pdf/."
   (let* ((result (apply orig-fun args))
          (pdf-file result)
          (pdf-dir (expand-file-name "pdf" my/notes-dir)))
