@@ -56,7 +56,7 @@ Zachowaj litery, cyfry i kropki."
 
 (setq org-list-allow-alphabetical t)
 (setq org-list-demote-modify-bullet
-      '((("+" . "-") ("-" . "+") ("*" . "-") ("1." . "a."))))
+      '(("+" . "-") ("-" . "+") ("*" . "-") ("1." . "a.")))
 
 ;; --- Kolumny do wyświetlenia w wyszukiwaniu po PROPERTIES ---
 (setq org-columns-default-format 
