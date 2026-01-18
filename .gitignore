@@ -69,3 +69,4 @@ undo-tree-history/
 org-roam.db
 org-roam.db-shm
 org-roam.db-wal
+.org-clock-save.el
