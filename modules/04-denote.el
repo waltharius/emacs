@@ -4,6 +4,8 @@
 ;; - ~/notes/journal/ - Private daily notes
 ;; - ~/notes/pks/     - Personal Knowledge System
 ;; - ~/notes/docu/    - Documentation and technical notes
+;;
+;; Updated to use new Denote 4.1.0 API (no deprecation warnings)
 
 ;;; Code:
 
@@ -14,11 +16,9 @@
 (use-package denote
   :ensure t
   :config
-  ;; Main directory (parent of all silos)
-  (setq denote-directory my-notes-dir)
-  
-  ;; Multiple directories (silos)
-  (setq denote-silo-directories
+  ;; Use new API: denote-directories (plural)
+  ;; This is the list of all note directories (silos)
+  (setq denote-directories
         (list my-notes-journal
               my-notes-pks
               my-notes-docu))
