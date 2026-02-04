@@ -8,14 +8,27 @@
 ;;; Code:
 
 ;; ============================================================
-;; HELPER FUNCTION: Get note title
+;; HELPER FUNCTION: Get note title (robust version)
 ;; ============================================================
 
 (defun my/get-note-title ()
-  "Get the title of current note from #+title or filename."
-  (or (cadar (org-collect-keywords '("title")))
-      (file-name-base (buffer-file-name))
-      "untitled"))
+  "Get the title of current note from #+title or filename.
+   Returns a string even if extraction fails."
+  (condition-case nil
+      (or 
+       ;; Try to get #+title:
+       (when (and (buffer-file-name)
+                  (eq major-mode 'org-mode))
+         (cadar (org-collect-keywords '("title"))))
+       ;; Fallback to filename
+       (when (buffer-file-name)
+         (file-name-base (buffer-file-name)))
+       ;; Last resort: buffer name
+       (buffer-name)
+       ;; Absolute fallback
+       "Untitled")
+    ;; If anything fails, return safe default
+    (error "Untitled")))
 
 ;; ============================================================
 ;; ORG-CAPTURE: Configuration
@@ -46,7 +59,7 @@
           
           ("j" "Journal Capture" entry
            (file+headline my-journal-captures "Ideas from Journal")
-           "* %?\n:PROPERTIES:\n:SOURCE: [[%F][%(my/get-note-title)]]\n:CAPTURED: %U\n:END:\n"
+           "* %(my/get-note-title)\n:PROPERTIES:\n:SOURCE: [[%F][%(my/get-note-title)]]\n:CAPTURED: %U\n:END:\n\n%?"
            :empty-lines 1
            :prepend nil))))
 
@@ -118,16 +131,19 @@
 ;; What it does:
 ;; - Opens capture dialog
 ;; - Automatically creates link to current note
-;; - Uses note title as link description (NO PROMPTING!)
+;; - Uses note title for BOTH heading AND link (NO PROMPTING!)
 ;; - Adds timestamp
 ;; - Saves under "Ideas from Journal" heading
+;; - Cursor positioned in content area (not heading)
 ;;
 ;; Example result:
-;; * My interesting idea
+;; * 2026-02-04 Journal                    ← Auto-filled from source!
 ;; :PROPERTIES:
 ;; :SOURCE: [[file:~/notes/journal/2026-02-04-journal.org][2026-02-04 Journal]]
 ;; :CAPTURED: [2026-02-04 śro 17:05]
 ;; :END:
+;;
+;; Your thoughts go here...               ← Cursor starts here
 ;;
 ;; Method 2: C-c n c (Quick manual entry by date)
 ;; -------------------------------------------------------
