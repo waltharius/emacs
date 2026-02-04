@@ -15,23 +15,39 @@
 
 (use-package denote
   :ensure t
-  :config
-  ;; Use new API: denote-directories (plural)
-  ;; This is the list of all note directories (silos)
-  (setq denote-directories
-        (list my-notes-journal
-              my-notes-pks
-              my-notes-docu))
+  :custom
+  ;; Main directory (default silo)
+  (denote-directory my-notes-journal)
   
+  ;; All silos (for cross-silo search)
+  (denote-silo-extras-directories
+   (list my-notes-pks
+         my-notes-docu))
+  
+  ;; Known keywords (tags)
+  (denote-known-keywords
+   '("journal" "docu" "wellbeing" "esej" "philosophy"
+     "zettel" "osoba" "projekt" "lektura" "filozof"
+     "fleeting" "skroty"))
+  
+  ;; Auto-suggest existing keywords during rename
+  (denote-infer-keywords t)
+  
+  ;; Sort keywords alphabetically
+  (denote-sort-keywords t)
+  
+  ;; File type (nil = org-mode)
+  (denote-file-type nil)
+  
+  ;; What to prompt for when creating notes
+  (denote-prompts '(title keywords))
+  
+  :config
   ;; File naming template
   (setq denote-file-name-slug-functions
         '((title . denote-sluggify-title)
           (signature . denote-sluggify-signature)
           (keyword . denote-sluggify-keywords)))
-  
-  ;; Known keywords (you can add more as needed)
-  (setq denote-known-keywords
-        '("journal" "docu" "wellbeing" "esej" "philosophy"))
   
   ;; Templates support
   (setq denote-templates
@@ -57,6 +73,92 @@
 
 ;; Link using title instead of ID
 (setq denote-link-button-action 'find-file)
+
+;; ============================================================
+;; VISUAL WRAPPING FOR NOTES
+;; ============================================================
+
+(defun my/denote-visual-wrap-setup ()
+  "Enable visual-line-mode + visual-fill-column for Denote notes.
+Documentation (:docu:): 100 chars, centered.
+Normal notes: 84 chars, centered."
+  (when (and (buffer-file-name)
+             (or (string-match-p (expand-file-name my-notes-journal)
+                                 (buffer-file-name))
+                 (string-match-p (expand-file-name my-notes-pks)
+                                 (buffer-file-name))
+                 (string-match-p (expand-file-name my-notes-docu)
+                                 (buffer-file-name))))
+    ;; Enable visual modes
+    (visual-line-mode 1)
+    (visual-fill-column-mode 1)
+    
+    ;; Check if file has :docu: tag in #+filetags:
+    (let ((is-documentation nil))
+      (save-excursion
+        (goto-char (point-min))
+        (when (re-search-forward "^#\\+filetags:.*:docu:" nil t)
+          (setq is-documentation t)))
+      
+      ;; Set width depending on type
+      (if is-documentation
+          (progn
+            (setq fill-column 100)
+            (setq-local visual-fill-column-width 100))
+        (progn
+          (setq fill-column 84)
+          (setq-local visual-fill-column-width 84)))
+      
+      ;; BOTH TYPES: centering ON
+      (setq-local visual-fill-column-center-text t)
+      
+      ;; Column indicator + apply changes
+      (display-fill-column-indicator-mode 1)
+      (visual-fill-column--adjust-window))))
+
+(add-hook 'find-file-hook 'my/denote-visual-wrap-setup)
+(add-hook 'org-mode-hook 'my/denote-visual-wrap-setup)
+
+;; Toggle centering (manual override)
+(defun my/toggle-visual-fill-column-center ()
+  "Toggle text centering in current buffer."
+  (interactive)
+  (if (bound-and-true-p visual-fill-column-mode)
+      (progn
+        (setq-local visual-fill-column-center-text 
+                    (not visual-fill-column-center-text))
+        (visual-fill-column--adjust-window)
+        (message "Centering: %s" 
+                 (if visual-fill-column-center-text "✅ ON" "❌ OFF")))
+    (message "⚠️ visual-fill-column-mode not active!")))
+
+;; ============================================================
+;; ORG-MODE SETTINGS FOR DENOTE
+;; ============================================================
+
+;; Disable auto-indent in org-mode
+(add-hook 'org-mode-hook
+          (lambda ()
+            (electric-indent-local-mode -1)
+            (setq-local electric-indent-chars nil)))
+
+;; Alphabetical lists
+(setq org-list-allow-alphabetical t)
+(setq org-list-demote-modify-bullet
+      '(("+" . "-") ("-" . "+") ("*" . "-") ("1." . "a.")))
+
+;; Columns for PROPERTIES display
+(setq org-columns-default-format 
+      "%40ITEM(Title) %10STATUS %8YEAR %6PAGES %10PROJECT")
+
+;; RET follows links
+(setq org-return-follows-link t)
+
+;; Left mouse click follows links
+(setq org-mouse-1-follows-link t)
+
+;; Don't ask for confirmation when executing elisp links
+(setq org-confirm-elisp-link-function nil)
 
 (provide '04-denote)
 ;;; 04-denote.el ends here
