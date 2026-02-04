@@ -3,7 +3,7 @@
 ;; Creates beautiful centered text layout with equal margins on both sides
 ;; Like reading a book! Text limited to 80 characters width.
 ;;
-;; NO BOUNDARY LINES - just clean margins!
+;; NO THICK BOUNDARY LINES - just clean margins!
 
 ;;; Code:
 
@@ -22,6 +22,9 @@
   ;; Center the text (equal margins on both sides!)
   (setq-default visual-fill-column-center-text t)
   
+  ;; NO THICK LINES: Set extra width to 0
+  (setq-default visual-fill-column-extra-text-width '(0 . 0))
+  
   ;; Don't show fringes (the gray area on sides)
   (setq-default visual-fill-column-fringes-outside-margins nil)
   
@@ -34,13 +37,14 @@
 ;; GLOBALLY DISABLE FILL-COLUMN-INDICATOR
 ;; ============================================================
 ;; Turn off the thick colored lines that show column boundaries
-(global-display-fill-column-indicator-mode -1)
+(when (fboundp 'global-display-fill-column-indicator-mode)
+  (global-display-fill-column-indicator-mode -1))
 
 ;; ============================================================
 ;; EXPLANATION
 ;; ============================================================
 ;;
-;; This creates the "book-like" layout WITHOUT boundary lines:
+;; This creates the "book-like" layout WITHOUT any boundary lines:
 ;;
 ;; Before (full width with ugly lines):
 ;; |│Text starts here and goes all the way...                      │|
@@ -52,13 +56,14 @@
 ;; Benefits:
 ;; - Easier to read (optimal line length)
 ;; - Looks more professional
-;; - Less visual clutter
+;; - No visual clutter
 ;; - Perfect for writing
 ;;
 ;; What changed:
 ;; - Removed display-fill-column-indicator-mode
-;; - Kept centering and margins
-;; - Result: Clean, centered text without boundary lines
+;; - Set extra-text-width to (0 . 0) - no thick margins
+;; - Kept centering and text wrapping
+;; - Result: Clean, centered text without ANY boundary lines
 
 ;; ============================================================
 ;; TOGGLE FUNCTION (optional)
