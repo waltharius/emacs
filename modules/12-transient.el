@@ -10,6 +10,7 @@
 ;; - Linking: Insert links and view backlinks
 ;; - File Management: Rename, tag, delete
 ;; - Tools: Insert time/date, well-being, toggle view settings
+;; - Spelling: Check, correct errors, toggle spell-checking
 
 ;;; Code:
 
@@ -53,6 +54,11 @@
     ("D" "Date (YYYY-MM-DD)" insert-current-date)
     ("w" "Well-being" my/denote-set-wellbeing)]
    
+   ["Spelling"
+    ("s" "Correct previous" my/spell-correct-previous :transient t)
+    ("S" "Check buffer" my/spell-check-buffer)
+    ("T" "Toggle spellcheck" my/toggle-flyspell)]
+   
    ["Toggle View"
     ("y" "Center text" my/toggle-visual-fill-column-center)
     ("I" "Indent headings" my/toggle-org-indent)]
@@ -81,6 +87,12 @@
 ;; - Manage files (rename, tag, delete)
 ;; - Insert timestamps
 ;; - Toggle view settings
+;; - Spell-checking with smart correction
+;;
+;; SPELL-CHECKING:
+;; - Press 's' repeatedly to correct previous errors (stays in menu!)
+;; - Press 'S' to force-check entire buffer
+;; - Press 'T' to toggle flyspell on/off
 ;;
 ;; The menu stays open after most operations, so you can
 ;; perform multiple actions quickly. Press 'q' to quit.
