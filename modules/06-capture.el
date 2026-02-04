@@ -35,6 +35,28 @@
       "Untitled")))
 
 ;; ============================================================
+;; HELPER: Get denote ID from ORIGINAL buffer
+;; ============================================================
+
+(defun my/get-capture-origin-id ()
+  "Get denote identifier from the buffer where capture was initiated.
+   Returns either the denote ID or the full file path as fallback."
+  (let ((orig-buf (org-capture-get :original-buffer)))
+    (if orig-buf
+        (with-current-buffer orig-buf
+          (condition-case nil
+              (let ((file-path (buffer-file-name)))
+                (if file-path
+                    ;; Try to extract denote ID from filename
+                    (let ((id (denote-retrieve-filename-identifier file-path)))
+                      (if id
+                          (format "denote:%s" id)  ; Return denote: link
+                        (format "file:%s" file-path)))  ; Fallback to file path
+                  "Untitled"))  ; No file
+            (error "Untitled")))  ; Error case
+      "Untitled")))  ; No original buffer
+
+;; ============================================================
 ;; ORG-CAPTURE: Configuration
 ;; ============================================================
 
@@ -63,7 +85,7 @@
           
           ("j" "Journal Capture" entry
            (file+headline my-journal-captures "Ideas from Journal")
-           "* %(my/get-capture-origin-title)\n:PROPERTIES:\n:SOURCE: [[%F][%(my/get-capture-origin-title)]]\n:CAPTURED: %U\n:END:\n\n%?"
+           "* %(my/get-capture-origin-title)\n:PROPERTIES:\n:SOURCE: [[%(my/get-capture-origin-id)][%(my/get-capture-origin-title)]]\n:CAPTURED: %U\n:END:\n\n%?"
            :empty-lines 1
            :prepend nil))))
 
@@ -134,9 +156,9 @@
 ;;
 ;; What it does:
 ;; - Accesses the ORIGINAL buffer (where you pressed C-c c j)
-;; - Extracts its title
+;; - Extracts its title AND denote identifier
 ;; - Opens capture dialog
-;; - Automatically creates link to current note
+;; - Automatically creates denote link to current note
 ;; - Uses extracted title for BOTH heading AND link
 ;; - Adds timestamp
 ;; - Saves under "Ideas from Journal" heading
@@ -145,11 +167,18 @@
 ;; Example result:
 ;; * 2026-02-04 Journal                    ← Auto-filled from source!
 ;; :PROPERTIES:
-;; :SOURCE: [[file:~/notes/journal/2026-02-04-journal.org][2026-02-04 Journal]]
+;; :SOURCE: [[denote:20260204T165223][2026-02-04 Journal]]  ← Denote ID link!
 ;; :CAPTURED: [2026-02-04 śro 17:05]
 ;; :END:
 ;;
 ;; Your thoughts go here...               ← Cursor starts here
+;;
+;; WHY DENOTE ID INSTEAD OF FILE PATH?
+;; ------------------------------------
+;; - Backlinks work properly with denote system
+;; - Links survive file renames
+;; - Compatible with denote-backlinks
+;; - Integrates with your note-taking workflow
 ;;
 ;; Method 2: C-c n c (Quick manual entry by date)
 ;; -------------------------------------------------------
