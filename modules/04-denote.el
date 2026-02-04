@@ -10,13 +10,6 @@
 ;;; Code:
 
 ;; ============================================================
-;; COMPLETION: Configure keyword separator (comma for multi-select)
-;; ============================================================
-
-;; Allow comma-separated keyword input (works with Vertico/Icomplete)
-(setq crm-separator ",")
-
-;; ============================================================
 ;; DENOTE: Core package
 ;; ============================================================
 
