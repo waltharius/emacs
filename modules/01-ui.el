@@ -2,6 +2,7 @@
 ;;; Commentary:
 ;; UI settings: menu bar, tabs, themes, desktop-save-mode
 ;; Session management: save/restore open files, window layouts, cursor positions
+;; Completion: Vertico + Orderless for fuzzy matching
 
 ;;; Code:
 
@@ -16,6 +17,53 @@
 
 ;; Set locale for Polish time/date formatting
 (setq system-time-locale "pl_PL.UTF-8")
+
+;; ============================================================
+;; COMPLETION FRAMEWORK: Vertico + Orderless + Marginalia
+;; ============================================================
+
+;; Vertico: Better minibuffer (vertical completion)
+(use-package vertico
+  :ensure t
+  :init
+  (vertico-mode))
+
+;; Orderless: Fuzzy matching (space-separated, out-of-order matching)
+(use-package orderless
+  :ensure t
+  :custom
+  (completion-styles '(orderless basic))
+  (completion-category-defaults nil)
+  (completion-category-overrides '((file (styles basic partial-completion)))))
+
+;; Marginalia: Annotations in minibuffer (shows descriptions)
+(use-package marginalia
+  :ensure t
+  :init
+  (marginalia-mode))
+
+;; Enable completion-read-multiple with comma separator
+(setq crm-separator ",")
+
+;; ============================================================
+;; VISUAL-FILL-COLUMN: Soft wrap at fill-column
+;; ============================================================
+
+(use-package visual-fill-column
+  :ensure t
+  :config
+  (setq-default visual-fill-column-width my-fill-column)  ; Use variable from 00-core
+  (setq-default visual-fill-column-center-text nil))      ; Default: no center
+
+;; ============================================================
+;; WHICH-KEY: Show keybinding hints
+;; ============================================================
+
+(use-package which-key
+  :ensure t
+  :config
+  (which-key-mode 1)
+  (setq which-key-idle-delay 0.5))
 
 ;; ============================================================
 ;; DESKTOP-SAVE-MODE: Session persistence
@@ -96,11 +144,11 @@
 ;; ORG-MODE VISUAL SETTINGS
 ;; ============================================================
 
-;; Soft wrap with visual indicator at 80 characters
+;; Soft wrap with visual indicator - uses my-fill-column from 00-core.el
 (add-hook 'org-mode-hook 
           (lambda ()
             (visual-line-mode 1)
-            (setq fill-column 80)
+            (setq fill-column my-fill-column)  ; Use variable
             (display-fill-column-indicator-mode 1)))
 
 ;; Prettify quote blocks
