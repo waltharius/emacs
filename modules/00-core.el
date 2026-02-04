@@ -64,6 +64,20 @@
 (defvar my-emacs-autosaves (expand-file-name "~/.emacs.d/autosaves/")
   "Autosave directory for other files.")
 
+;; TEXT WRAPPING: Fill column for normal notes
+(defvar my-fill-column 80
+  "Default text wrapping column for notes.
+Documentation notes (:docu: tag) use 100 instead.")
+
+;; DENOTE KEYWORDS: Base list (Denote will add more automatically)
+(defvar my-denote-keywords
+  '("journal" "docu" "wellbeing" "esej" "philosophy"
+    "zettel" "osoba" "projekt" "lektura" "filozof"
+    "fleeting" "skroty")
+  "Base keyword list for Denote.
+With denote-infer-keywords enabled, Denote will automatically
+add any new keywords found in existing notes.")
+
 ;; Create all directories if they don't exist
 (dolist (dir (list my-notes-dir 
                    my-notes-journal 
