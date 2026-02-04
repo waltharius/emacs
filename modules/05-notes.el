@@ -195,6 +195,15 @@
   (insert (format-time-string "%H:%M")))
 
 ;; ============================================================
+;; HELPER: Insert current date (YYYY-MM-DD)
+;; ============================================================
+
+(defun insert-current-date ()
+  "Insert current date in YYYY-MM-DD format."
+  (interactive)
+  (insert (format-time-string "%Y-%m-%d")))
+
+;; ============================================================
 ;; HELPER: Delete current note (Git-aware)
 ;; ============================================================
 
