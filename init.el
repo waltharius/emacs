@@ -35,6 +35,7 @@
   (load (concat modules-dir "01-ui.el"))            ; Interface + sessions
   (load (concat modules-dir "02-editing.el"))       ; Modern conveniences
   (load (concat modules-dir "03-spelling.el"))      ; Spellcheck (WORKING!)
+  (load (concat modules-dir "03b-fonts.el"))        ; Fonts (PlaypenSans for journals)
   (load (concat modules-dir "04-denote.el"))        ; Denote multi-silo
   (load (concat modules-dir "05-notes.el"))         ; Note functions
   (load (concat modules-dir "06-capture.el"))       ; Org-capture (SMART DATE!)
