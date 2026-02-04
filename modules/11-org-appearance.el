@@ -5,6 +5,7 @@
 ;; - Beautiful heading sizes and colors
 ;; - Pretty bullet points
 ;; - Extra line spacing for breathing room
+;; - TOGGLE indentation with: M-x my/toggle-org-indent
 ;;
 ;; NOTE: Font settings (variable-pitch) moved to 03b-fonts.el
 ;;       to enable selective font control (journals vs other notes)
@@ -60,6 +61,7 @@
 ;; ============================================================
 
 ;; Indent content under headings (like outlining)
+;; This is ON by default, but can be toggled with my/toggle-org-indent
 (setq org-startup-indented t)
 
 ;; Show inline images by default
@@ -81,6 +83,26 @@
             (setq line-spacing 0.2)))  ; 20% extra space between lines
 
 ;; ============================================================
+;; TOGGLE INDENTATION
+;; ============================================================
+
+(defun my/toggle-org-indent ()
+  "Toggle org-indent-mode (visual indentation based on heading level).
+   
+   When ON:  Text indents under headings (nice hierarchy)
+   When OFF: All text starts at left margin (better for deep nesting)
+   
+   Use this when you have many nested headings and text becomes too narrow."
+  (interactive)
+  (if org-indent-mode
+      (progn
+        (org-indent-mode -1)
+        (message "✗ Indentation OFF - All text at left margin"))
+    (progn
+      (org-indent-mode 1)
+      (message "✓ Indentation ON - Visual hierarchy enabled"))))
+
+;; ============================================================
 ;; HOW IT LOOKS
 ;; ============================================================
 ;;
@@ -97,6 +119,10 @@
 ;; - Other notes: JetBrains Mono (monospace)
 ;; - Code/tables: Always monospace
 ;; Pretty bullets: ● ○ ● ○
+;;
+;; INDENTATION TOGGLE:
+;; M-x my/toggle-org-indent
+;; or add keybinding like: (global-set-key (kbd "C-c i") 'my/toggle-org-indent)
 
 (provide '11-org-appearance)
 ;;; 11-org-appearance.el ends here
