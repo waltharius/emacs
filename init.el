@@ -43,7 +43,8 @@
   (load (concat modules-dir "08-keybindings.el"))   ; Keybindings
   (load (concat modules-dir "09-theme.el"))         ; Theme (light)
   (load (concat modules-dir "10-visual-fill.el"))   ; Centered text
-  (load (concat modules-dir "11-org-appearance.el")) ; Org visual enhancements (NEW!)
+  (load (concat modules-dir "11-org-appearance.el")) ; Org visual enhancements
+  (load (concat modules-dir "12-transient.el"))     ; Transient menu (C-c n)
   )
 
 ;; ============================================================
