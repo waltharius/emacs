@@ -47,34 +47,26 @@
 ;; ============================================================
 
 (when my/spellcheck-available
+  ;; Set the program BEFORE use-package
+  (setq ispell-program-name my/spellcheck-program)
+  
   (use-package flyspell
     :ensure nil
     :hook ((org-mode . flyspell-mode)
            (text-mode . flyspell-mode))
     :config
-    ;; Set the program
-    (setq ispell-program-name my/spellcheck-program)
-    
     ;; ============================================================
     ;; HUNSPELL: Simultaneous Polish + English
     ;; ============================================================
     (when (string= my/spellcheck-program "hunspell")
-      ;; CRITICAL FIX: Auto-detect dictionary paths
-      (setq ispell-hunspell-dict-paths-alist nil)  ; Let hunspell auto-detect
+      ;; Simple, working configuration
+      (setenv "LANG" "en_US.UTF-8")
       
-      ;; Use BOTH dictionaries at once (no switching!)
+      ;; Use both dictionaries
       (setq ispell-dictionary "pl_PL,en_US")
       
-      ;; Tell hunspell we're using multiple dictionaries
-      (setq ispell-local-dictionary-alist
-            '(("pl_PL,en_US"
-               "[[:alpha:]]"
-               "[^[:alpha:]]"
-               "[']" t
-               ("-d" "pl_PL,en_US") nil utf-8)))
-      
       ;; Personal dictionary
-      (setq ispell-personal-dictionary "~/.hunspell_personal")
+      (setq ispell-personal-dictionary (expand-file-name "~/.hunspell_personal"))
       
       (message "✓ Hunspell: Checking Polish + English simultaneously"))
     
@@ -168,9 +160,9 @@
     "Show installation instructions for spellcheckers."
     (interactive)
     (message "
-═══════════════════════════════════════════════════════
+══════════════════════════════════════════════════════════
   Spellcheck Not Available
-═══════════════════════════════════════════════════════
+══════════════════════════════════════════════════════════
 
 To enable spellchecking, install hunspell (recommended):
 
@@ -193,7 +185,7 @@ Why hunspell?
   ✓ Used by LibreOffice, Firefox, etc.
 
 After installing, restart Emacs.
-═══════════════════════════════════════════════════════"))
+══════════════════════════════════════════════════════════"))
   
   ;; Bind help message to keybinding
   (global-set-key (kbd "C-c F h") 'my/spellcheck-install-help))
