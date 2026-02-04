@@ -49,7 +49,7 @@
   "Open journal captures file.
   - Goes to end of file
   - Adds today's date heading if not present
-  - Positions cursor below date heading ready to write"
+  - Positions cursor ONE line below date heading (not two!)"
   (interactive)
   (find-file my-journal-captures)
   
@@ -66,16 +66,16 @@
         ;; Date exists - go to end of that section
         (progn
           (org-end-of-subtree)
-          (newline 2)
+          (newline)  ; Just ONE newline
           (message "Positioned below existing date: %s" today-date))
       
       ;; Date doesn't exist - add it at the end
       (goto-char (point-max))
-      (unless (bolp) (newline 2))
-      (insert date-heading "\n\n")
+      (unless (bolp) (newline 2))  ; Two newlines to separate from previous content
+      (insert date-heading "\n")   ; Date heading with ONE newline after it
       (message "Added new date heading: %s" today-date)))
   
-  ;; Final positioning - cursor ready to write
+  ;; Final positioning - cursor ready to write (already on the line after date)
   (unless (looking-at-p "^$")
     (newline)))
 
@@ -110,7 +110,7 @@
 ;; 2. Automatically:
 ;;    - Goes to end of file
 ;;    - Adds today's date if not present (** 2026-02-04)
-;;    - Positions cursor below date heading
+;;    - Positions cursor ONE line below date heading
 ;; 3. Start typing immediately!
 ;; 4. Each day gets its own heading (just date, no day name)
 ;; 5. Multiple captures per day stack under same date
