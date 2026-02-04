@@ -30,12 +30,11 @@
 ;; DENOTE BUILT-IN FUNCTIONS (C-c d ...)
 ;; ============================================================
 
-(global-set-key (kbd "C-c d f") 'denote-find-file)      ; Find note
-(global-set-key (kbd "C-c d l") 'denote-link)           ; Insert link
-(global-set-key (kbd "C-c d b") 'denote-backlinks)      ; Show backlinks
-(global-set-key (kbd "C-c d r") 'denote-rename-file)    ; Rename note
-(global-set-key (kbd "C-c d k") 'denote-keywords-add)   ; Add keywords
-(global-set-key (kbd "C-c d K") 'denote-keywords-remove); Remove keywords
+(global-set-key (kbd "C-c d f") 'denote-find-file)           ; Find note
+(global-set-key (kbd "C-c d l") 'denote-link)                ; Insert link
+(global-set-key (kbd "C-c d b") 'denote-backlinks)           ; Show backlinks
+(global-set-key (kbd "C-c d r") 'denote-rename-file)         ; Rename note
+(global-set-key (kbd "C-c d t") 'denote-rename-file-keywords) ; Modify keywords (add/remove)
 
 ;; ============================================================
 ;; SILO SWITCHING (C-c s ...)
@@ -102,6 +101,11 @@
 ;; C-c F a = add to dictionary
 
 ;; ============================================================
+;; ORG APPEARANCE (defined in 11-org-appearance.el)
+;; ============================================================
+;; M-x my/toggle-org-indent = toggle indentation
+
+;; ============================================================
 ;; HELPER KEYBINDINGS
 ;; ============================================================
 
@@ -142,8 +146,7 @@ Denote Functions (C-c d):
   C-c d l - Insert link
   C-c d b - Show backlinks
   C-c d r - Rename file
-  C-c d k - Add keywords
-  C-c d K - Remove keywords
+  C-c d t - Modify keywords (add/remove)
   C-c d s - Save desktop
 
 Silo Switching (C-c s):
@@ -174,6 +177,10 @@ Spelling (C-c F):
   C-c F n - Next error
   C-c F c - Correct
   C-c F b - Check buffer
+  C-c F a - Add to dictionary
+
+Org Appearance:
+  M-x my/toggle-org-indent - Toggle indentation
 
 Magit:
   C-x g   - Magit status
