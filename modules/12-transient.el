@@ -6,7 +6,7 @@
 ;; Menu sections:
 ;; - Create: Journal, base notes, essays
 ;; - Capture: Fleeting notes and journal captures
-;; - Search: Find files and grep notes
+;; - Search: Find files and grep notes (SEARCHES ALL ~/notes/!)
 ;; - Linking: Insert links and view backlinks
 ;; - File Management: Rename, tag, delete
 ;; - Tools: Insert time/date, well-being, toggle view settings
@@ -36,8 +36,8 @@
    
    ["Search & Find"
     ("F" "Find file" denote-open-or-create)
-    ("g" "Grep notes" consult-denote-grep
-     :if (lambda () (fboundp 'consult-denote-grep)))]
+    ("g" "Grep notes" my/consult-denote-grep-all-silos
+     :if (lambda () (fboundp 'my/consult-denote-grep-all-silos)))]
    
    ["Linking"
     ("i" "Insert link" denote-link)
@@ -90,6 +90,10 @@
 ;; - Toggle view settings
 ;; - Spell-checking with smart correction
 ;;
+;; SEARCH:
+;; - 'F' (Find) - Fuzzy search for files across all silos
+;; - 'g' (Grep) - Text search across ALL ~/notes/ (journal, pks, docu)
+;;
 ;; SPELL-CHECKING:
 ;; - Press 's' repeatedly to correct previous errors (menu stays open!)
 ;; - Press 'a' to add word to dictionary (skip correction menu)
@@ -97,6 +101,15 @@
 ;; - Press 'T' to toggle flyspell on/off
 ;;
 ;; Both 's' and 'a' return you to original cursor position automatically!
+;;
+;; FILE LINKING:
+;; - Use [[file:~/notes/2013<TAB> for fuzzy completion
+;; - Shows ALL files matching '2013' across all directories
+;;
+;; INDENT TOGGLE:
+;; - 'I' toggles org-indent-mode
+;; - Default: OFF (better for older notes)
+;; - Enable for new notes when you want visual hierarchy
 ;;
 ;; The menu stays open after most operations, so you can
 ;; perform multiple actions quickly. Press 'q' to quit.
