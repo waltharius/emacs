@@ -40,7 +40,7 @@
     (ispell-kill-ispell)))
 (advice-add 'ispell-pdict-save :after #'my/ispell-refresh-after-save)
 
-;; --- Function: add word under cursor ---
+;; --- Function: add word at point to dictionary ---
 (defun my/spell-add-word-here ()
   "Add word under cursor to personal Hunspell dictionary."
   (interactive)
@@ -51,7 +51,12 @@
         (insert (downcase w) "\n")
         (append-to-file (point-min) (point-max) pd))
       (when (process-live-p ispell-process) (ispell-kill-ispell))
-      (message "Added: %s -> %s" w pd))))
+      ;; Remove flyspell overlay
+      (let ((overlays (overlays-at (point))))
+        (dolist (o overlays)
+          (when (flyspell-overlay-p o)
+            (delete-overlay o))))
+      (message "✓ Added: %s -> dictionary" w))))
 
 ;; --- Function: previous spelling error (jump only) ---
 (defun my/flyspell-goto-previous-error (arg)
@@ -126,6 +131,45 @@
       (message "No spelling errors found backward from cursor")
       (setq my/spell-return-position nil))))
 
+;; ============================================================
+;; ADD WORD TO DICTIONARY (with auto-return)
+;; ============================================================
+
+(defun my/spell-add-previous-to-dict ()
+  "Jump to previous spelling error, add it to dictionary, and return.
+  
+  This is faster than correction menu when you know the word is correct."
+  (interactive)
+  
+  ;; Save current position
+  (setq my/spell-return-position (point-marker))
+  
+  ;; Find previous error
+  (let ((error-found nil))
+    (save-excursion
+      (let ((pos (point)) (min (point-min)))
+        (backward-word 1)
+        (while (and (> (point) min)
+                    (not (seq-some #'flyspell-overlay-p (overlays-at (point)))))
+          (backward-word 1))
+        (when (seq-some #'flyspell-overlay-p (overlays-at (point)))
+          (setq error-found (point)))))
+    
+    (if error-found
+        (progn
+          ;; Jump to error
+          (goto-char error-found)
+          ;; Add word
+          (my/spell-add-word-here)
+          ;; Return to original position
+          (when (and my/spell-return-position
+                     (marker-position my/spell-return-position))
+            (goto-char my/spell-return-position)
+            (setq my/spell-return-position nil)))
+      
+      (message "No spelling errors found backward from cursor")
+      (setq my/spell-return-position nil))))
+
 ;; Advice to return to original position after correction
 (defun my/spell-return-after-correction (&rest _)
   "Return to saved position after spell correction."
@@ -184,11 +228,32 @@
 ;; --- Flyspell-correct: correcting errors ---
 (use-package flyspell-correct
   :ensure t
-  :after flyspell)
+  :after flyspell
+  :config
+  ;; Add "Save to dictionary" action
+  (setq flyspell-correct-interface #'flyspell-correct-ivy)
+  
+  ;; Configure actions to include save option
+  (define-key flyspell-mode-map (kbd "C-;") 'flyspell-correct-wrapper)
+  
+  ;; Add save action to corrections
+  (defun my/flyspell-correct-save-word ()
+    "Action to save word to dictionary from flyspell-correct."
+    (my/spell-add-word-here)
+    (cons 'save nil))
+  
+  ;; Make save action available
+  (setq flyspell-correct-interface 'flyspell-correct-ivy))
 
 (use-package flyspell-correct-ivy
   :ensure t
-  :after flyspell-correct)
+  :after flyspell-correct
+  :config
+  ;; Show save to dictionary option in ivy
+  (setq flyspell-correct-ivy-map
+        (let ((map (make-sparse-keymap)))
+          (define-key map (kbd "C-s") 'flyspell-correct-save)
+          map)))
 
 ;; ============================================================
 ;; KEYBINDINGS (now mostly in transient menu)
