@@ -8,59 +8,20 @@
 ;; - C-c C-letter = mode-specific (org-mode, etc.)
 ;; - Keep frequently used commands short
 ;; - Group related commands with same prefix
+;;
+;; NOTE: C-c n is now handled by transient menu (12-transient.el)
 
 ;;; Code:
 
 ;; ============================================================
-;; NOTE CREATION (C-c n ...)
+;; NOTE OPERATIONS - NOW IN TRANSIENT MENU (C-c n)
 ;; ============================================================
-
-(global-set-key (kbd "C-c n j") 'my/denote-journal)      ; Journal today
-(global-set-key (kbd "C-c n d") 'my/denote-journal-date) ; Journal (date)
-(global-set-key (kbd "C-c n n") 'my/denote-base)         ; New note
-(global-set-key (kbd "C-c n e") 'my/denote-essay)        ; Essay project
-(global-set-key (kbd "C-c n w") 'my/denote-set-wellbeing); Well-being
-(global-set-key (kbd "C-c n D") 'my/denote-delete-note)  ; Delete note
-
-;; Quick access files (already defined in 06-capture.el)
-;; C-c n f = fleeting notes
-;; C-c n c = journal captures
-
-;; ============================================================
-;; DENOTE BUILT-IN FUNCTIONS (C-c d ...)
-;; ============================================================
-
-(global-set-key (kbd "C-c d f") 'denote-find-file)           ; Find note
-(global-set-key (kbd "C-c d l") 'denote-link)                ; Insert link
-(global-set-key (kbd "C-c d b") 'denote-backlinks)           ; Show backlinks
-(global-set-key (kbd "C-c d r") 'denote-rename-file)         ; Rename note
-(global-set-key (kbd "C-c d t") 'denote-rename-file-keywords) ; Modify keywords (add/remove)
-
-;; ============================================================
-;; SILO SWITCHING (C-c s ...)
-;; ============================================================
-
-(defun my/switch-to-journal ()
-  "Switch to journal silo."
-  (interactive)
-  (setq denote-directory my-notes-journal)
-  (message "Denote: journal silo"))
-
-(defun my/switch-to-pks ()
-  "Switch to PKS silo."
-  (interactive)
-  (setq denote-directory my-notes-pks)
-  (message "Denote: PKS silo"))
-
-(defun my/switch-to-docu ()
-  "Switch to documentation silo."
-  (interactive)
-  (setq denote-directory my-notes-docu)
-  (message "Denote: docu silo"))
-
-(global-set-key (kbd "C-c s j") 'my/switch-to-journal)
-(global-set-key (kbd "C-c s p") 'my/switch-to-pks)
-(global-set-key (kbd "C-c s d") 'my/switch-to-docu)
+;;
+;; All note-related operations are now accessible via:
+;; C-c n - Opens transient menu with all functions
+;;
+;; Individual keybindings removed to avoid conflicts.
+;; See modules/12-transient.el for the menu structure.
 
 ;; ============================================================
 ;; ORG-CAPTURE (already defined in 06-capture.el)
@@ -101,19 +62,11 @@
 ;; C-c F a = add to dictionary
 
 ;; ============================================================
-;; ORG APPEARANCE (defined in 11-org-appearance.el)
-;; ============================================================
-;; M-x my/toggle-org-indent = toggle indentation
-
-;; ============================================================
 ;; HELPER KEYBINDINGS
 ;; ============================================================
 
 ;; Quick config access
 (global-set-key (kbd "C-c o i") 'open-init-el-bottom-split)
-
-;; Insert timestamp
-(global-set-key (kbd "C-c i t") 'insert-current-time)
 
 ;; Evaluate elisp
 (global-set-key (kbd "C-c e b") 'eval-buffer)
@@ -131,28 +84,16 @@
 
 ===================
 
-Note Creation (C-c n):
-  C-c n j - Journal (today)
-  C-c n d - Journal (specific date)
-  C-c n n - New note
-  C-c n e - Essay
-  C-c n w - Set well-being
-  C-c n D - Delete note
-  C-c n f - Open fleeting notes
-  C-c n c - Open journal captures
+Notes (C-c n):
+  C-c n - Open notes transient menu
+          (All note operations in one place!)
 
-Denote Functions (C-c d):
+Denote Quick Access:
   C-c d f - Find note
   C-c d l - Insert link
   C-c d b - Show backlinks
   C-c d r - Rename file
-  C-c d t - Modify keywords (add/remove)
-  C-c d s - Save desktop
-
-Silo Switching (C-c s):
-  C-c s j - Switch to journal
-  C-c s p - Switch to PKS
-  C-c s d - Switch to docu
+  C-c d t - Modify keywords
 
 Capture (C-c c):
   C-c c   - Org-capture menu
@@ -179,15 +120,11 @@ Spelling (C-c F):
   C-c F b - Check buffer
   C-c F a - Add to dictionary
 
-Org Appearance:
-  M-x my/toggle-org-indent - Toggle indentation
-
 Magit:
   C-x g   - Magit status
 
 Other:
   C-c o i - Open init.el
-  C-c i t - Insert time
   C-c e b - Eval buffer
   C-c e r - Eval region
 "))
