@@ -50,12 +50,54 @@
 ;; ============================================================
 
 (electric-pair-mode t)
+
+;; Configure pairing characters
 (setq electric-pair-pairs
       '((?\" . ?\")
         (?' . ?')
         (?\( . ?\))
         (?\[ . ?\])
         (?\{ . ?\})))
+
+;; ============================================================
+;; DISABLE QUOTE PAIRING IN ORG-MODE (keep brackets!)
+;; ============================================================
+
+(defun my/electric-pair-inhibit-quotes-in-org (char)
+  "Inhibit pairing of quotes in org-mode.
+  Allows writing natural text like \"don't\" without doubling apostrophes.
+  Brackets/parens still pair normally."
+  (if (derived-mode-p 'org-mode)
+      ;; In org-mode: inhibit ' and \" pairing
+      (or (eq char ?')
+          (eq char ?\"))
+    ;; In other modes: allow all pairing
+    nil))
+
+;; Apply the inhibit function
+(setq electric-pair-inhibit-predicate #'my/electric-pair-inhibit-quotes-in-org)
+
+;; ============================================================
+;; EXPLANATION
+;; ============================================================
+;;
+;; WHY DISABLE QUOTE PAIRING IN ORG-MODE?
+;;
+;; In natural language writing (notes, journals):
+;; - "don't" should NOT become "don''t"
+;; - "it's" should NOT become "it''s"
+;; - Quotes for "emphasis" get annoying
+;;
+;; In code files (.el, .py, .nix):
+;; - Auto-pairing quotes IS useful
+;; - Prevents syntax errors
+;;
+;; WHAT STILL PAIRS IN ORG-MODE?
+;; - Parentheses: (like this)
+;; - Brackets: [like this]
+;; - Curly braces: {like this}
+;;
+;; RESULT: Natural writing in notes, smart pairing in code!
 
 ;; ============================================================
 ;; SMOOTH SCROLLING
