@@ -17,7 +17,7 @@
   :ensure t
   :custom
   ;; Main directory (default silo)
-  (denote-directory my-notes-journal)
+  (denote-directory my-notes-dir)  ; Changed to root ~/notes/ for better search
   
   ;; Base keyword list (Denote will add more automatically)
   (denote-known-keywords my-denote-keywords)
@@ -49,48 +49,14 @@
 ;; MULTI-SILO SEARCH CONFIGURATION
 ;; ============================================================
 
-;; Search ALL silos, not just journal!
+;; Grep searches all ~/notes/ (including subdirectories!)
 (with-eval-after-load 'consult-denote
-  ;; Tell consult-denote about all directories
-  (setq consult-denote-all-directories
-        (list my-notes-journal
-              my-notes-pks
-              my-notes-docu))
-  
-  ;; Grep searches all silos
   (defun my/consult-denote-grep-all-silos ()
-    "Grep search across all note silos."
+    "Grep search across all note silos (journal, pks, docu)."
     (interactive)
-    (let ((default-directory my-notes-dir))  ; Start from ~/notes/
-      (consult-denote-grep))))
-
-;; ============================================================
-;; FUZZY FILE LINKING (for [[file:~/notes/2013...]])
-;; ============================================================
-
-(defun my/denote-link-complete-file (&optional arg)
-  "Complete file links with fuzzy matching across all silos.
-  When you type [[file:~/notes/2013<TAB> it will show ALL matching files!"
-  (let* ((all-files (append
-                     (directory-files my-notes-journal t "\\.org$")
-                     (directory-files my-notes-pks t "\\.org$")
-                     (directory-files my-notes-docu t "\\.org$")))
-         ;; Create alist: ("filename" . "/full/path/to/file.org")
-         (file-alist (mapcar 
-                      (lambda (f)
-                        (cons (file-name-nondirectory f) f))
-                      all-files))
-         ;; Fuzzy completion!
-         (choice (completing-read "Link to file: " file-alist nil t))
-         (file (cdr (assoc choice file-alist))))
-    (if file
-        (concat "file:" file)
-      "")))
-
-;; Apply fuzzy completion to file: links in org-mode
-(with-eval-after-load 'org
-  (org-link-set-parameters "file"
-                           :complete #'my/denote-link-complete-file))
+    ;; Just use regular consult-denote-grep - it searches denote-directory
+    ;; and subdirectories automatically!
+    (consult-denote-grep)))
 
 ;; ============================================================
 ;; DENOTE CONVENIENCE SETTINGS
@@ -165,7 +131,7 @@ NO BOUNDARY LINES - clean margins!"
 ;; ORG-MODE SETTINGS FOR DENOTE
 ;; ============================================================
 
-;; Disable auto-indent in org-mode
+;; Disable auto-indent in org-mode (controlled separately)
 (add-hook 'org-mode-hook
           (lambda ()
             (electric-indent-local-mode -1)
@@ -188,6 +154,26 @@ NO BOUNDARY LINES - clean margins!"
 
 ;; Don't ask for confirmation when executing elisp links
 (setq org-confirm-elisp-link-function nil)
+
+;; ============================================================
+;; EXPLANATION OF CHANGES
+;; ============================================================
+;;
+;; SEARCH IMPROVEMENTS:
+;; - denote-directory set to ~/notes/ (root)
+;; - This makes all denote functions search ALL subdirectories
+;; - consult-denote-grep now searches journal, pks, AND docu
+;; - denote-link and denote-open-or-create see all files
+;;
+;; WHY THIS WORKS:
+;; - Denote recursively searches its directory
+;; - By setting root to ~/notes/ instead of ~/notes/journal/
+;; - All subdirectories are automatically included
+;;
+;; FILE LINKING:
+;; - Use C-c n i (denote-link) for intelligent linking
+;; - Shows ALL notes across all silos with fuzzy matching
+;; - Use C-c n F (denote-open-or-create) to find any file
 
 (provide '04-denote)
 ;;; 04-denote.el ends here
