@@ -57,7 +57,7 @@
         (message "Centered layout: OFF"))
     (progn
       (visual-fill-column-mode 1)
-      (message "Centered layout: ON")))
+      (message "Centered layout: ON"))))
   
 ;; Optional: Bind to a key (uncomment if you want)
 ;; (global-set-key (kbd "C-c v") 'my/toggle-visual-fill-column)
