@@ -51,8 +51,7 @@
   (unless (file-exists-p my-journal-captures)
     (with-temp-file my-journal-captures
       (insert "#+title: Journal Captures\n")
-      (insert "#+filetags: :journal:captures:\n\n")
-      (insert "* Ideas from Journal\n\n")))
+      (insert "#+filetags: :journal:captures:\n\n")))
   
   ;; Capture templates
   (setq org-capture-templates
@@ -66,7 +65,7 @@
            (file+headline my-journal-captures "Ideas from Journal")
            "* %(my/get-capture-origin-title)\n:PROPERTIES:\n:SOURCE: [[%F][%(my/get-capture-origin-title)]]\n:CAPTURED: %U\n:END:\n\n%?"
            :empty-lines 1
-           :prepend t)))  ; NEW: Newest entries first!
+           :prepend nil))))
 
 ;; ============================================================
 ;; SMART JOURNAL CAPTURE OPENING
@@ -74,12 +73,14 @@
 
 (defun my/open-journal-captures ()
   "Open journal captures file.
+  - Goes to end of file
   - Adds today's date heading if not present
-  - Date headings go BEFORE 'Ideas from Journal'
-  - Newest dates appear first
-  - Positions cursor ONE line below date heading"
+  - Positions cursor ONE line below date heading (not two!)"
   (interactive)
   (find-file my-journal-captures)
+  
+  ;; Go to end of file
+  (goto-char (point-max))
   
   ;; Get today's date in format: * 2026-02-04 (level 1 heading)
   (let* ((today-date (format-time-string "%Y-%m-%d"))
@@ -94,25 +95,13 @@
           (newline)  ; Just ONE newline
           (message "Positioned below existing date: %s" today-date))
       
-      ;; Date doesn't exist - add it BEFORE "Ideas from Journal"
-      (goto-char (point-min))
-      (if (search-forward "* Ideas from Journal" nil t)
-          (progn
-            ;; Found the separator - go to beginning of that line
-            (beginning-of-line)
-            ;; Insert new date heading BEFORE it
-            (insert date-heading "\n\n")  ; Date + blank line for content
-            ;; Move back to position cursor after date
-            (forward-line -1)
-            (message "Added new date heading before Ideas: %s" today-date))
-        
-        ;; "Ideas from Journal" not found - add date at end (fallback)
-        (goto-char (point-max))
-        (unless (bolp) (newline 2))
-        (insert date-heading "\n")
-        (message "Added new date heading at end: %s" today-date))))
+      ;; Date doesn't exist - add it at the end
+      (goto-char (point-max))
+      (unless (bolp) (newline 2))  ; Two newlines to separate from previous content
+      (insert date-heading "\n")   ; Date heading with ONE newline after it
+      (message "Added new date heading: %s" today-date)))
   
-  ;; Final positioning - cursor ready to write
+  ;; Final positioning - cursor ready to write (already on the line after date)
   (unless (looking-at-p "^$")
     (newline)))
 
@@ -136,53 +125,9 @@
 ;; WORKFLOW EXPLANATION
 ;; ============================================================
 ;;
-;; FILE STRUCTURE (captures.org):
-;;
-;; #+title: Journal Captures
-;; #+filetags: :journal:captures:
-;;
-;; * 2026-02-04              ← Quick notes by date (newest dates first)
-;; Note from today...
-;; Another quick thought...
-;;
-;; * 2026-02-03              ← Older date
-;; Yesterday's notes...
-;;
-;; * Ideas from Journal      ← Separator heading
-;;
-;; ** Latest Idea            ← Structured captures (newest first)
-;; :PROPERTIES:
-;; :SOURCE: [[link]]
-;; :END:
-;;
-;; ** Older Idea
-;; :PROPERTIES:
-;; :SOURCE: [[link]]
-;; :END:
-;;
-;; -------------------------------------------------------------------
-;;
 ;; TWO DIFFERENT WAYS TO ADD TO CAPTURES.ORG:
 ;;
-;; Method 1: C-c n c (Quick manual entry by date)
-;; -------------------------------------------------------
-;; Use this for quick thoughts you want to write down fast,
-;; organized by date.
-;;
-;; What it does:
-;; - Opens captures.org
-;; - Adds/finds today's date heading (* 2026-02-04)
-;; - Places it BEFORE "Ideas from Journal" separator
-;; - Newest dates appear at top of file
-;; - Positions cursor for immediate typing
-;; - No structure, no properties, just write!
-;;
-;; Result:
-;; * 2026-02-04
-;; Quick thought I want to remember.
-;; Another thought from later today.
-;;
-;; Method 2: C-c c j (Structured capture FROM journal notes)
+;; Method 1: C-c c j (Structured capture FROM journal notes)
 ;; -------------------------------------------------------
 ;; Use this when you're IN a journal/note and want to capture
 ;; an idea for later development.
@@ -195,27 +140,40 @@
 ;; - Uses extracted title for BOTH heading AND link
 ;; - Adds timestamp
 ;; - Saves under "Ideas from Journal" heading
-;; - Newest entries appear FIRST (prepend)
 ;; - Cursor positioned in content area (not heading)
 ;;
-;; Result:
-;; ** 2026-02-04 Journal       ← Auto-filled, newest at top
+;; Example result:
+;; * 2026-02-04 Journal                    ← Auto-filled from source!
 ;; :PROPERTIES:
 ;; :SOURCE: [[file:~/notes/journal/2026-02-04-journal.org][2026-02-04 Journal]]
 ;; :CAPTURED: [2026-02-04 śro 17:05]
 ;; :END:
 ;;
-;; Your thoughts go here...    ← Cursor starts here
+;; Your thoughts go here...               ← Cursor starts here
+;;
+;; Method 2: C-c n c (Quick manual entry by date)
+;; -------------------------------------------------------
+;; Use this for quick thoughts you want to write down fast,
+;; organized by date.
+;;
+;; What it does:
+;; - Opens captures.org
+;; - Adds/finds today's date heading (* 2026-02-04)
+;; - Positions cursor for immediate typing
+;; - No structure, no properties, just write!
+;;
+;; Example result:
+;; * 2026-02-04
+;; Quick thought I want to remember.
+;; Another thought from later today.
 ;;
 ;; WHICH TO USE WHEN?
 ;; ------------------
 ;; C-c c j → When reading a note and you get an idea to develop
 ;; C-c n c → When you just want to jot something down quickly
 ;;
-;; Both methods write to the same file (captures.org) with
-;; different structures, separated by "Ideas from Journal" heading.
-;; Quick date-based notes stay above, structured ideas below.
-;; Within each section, newest entries appear first.
+;; Both methods write to the same file (captures.org) but with
+;; different structures. That's OK! Review them later and process.
 ;;
 ;; Fleeting Notes (C-c c f):
 ;; 1. Press C-c c f anywhere to capture a quick thought
