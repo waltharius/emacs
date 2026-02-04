@@ -54,7 +54,7 @@
 ;; Configure pairing characters
 (setq electric-pair-pairs
       '((?\" . ?\")
-        (?' . ?')
+        (?' . ?\')
         (?\( . ?\))
         (?\[ . ?\])
         (?\{ . ?\})))
@@ -69,7 +69,7 @@
   Brackets/parens still pair normally."
   (if (derived-mode-p 'org-mode)
       ;; In org-mode: inhibit ' and \" pairing
-      (or (eq char ?')
+      (or (eq char ?\')
           (eq char ?\"))
     ;; In other modes: allow all pairing
     nil))
