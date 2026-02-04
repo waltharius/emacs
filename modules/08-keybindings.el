@@ -1,7 +1,6 @@
 ;;; 08-keybindings.el --- Keybindings -*- lexical-binding: t; -*-
 ;;; Commentary:
 ;; All custom keybindings in one place
-;; THIS MODULE MUST BE LOADED LAST!
 ;;
 ;; Keybinding philosophy:
 ;; - C-c letter = user commands (your personal functions)
@@ -9,19 +8,28 @@
 ;; - Keep frequently used commands short
 ;; - Group related commands with same prefix
 ;;
-;; NOTE: C-c n is now handled by transient menu (12-transient.el)
+;; NOTE: C-c n opens transient menu (12-transient.el)
+;; NOTE: C-c d provides quick access to common Denote functions
 
 ;;; Code:
 
 ;; ============================================================
-;; NOTE OPERATIONS - NOW IN TRANSIENT MENU (C-c n)
+;; NOTE OPERATIONS - TRANSIENT MENU (C-c n)
 ;; ============================================================
 ;;
-;; All note-related operations are now accessible via:
-;; C-c n - Opens transient menu with all functions
-;;
-;; Individual keybindings removed to avoid conflicts.
-;; See modules/12-transient.el for the menu structure.
+;; C-c n - Opens full notes menu with all functions
+;; See modules/12-transient.el for menu structure
+
+;; ============================================================
+;; DENOTE QUICK ACCESS (C-c d ...)
+;; ============================================================
+;; For frequently used Denote functions - faster than opening menu
+
+(global-set-key (kbd "C-c d f") 'denote-open-or-create)      ; Find/create note
+(global-set-key (kbd "C-c d l") 'denote-link)                ; Insert link
+(global-set-key (kbd "C-c d b") 'denote-backlinks)           ; Show backlinks
+(global-set-key (kbd "C-c d r") 'denote-rename-file)         ; Rename note
+(global-set-key (kbd "C-c d t") 'denote-rename-file-keywords); Modify keywords
 
 ;; ============================================================
 ;; ORG-CAPTURE (already defined in 06-capture.el)
@@ -84,16 +92,17 @@
 
 ===================
 
-Notes (C-c n):
-  C-c n - Open notes transient menu
-          (All note operations in one place!)
+Notes Menu (C-c n):
+  C-c n   - Open notes transient menu
+            (All note operations in one place!)
 
-Denote Quick Access:
-  C-c d f - Find note
+Denote Quick Access (C-c d):
+  C-c d f - Find/create note
   C-c d l - Insert link
   C-c d b - Show backlinks
   C-c d r - Rename file
   C-c d t - Modify keywords
+  C-c d s - Save desktop
 
 Capture (C-c c):
   C-c c   - Org-capture menu
@@ -127,6 +136,7 @@ Other:
   C-c o i - Open init.el
   C-c e b - Eval buffer
   C-c e r - Eval region
+  C-c h k - Show this help
 "))
     (with-output-to-temp-buffer "*Keybindings Help*"
       (princ help-text))))
