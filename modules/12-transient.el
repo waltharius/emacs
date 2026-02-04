@@ -10,7 +10,7 @@
 ;; - Linking: Insert links and view backlinks
 ;; - File Management: Rename, tag, delete
 ;; - Tools: Insert time/date, well-being, toggle view settings
-;; - Spelling: Check, correct errors, toggle spell-checking
+;; - Spelling: Check, correct errors, add to dictionary, toggle spell-checking
 
 ;;; Code:
 
@@ -56,6 +56,7 @@
    
    ["Spelling"
     ("s" "Correct previous" my/spell-correct-previous :transient t)
+    ("a" "Add to dict" my/spell-add-previous-to-dict :transient t)
     ("S" "Check buffer" my/spell-check-buffer)
     ("T" "Toggle spellcheck" my/toggle-flyspell)]
    
@@ -90,9 +91,12 @@
 ;; - Spell-checking with smart correction
 ;;
 ;; SPELL-CHECKING:
-;; - Press 's' repeatedly to correct previous errors (stays in menu!)
+;; - Press 's' repeatedly to correct previous errors (menu stays open!)
+;; - Press 'a' to add word to dictionary (skip correction menu)
 ;; - Press 'S' to force-check entire buffer
 ;; - Press 'T' to toggle flyspell on/off
+;;
+;; Both 's' and 'a' return you to original cursor position automatically!
 ;;
 ;; The menu stays open after most operations, so you can
 ;; perform multiple actions quickly. Press 'q' to quit.
