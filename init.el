@@ -27,7 +27,7 @@
                  "%b"))))
 
 ;; ============================================================
-;; LOAD MODULES (only essential ones)
+;; LOAD MODULES (in correct order)
 ;; ============================================================
 
 (let ((modules-dir (expand-file-name "modules/" user-emacs-directory)))
@@ -40,6 +40,7 @@
   (load (concat modules-dir "06-capture.el"))      ; Org-capture fleeting
   (load (concat modules-dir "07-git.el"))          ; Git auto-commit
   (load (concat modules-dir "08-keybindings.el"))  ; Keybindings (MUST BE LAST!)
+  (load (concat modules-dir "09-theme.el"))        ; Theme (light modus-operandi-tinted)
   )
 
 ;; ============================================================
@@ -52,4 +53,3 @@
 
 (provide 'init)
 ;;; init.el ends here
-
