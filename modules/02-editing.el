@@ -51,10 +51,10 @@
 
 (electric-pair-mode t)
 
-;; Configure pairing characters
+;; Default pairing for code modes
 (setq electric-pair-pairs
       '((?\" . ?\")
-        (?' . ?\')
+        (?' . ?')
         (?\( . ?\))
         (?\[ . ?\])
         (?\{ . ?\})))
@@ -63,19 +63,23 @@
 ;; DISABLE QUOTE PAIRING IN ORG-MODE (keep brackets!)
 ;; ============================================================
 
-(defun my/electric-pair-inhibit-quotes-in-org (char)
-  "Inhibit pairing of quotes in org-mode.
-  Allows writing natural text like \"don't\" without doubling apostrophes.
-  Brackets/parens still pair normally."
-  (if (derived-mode-p 'org-mode)
-      ;; In org-mode: inhibit ' and \" pairing
-      (or (eq char ?\')
-          (eq char ?\"))
-    ;; In other modes: allow all pairing
-    nil))
+(defun my/org-mode-electric-pair-setup ()
+  "Configure electric-pair-mode for org-mode.
+  Disable quote pairing but keep brackets."
+  ;; Make electric-pair-pairs buffer-local and exclude quotes
+  (setq-local electric-pair-pairs
+              '((?\( . ?\))
+                (?\[ . ?\])
+                (?\{ . ?\})))
+  
+  ;; Also set electric-pair-text-pairs for text contexts
+  (setq-local electric-pair-text-pairs
+              '((?\( . ?\))
+                (?\[ . ?\])
+                (?\{ . ?\}))))
 
-;; Apply the inhibit function
-(setq electric-pair-inhibit-predicate #'my/electric-pair-inhibit-quotes-in-org)
+;; Apply to org-mode
+(add-hook 'org-mode-hook 'my/org-mode-electric-pair-setup)
 
 ;; ============================================================
 ;; EXPLANATION
@@ -96,6 +100,9 @@
 ;; - Parentheses: (like this)
 ;; - Brackets: [like this]
 ;; - Curly braces: {like this}
+;;
+;; WHAT PAIRS IN CODE FILES?
+;; - Everything: quotes, brackets, parens, braces
 ;;
 ;; RESULT: Natural writing in notes, smart pairing in code!
 
