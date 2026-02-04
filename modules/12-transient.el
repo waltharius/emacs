@@ -36,7 +36,7 @@
    
    ["Search & Find"
     ("F" "Find file" denote-open-or-create)
-    ("g" "Grep notes" my/consult-denote-grep-all-silos)]
+    ("g" "Grep notes" consult-denote-grep)]
    
    ["Linking"
     ("i" "Insert link" denote-link)
@@ -92,6 +92,8 @@
 ;; SEARCH:
 ;; - 'F' (Find) - Fuzzy search for files across all silos
 ;; - 'g' (Grep) - Text search across ALL ~/notes/ (journal, pks, docu)
+;;   Since denote-directory is set to ~/notes/ root, grep automatically
+;;   searches all subdirectories including journal, pks, and docu!
 ;;
 ;; SPELL-CHECKING:
 ;; - Press 's' repeatedly to correct previous errors (menu stays open!)
