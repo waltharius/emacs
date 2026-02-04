@@ -5,7 +5,7 @@
 ;; - Beautiful heading sizes and colors
 ;; - Pretty bullet points
 ;; - Extra line spacing for breathing room
-;; - TOGGLE indentation with: C-c n I (or M-x my/toggle-org-indent)
+;; - INDENT OFF BY DEFAULT - toggle with: C-c n I
 ;;
 ;; NOTE: Font settings (variable-pitch) moved to 03b-fonts.el
 ;;       to enable selective font control (journals vs other notes)
@@ -61,8 +61,15 @@
 ;; ============================================================
 
 ;; INDENT OFF BY DEFAULT (older notes work better without it)
-;; Toggle with C-c n I when you need it for specific notes
+;; This setting alone isn't always enough, so we also use a hook below
 (setq org-startup-indented nil)
+
+;; FORCE indent OFF when opening org files
+;; Some packages re-enable it, so we explicitly disable it
+(add-hook 'org-mode-hook
+          (lambda ()
+            (org-indent-mode -1))  ; Force OFF
+          90)  ; Run late (after other hooks)
 
 ;; Show inline images by default
 (setq org-startup-with-inline-images t)
@@ -123,8 +130,10 @@
 ;;
 ;; INDENTATION:
 ;; - Default: OFF (better for older notes)
+;; - Hook explicitly disables it on file open
 ;; - Toggle: C-c n I (available in transient menu)
 ;; - Use when: You want visual hierarchy in new notes
+;; - Emacs remembers your choice per-file automatically
 
 (provide '11-org-appearance)
 ;;; 11-org-appearance.el ends here
