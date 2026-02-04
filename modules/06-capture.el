@@ -24,8 +24,7 @@
   (unless (file-exists-p my-journal-captures)
     (with-temp-file my-journal-captures
       (insert "#+title: Journal Captures\n")
-      (insert "#+filetags: :journal:captures:\n\n")
-      (insert "* Ideas from Journal\n\n")))
+      (insert "#+filetags: :journal:captures:\n\n")))
   
   ;; Capture templates
   (setq org-capture-templates
