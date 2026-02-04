@@ -1,71 +1,111 @@
-# Undo-tree history (persistent undo files)
-undo-tree-history/
-.undo-tree-*
+# ============================================================
+# PRIVACY PROTECTION - Files that may contain note titles/paths
+# ============================================================
 
-# Org-mode temporary files
+# Session state (contains full file paths with note titles!)
+recentf
+recentf~
+places
+bookmarks
+bookmarks~
+saveplace
+ido.last
+savehist
+history
+
+# Desktop sessions (complete session state - all open files!)
+desktop/
+*.desktop
+*.desktop.lock
+.emacs.desktop
+.emacs.desktop.lock
+
+# Org-mode (may contain note locations and titles)
 .org-id-locations
+.org-clock-save
+.org-clock-save.el
+org-clock-save.el
+org-roam.db
+org-roam.db-shm
+org-roam.db-wal
 
-# Ignoruj zainstalowane pakiety
+# Project/completion caches (file paths)
+projectile-bookmarks.eld
+projectile.cache
+smex-items
+
+# ============================================================
+# SYNCTHING CONFLICTS - Never commit these!
+# ============================================================
+
+.stversions/
+*.sync-conflict-*
+*sync-conflict*
+
+# ============================================================
+# INSTALLED PACKAGES - Auto-downloaded, don't version
+# ============================================================
+
 elpa/
 elpa.backup/
 elpaca/
 straight/
 quelpa/
+eln-cache/
 
-# Ignoruj pliki cache
+# ============================================================
+# CACHE AND TEMPORARY FILES
+# ============================================================
+
 auto-save-list/
-recentf
-recentf~
-places
-bookmarks
-saveplace
-eshell/
 transient/
 url/
-eln-cache/
-ido.last
-projectile-bookmarks.eld
-projectile.cache
-smex-items
+eshell/
 network-security.data
 
-# Ignoruj desktopy
-desktop/
-*.desktop
-*.desktop.lock
+# Undo-tree history
+undo-tree-history/
+.undo-tree-*
 
-# Ignoruj pliki tymczasowe
+# Compiled files
 *.elc
+
+# ============================================================
+# BACKUP AND AUTOSAVE FILES
+# ============================================================
+
+# Emacs backups
 *~
 \#*\#
 .\#*
-.DS_Store
-
-# Ignoruj backupy
 *.backup
 *.backup.*
-init.el_v*.txt
 .backups/
 .autosaves/
 
-# Ignoruj tutorial
+# Version backups
+init.el_v*.txt
+
+# ============================================================
+# SYSTEM FILES
+# ============================================================
+
+.DS_Store
+Thumbs.db
+
+# ============================================================
+# TUTORIAL (not needed in git)
+# ============================================================
+
 tutorial/
 
-# Zachowaj TYLKO konfigurację
+# ============================================================
+# KEEP ONLY CONFIGURATION FILES
+# ============================================================
+# Everything above is ignored, but these are explicitly tracked:
+
 !init.el
 !early-init.el
 !modules/
 !.gitignore
-
-# Undo-tree history
-undo-tree-history/
-
-# Syncthing
-.stversions/
-.sync-conflict-*
-
-# Org-mode generated
-.org-id-locations
-org-roam.db
-org-roam.db-shm
-org-roam.db-wal
+!README.md
