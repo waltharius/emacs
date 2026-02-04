@@ -56,8 +56,8 @@
   ;; Go to end of file
   (goto-char (point-max))
   
-  ;; Get today's date in format: ** 2026-02-04 wto
-  (let* ((today-date (format-time-string "%Y-%m-%d %a"))
+  ;; Get today's date in format: ** 2026-02-04 (just numbers, no day name!)
+  (let* ((today-date (format-time-string "%Y-%m-%d"))
          (date-heading (concat "** " today-date)))
     
     ;; Search for today's date heading in the file
@@ -109,10 +109,10 @@
 ;; 1. Press C-c n c to open journal captures
 ;; 2. Automatically:
 ;;    - Goes to end of file
-;;    - Adds today's date if not present (** 2026-02-04 wto)
+;;    - Adds today's date if not present (** 2026-02-04)
 ;;    - Positions cursor below date heading
 ;; 3. Start typing immediately!
-;; 4. Each day gets its own heading
+;; 4. Each day gets its own heading (just date, no day name)
 ;; 5. Multiple captures per day stack under same date
 ;;
 ;; Alternative: Press C-c c j anywhere to capture with dialog
