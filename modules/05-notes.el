@@ -6,6 +6,9 @@
 ;; - Base note (simple)
 ;; - Essay
 ;; - Well-being tracking
+;;
+;; NOTE: denote-directory is now ~/notes/ (root) for better search
+;;       Journal functions explicitly save to my-notes-journal
 
 ;;; Code:
 
