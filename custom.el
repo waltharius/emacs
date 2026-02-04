@@ -6,7 +6,9 @@
  '(column-number-mode t)
  '(display-line-numbers-type 'relative)
  '(global-display-line-numbers-mode t)
- '(package-selected-packages nil)
+ '(package-selected-packages
+   '(consult-denote flyspell-correct-ivy magit modus-themes org-bullets
+                    visual-fill-column))
  '(recentf-filename-handlers '(abbreviate-file-name))
  '(size-indication-mode t)
  '(tab-bar-mode t))
@@ -18,4 +20,12 @@
  '(org-block ((t (:background "#fef8e0" :extend t :family "Georgia"))))
  '(org-block-begin-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9))))
  '(org-block-end-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9))))
+ '(org-level-1 ((t (:height 1.3 :weight bold))))
+ '(org-level-2 ((t (:height 1.2 :weight bold))))
+ '(org-level-3 ((t (:height 1.1 :weight bold))))
+ '(org-level-4 ((t (:height 1.0 :weight bold))))
+ '(org-level-5 ((t (:height 1.0))))
+ '(org-level-6 ((t (:height 1.0))))
+ '(org-level-7 ((t (:height 1.0))))
+ '(org-level-8 ((t (:height 1.0))))
  '(org-quote ((t (:background "#f9f9f9" :slant italic :foreground "#555555")))))
