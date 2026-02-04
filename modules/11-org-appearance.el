@@ -4,6 +4,7 @@
 ;; - Hides emphasis markers (*bold*, /italic/, _underline_)
 ;; - Beautiful heading sizes and colors
 ;; - Mixed fonts (variable pitch for text, monospace for code)
+;; - First-line indent for paragraphs (like in books!)
 
 ;;; Code:
 
@@ -18,22 +19,23 @@
 ;; BEAUTIFUL HEADINGS (Larger, Colorful)
 ;; ============================================================
 
-(custom-set-faces
- ;; Level 1 - Largest, most prominent
- '(org-level-1 ((t (:height 1.3 :weight bold))))
- 
- ;; Level 2 - Medium large
- '(org-level-2 ((t (:height 1.2 :weight bold))))
- 
- ;; Level 3 - Slightly larger
- '(org-level-3 ((t (:height 1.1 :weight bold))))
- 
- ;; Level 4+ - Normal size
- '(org-level-4 ((t (:height 1.0 :weight bold))))
- '(org-level-5 ((t (:height 1.0))))
- '(org-level-6 ((t (:height 1.0))))
- '(org-level-7 ((t (:height 1.0))))
- '(org-level-8 ((t (:height 1.0)))))
+(with-eval-after-load 'org
+  (custom-set-faces
+   ;; Level 1 - Largest, most prominent
+   '(org-level-1 ((t (:height 1.3 :weight bold))))
+   
+   ;; Level 2 - Medium large
+   '(org-level-2 ((t (:height 1.2 :weight bold))))
+   
+   ;; Level 3 - Slightly larger
+   '(org-level-3 ((t (:height 1.1 :weight bold))))
+   
+   ;; Level 4+ - Normal size
+   '(org-level-4 ((t (:height 1.0 :weight bold))))
+   '(org-level-5 ((t (:height 1.0))))
+   '(org-level-6 ((t (:height 1.0))))
+   '(org-level-7 ((t (:height 1.0))))
+   '(org-level-8 ((t (:height 1.0))))))
 
 ;; ============================================================
 ;; MIXED FONTS (Variable pitch for text, monospace for code)
@@ -54,6 +56,36 @@
   (set-face-attribute 'org-link nil :inherit 'fixed-pitch))
 
 ;; ============================================================
+;; FIRST-LINE INDENT (Like in books!)
+;; ============================================================
+;;
+;; This creates paragraph indentation where:
+;; - First line of each paragraph is indented
+;; - Wrapped lines start at left margin (no indent)
+;;
+;; Example:
+;;     This is the first line with indent.
+;; But when text wraps, it starts at the left
+;; margin.
+;;     Next paragraph also starts with indent.
+;;
+
+(defun my/org-indent-first-line ()
+  "Add first-line indent to paragraphs in org-mode."
+  ;; Set indent to 4 spaces (adjust as needed)
+  (setq-local paragraph-start "\\*\\|[ \t]*$")
+  (setq-local paragraph-separate "[ \t]*$")
+  
+  ;; Use adaptive-fill for proper indentation
+  (setq-local adaptive-fill-mode t)
+  (setq-local adaptive-fill-first-line-regexp "[ \t]*")
+  
+  ;; Visual indent for first line
+  (setq-local left-margin-width 4))
+
+(add-hook 'org-mode-hook 'my/org-indent-first-line)
+
+;; ============================================================
 ;; ADDITIONAL VISUAL IMPROVEMENTS
 ;; ============================================================
 
@@ -63,7 +95,7 @@
 ;; Show inline images by default
 (setq org-startup-with-inline-images t)
 
-;; Prettier bullet points (• instead of -)
+;; Prettier bullet points (● instead of -)
 (use-package org-bullets
   :ensure t
   :hook (org-mode . org-bullets-mode)
