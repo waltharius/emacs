@@ -59,12 +59,19 @@
     ;; HUNSPELL: Simultaneous Polish + English
     ;; ============================================================
     (when (string= my/spellcheck-program "hunspell")
+      ;; CRITICAL FIX: Auto-detect dictionary paths
+      (setq ispell-hunspell-dict-paths-alist nil)  ; Let hunspell auto-detect
+      
       ;; Use BOTH dictionaries at once (no switching!)
       (setq ispell-dictionary "pl_PL,en_US")
       
-      ;; Tell hunspell to use both dictionaries
-      (ispell-set-spellchecker-params)
-      (ispell-hunspell-add-multi-dic "pl_PL,en_US")
+      ;; Tell hunspell we're using multiple dictionaries
+      (setq ispell-local-dictionary-alist
+            '(("pl_PL,en_US"
+               "[[:alpha:]]"
+               "[^[:alpha:]]"
+               "[']" t
+               ("-d" "pl_PL,en_US") nil utf-8)))
       
       ;; Personal dictionary
       (setq ispell-personal-dictionary "~/.hunspell_personal")
