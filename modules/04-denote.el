@@ -10,6 +10,13 @@
 ;;; Code:
 
 ;; ============================================================
+;; COMPLETION: Configure keyword separator (comma for multi-select)
+;; ============================================================
+
+;; Allow comma-separated keyword input (works with Vertico/Icomplete)
+(setq crm-separator ",")
+
+;; ============================================================
 ;; DENOTE: Core package
 ;; ============================================================
 
@@ -19,10 +26,10 @@
   ;; Main directory (default silo)
   (denote-directory my-notes-journal)
   
-  ;; NO hardcoded keywords - let Denote discover from existing notes
-  (denote-known-keywords nil)
+  ;; Base keyword list (Denote will add more automatically)
+  (denote-known-keywords my-denote-keywords)
   
-  ;; Auto-discover keywords from ALL notes (including other silos)
+  ;; Auto-discover keywords from existing notes and ADD to known list
   (denote-infer-keywords t)
   
   ;; Sort keywords alphabetically in completion
@@ -32,19 +39,7 @@
   (denote-file-type nil)
   
   ;; What to prompt for when creating notes
-  (denote-prompts '(title keywords))
-  
-  :config
-  ;; Tell Denote to scan ALL silos for keywords (not just current directory)
-  (setq denote-directory-files-matching-regexp-function
-        (lambda (regexp)
-          (let ((files '()))
-            ;; Scan all three silos
-            (dolist (dir (list my-notes-journal my-notes-pks my-notes-docu))
-              (when (file-exists-p dir)
-                (setq files (append files
-                                    (directory-files-recursively dir regexp t)))))
-            files))))
+  (denote-prompts '(title keywords)))
 
 ;; ============================================================
 ;; CONSULT-DENOTE: Better search integration
@@ -74,7 +69,7 @@
 (defun my/denote-visual-wrap-setup ()
   "Enable visual-line-mode + visual-fill-column for Denote notes.
 Documentation (:docu:): 100 chars, centered.
-Normal notes: 84 chars, centered."
+Normal notes: my-fill-column (80), centered."
   (when (and (buffer-file-name)
              (or (string-match-p (expand-file-name my-notes-journal)
                                  (buffer-file-name))
@@ -99,8 +94,8 @@ Normal notes: 84 chars, centered."
             (setq fill-column 100)
             (setq-local visual-fill-column-width 100))
         (progn
-          (setq fill-column 84)
-          (setq-local visual-fill-column-width 84)))
+          (setq fill-column my-fill-column)  ; Use variable (80)
+          (setq-local visual-fill-column-width my-fill-column)))
       
       ;; BOTH TYPES: centering ON
       (setq-local visual-fill-column-center-text t)
