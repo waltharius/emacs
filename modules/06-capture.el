@@ -8,6 +8,16 @@
 ;;; Code:
 
 ;; ============================================================
+;; HELPER FUNCTION: Get note title
+;; ============================================================
+
+(defun my/get-note-title ()
+  "Get the title of current note from #+title or filename."
+  (or (cadar (org-collect-keywords '("title")))
+      (file-name-base (buffer-file-name))
+      "untitled"))
+
+;; ============================================================
 ;; ORG-CAPTURE: Configuration
 ;; ============================================================
 
@@ -36,7 +46,7 @@
           
           ("j" "Journal Capture" entry
            (file+headline my-journal-captures "Ideas from Journal")
-           "* %?\n:PROPERTIES:\n:SOURCE: [[%F][%^{Note name}]]\n:CAPTURED: %U\n:END:\n"
+           "* %?\n:PROPERTIES:\n:SOURCE: [[%F][%(my/get-note-title)]]\n:CAPTURED: %U\n:END:\n"
            :empty-lines 1
            :prepend nil))))
 
@@ -55,7 +65,7 @@
   ;; Go to end of file
   (goto-char (point-max))
   
-  ;; Get today's date in format
+  ;; Get today's date in format: * 2026-02-04 (level 1 heading)
   (let* ((today-date (format-time-string "%Y-%m-%d"))
          (date-heading (concat "* " today-date)))
     
@@ -98,23 +108,56 @@
 ;; WORKFLOW EXPLANATION
 ;; ============================================================
 ;;
-;; Fleeting Notes Workflow:
+;; TWO DIFFERENT WAYS TO ADD TO CAPTURES.ORG:
+;;
+;; Method 1: C-c c j (Structured capture FROM journal notes)
+;; -------------------------------------------------------
+;; Use this when you're IN a journal/note and want to capture
+;; an idea for later development.
+;;
+;; What it does:
+;; - Opens capture dialog
+;; - Automatically creates link to current note
+;; - Uses note title as link description (NO PROMPTING!)
+;; - Adds timestamp
+;; - Saves under "Ideas from Journal" heading
+;;
+;; Example result:
+;; * My interesting idea
+;; :PROPERTIES:
+;; :SOURCE: [[file:~/notes/journal/2026-02-04-journal.org][2026-02-04 Journal]]
+;; :CAPTURED: [2026-02-04 śro 17:05]
+;; :END:
+;;
+;; Method 2: C-c n c (Quick manual entry by date)
+;; -------------------------------------------------------
+;; Use this for quick thoughts you want to write down fast,
+;; organized by date.
+;;
+;; What it does:
+;; - Opens captures.org
+;; - Adds/finds today's date heading (* 2026-02-04)
+;; - Positions cursor for immediate typing
+;; - No structure, no properties, just write!
+;;
+;; Example result:
+;; * 2026-02-04
+;; Quick thought I want to remember.
+;; Another thought from later today.
+;;
+;; WHICH TO USE WHEN?
+;; ------------------
+;; C-c c j → When reading a note and you get an idea to develop
+;; C-c n c → When you just want to jot something down quickly
+;;
+;; Both methods write to the same file (captures.org) but with
+;; different structures. That's OK! Review them later and process.
+;;
+;; Fleeting Notes (C-c c f):
 ;; 1. Press C-c c f anywhere to capture a quick thought
 ;; 2. Type the idea, press C-c C-c to save
 ;; 3. Later, review ~/notes/fleeting.org
 ;; 4. Promote good ideas to proper notes in pks/ or docu/
-;;
-;; Journal Captures Workflow (ENHANCED!):
-;; 1. Press C-c n c to open journal captures
-;; 2. Automatically:
-;;    - Goes to end of file
-;;    - Adds today's date if not present (** 2026-02-04)
-;;    - Positions cursor ONE line below date heading
-;; 3. Start typing immediately!
-;; 4. Each day gets its own heading (just date, no day name)
-;; 5. Multiple captures per day stack under same date
-;;
-;; Alternative: Press C-c c j anywhere to capture with dialog
 
 (provide '06-capture)
 ;;; 06-capture.el ends here
