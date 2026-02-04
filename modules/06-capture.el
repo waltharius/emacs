@@ -8,38 +8,31 @@
 ;;; Code:
 
 ;; ============================================================
-;; HELPER: Store original buffer info before capture
+;; HELPER: Get title from ORIGINAL buffer (not capture buffer)
 ;; ============================================================
 
-(defvar my/capture-origin-title nil
-  "Store the title of the buffer where capture was initiated.")
-
-(defun my/capture-store-origin-title ()
-  "Store the title of current buffer before entering capture.
-   This runs BEFORE the capture buffer is created."
-  (setq my/capture-origin-title
-        (condition-case nil
-            (or 
-             ;; Try to get #+title:
-             (when (and (buffer-file-name)
-                        (eq major-mode 'org-mode))
-               (cadar (org-collect-keywords '("title"))))
-             ;; Fallback to filename
-             (when (buffer-file-name)
-               (file-name-base (buffer-file-name)))
-             ;; Last resort: buffer name
-             (buffer-name)
-             ;; Absolute fallback
-             "Untitled")
-          ;; If anything fails, return safe default
-          (error "Untitled"))))
-
-;; Hook to store title before capture starts
-(add-hook 'org-capture-mode-hook 'my/capture-store-origin-title)
-
 (defun my/get-capture-origin-title ()
-  "Get the stored origin title for capture template."
-  (or my/capture-origin-title "Untitled"))
+  "Get title from the buffer where capture was initiated.
+   Uses org-capture's internal original-buffer."
+  (let ((orig-buf (org-capture-get :original-buffer)))
+    (if orig-buf
+        (with-current-buffer orig-buf
+          (condition-case nil
+              (or 
+               ;; Try to get #+title:
+               (when (eq major-mode 'org-mode)
+                 (cadar (org-collect-keywords '("title"))))
+               ;; Fallback to filename
+               (when (buffer-file-name)
+                 (file-name-base (buffer-file-name)))
+               ;; Last resort: buffer name
+               (buffer-name)
+               ;; Absolute fallback
+               "Untitled")
+            ;; If anything fails, return safe default
+            (error "Untitled")))
+      ;; If no original buffer found, return fallback
+      "Untitled")))
 
 ;; ============================================================
 ;; ORG-CAPTURE: Configuration
@@ -140,10 +133,11 @@
 ;; an idea for later development.
 ;;
 ;; What it does:
-;; - Stores the current note's title
+;; - Accesses the ORIGINAL buffer (where you pressed C-c c j)
+;; - Extracts its title
 ;; - Opens capture dialog
 ;; - Automatically creates link to current note
-;; - Uses stored title for BOTH heading AND link
+;; - Uses extracted title for BOTH heading AND link
 ;; - Adds timestamp
 ;; - Saves under "Ideas from Journal" heading
 ;; - Cursor positioned in content area (not heading)
