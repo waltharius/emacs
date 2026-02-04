@@ -2,6 +2,7 @@
 ;;
 ;; Description: Hunspell (pl_PL + en_GB UTF-8) for spelling
 ;;              Flyspell for highlighting errors
+;;              SMART correction with auto-return to original position
 ;;
 ;;; Code:
 
@@ -52,7 +53,7 @@
       (when (process-live-p ispell-process) (ispell-kill-ispell))
       (message "Added: %s -> %s" w pd))))
 
-;; --- Function: previous spelling error ---
+;; --- Function: previous spelling error (jump only) ---
 (defun my/flyspell-goto-previous-error (arg)
   "Go to previous spelling error (ARG times)."
   (interactive "p")
@@ -75,18 +76,110 @@
       (when (> pos min) (forward-word)))
   (recenter)))
 
+;; ============================================================
+;; SMART SPELL CORRECTION (with auto-return position)
+;; ============================================================
+
+(defvar my/spell-return-position nil
+  "Store position to return after spell correction.")
+
+(defun my/spell-correct-previous ()
+  "Jump to previous spelling error, correct it, and return to original position.
+  
+  Workflow:
+  1. Saves current position
+  2. Jumps to previous spelling error
+  3. Shows correction menu (or allows adding to dictionary)
+  4. After correction/adding word, returns cursor to saved position
+  
+  This is the main spell-checking function you'll use."
+  (interactive)
+  
+  ;; Save current position
+  (setq my/spell-return-position (point-marker))
+  
+  ;; Find previous error
+  (let ((error-found nil)
+        (start-pos (point)))
+    
+    ;; Search backward for spelling error
+    (save-excursion
+      (let ((pos (point)) (min (point-min)))
+        (backward-word 1)
+        (while (and (> (point) min)
+                    (not (seq-some #'flyspell-overlay-p (overlays-at (point)))))
+          (backward-word 1))
+        (when (seq-some #'flyspell-overlay-p (overlays-at (point)))
+          (setq error-found (point)))))
+    
+    (if error-found
+        (progn
+          ;; Jump to error
+          (goto-char error-found)
+          (recenter)
+          
+          ;; Show corrections and let user choose
+          ;; After correction, advice will return to saved position
+          (flyspell-correct-wrapper))
+      
+      ;; No error found
+      (message "No spelling errors found backward from cursor")
+      (setq my/spell-return-position nil))))
+
+;; Advice to return to original position after correction
+(defun my/spell-return-after-correction (&rest _)
+  "Return to saved position after spell correction."
+  (when (and my/spell-return-position
+             (marker-position my/spell-return-position))
+    (goto-char my/spell-return-position)
+    (setq my/spell-return-position nil)
+    (message "Returned to original position")))
+
+;; Hook the return function to flyspell-correct actions
+(advice-add 'flyspell-correct-wrapper :after #'my/spell-return-after-correction)
+
+;; ============================================================
+;; TOGGLE FLYSPELL MODE
+;; ============================================================
+
+(defun my/toggle-flyspell ()
+  "Toggle flyspell-mode on/off.
+  When enabled, it stays active until you toggle it off."
+  (interactive)
+  (if flyspell-mode
+      (progn
+        (flyspell-mode -1)
+        (message "✗ Spell-checking OFF"))
+    (progn
+      (flyspell-mode 1)
+      (message "✓ Spell-checking ON - will stay active"))))
+
+;; ============================================================
+;; FORCE CHECK BUFFER
+;; ============================================================
+
+(defun my/spell-check-buffer ()
+  "Force spell-check entire buffer (even if flyspell is off)."
+  (interactive)
+  (if flyspell-mode
+      (flyspell-buffer)
+    ;; Temporarily enable, check, then disable
+    (flyspell-mode 1)
+    (flyspell-buffer)
+    (message "Buffer checked (flyspell remains active - toggle with my/toggle-flyspell)")))
+
 ;; --- Flyspell: highlighting errors ---
 (use-package flyspell
   :ensure nil
   :hook ((text-mode . flyspell-mode)
          (org-mode  . flyspell-mode))
   :config
-  ;; Disable automatic scanning (manual only)
+  ;; Keep flyspell active and responsive
   (setq flyspell-issue-message-flag nil)
   (setq flyspell-issue-welcome-flag nil)
   
-  ;; Manual scan
-  (global-set-key (kbd "C-c f b") 'flyspell-buffer))
+  ;; Don't auto-disable flyspell
+  (setq flyspell-persistent t))
 
 ;; --- Flyspell-correct: correcting errors ---
 (use-package flyspell-correct
@@ -96,6 +189,13 @@
 (use-package flyspell-correct-ivy
   :ensure t
   :after flyspell-correct)
+
+;; ============================================================
+;; KEYBINDINGS (now mostly in transient menu)
+;; ============================================================
+
+;; Legacy keybinding for buffer check
+(global-set-key (kbd "C-c f b") 'my/spell-check-buffer)
 
 (provide '03-spelling)
 ;;; 03-spelling.el ends here
