@@ -8,27 +8,38 @@
 ;;; Code:
 
 ;; ============================================================
-;; HELPER FUNCTION: Get note title (robust version)
+;; HELPER: Store original buffer info before capture
 ;; ============================================================
 
-(defun my/get-note-title ()
-  "Get the title of current note from #+title or filename.
-   Returns a string even if extraction fails."
-  (condition-case nil
-      (or 
-       ;; Try to get #+title:
-       (when (and (buffer-file-name)
-                  (eq major-mode 'org-mode))
-         (cadar (org-collect-keywords '("title"))))
-       ;; Fallback to filename
-       (when (buffer-file-name)
-         (file-name-base (buffer-file-name)))
-       ;; Last resort: buffer name
-       (buffer-name)
-       ;; Absolute fallback
-       "Untitled")
-    ;; If anything fails, return safe default
-    (error "Untitled")))
+(defvar my/capture-origin-title nil
+  "Store the title of the buffer where capture was initiated.")
+
+(defun my/capture-store-origin-title ()
+  "Store the title of current buffer before entering capture.
+   This runs BEFORE the capture buffer is created."
+  (setq my/capture-origin-title
+        (condition-case nil
+            (or 
+             ;; Try to get #+title:
+             (when (and (buffer-file-name)
+                        (eq major-mode 'org-mode))
+               (cadar (org-collect-keywords '("title"))))
+             ;; Fallback to filename
+             (when (buffer-file-name)
+               (file-name-base (buffer-file-name)))
+             ;; Last resort: buffer name
+             (buffer-name)
+             ;; Absolute fallback
+             "Untitled")
+          ;; If anything fails, return safe default
+          (error "Untitled"))))
+
+;; Hook to store title before capture starts
+(add-hook 'org-capture-mode-hook 'my/capture-store-origin-title)
+
+(defun my/get-capture-origin-title ()
+  "Get the stored origin title for capture template."
+  (or my/capture-origin-title "Untitled"))
 
 ;; ============================================================
 ;; ORG-CAPTURE: Configuration
@@ -59,7 +70,7 @@
           
           ("j" "Journal Capture" entry
            (file+headline my-journal-captures "Ideas from Journal")
-           "* %(my/get-note-title)\n:PROPERTIES:\n:SOURCE: [[%F][%(my/get-note-title)]]\n:CAPTURED: %U\n:END:\n\n%?"
+           "* %(my/get-capture-origin-title)\n:PROPERTIES:\n:SOURCE: [[%F][%(my/get-capture-origin-title)]]\n:CAPTURED: %U\n:END:\n\n%?"
            :empty-lines 1
            :prepend nil))))
 
@@ -129,9 +140,10 @@
 ;; an idea for later development.
 ;;
 ;; What it does:
+;; - Stores the current note's title
 ;; - Opens capture dialog
 ;; - Automatically creates link to current note
-;; - Uses note title for BOTH heading AND link (NO PROMPTING!)
+;; - Uses stored title for BOTH heading AND link
 ;; - Adds timestamp
 ;; - Saves under "Ideas from Journal" heading
 ;; - Cursor positioned in content area (not heading)
