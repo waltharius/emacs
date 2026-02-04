@@ -42,6 +42,44 @@
            :prepend nil))))
 
 ;; ============================================================
+;; SMART JOURNAL CAPTURE OPENING
+;; ============================================================
+
+(defun my/open-journal-captures ()
+  "Open journal captures file.
+  - Goes to end of file
+  - Adds today's date heading if not present
+  - Positions cursor below date heading ready to write"
+  (interactive)
+  (find-file my-journal-captures)
+  
+  ;; Go to end of file
+  (goto-char (point-max))
+  
+  ;; Get today's date in format: ** 2026-02-04 wto
+  (let* ((today-date (format-time-string "%Y-%m-%d %a"))
+         (date-heading (concat "** " today-date)))
+    
+    ;; Search for today's date heading in the file
+    (goto-char (point-min))
+    (if (search-forward date-heading nil t)
+        ;; Date exists - go to end of that section
+        (progn
+          (org-end-of-subtree)
+          (newline 2)
+          (message "Positioned below existing date: %s" today-date))
+      
+      ;; Date doesn't exist - add it at the end
+      (goto-char (point-max))
+      (unless (bolp) (newline 2))
+      (insert date-heading "\n\n")
+      (message "Added new date heading: %s" today-date)))
+  
+  ;; Final positioning - cursor ready to write
+  (unless (looking-at-p "^$")
+    (newline)))
+
+;; ============================================================
 ;; CAPTURE KEYBINDINGS
 ;; ============================================================
 
@@ -51,12 +89,8 @@
 (defun my/open-fleeting-notes ()
   "Open fleeting notes file."
   (interactive)
-  (find-file my-fleeting-file))
-
-(defun my/open-journal-captures ()
-  "Open journal captures file."
-  (interactive)
-  (find-file my-journal-captures))
+  (find-file my-fleeting-file)
+  (goto-char (point-max)))  ; Also go to end for consistency
 
 (global-set-key (kbd "C-c n f") 'my/open-fleeting-notes)
 (global-set-key (kbd "C-c n c") 'my/open-journal-captures)
@@ -71,13 +105,17 @@
 ;; 3. Later, review ~/notes/fleeting.org
 ;; 4. Promote good ideas to proper notes in pks/ or docu/
 ;;
-;; Journal Captures Workflow:
-;; 1. While writing journal, interesting idea emerges
-;; 2. Press C-c c j to capture it
-;; 3. It asks for source note name (for the link)
-;; 4. Saves to ~/notes/journal/captures.org with backlink
-;; 5. Later review captures.org and develop ideas
+;; Journal Captures Workflow (ENHANCED!):
+;; 1. Press C-c n c to open journal captures
+;; 2. Automatically:
+;;    - Goes to end of file
+;;    - Adds today's date if not present (** 2026-02-04 wto)
+;;    - Positions cursor below date heading
+;; 3. Start typing immediately!
+;; 4. Each day gets its own heading
+;; 5. Multiple captures per day stack under same date
 ;;
+;; Alternative: Press C-c c j anywhere to capture with dialog
 
 (provide '06-capture)
 ;;; 06-capture.el ends here
