@@ -5,7 +5,7 @@
 ;; - Beautiful heading sizes and colors
 ;; - Pretty bullet points
 ;; - Extra line spacing for breathing room
-;; - TOGGLE indentation with: M-x my/toggle-org-indent
+;; - TOGGLE indentation with: C-c n I (or M-x my/toggle-org-indent)
 ;;
 ;; NOTE: Font settings (variable-pitch) moved to 03b-fonts.el
 ;;       to enable selective font control (journals vs other notes)
@@ -60,9 +60,9 @@
 ;; VISUAL IMPROVEMENTS
 ;; ============================================================
 
-;; Indent content under headings (like outlining)
-;; This is ON by default, but can be toggled with my/toggle-org-indent
-(setq org-startup-indented t)
+;; INDENT OFF BY DEFAULT (older notes work better without it)
+;; Toggle with C-c n I when you need it for specific notes
+(setq org-startup-indented nil)
 
 ;; Show inline images by default
 (setq org-startup-with-inline-images t)
@@ -83,7 +83,7 @@
             (setq line-spacing 0.2)))  ; 20% extra space between lines
 
 ;; ============================================================
-;; TOGGLE INDENTATION
+;; TOGGLE INDENTATION (C-c n I)
 ;; ============================================================
 
 (defun my/toggle-org-indent ()
@@ -92,15 +92,16 @@
    When ON:  Text indents under headings (nice hierarchy)
    When OFF: All text starts at left margin (better for deep nesting)
    
-   Use this when you have many nested headings and text becomes too narrow."
+   Use this when you want visual hierarchy or when working with new notes.
+   Older notes work better with indent OFF (the default)."
   (interactive)
   (if org-indent-mode
       (progn
         (org-indent-mode -1)
-        (message "✗ Indentation OFF - All text at left margin"))
+        (message "❌ Indentation OFF - All text at left margin"))
     (progn
       (org-indent-mode 1)
-      (message "✓ Indentation ON - Visual hierarchy enabled"))))
+      (message "✅ Indentation ON - Visual hierarchy enabled"))))
 
 ;; ============================================================
 ;; HOW IT LOOKS
@@ -120,9 +121,10 @@
 ;; - Code/tables: Always monospace
 ;; Pretty bullets: ● ○ ● ○
 ;;
-;; INDENTATION TOGGLE:
-;; M-x my/toggle-org-indent
-;; or add keybinding like: (global-set-key (kbd "C-c i") 'my/toggle-org-indent)
+;; INDENTATION:
+;; - Default: OFF (better for older notes)
+;; - Toggle: C-c n I (available in transient menu)
+;; - Use when: You want visual hierarchy in new notes
 
 (provide '11-org-appearance)
 ;;; 11-org-appearance.el ends here
