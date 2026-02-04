@@ -56,9 +56,9 @@
   ;; Go to end of file
   (goto-char (point-max))
   
-  ;; Get today's date in format: ** 2026-02-04 (just numbers, no day name!)
+  ;; Get today's date in format
   (let* ((today-date (format-time-string "%Y-%m-%d"))
-         (date-heading (concat "** " today-date)))
+         (date-heading (concat "* " today-date)))
     
     ;; Search for today's date heading in the file
     (goto-char (point-min))
