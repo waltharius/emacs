@@ -1,194 +1,101 @@
-;;; 03-spelling.el --- Smart spellchecking configuration -*- lexical-binding: t; -*-
-;;; Commentary:
-;; Intelligent spellchecking with automatic program detection
-;; Prefers hunspell (best multi-language support)
-;; Falls back to aspell or ispell with warnings
-;; 
-;; Features:
-;; - Simultaneous Polish + English checking (no manual switching!)
-;; - Personal dictionary support
-;; - Safe: only enables if spellchecker is available
-
+;;; 03-spelling.el --- Spell checking configuration -*- lexical-binding: t; -*-
+;;
+;; Description: Hunspell (pl_PL + en_GB UTF-8) for spelling
+;;              Flyspell for highlighting errors
+;;
 ;;; Code:
 
-;; ============================================================
-;; DETECT AVAILABLE SPELLCHECKER
-;; ============================================================
+;; --- Hunspell: spell checking pl_PL + en_GB (UTF-8) ---
+(require 'ispell)
 
-(defvar my/spellcheck-program nil
-  "Detected spellcheck program (hunspell, aspell, or ispell).")
+;; FORCE UTF-8 encoding for Hunspell
+(setq ispell-program-name "hunspell")
+(setq ispell-local-dictionary-alist
+      '(("pl_PL" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
+         ("-d" "pl_PL") nil utf-8)
+        ("en_GB" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
+         ("-d" "en_GB") nil utf-8)))
 
-(defvar my/spellcheck-available nil
-  "Whether any spellchecker is available.")
+(setq ispell-dictionary "pl_PL,en_GB")
+(setq ispell-personal-dictionary (expand-file-name "~/.hunspell_personal"))
+(setenv "HUNSPELL_PERSONAL" ispell-personal-dictionary)
 
-;; Check what's available (in order of preference)
-(cond
- ((executable-find "hunspell")
-  (setq my/spellcheck-program "hunspell")
-  (setq my/spellcheck-available t)
-  (message "✓ Spellcheck: Using hunspell (recommended for PL+EN)"))
- 
- ((executable-find "aspell")
-  (setq my/spellcheck-program "aspell")
-  (setq my/spellcheck-available t)
-  (message "⚠ Spellcheck: Using aspell (multi-language support weaker than hunspell)"))
- 
- ((executable-find "ispell")
-  (setq my/spellcheck-program "ispell")
-  (setq my/spellcheck-available t)
-  (message "⚠ Spellcheck: Using ispell (multi-language support weaker than hunspell)"))
- 
- (t
-  (setq my/spellcheck-available nil)
-  (message "✗ Spellcheck: No program found! Install hunspell (recommended) or aspell.")))
+;; Ensure personal dictionary has UTF-8 header
+(unless (file-exists-p ispell-personal-dictionary)
+  (with-temp-buffer 
+    (insert "personal_ws-1.1 pl_PL 0 utf-8\n")
+    (write-file ispell-personal-dictionary)))
+(setq ispell-silently-savep t)
 
-;; ============================================================
-;; FLYSPELL: Only configure if spellchecker available
-;; ============================================================
+;; Initialize Hunspell with UTF-8
+(with-eval-after-load 'ispell
+  (ispell-set-spellchecker-params)
+  (ispell-hunspell-add-multi-dic "pl_PL,en_GB"))
 
-(when my/spellcheck-available
-  ;; Set the program BEFORE use-package
-  (setq ispell-program-name my/spellcheck-program)
-  
-  (use-package flyspell
-    :ensure nil
-    :hook ((org-mode . flyspell-mode)
-           (text-mode . flyspell-mode))
-    :config
-    ;; ============================================================
-    ;; HUNSPELL: Simultaneous Polish + English
-    ;; ============================================================
-    (when (string= my/spellcheck-program "hunspell")
-      ;; Simple, working configuration
-      (setenv "LANG" "en_US.UTF-8")
-      
-      ;; Use both dictionaries
-      (setq ispell-dictionary "pl_PL,en_US")
-      
-      ;; Personal dictionary
-      (setq ispell-personal-dictionary (expand-file-name "~/.hunspell_personal"))
-      
-      (message "✓ Hunspell: Checking Polish + English simultaneously"))
-    
-    ;; ============================================================
-    ;; ASPELL: Best approximation (less ideal)
-    ;; ============================================================
-    (when (string= my/spellcheck-program "aspell")
-      ;; Aspell can't check multiple languages simultaneously
-      ;; Default to Polish, user can switch with keybindings
-      (setq ispell-dictionary "pl_PL")
-      (setq ispell-personal-dictionary "~/.aspell.pl.pws")
-      
-      (message "⚠ Aspell: Default Polish (use C-c F e for English)
-   Note: Aspell can't check PL+EN simultaneously like hunspell"))
-    
-    ;; ============================================================
-    ;; ISPELL: Fallback (least capable)
-    ;; ============================================================
-    (when (string= my/spellcheck-program "ispell")
-      (setq ispell-dictionary "polish")
-      (message "⚠ Ispell: Limited multi-language support
-   Consider installing hunspell for better PL+EN checking"))
-    
-    ;; Don't check code blocks in org-mode
-    (add-to-list 'ispell-skip-region-alist '("^#\\+BEGIN_SRC" . "^#\\+END_SRC"))
-    (add-to-list 'ispell-skip-region-alist '("^#\\+begin_src" . "^#\\+end_src"))))
+;; --- Automatic refresh after dictionary save ---
+(defun my/ispell-refresh-after-save (&rest _)
+  "Refresh Hunspell process after saving dictionary."
+  (when (process-live-p ispell-process) 
+    (ispell-kill-ispell)))
+(advice-add 'ispell-pdict-save :after #'my/ispell-refresh-after-save)
 
-;; ============================================================
-;; PERSISTENT FLYSPELL: Force it to stay on
-;; ============================================================
-
-(when my/spellcheck-available
-  (defun my/ensure-flyspell-enabled ()
-    "Force flyspell to stay enabled in org/text modes."
-    (when (and (derived-mode-p 'org-mode 'text-mode)
-               (not flyspell-mode))
-      (flyspell-mode 1)))
-
-  ;; Check and re-enable after every command (lightweight check)
-  (add-hook 'post-command-hook 'my/ensure-flyspell-enabled)
-
-  ;; Also ensure it's on after buffer switches
-  (add-hook 'buffer-list-update-hook 'my/ensure-flyspell-enabled))
-
-;; ============================================================
-;; LANGUAGE SWITCHING (for aspell/ispell only)
-;; ============================================================
-
-(defun my/switch-dictionary-pl ()
-  "Switch to Polish dictionary (mainly for aspell/ispell).
-   With hunspell, both languages are always active."
+;; --- Function: add word under cursor ---
+(defun my/spell-add-word-here ()
+  "Add word under cursor to personal Hunspell dictionary."
   (interactive)
-  (if (string= my/spellcheck-program "hunspell")
-      (message "Hunspell: Already checking Polish + English simultaneously")
-    (ispell-change-dictionary "pl_PL")
-    (flyspell-buffer)
-    (message "Dictionary: Polski")))
+  (let* ((w (thing-at-point 'word t))
+         (pd (expand-file-name ispell-personal-dictionary)))
+    (when (and w (string-match-p "\\S-" w))
+      (with-temp-buffer
+        (insert (downcase w) "\n")
+        (append-to-file (point-min) (point-max) pd))
+      (when (process-live-p ispell-process) (ispell-kill-ispell))
+      (message "Added: %s -> %s" w pd))))
 
-(defun my/switch-dictionary-en ()
-  "Switch to English dictionary (mainly for aspell/ispell).
-   With hunspell, both languages are always active."
-  (interactive)
-  (if (string= my/spellcheck-program "hunspell")
-      (message "Hunspell: Already checking Polish + English simultaneously")
-    (ispell-change-dictionary "en_US")
-    (flyspell-buffer)
-    (message "Dictionary: English")))
+;; --- Function: previous spelling error ---
+(defun my/flyspell-goto-previous-error (arg)
+  "Go to previous spelling error (ARG times)."
+  (interactive "p")
+  (while (> arg 0)
+    (let ((pos (point)) (min (point-min)))
+      (when (and (eq (current-buffer) flyspell-old-buffer-error)
+                 (eq pos flyspell-old-pos-error))
+        (if (= flyspell-old-pos-error min)
+            (progn (message "Restarting from end of buffer") (goto-char (point-max)))
+          (backward-word 1))
+        (setq pos (point)))
+      (while (and (> pos min)
+                  (not (seq-some #'flyspell-overlay-p (overlays-at pos))))
+        (backward-word 1)
+        (setq pos (point)))
+      (setq flyspell-old-pos-error pos
+            flyspell-old-buffer-error (current-buffer))
+      (goto-char pos)
+      (setq arg (1- arg))
+      (when (> pos min) (forward-word)))
+  (recenter)))
 
-;; ============================================================
-;; SPELL CORRECTION COMMANDS
-;; ============================================================
-
-;; Only bind keys if spellchecker is available
-(when my/spellcheck-available
-  ;; Language switching (only useful for aspell/ispell)
-  (global-set-key (kbd "C-c F m") 'my/switch-dictionary-pl)
-  (global-set-key (kbd "C-c F e") 'my/switch-dictionary-en)
+;; --- Flyspell: highlighting errors ---
+(use-package flyspell
+  :ensure nil
+  :hook ((text-mode . flyspell-mode)
+         (org-mode  . flyspell-mode))
+  :config
+  ;; Disable automatic scanning (manual only)
+  (setq flyspell-issue-message-flag nil)
+  (setq flyspell-issue-welcome-flag nil)
   
-  ;; Navigation and correction
-  (global-set-key (kbd "C-c F n") 'flyspell-goto-next-error)
-  (global-set-key (kbd "C-c F c") 'flyspell-correct-word-before-point)
-  (global-set-key (kbd "C-c F b") 'flyspell-buffer)
-  (global-set-key (kbd "C-c F a") 'ispell-word))
+  ;; Manual scan
+  (global-set-key (kbd "C-c f b") 'flyspell-buffer))
 
-;; ============================================================
-;; INSTALLATION HELP MESSAGE
-;; ============================================================
+;; --- Flyspell-correct: correcting errors ---
+(use-package flyspell-correct
+  :ensure t
+  :after flyspell)
 
-(unless my/spellcheck-available
-  (defun my/spellcheck-install-help ()
-    "Show installation instructions for spellcheckers."
-    (interactive)
-    (message "
-══════════════════════════════════════════════════════════
-  Spellcheck Not Available
-══════════════════════════════════════════════════════════
-
-To enable spellchecking, install hunspell (recommended):
-
-NixOS:
-  Add to configuration.nix:
-    environment.systemPackages = with pkgs; [
-      hunspell
-      hunspellDicts.pl_PL
-      hunspellDicts.en_US
-    ];
-  
-  Then: sudo nixos-rebuild switch
-
-Other Linux:
-  sudo apt install hunspell hunspell-pl hunspell-en-us
-
-Why hunspell?
-  ✓ Checks Polish + English simultaneously (no switching!)
-  ✓ Best multi-language support
-  ✓ Used by LibreOffice, Firefox, etc.
-
-After installing, restart Emacs.
-══════════════════════════════════════════════════════════"))
-  
-  ;; Bind help message to keybinding
-  (global-set-key (kbd "C-c F h") 'my/spellcheck-install-help))
+(use-package flyspell-correct-ivy
+  :ensure t
+  :after flyspell-correct)
 
 (provide '03-spelling)
 ;;; 03-spelling.el ends here
