@@ -19,25 +19,32 @@
   ;; Main directory (default silo)
   (denote-directory my-notes-journal)
   
-  ;; Known keywords (tags)
-  (denote-known-keywords
-   '("journal" "docu" "wellbeing" "esej" "philosophy"
-     "zettel" "osoba" "projekt" "lektura" "filozof"
-     "fleeting" "skroty"))
+  ;; NO hardcoded keywords - let Denote discover from existing notes
+  (denote-known-keywords nil)
   
-  ;; Auto-suggest existing keywords during rename
+  ;; Auto-discover keywords from ALL notes (including other silos)
   (denote-infer-keywords t)
   
-  ;; Sort keywords alphabetically
+  ;; Sort keywords alphabetically in completion
   (denote-sort-keywords t)
   
   ;; File type (nil = org-mode)
   (denote-file-type nil)
   
   ;; What to prompt for when creating notes
-  (denote-prompts '(title keywords)))
-
-  ;; REMOVED denote-file-name-slug-functions temporarily to test
+  (denote-prompts '(title keywords))
+  
+  :config
+  ;; Tell Denote to scan ALL silos for keywords (not just current directory)
+  (setq denote-directory-files-matching-regexp-function
+        (lambda (regexp)
+          (let ((files '()))
+            ;; Scan all three silos
+            (dolist (dir (list my-notes-journal my-notes-pks my-notes-docu))
+              (when (file-exists-p dir)
+                (setq files (append files
+                                    (directory-files-recursively dir regexp t)))))
+            files))))
 
 ;; ============================================================
 ;; CONSULT-DENOTE: Better search integration
