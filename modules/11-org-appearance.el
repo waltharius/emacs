@@ -3,9 +3,11 @@
 ;; Makes org-mode more visually pleasant:
 ;; - Hides emphasis markers (*bold*, /italic/, _underline_)
 ;; - Beautiful heading sizes and colors
-;; - Mixed fonts (variable pitch for text, monospace for code)
 ;; - Pretty bullet points
 ;; - Extra line spacing for breathing room
+;;
+;; NOTE: Font settings (variable-pitch) moved to 03b-fonts.el
+;;       to enable selective font control (journals vs other notes)
 
 ;;; Code:
 
@@ -39,13 +41,10 @@
    '(org-level-8 ((t (:height 1.0))))))
 
 ;; ============================================================
-;; MIXED FONTS (Variable pitch for text, monospace for code)
+;; MONOSPACE FOR CODE/TABLES (even when variable-pitch enabled)
 ;; ============================================================
 
-;; Enable variable-pitch-mode in org-mode (like a book!)
-(add-hook 'org-mode-hook 'variable-pitch-mode)
-
-;; Keep monospace for code, tables, etc.
+;; These faces stay monospace even in journal notes with handwriting font
 (with-eval-after-load 'org
   (set-face-attribute 'org-table nil :inherit 'fixed-pitch)
   (set-face-attribute 'org-code nil :inherit 'fixed-pitch)
@@ -93,8 +92,10 @@
 ;; ## Heading 2 <- 1.2x size
 ;; ### Heading 3 <- 1.1x size
 ;;
-;; Text uses variable-pitch font (like a book)
-;; Code/tables stay monospace
+;; Font control (variable-pitch) handled by 03b-fonts.el:
+;; - Journal notes: Playpen Sans Hebrew (handwriting)
+;; - Other notes: JetBrains Mono (monospace)
+;; - Code/tables: Always monospace
 ;; Pretty bullets: ● ○ ● ○
 
 (provide '11-org-appearance)
