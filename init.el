@@ -34,13 +34,14 @@
   (load (concat modules-dir "00-core.el"))         ; Package system + variables
   (load (concat modules-dir "01-ui.el"))           ; Interface + sessions
   (load (concat modules-dir "02-editing.el"))      ; Modern conveniences
-  (load (concat modules-dir "03-spelling.el"))     ; Spellcheck (fixed!)
+  (load (concat modules-dir "03-spelling.el"))     ; Spellcheck (FIXED!)
   (load (concat modules-dir "04-denote.el"))       ; Denote multi-silo
   (load (concat modules-dir "05-notes.el"))        ; Note functions
   (load (concat modules-dir "06-capture.el"))      ; Org-capture fleeting
   (load (concat modules-dir "07-git.el"))          ; Git auto-commit
-  (load (concat modules-dir "08-keybindings.el"))  ; Keybindings (MUST BE LAST!)
-  (load (concat modules-dir "09-theme.el"))        ; Theme (light modus-operandi-tinted)
+  (load (concat modules-dir "08-keybindings.el"))  ; Keybindings
+  (load (concat modules-dir "09-theme.el"))        ; Theme (light)
+  (load (concat modules-dir "10-visual-fill.el"))  ; Centered text (NEW!)
   )
 
 ;; ============================================================
