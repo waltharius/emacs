@@ -3,7 +3,7 @@
 ;; Font configuration:
 ;; - Default: JetBrains Mono (monospace) for all files
 ;; - Journal notes: Playpen Sans Hebrew (handwriting style)
-;; - Other org files: Keep monospace
+;; - Other org files: Keep monospace (explicitly disable variable-pitch)
 
 ;;; Code:
 
@@ -29,17 +29,20 @@
 
 (defun my/journal-font-setup ()
   "Enable handwriting font ONLY for journal notes.
-   Other org files keep monospace font."
-  (when (and (buffer-file-name)
-             (string-match-p "journal" (buffer-file-name)))
-    ;; Enable variable-pitch-mode ONLY for journal files
-    (variable-pitch-mode 1)
-    (visual-line-mode 1)
-    
-    ;; Apply Playpen Sans Hebrew with nice sizing
-    (face-remap-add-relative 'variable-pitch
-                             :family "Playpen Sans Hebrew"
-                             :height 1.0)))
+   Other org files EXPLICITLY stay monospace."
+  (if (and (buffer-file-name)
+           (string-match-p "journal" (buffer-file-name)))
+      ;; This IS a journal file - enable handwriting font
+      (progn
+        (variable-pitch-mode 1)
+        (visual-line-mode 1)
+        (face-remap-add-relative 'variable-pitch
+                                 :family "Playpen Sans Hebrew"
+                                 :height 1.0))
+    ;; This is NOT a journal file - ensure monospace
+    (progn
+      (variable-pitch-mode -1)     ; Disable variable-pitch
+      (visual-line-mode 1))))
 
 (add-hook 'org-mode-hook 'my/journal-font-setup)
 
