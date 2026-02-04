@@ -46,6 +46,53 @@
   (consult-denote-mode 1))
 
 ;; ============================================================
+;; MULTI-SILO SEARCH CONFIGURATION
+;; ============================================================
+
+;; Search ALL silos, not just journal!
+(with-eval-after-load 'consult-denote
+  ;; Tell consult-denote about all directories
+  (setq consult-denote-all-directories
+        (list my-notes-journal
+              my-notes-pks
+              my-notes-docu))
+  
+  ;; Grep searches all silos
+  (defun my/consult-denote-grep-all-silos ()
+    "Grep search across all note silos."
+    (interactive)
+    (let ((default-directory my-notes-dir))  ; Start from ~/notes/
+      (consult-denote-grep))))
+
+;; ============================================================
+;; FUZZY FILE LINKING (for [[file:~/notes/2013...]])
+;; ============================================================
+
+(defun my/denote-link-complete-file (&optional arg)
+  "Complete file links with fuzzy matching across all silos.
+  When you type [[file:~/notes/2013<TAB> it will show ALL matching files!"
+  (let* ((all-files (append
+                     (directory-files my-notes-journal t "\\.org$")
+                     (directory-files my-notes-pks t "\\.org$")
+                     (directory-files my-notes-docu t "\\.org$")))
+         ;; Create alist: ("filename" . "/full/path/to/file.org")
+         (file-alist (mapcar 
+                      (lambda (f)
+                        (cons (file-name-nondirectory f) f))
+                      all-files))
+         ;; Fuzzy completion!
+         (choice (completing-read "Link to file: " file-alist nil t))
+         (file (cdr (assoc choice file-alist))))
+    (if file
+        (concat "file:" file)
+      "")))
+
+;; Apply fuzzy completion to file: links in org-mode
+(with-eval-after-load 'org
+  (org-link-set-parameters "file"
+                           :complete #'my/denote-link-complete-file))
+
+;; ============================================================
 ;; DENOTE CONVENIENCE SETTINGS
 ;; ============================================================
 
@@ -62,7 +109,8 @@
 (defun my/denote-visual-wrap-setup ()
   "Enable visual-line-mode + visual-fill-column for Denote notes.
 Documentation (:docu:): 100 chars, centered.
-Normal notes: my-fill-column (80), centered."
+Normal notes: my-fill-column (80), centered.
+NO BOUNDARY LINES - clean margins!"
   (when (and (buffer-file-name)
              (or (string-match-p (expand-file-name my-notes-journal)
                                  (buffer-file-name))
@@ -93,8 +141,8 @@ Normal notes: my-fill-column (80), centered."
       ;; BOTH TYPES: centering ON
       (setq-local visual-fill-column-center-text t)
       
-      ;; Column indicator + apply changes
-      (display-fill-column-indicator-mode 1)
+      ;; NO BOUNDARY LINES! (removed display-fill-column-indicator-mode)
+      ;; Apply changes
       (visual-fill-column--adjust-window))))
 
 (add-hook 'find-file-hook 'my/denote-visual-wrap-setup)
