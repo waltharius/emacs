@@ -36,8 +36,7 @@
    
    ["Search & Find"
     ("F" "Find file" denote-open-or-create)
-    ("g" "Grep notes" my/consult-denote-grep-all-silos
-     :if (lambda () (fboundp 'my/consult-denote-grep-all-silos)))]
+    ("g" "Grep notes" my/consult-denote-grep-all-silos)]
    
    ["Linking"
     ("i" "Insert link" denote-link)
@@ -103,8 +102,9 @@
 ;; Both 's' and 'a' return you to original cursor position automatically!
 ;;
 ;; FILE LINKING:
-;; - Use [[file:~/notes/2013<TAB> for fuzzy completion
-;; - Shows ALL files matching '2013' across all directories
+;; - Use C-c n i for denote-link (fuzzy matching across all silos)
+;; - Use C-c n F for find file (search all directories)
+;; - Both now work beautifully across journal, pks, and docu!
 ;;
 ;; INDENT TOGGLE:
 ;; - 'I' toggles org-indent-mode
