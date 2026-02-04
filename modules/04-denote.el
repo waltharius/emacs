@@ -19,11 +19,6 @@
   ;; Main directory (default silo)
   (denote-directory my-notes-journal)
   
-  ;; All silos (for cross-silo search)
-  (denote-silo-extras-directories
-   (list my-notes-pks
-         my-notes-docu))
-  
   ;; Known keywords (tags)
   (denote-known-keywords
    '("journal" "docu" "wellbeing" "esej" "philosophy"
@@ -40,18 +35,9 @@
   (denote-file-type nil)
   
   ;; What to prompt for when creating notes
-  (denote-prompts '(title keywords))
-  
-  :config
-  ;; File naming template
-  (setq denote-file-name-slug-functions
-        '((title . denote-sluggify-title)
-          (signature . denote-sluggify-signature)
-          (keyword . denote-sluggify-keywords)))
-  
-  ;; Templates support
-  (setq denote-templates
-        '((essay . "* Main Thesis\n\n* Arguments\n\n* Bibliography\n"))))
+  (denote-prompts '(title keywords)))
+
+  ;; REMOVED denote-file-name-slug-functions temporarily to test
 
 ;; ============================================================
 ;; CONSULT-DENOTE: Better search integration
