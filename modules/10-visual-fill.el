@@ -3,7 +3,7 @@
 ;; Creates beautiful centered text layout with equal margins on both sides
 ;; Like reading a book! Text limited to 80 characters width.
 ;;
-;; This gives you the centered look from your main branch.
+;; NO BOUNDARY LINES - just clean margins!
 
 ;;; Code:
 
@@ -23,26 +23,42 @@
   (setq-default visual-fill-column-center-text t)
   
   ;; Don't show fringes (the gray area on sides)
-  (setq-default visual-fill-column-fringes-outside-margins nil))
+  (setq-default visual-fill-column-fringes-outside-margins nil)
+  
+  ;; DISABLE fill-column-indicator (no boundary lines!)
+  (add-hook 'visual-fill-column-mode-hook
+            (lambda ()
+              (display-fill-column-indicator-mode -1))))
+
+;; ============================================================
+;; GLOBALLY DISABLE FILL-COLUMN-INDICATOR
+;; ============================================================
+;; Turn off the thick colored lines that show column boundaries
+(global-display-fill-column-indicator-mode -1)
 
 ;; ============================================================
 ;; EXPLANATION
 ;; ============================================================
 ;;
-;; This creates the "book-like" layout you see in your main branch:
+;; This creates the "book-like" layout WITHOUT boundary lines:
 ;;
-;; Before (full width):
-;; |Text starts here and goes all the way to the edge...             |
+;; Before (full width with ugly lines):
+;; |│Text starts here and goes all the way...                      │|
 ;;
-;; After (centered):
-;; |        Text is centered with nice margins on both               |
-;; |        sides, making it easier to read!                         |
+;; After (centered, clean margins):
+;; |        Text is centered with invisible margins                  |
+;; |        Clean and professional look!                             |
 ;;
 ;; Benefits:
 ;; - Easier to read (optimal line length)
 ;; - Looks more professional
-;; - Less eye movement
+;; - Less visual clutter
 ;; - Perfect for writing
+;;
+;; What changed:
+;; - Removed display-fill-column-indicator-mode
+;; - Kept centering and margins
+;; - Result: Clean, centered text without boundary lines
 
 ;; ============================================================
 ;; TOGGLE FUNCTION (optional)
