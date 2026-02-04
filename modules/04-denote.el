@@ -16,8 +16,8 @@
 (use-package denote
   :ensure t
   :custom
-  ;; Main directory (default silo)
-  (denote-directory my-notes-dir)  ; Changed to root ~/notes/ for better search
+  ;; Main directory set to root for better search across all silos
+  (denote-directory my-notes-dir)
   
   ;; Base keyword list (Denote will add more automatically)
   (denote-known-keywords my-denote-keywords)
@@ -46,17 +46,25 @@
   (consult-denote-mode 1))
 
 ;; ============================================================
-;; MULTI-SILO SEARCH CONFIGURATION
+;; HOW MULTI-SILO SEARCH WORKS
 ;; ============================================================
-
-;; Grep searches all ~/notes/ (including subdirectories!)
-(with-eval-after-load 'consult-denote
-  (defun my/consult-denote-grep-all-silos ()
-    "Grep search across all note silos (journal, pks, docu)."
-    (interactive)
-    ;; Just use regular consult-denote-grep - it searches denote-directory
-    ;; and subdirectories automatically!
-    (consult-denote-grep)))
+;;
+;; KEY INSIGHT: denote-directory is set to ~/notes/ (root)
+;;
+;; This means ALL denote functions automatically search:
+;; - ~/notes/journal/
+;; - ~/notes/pks/
+;; - ~/notes/docu/
+;; - Any other subdirectories
+;;
+;; Functions that benefit:
+;; - consult-denote-grep  (C-c n g) - searches all subdirs
+;; - denote-link          (C-c n i) - links to any file
+;; - denote-open-or-create (C-c n F) - finds any file
+;;
+;; Individual note creation functions (journal, essay, etc.)
+;; explicitly set their target directory, so they still
+;; save to the correct silo.
 
 ;; ============================================================
 ;; DENOTE CONVENIENCE SETTINGS
@@ -154,26 +162,6 @@ NO BOUNDARY LINES - clean margins!"
 
 ;; Don't ask for confirmation when executing elisp links
 (setq org-confirm-elisp-link-function nil)
-
-;; ============================================================
-;; EXPLANATION OF CHANGES
-;; ============================================================
-;;
-;; SEARCH IMPROVEMENTS:
-;; - denote-directory set to ~/notes/ (root)
-;; - This makes all denote functions search ALL subdirectories
-;; - consult-denote-grep now searches journal, pks, AND docu
-;; - denote-link and denote-open-or-create see all files
-;;
-;; WHY THIS WORKS:
-;; - Denote recursively searches its directory
-;; - By setting root to ~/notes/ instead of ~/notes/journal/
-;; - All subdirectories are automatically included
-;;
-;; FILE LINKING:
-;; - Use C-c n i (denote-link) for intelligent linking
-;; - Shows ALL notes across all silos with fuzzy matching
-;; - Use C-c n F (denote-open-or-create) to find any file
 
 (provide '04-denote)
 ;;; 04-denote.el ends here
