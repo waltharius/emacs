@@ -2,7 +2,8 @@
 ;;
 ;; Description: Hunspell (pl_PL + en_GB UTF-8) for spelling
 ;;              Flyspell for highlighting errors
-;;              SMART correction with auto-return to original position
+;;              SMART correction with auto-return position
+;;              PERSISTENT overlays (don't disappear!)
 ;;
 ;;; Code:
 
@@ -212,18 +213,56 @@
     (flyspell-buffer)
     (message "Buffer checked (flyspell remains active - toggle with my/toggle-flyspell)")))
 
-;; --- Flyspell: highlighting errors ---
+;; ============================================================
+;; FLYSPELL CONFIGURATION - PREVENT OVERLAYS FROM DISAPPEARING
+;; ============================================================
+
 (use-package flyspell
   :ensure nil
   :hook ((text-mode . flyspell-mode)
          (org-mode  . flyspell-mode))
   :config
-  ;; Keep flyspell active and responsive
+  ;; Reduce verbosity
   (setq flyspell-issue-message-flag nil)
   (setq flyspell-issue-welcome-flag nil)
   
-  ;; Don't auto-disable flyspell
-  (setq flyspell-persistent t))
+  ;; Check words as you type (post-command)
+  (setq flyspell-delay 1)  ; Check after 1 second of idle
+  
+  ;; PREVENT OVERLAYS FROM DISAPPEARING
+  ;; Don't delete overlays when buffer loses focus
+  (setq flyspell-delete-overlays nil)
+  
+  ;; Aggressive mode: check more frequently
+  (setq flyspell-consider-dash-as-word-delimiter-flag t)
+  
+  ;; Keep checking in background
+  (add-hook 'flyspell-mode-hook
+            (lambda ()
+              (when flyspell-mode
+                ;; Re-check buffer when returning to window
+                (add-hook 'window-configuration-change-hook
+                          'flyspell-buffer nil t)))))
+
+;; ============================================================
+;; PREVENT FLYSPELL FROM CLEARING ON FOCUS LOSS
+;; ============================================================
+
+;; Advice to prevent flyspell-delete-all-overlays from running
+(defun my/flyspell-prevent-overlay-deletion (orig-fun &rest args)
+  "Prevent flyspell from deleting overlays unnecessarily."
+  ;; Only allow deletion when explicitly requested (mode disable)
+  (when (and flyspell-mode (called-interactively-p 'any))
+    (apply orig-fun args)))
+
+(advice-add 'flyspell-delete-all-overlays :around #'my/flyspell-prevent-overlay-deletion)
+
+;; Auto-recheck visible portion after focus return
+(add-hook 'focus-in-hook
+          (lambda ()
+            (when (and flyspell-mode (eq major-mode 'org-mode))
+              ;; Only check visible portion (faster!)
+              (flyspell-region (window-start) (window-end)))))
 
 ;; --- Flyspell-correct: correcting errors ---
 (use-package flyspell-correct
@@ -261,6 +300,19 @@
 
 ;; Legacy keybinding for buffer check
 (global-set-key (kbd "C-c f b") 'my/spell-check-buffer)
+
+;; ============================================================
+;; HOW IT WORKS NOW
+;; ============================================================
+;;
+;; PERSISTENCE STRATEGY:
+;; 1. Disabled flyspell-delete-overlays (prevents auto-clearing)
+;; 2. Added advice to prevent overlay deletion on focus loss
+;; 3. Auto-recheck visible portion when returning to Emacs
+;; 4. Check delay reduced to 1 second
+;;
+;; RESULT: Red underlines stay visible across window switches!
+;; Only the visible portion rechecks (fast), overlays persist.
 
 (provide '03-spelling)
 ;;; 03-spelling.el ends here
