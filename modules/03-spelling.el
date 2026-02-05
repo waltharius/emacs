@@ -2,7 +2,7 @@
 ;;
 ;; Description: Hunspell (pl_PL + en_GB UTF-8) for spelling
 ;;              Flyspell for highlighting errors AS YOU TYPE
-;;              MANUAL checking to prevent freezes
+;;              SMART automatic checking based on buffer size
 ;;
 ;;; Code:
 
@@ -39,6 +39,14 @@
   (when (and (boundp 'ispell-process) (process-live-p ispell-process))
     (ispell-kill-ispell)))
 (advice-add 'ispell-pdict-save :after #'my/ispell-refresh-after-save)
+
+;; ============================================================
+;; CONFIGURATION: Size threshold for automatic checking
+;; ============================================================
+
+(defvar my/spell-auto-check-word-threshold 7000
+  "If buffer has fewer than this many words, check entire buffer automatically.
+If more, only check visible region. Set to nil to disable auto-checking.")
 
 ;; ============================================================
 ;; SAFE HELPER: Check if spell-checking is available
@@ -134,29 +142,93 @@
       (message "✓ Spell-checking ON"))))
 
 ;; ============================================================
-;; CHECK BUFFER (manual only!)
+;; CHECK VISIBLE REGION (manual, fast)
 ;; ============================================================
 
-(defun my/spell-check-buffer ()
+(defun my/spell-check-visible ()
   "Check spelling in visible region only.
-  SAFE: Only checks what you can see (fast and won't block).
-  
-  This is MANUAL - run it when you want to check for errors."
+  SAFE: Fast and won't block. Use this for large buffers."
   (interactive)
   (condition-case err
       (progn
         (unless flyspell-mode
           (flyspell-mode 1)
           (message "✓ Flyspell enabled"))
-        ;; Only check visible region (safe and fast)
         (message "Checking visible region...")
         (flyspell-region (window-start) (window-end))
         (message "✓ Visible region checked"))
     (error
+     (message "Error checking visible region: %s" (error-message-string err)))))
+
+;; ============================================================
+;; CHECK ENTIRE BUFFER (manual, slower)
+;; ============================================================
+
+(defun my/spell-check-buffer-full ()
+  "Check spelling in ENTIRE buffer.
+  
+  Use this for:
+  - Small files (< 7000 words)
+  - When you want to check everything
+  - Before finishing a document
+  
+  Warning: May take a few seconds on large files."
+  (interactive)
+  (condition-case err
+      (let ((word-count (count-words (point-min) (point-max))))
+        (unless flyspell-mode
+          (flyspell-mode 1)
+          (message "✓ Flyspell enabled"))
+        (message "Checking entire buffer (%d words)..." word-count)
+        (flyspell-buffer)
+        (message "✓ Buffer checked (%d words)" word-count))
+    (error
      (message "Error checking buffer: %s" (error-message-string err)))))
 
 ;; ============================================================
-;; FLYSPELL CONFIGURATION - INCREMENTAL CHECKING ONLY
+;; SMART AUTOMATIC CHECK (based on buffer size)
+;; ============================================================
+
+(defun my/spell-auto-check-on-open ()
+  "Automatically check buffer based on size.
+  
+  Small buffers (< 7000 words): Check entire buffer
+  Large buffers (>= 7000 words): Check visible region only
+  
+  Runs 3 seconds after opening file (non-blocking)."
+  (when (and flyspell-mode
+             my/spell-auto-check-word-threshold
+             (derived-mode-p 'org-mode 'text-mode))
+    (let ((buffer (current-buffer)))
+      ;; Run after 3 seconds idle
+      (run-with-idle-timer
+       3 nil
+       (lambda ()
+         ;; Check buffer is still alive and visible
+         (when (and (buffer-live-p buffer)
+                    (get-buffer-window buffer))
+           (with-current-buffer buffer
+             (when flyspell-mode
+               (condition-case err
+                   (let ((word-count (count-words (point-min) (point-max))))
+                     (if (< word-count my/spell-auto-check-word-threshold)
+                         ;; Small buffer: check everything
+                         (progn
+                           (message "Auto-checking buffer (%d words)..." word-count)
+                           (flyspell-buffer)
+                           (message "✓ Buffer checked"))
+                       ;; Large buffer: visible region only
+                       (message "Auto-checking visible region (buffer has %d words)..." word-count)
+                       (flyspell-region (window-start) (window-end))
+                       (message "✓ Visible region checked")))
+                 (error
+                  (message "Auto-check failed: %s" (error-message-string err))))))))))
+
+;; Add to file opening hook
+(add-hook 'find-file-hook 'my/spell-auto-check-on-open)
+
+;; ============================================================
+;; FLYSPELL CONFIGURATION - INCREMENTAL CHECKING
 ;; ============================================================
 
 (use-package flyspell
@@ -223,61 +295,54 @@
 ;; KEYBINDINGS
 ;; ============================================================
 
-(global-set-key (kbd "C-c f b") 'my/spell-check-buffer)
+;; Keep old binding for compatibility (now checks visible region)
+(global-set-key (kbd "C-c f b") 'my/spell-check-visible)
 
 ;; ============================================================
-;; CRITICAL CHANGES TO PREVENT FREEZING
+;; HOW IT WORKS NOW
 ;; ============================================================
 ;;
-;; REMOVED:
-;; 1. Automatic initial check (was blocking with idle timer)
-;; 2. window-configuration-change-hook (infinite loop)
-;; 3. focus-in-hook (triggered with dead process)
-;; 4. All automatic buffer-wide checking
+;; AUTOMATIC CHECKING (on file open):
+;; - Buffer < 7000 words → Check entire buffer after 3 seconds ✓
+;; - Buffer >= 7000 words → Check visible region only after 3 seconds
+;; - Can disable by setting my/spell-auto-check-word-threshold to nil
 ;;
-;; HOW IT WORKS NOW:
-;; 1. Flyspell mode turns ON when opening text/org files
-;; 2. As you TYPE, flyspell checks each word (incremental, safe)
-;; 3. Errors appear gradually as you type or edit
-;; 4. Manual check: C-c n S (checks visible region only)
-;;
-;; WHY THIS IS SAFE:
-;; - Incremental checking (word-by-word) never blocks
-;; - No automatic large buffer scans
-;; - Manual checks are small (visible region only)
-;; - User controls when checking happens
-;; - All functions have error handling
-;;
-;; TRADE-OFF:
-;; - Opening a file: NO immediate underlining
-;; - As you type/edit: Errors appear (safe, incremental)
-;; - Want to check now: Run C-c n S (manual, fast)
-;;
-;; This prevents ALL freezing issues at the cost of not having
-;; immediate error highlighting when opening files.
-
-;; ============================================================
-;; USAGE
-;; ============================================================
-;;
-;; AUTOMATIC CHECKING:
-;; - As you type → Words checked after 3 seconds idle
-;; - Errors underlined gradually as you work
-;; - Safe, incremental, never blocks
+;; INCREMENTAL CHECKING (as you type):
+;; - Flyspell checks each word after 3 seconds of idle typing
+;; - Safe, never blocks
 ;;
 ;; MANUAL CHECKING:
-;; - C-c n S → Check visible region (fast, safe)
+;; - C-c n S → Check visible region (fast, always safe)
+;; - C-c n B → Check entire buffer (use for small files or final review)
 ;; - C-c n s → Correct previous error (shows menu)
 ;; - C-c n a → Add previous error to dictionary
 ;; - C-c n T → Toggle flyspell on/off
 ;;
 ;; WORKFLOW:
-;; 1. Open file → Flyspell ON (no immediate check)
-;; 2. Start typing → Errors appear as you type
-;; 3. Want to check existing text? → C-c n S
-;; 4. See an error? → C-c n s (correct) or C-c n a (add)
+;; 1. Open small file → Auto-checks everything after 3 sec ✓
+;; 2. Open large file → Auto-checks visible part after 3 sec ✓
+;; 3. Type/edit → Errors appear as you type ✓
+;; 4. Want full check? → C-c n B (entire buffer)
+;; 5. Quick check? → C-c n S (visible region)
+;; 6. Fix errors → C-c n s or C-c n a
 ;;
-;; All operations are safe and won't freeze Emacs!
+;; SAFETY:
+;; - All automatic checks have 3-second delay (non-blocking)
+;; - Large files only check visible region automatically
+;; - All functions have error handling
+;; - User can disable auto-check or adjust threshold
+
+;; ============================================================
+;; CONFIGURATION OPTIONS
+;; ============================================================
+;;
+;; Adjust auto-check threshold:
+;; (setq my/spell-auto-check-word-threshold 10000)  ; Check up to 10k words
+;; (setq my/spell-auto-check-word-threshold nil)    ; Disable auto-check
+;;
+;; Current setting: 7000 words
+;; - Typical org note: 500-2000 words → Full auto-check ✓
+;; - Large document: 10000+ words → Visible region only ✓
 
 (provide '03-spelling)
 ;;; 03-spelling.el ends here
