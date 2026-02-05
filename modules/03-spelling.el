@@ -83,6 +83,28 @@
   (recenter)))
 
 ;; ============================================================
+;; DIAGNOSTIC: Track what's disabling flyspell
+;; ============================================================
+
+(defvar my/flyspell-disable-count 0
+  "Counter for flyspell disable events.")
+
+(defun my/flyspell-track-disable (orig-fun &optional arg)
+  "Track when flyspell-mode gets disabled and log the culprit."
+  (let ((was-on flyspell-mode)
+        (result (apply orig-fun (list arg))))
+    ;; If flyspell was ON and is now OFF, log it
+    (when (and was-on (not flyspell-mode))
+      (setq my/flyspell-disable-count (1+ my/flyspell-disable-count))
+      (message "⚠️ FLYSPELL DISABLED [#%d] - Check *Messages* for details" 
+               my/flyspell-disable-count)
+      (message "Backtrace:\n%s" (with-output-to-string (backtrace))))
+    result))
+
+;; Add diagnostic advice
+(advice-add 'flyspell-mode :around #'my/flyspell-track-disable)
+
+;; ============================================================
 ;; SMART SPELL CORRECTION (with auto-return position)
 ;; ============================================================
 
@@ -320,6 +342,20 @@
 (global-set-key (kbd "C-c f b") 'my/spell-check-buffer)
 
 ;; ============================================================
+;; DIAGNOSTIC INSTRUCTIONS
+;; ============================================================
+;;
+;; To see what's disabling flyspell:
+;; 1. Open a note file
+;; 2. Wait for flyspell to turn off
+;; 3. Look at *Messages* buffer (C-h e)
+;; 4. Search for "FLYSPELL DISABLED"
+;; 5. Check the backtrace to see what called it
+;;
+;; The counter shows how many times it's been disabled.
+;; Each disable event logs the full call stack.
+
+;; ============================================================
 ;; HOW IT WORKS NOW
 ;; ============================================================
 ;;
@@ -329,10 +365,14 @@
 ;; 3. Auto-recheck visible portion when returning to Emacs
 ;; 4. Check delay reduced to 1 second
 ;; 5. LATE HOOKS (priority 100) ensure flyspell stays on after other hooks
+;; 6. DIAGNOSTIC TRACKING logs when flyspell gets disabled
 ;;
 ;; RESULT: Red underlines stay visible across window switches!
 ;; Flyspell stays enabled even after org-indent and other hooks run.
 ;; Only the visible portion rechecks (fast), overlays persist.
+;;
+;; DEBUGGING: Check *Messages* buffer for "FLYSPELL DISABLED" entries
+;; to see what's turning it off.
 
 (provide '03-spelling)
 ;;; 03-spelling.el ends here
