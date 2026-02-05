@@ -218,9 +218,10 @@ If more, only check visible region. Set to nil to disable auto-checking.")
                            (flyspell-buffer)
                            (message "✓ Buffer checked"))
                        ;; Large buffer: visible region only
-                       (message "Auto-checking visible region (buffer has %d words)..." word-count)
-                       (flyspell-region (window-start) (window-end))
-                       (message "✓ Visible region checked")))
+                       (progn
+                         (message "Auto-checking visible region (buffer has %d words)..." word-count)
+                         (flyspell-region (window-start) (window-end))
+                         (message "✓ Visible region checked"))))
                  (error
                   (message "Auto-check failed: %s" (error-message-string err))))))))))
 
