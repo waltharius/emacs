@@ -1,8 +1,8 @@
 ;;; 03-spelling.el --- Spell checking configuration -*- lexical-binding: t; -*-
 ;;
 ;; Description: Hunspell (pl_PL + en_GB UTF-8) for spelling
-;;              Flyspell for highlighting errors
-;;              SAFE and SIMPLE - no freezing!
+;;              Flyspell for highlighting errors AS YOU TYPE
+;;              MANUAL checking to prevent freezes
 ;;
 ;;; Code:
 
@@ -134,20 +134,21 @@
       (message "✓ Spell-checking ON"))))
 
 ;; ============================================================
-;; CHECK BUFFER (simplified and safe)
+;; CHECK BUFFER (manual only!)
 ;; ============================================================
 
 (defun my/spell-check-buffer ()
-  "Check spelling in entire buffer.
-  SAFE: Only checks visible region to avoid freezes."
+  "Check spelling in visible region only.
+  SAFE: Only checks what you can see (fast and won't block).
+  
+  This is MANUAL - run it when you want to check for errors."
   (interactive)
   (condition-case err
-      (if (not flyspell-mode)
-          (progn
-            (flyspell-mode 1)
-            (message "✓ Flyspell enabled. Checking visible region...")
-            (flyspell-region (window-start) (window-end)))
-        ;; Flyspell already on, check visible region only
+      (progn
+        (unless flyspell-mode
+          (flyspell-mode 1)
+          (message "✓ Flyspell enabled"))
+        ;; Only check visible region (safe and fast)
         (message "Checking visible region...")
         (flyspell-region (window-start) (window-end))
         (message "✓ Visible region checked"))
@@ -155,7 +156,7 @@
      (message "Error checking buffer: %s" (error-message-string err)))))
 
 ;; ============================================================
-;; FLYSPELL CONFIGURATION - SIMPLE AND SAFE
+;; FLYSPELL CONFIGURATION - INCREMENTAL CHECKING ONLY
 ;; ============================================================
 
 (use-package flyspell
@@ -167,34 +168,14 @@
   (setq flyspell-issue-message-flag nil)
   (setq flyspell-issue-welcome-flag nil)
   
-  ;; Check words as you type
-  (setq flyspell-delay 2)  ; 2 second delay (safer)
+  ;; Check words AS YOU TYPE (incremental, safe)
+  (setq flyspell-delay 3)  ; Check after 3 seconds of idle typing
   
   ;; PREVENT OVERLAYS FROM DISAPPEARING
   (setq flyspell-delete-overlays nil)
   
   ;; Dash handling
   (setq flyspell-consider-dash-as-word-delimiter-flag t))
-
-;; ============================================================
-;; SAFE INITIAL CHECK: Check visible region when opening file
-;; ============================================================
-
-(defun my/flyspell-safe-initial-check ()
-  "Safely check visible region after opening file.
-  Runs after a delay to avoid startup slowdown."
-  (when (and flyspell-mode
-             (derived-mode-p 'org-mode 'text-mode))
-    (condition-case nil
-        (run-with-idle-timer 
-         3 nil  ; Wait 3 seconds after idle
-         (lambda ()
-           (when (and (buffer-live-p (current-buffer))
-                      flyspell-mode)
-             (flyspell-region (window-start) (window-end)))))
-      (error nil))))
-
-(add-hook 'find-file-hook 'my/flyspell-safe-initial-check)
 
 ;; ============================================================
 ;; ENSURE FLYSPELL STAYS ON (run AFTER other hooks)
@@ -245,53 +226,58 @@
 (global-set-key (kbd "C-c f b") 'my/spell-check-buffer)
 
 ;; ============================================================
-;; WHAT WAS FIXED
+;; CRITICAL CHANGES TO PREVENT FREEZING
 ;; ============================================================
 ;;
-;; FIXED #1: Correction menu not showing
-;; - Created proper my/flyspell-goto-previous-error that:
-;;   * Searches backward for flyspell overlay
-;;   * Moves cursor TO the error position
-;;   * Returns position (or nil)
-;; - Now flyspell-correct-wrapper works because cursor is ON error
+;; REMOVED:
+;; 1. Automatic initial check (was blocking with idle timer)
+;; 2. window-configuration-change-hook (infinite loop)
+;; 3. focus-in-hook (triggered with dead process)
+;; 4. All automatic buffer-wide checking
 ;;
-;; FIXED #2: No initial underlining
-;; - Added my/flyspell-safe-initial-check:
-;;   * Runs 3 seconds after opening file (idle timer)
-;;   * Only checks visible region (fast)
-;;   * Has error handling (safe)
-;;   * Doesn't slow down startup
+;; HOW IT WORKS NOW:
+;; 1. Flyspell mode turns ON when opening text/org files
+;; 2. As you TYPE, flyspell checks each word (incremental, safe)
+;; 3. Errors appear gradually as you type or edit
+;; 4. Manual check: C-c n S (checks visible region only)
 ;;
-;; REMOVED DANGEROUS HOOKS (from previous version):
-;; 1. window-configuration-change-hook → Called flyspell-buffer on EVERY
-;;    window change, causing infinite loops
-;; 2. focus-in-hook auto-recheck → Triggered with dead process
+;; WHY THIS IS SAFE:
+;; - Incremental checking (word-by-word) never blocks
+;; - No automatic large buffer scans
+;; - Manual checks are small (visible region only)
+;; - User controls when checking happens
+;; - All functions have error handling
 ;;
-;; RESULT:
-;; - Errors show up after opening file (3 sec delay)
-;; - Correction menu works properly
-;; - No freezes or infinite loops
-;; - Safe error handling everywhere
+;; TRADE-OFF:
+;; - Opening a file: NO immediate underlining
+;; - As you type/edit: Errors appear (safe, incremental)
+;; - Want to check now: Run C-c n S (manual, fast)
+;;
+;; This prevents ALL freezing issues at the cost of not having
+;; immediate error highlighting when opening files.
 
 ;; ============================================================
 ;; USAGE
 ;; ============================================================
 ;;
-;; C-c n s  - Correct previous error (now shows menu!)
-;; C-c n a  - Add previous error to dictionary
-;; C-c n S  - Check visible region manually (fast)
-;; C-c n T  - Toggle flyspell on/off
-;;
 ;; AUTOMATIC CHECKING:
-;; - Opens file → Waits 3 seconds → Checks visible region
-;; - As you type → Checks after 2 seconds of idle
-;; - Manual check → C-c n S (instant)
+;; - As you type → Words checked after 3 seconds idle
+;; - Errors underlined gradually as you work
+;; - Safe, incremental, never blocks
 ;;
-;; All functions now:
-;; - Won't freeze even if process dies
-;; - Show helpful error messages
-;; - Work on visible region only (fast)
-;; - Have proper error handling
+;; MANUAL CHECKING:
+;; - C-c n S → Check visible region (fast, safe)
+;; - C-c n s → Correct previous error (shows menu)
+;; - C-c n a → Add previous error to dictionary
+;; - C-c n T → Toggle flyspell on/off
+;;
+;; WORKFLOW:
+;; 1. Open file → Flyspell ON (no immediate check)
+;; 2. Start typing → Errors appear as you type
+;; 3. Want to check existing text? → C-c n S
+;; 4. See an error? → C-c n s (correct) or C-c n a (add)
+;;
+;; All operations are safe and won't freeze Emacs!
 
 (provide '03-spelling)
 ;;; 03-spelling.el ends here
