@@ -69,6 +69,7 @@
 ;; DESKTOP-SAVE-MODE: Session persistence
 ;; ============================================================
 ;; This saves all open files, window layouts, and tabs between sessions
+;; Modern Emacs handles flyspell state correctly, no special handling needed
 
 (use-package desktop
   :ensure nil
@@ -232,15 +233,13 @@
 (add-hook 'emacs-startup-hook 'my/kill-auxiliary-buffers)
 (add-hook 'org-export-before-processing-hook 'my/kill-auxiliary-buffers)
 
-;; Disable flyspell before desktop save (prevents issues)
-(defun my/disable-flyspell-before-desktop-save ()
-  "Disable flyspell in all buffers before saving session."
-  (dolist (buf (buffer-list))
-    (with-current-buffer buf
-      (when (bound-and-true-p flyspell-mode)
-        (flyspell-mode -1)))))
-
-(add-hook 'desktop-save-hook 'my/disable-flyspell-before-desktop-save)
+;; ============================================================
+;; NOTE: Removed flyspell disable on desktop-save
+;; ============================================================
+;; Previously, we disabled flyspell before desktop-save every 30 seconds.
+;; This was an old workaround that's no longer needed in modern Emacs.
+;; Desktop-save handles flyspell state correctly without intervention.
+;; Keeping flyspell active ensures continuous spell-checking.
 
 (provide '01-ui)
 ;;; 01-ui.el ends here
