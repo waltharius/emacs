@@ -208,10 +208,10 @@
   (interactive)
   (if flyspell-mode
       (flyspell-buffer)
-    ;; Temporarily enable, check, then disable
+    ;; Temporarily enable, check, then keep enabled
     (flyspell-mode 1)
     (flyspell-buffer)
-    (message "Buffer checked (flyspell remains active - toggle with my/toggle-flyspell)")))
+    (message "Buffer checked (flyspell is now active)")))
 
 ;; ============================================================
 ;; FLYSPELL CONFIGURATION - PREVENT OVERLAYS FROM DISAPPEARING
@@ -243,6 +243,24 @@
                 ;; Re-check buffer when returning to window
                 (add-hook 'window-configuration-change-hook
                           'flyspell-buffer nil t)))))
+
+;; ============================================================
+;; ENSURE FLYSPELL STAYS ON (run AFTER other hooks)
+;; ============================================================
+
+;; Add a late-priority hook to ensure flyspell stays enabled
+;; This runs AFTER org-indent and other hooks (priority 100)
+(add-hook 'org-mode-hook
+          (lambda ()
+            (unless flyspell-mode
+              (flyspell-mode 1)))
+          100)  ; Run VERY late (after indent hook at 90)
+
+(add-hook 'text-mode-hook
+          (lambda ()
+            (unless flyspell-mode
+              (flyspell-mode 1)))
+          100)
 
 ;; ============================================================
 ;; PREVENT FLYSPELL FROM CLEARING ON FOCUS LOSS
@@ -310,8 +328,10 @@
 ;; 2. Added advice to prevent overlay deletion on focus loss
 ;; 3. Auto-recheck visible portion when returning to Emacs
 ;; 4. Check delay reduced to 1 second
+;; 5. LATE HOOKS (priority 100) ensure flyspell stays on after other hooks
 ;;
 ;; RESULT: Red underlines stay visible across window switches!
+;; Flyspell stays enabled even after org-indent and other hooks run.
 ;; Only the visible portion rechecks (fast), overlays persist.
 
 (provide '03-spelling)
