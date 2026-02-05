@@ -52,23 +52,43 @@
            (ignore-errors (ispell-check-version) t))))
 
 ;; ============================================================
-;; SIMPLE SPELL CORRECTION
+;; HELPER: Find previous spelling error
+;; ============================================================
+
+(defun my/flyspell-goto-previous-error ()
+  "Go to previous spelling error. Returns position or nil."
+  (let ((pos (point))
+        (min (point-min))
+        (found nil))
+    (save-excursion
+      ;; Move back one word to start search
+      (backward-word 1)
+      ;; Search backward for flyspell overlay
+      (while (and (> (point) min) (not found))
+        (let ((overlays (overlays-at (point))))
+          (if (seq-some #'flyspell-overlay-p overlays)
+              (setq found (point))
+            (backward-word 1)))))
+    (when found
+      (goto-char found)
+      found)))
+
+;; ============================================================
+;; SPELL CORRECTION (with menu!)
 ;; ============================================================
 
 (defun my/spell-correct-previous ()
-  "Jump to previous spelling error and correct it.
+  "Jump to previous spelling error and show correction menu.
   SAFE: Checks process before running."
   (interactive)
   (condition-case err
       (if (not (my/spell-check-can-run-p))
           (message "⚠️ Spell-checking not available. Toggle it on with C-c n T")
-        ;; Save position
-        (let ((start-pos (point)))
-          ;; Try to find previous error
-          (if (not (flyspell-goto-next-error t))
-              (message "No spelling errors found")
-            ;; Found error, show corrections
-            (flyspell-correct-wrapper))))
+        ;; Find previous error
+        (if (not (my/flyspell-goto-previous-error))
+            (message "No spelling errors found backward from cursor")
+          ;; Found error and cursor is on it, show corrections
+          (flyspell-correct-wrapper)))
     (error
      (message "Error in spell correction: %s" (error-message-string err)))))
 
@@ -83,18 +103,18 @@
   (condition-case err
       (if (not (my/spell-check-can-run-p))
           (message "⚠️ Spell-checking not available")
-        (save-excursion
-          (if (not (flyspell-goto-next-error t))
-              (message "No spelling errors found")
-            ;; Found error, add it
-            (let ((word (thing-at-point 'word t)))
-              (when word
-                (ispell-add-per-file-word-list word)
-                ;; Remove overlay
-                (dolist (o (overlays-at (point)))
-                  (when (flyspell-overlay-p o)
-                    (delete-overlay o)))
-                (message "✓ Added: %s" word))))))
+        ;; Find previous error
+        (if (not (my/flyspell-goto-previous-error))
+            (message "No spelling errors found")
+          ;; Found error, add it
+          (let ((word (thing-at-point 'word t)))
+            (when word
+              (ispell-add-per-file-word-list word)
+              ;; Remove overlay
+              (dolist (o (overlays-at (point)))
+                (when (flyspell-overlay-p o)
+                  (delete-overlay o)))
+              (message "✓ Added: %s" word)))))
     (error
      (message "Error adding word: %s" (error-message-string err)))))
 
@@ -157,6 +177,26 @@
   (setq flyspell-consider-dash-as-word-delimiter-flag t))
 
 ;; ============================================================
+;; SAFE INITIAL CHECK: Check visible region when opening file
+;; ============================================================
+
+(defun my/flyspell-safe-initial-check ()
+  "Safely check visible region after opening file.
+  Runs after a delay to avoid startup slowdown."
+  (when (and flyspell-mode
+             (derived-mode-p 'org-mode 'text-mode))
+    (condition-case nil
+        (run-with-idle-timer 
+         3 nil  ; Wait 3 seconds after idle
+         (lambda ()
+           (when (and (buffer-live-p (current-buffer))
+                      flyspell-mode)
+             (flyspell-region (window-start) (window-end)))))
+      (error nil))))
+
+(add-hook 'find-file-hook 'my/flyspell-safe-initial-check)
+
+;; ============================================================
 ;; ENSURE FLYSPELL STAYS ON (run AFTER other hooks)
 ;; ============================================================
 
@@ -205,41 +245,53 @@
 (global-set-key (kbd "C-c f b") 'my/spell-check-buffer)
 
 ;; ============================================================
-;; WHAT WAS REMOVED (TO PREVENT FREEZES)
+;; WHAT WAS FIXED
 ;; ============================================================
 ;;
-;; REMOVED DANGEROUS HOOKS:
+;; FIXED #1: Correction menu not showing
+;; - Created proper my/flyspell-goto-previous-error that:
+;;   * Searches backward for flyspell overlay
+;;   * Moves cursor TO the error position
+;;   * Returns position (or nil)
+;; - Now flyspell-correct-wrapper works because cursor is ON error
+;;
+;; FIXED #2: No initial underlining
+;; - Added my/flyspell-safe-initial-check:
+;;   * Runs 3 seconds after opening file (idle timer)
+;;   * Only checks visible region (fast)
+;;   * Has error handling (safe)
+;;   * Doesn't slow down startup
+;;
+;; REMOVED DANGEROUS HOOKS (from previous version):
 ;; 1. window-configuration-change-hook → Called flyspell-buffer on EVERY
 ;;    window change, causing infinite loops
 ;; 2. focus-in-hook auto-recheck → Triggered with dead process
-;; 3. Complex spell-return-position logic → Caused issues with wrapper
-;;
-;; SIMPLIFIED:
-;; - spell-check-buffer now only checks VISIBLE region (fast and safe)
-;; - All functions have condition-case error handling
-;; - All functions check if process is alive before running
-;; - Removed diagnostic tracking (was causing overhead)
 ;;
 ;; RESULT:
-;; - No more freezes or infinite loops
-;; - Safe spell-checking that can't crash
-;; - Fast visible-region checks instead of full buffer
-;; - Clean error messages when something goes wrong
+;; - Errors show up after opening file (3 sec delay)
+;; - Correction menu works properly
+;; - No freezes or infinite loops
+;; - Safe error handling everywhere
 
 ;; ============================================================
 ;; USAGE
 ;; ============================================================
 ;;
-;; C-c n s  - Correct previous error (safe, with error handling)
-;; C-c n a  - Add previous error to dictionary (safe)
-;; C-c n S  - Check visible region (fast, no freeze)
+;; C-c n s  - Correct previous error (now shows menu!)
+;; C-c n a  - Add previous error to dictionary
+;; C-c n S  - Check visible region manually (fast)
 ;; C-c n T  - Toggle flyspell on/off
 ;;
+;; AUTOMATIC CHECKING:
+;; - Opens file → Waits 3 seconds → Checks visible region
+;; - As you type → Checks after 2 seconds of idle
+;; - Manual check → C-c n S (instant)
+;;
 ;; All functions now:
-;; - Check if flyspell process is alive
-;; - Have error handling (won't freeze)
-;; - Work on visible region only (fast)
+;; - Won't freeze even if process dies
 ;; - Show helpful error messages
+;; - Work on visible region only (fast)
+;; - Have proper error handling
 
 (provide '03-spelling)
 ;;; 03-spelling.el ends here
