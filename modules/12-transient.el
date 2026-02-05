@@ -56,7 +56,8 @@
    ["Spelling"
     ("s" "Correct previous" my/spell-correct-previous :transient t)
     ("a" "Add to dict" my/spell-add-previous-to-dict :transient t)
-    ("S" "Check buffer" my/spell-check-buffer)
+    ("S" "Check visible" my/spell-check-visible)
+    ("b" "Check full buffer" my/spell-check-buffer-full)
     ("T" "Toggle spellcheck" my/toggle-flyspell)]
    
    ["Toggle View"
@@ -98,8 +99,14 @@
 ;; SPELL-CHECKING:
 ;; - Press 's' repeatedly to correct previous errors (menu stays open!)
 ;; - Press 'a' to add word to dictionary (skip correction menu)
-;; - Press 'S' to force-check entire buffer
+;; - Press 'S' to check visible region (fast, safe)
+;; - Press 'b' to check entire buffer (thorough, may take a moment)
 ;; - Press 'T' to toggle flyspell on/off
+;;
+;; AUTO-CHECKING:
+;; - Small files (< 7000 words) → Auto-checked after 3 seconds
+;; - Large files (>= 7000 words) → Only visible region auto-checked
+;; - You can manually check anytime with 'S' (visible) or 'b' (full)
 ;;
 ;; Both 's' and 'a' return you to original cursor position automatically!
 ;;
