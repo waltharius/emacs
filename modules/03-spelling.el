@@ -223,7 +223,7 @@ If more, only check visible region. Set to nil to disable auto-checking.")
                          (flyspell-region (window-start) (window-end))
                          (message "✓ Visible region checked"))))
                  (error
-                  (message "Auto-check failed: %s" (error-message-string err))))))))))))
+                  (message "Auto-check failed: %s" (error-message-string err)))))))))))))
 
 ;; Add to file opening hook
 (add-hook 'find-file-hook 'my/spell-auto-check-on-open)
