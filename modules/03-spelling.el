@@ -101,11 +101,15 @@ If more, only check visible region. Set to nil to disable auto-checking.")
      (message "Error in spell correction: %s" (error-message-string err)))))
 
 ;; ============================================================
-;; ADD WORD TO DICTIONARY (simple and safe)
+;; ADD WORD TO PERSONAL DICTIONARY (not file-local!)
 ;; ============================================================
 
 (defun my/spell-add-previous-to-dict ()
-  "Add previous misspelled word to dictionary.
+  "Add previous misspelled word to PERSONAL dictionary.
+  
+  Words are added to ~/.hunspell_personal (global dictionary),
+  NOT as LocalWords in the current file.
+  
   SAFE: Checks process before running."
   (interactive)
   (condition-case err
@@ -114,15 +118,20 @@ If more, only check visible region. Set to nil to disable auto-checking.")
         ;; Find previous error
         (if (not (my/flyspell-goto-previous-error))
             (message "No spelling errors found")
-          ;; Found error, add it
-          (let ((word (thing-at-point 'word t)))
+          ;; Found error, add to personal dictionary
+          (let ((word (downcase (thing-at-point 'word t))))
             (when word
-              (ispell-add-per-file-word-list word)
+              ;; Send '*word' command to ispell process (adds to personal dict)
+              (ispell-send-string (concat "*" word "\n"))
+              ;; Mark dictionary as modified so it gets saved
+              (setq ispell-pdict-modified-p '(t))
+              ;; Save the personal dictionary immediately
+              (ispell-pdict-save t t)
               ;; Remove overlay
               (dolist (o (overlays-at (point)))
                 (when (flyspell-overlay-p o)
                   (delete-overlay o)))
-              (message "✓ Added: %s" word)))))
+              (message "✓ Added to personal dictionary: %s" word)))))
     (error
      (message "Error adding word: %s" (error-message-string err)))))
 
@@ -223,7 +232,7 @@ If more, only check visible region. Set to nil to disable auto-checking.")
                          (flyspell-region (window-start) (window-end))
                          (message "✓ Visible region checked"))))
                  (error
-                  (message "Auto-check failed: %s" (error-message-string err))))))))))))
+                  (message "Auto-check failed: %s" (error-message-string err))))))))))
 
 ;; Add to file opening hook
 (add-hook 'find-file-hook 'my/spell-auto-check-on-open)
@@ -314,18 +323,24 @@ If more, only check visible region. Set to nil to disable auto-checking.")
 ;;
 ;; MANUAL CHECKING:
 ;; - C-c n S → Check visible region (fast, always safe)
-;; - C-c n B → Check entire buffer (use for small files or final review)
+;; - C-c n b → Check entire buffer (use for small files or final review)
 ;; - C-c n s → Correct previous error (shows menu)
-;; - C-c n a → Add previous error to dictionary
+;; - C-c n a → Add previous error to PERSONAL dictionary (not file-local!)
 ;; - C-c n T → Toggle flyspell on/off
+;;
+;; ADDING WORDS TO DICTIONARY:
+;; - Words are added to ~/.hunspell_personal (global)
+;; - NOT as "# LocalWords:" comments in buffer
+;; - Dictionary is saved automatically
+;; - Hunspell process is reloaded to pick up changes
 ;;
 ;; WORKFLOW:
 ;; 1. Open small file → Auto-checks everything after 3 sec ✓
 ;; 2. Open large file → Auto-checks visible part after 3 sec ✓
 ;; 3. Type/edit → Errors appear as you type ✓
-;; 4. Want full check? → C-c n B (entire buffer)
+;; 4. Want full check? → C-c n b (entire buffer)
 ;; 5. Quick check? → C-c n S (visible region)
-;; 6. Fix errors → C-c n s or C-c n a
+;; 6. Fix errors → C-c n s (correct) or C-c n a (add to dictionary)
 ;;
 ;; SAFETY:
 ;; - All automatic checks have 3-second delay (non-blocking)
