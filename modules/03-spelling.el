@@ -82,58 +82,82 @@ If more, only check visible region. Set to nil to disable auto-checking.")
       found)))
 
 ;; ============================================================
-;; SPELL CORRECTION (with menu!)
+;; SPELL CORRECTION (with menu!) - Returns to start position
 ;; ============================================================
 
 (defun my/spell-correct-previous ()
-  "Jump to previous spelling error and show correction menu.
+  "Jump to previous spelling error, show correction menu, then return to start.
+  
+  Workflow:
+  1. Save current cursor position
+  2. Find previous spelling error
+  3. Show correction menu
+  4. After correction, return cursor to original position
+  
   SAFE: Checks process before running."
   (interactive)
-  (condition-case err
-      (if (not (my/spell-check-can-run-p))
-          (message "⚠️ Spell-checking not available. Toggle it on with C-c n T")
-        ;; Find previous error
-        (if (not (my/flyspell-goto-previous-error))
-            (message "No spelling errors found backward from cursor")
-          ;; Found error and cursor is on it, show corrections
-          (flyspell-correct-wrapper)))
-    (error
-     (message "Error in spell correction: %s" (error-message-string err)))))
+  (let ((start-pos (point)))  ; Save starting position
+    (condition-case err
+        (if (not (my/spell-check-can-run-p))
+            (message "⚠️ Spell-checking not available. Toggle it on with C-c n T")
+          ;; Find previous error
+          (if (not (my/flyspell-goto-previous-error))
+              (message "No spelling errors found backward from cursor")
+            ;; Found error and cursor is on it, show corrections
+            (progn
+              (flyspell-correct-wrapper)
+              ;; Return to starting position after correction
+              (goto-char start-pos))))
+      (error
+       (progn
+         (goto-char start-pos)  ; Return even on error
+         (message "Error in spell correction: %s" (error-message-string err)))))))
 
 ;; ============================================================
-;; ADD WORD TO PERSONAL DICTIONARY (not file-local!)
+;; ADD WORD TO PERSONAL DICTIONARY - Returns to start position
 ;; ============================================================
 
 (defun my/spell-add-previous-to-dict ()
-  "Add previous misspelled word to PERSONAL dictionary.
+  "Add previous misspelled word to PERSONAL dictionary, then return to start.
   
-  Words are added to ~/.hunspell_personal (global dictionary),
-  NOT as LocalWords in the current file.
+  Workflow:
+  1. Save current cursor position
+  2. Find previous spelling error
+  3. Add word to ~/.hunspell_personal (global dictionary)
+  4. Remove error overlay
+  5. Return cursor to original position
+  
+  NOT as LocalWords in the current file!
   
   SAFE: Checks process before running."
   (interactive)
-  (condition-case err
-      (if (not (my/spell-check-can-run-p))
-          (message "⚠️ Spell-checking not available")
-        ;; Find previous error
-        (if (not (my/flyspell-goto-previous-error))
-            (message "No spelling errors found")
-          ;; Found error, add to personal dictionary
-          (let ((word (downcase (thing-at-point 'word t))))
-            (when word
-              ;; Send '*word' command to ispell process (adds to personal dict)
-              (ispell-send-string (concat "*" word "\n"))
-              ;; Mark dictionary as modified so it gets saved
-              (setq ispell-pdict-modified-p '(t))
-              ;; Save the personal dictionary immediately
-              (ispell-pdict-save t t)
-              ;; Remove overlay
-              (dolist (o (overlays-at (point)))
-                (when (flyspell-overlay-p o)
-                  (delete-overlay o)))
-              (message "✓ Added to personal dictionary: %s" word)))))
-    (error
-     (message "Error adding word: %s" (error-message-string err)))))
+  (let ((start-pos (point)))  ; Save starting position
+    (condition-case err
+        (if (not (my/spell-check-can-run-p))
+            (message "⚠️ Spell-checking not available")
+          ;; Find previous error
+          (if (not (my/flyspell-goto-previous-error))
+              (message "No spelling errors found")
+            ;; Found error, add to personal dictionary
+            (let ((word (downcase (thing-at-point 'word t))))
+              (when word
+                ;; Send '*word' command to ispell process (adds to personal dict)
+                (ispell-send-string (concat "*" word "\n"))
+                ;; Mark dictionary as modified so it gets saved
+                (setq ispell-pdict-modified-p '(t))
+                ;; Save the personal dictionary immediately
+                (ispell-pdict-save t t)
+                ;; Remove overlay
+                (dolist (o (overlays-at (point)))
+                  (when (flyspell-overlay-p o)
+                    (delete-overlay o)))
+                ;; Return to starting position
+                (goto-char start-pos)
+                (message "✓ Added to personal dictionary: %s" word)))))
+      (error
+       (progn
+         (goto-char start-pos)  ; Return even on error
+         (message "Error adding word: %s" (error-message-string err)))))))
 
 ;; ============================================================
 ;; TOGGLE FLYSPELL MODE
@@ -324,9 +348,13 @@ If more, only check visible region. Set to nil to disable auto-checking.")
 ;; MANUAL CHECKING:
 ;; - C-c n S → Check visible region (fast, always safe)
 ;; - C-c n b → Check entire buffer (use for small files or final review)
-;; - C-c n s → Correct previous error (shows menu)
-;; - C-c n a → Add previous error to PERSONAL dictionary (not file-local!)
+;; - C-c n s → Correct previous error (shows menu, returns cursor home)
+;; - C-c n a → Add previous error to dictionary (returns cursor home)
 ;; - C-c n T → Toggle flyspell on/off
+;;
+;; CURSOR BEHAVIOR:
+;; - Both C-c n s and C-c n a now return cursor to starting position
+;; - You stay where you were, error is corrected in background
 ;;
 ;; ADDING WORDS TO DICTIONARY:
 ;; - Words are added to ~/.hunspell_personal (global)
@@ -341,12 +369,14 @@ If more, only check visible region. Set to nil to disable auto-checking.")
 ;; 4. Want full check? → C-c n b (entire buffer)
 ;; 5. Quick check? → C-c n S (visible region)
 ;; 6. Fix errors → C-c n s (correct) or C-c n a (add to dictionary)
+;; 7. Keep typing → Cursor returns to where you were!
 ;;
 ;; SAFETY:
 ;; - All automatic checks have 3-second delay (non-blocking)
 ;; - Large files only check visible region automatically
 ;; - All functions have error handling
 ;; - User can disable auto-check or adjust threshold
+;; - Cursor always returns to start position (even on errors)
 
 ;; ============================================================
 ;; CONFIGURATION OPTIONS
