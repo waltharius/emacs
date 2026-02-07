@@ -11,7 +11,7 @@
 ;;
 ;; USAGE:
 ;; - Manual: M-x writeroom-mode
-;; - Transient menu: C-c n w (toggle writing mode)
+;; - Transient menu: C-c n W (toggle writing mode)
 ;; - Or enable automatically for specific files (see config below)
 
 ;;; Code:
@@ -22,6 +22,8 @@
 
 (use-package writeroom-mode
   :ensure t
+  :defer t  ;; IMPORTANT: Defer loading until needed
+  :commands (writeroom-mode my/toggle-writeroom)
   :config
   ;; Disable fullscreen (we just want centered cursor)
   (setq writeroom-maximize-window nil)
@@ -76,7 +78,8 @@
 (defun my/toggle-writeroom ()
   "Toggle writeroom-mode (centered writing mode)."
   (interactive)
-  (if writeroom-mode
+  (require 'writeroom-mode)  ;; Load on first use
+  (if (bound-and-true-p writeroom-mode)
       (progn
         (writeroom-mode -1)
         (message "✍️ Writing mode: OFF"))
@@ -116,7 +119,7 @@
 ;; - Some users prefer manual scrolling control
 ;;
 ;; MITIGATION:
-;; - Easy toggle on/off (C-c n w or M-x writeroom-mode)
+;; - Easy toggle on/off (C-c n W or M-x writeroom-mode)
 ;; - Configured to preserve your mode line
 ;; - Doesn't interfere with your visual-fill-column setup
 ;; - You can disable this entire module by commenting out
@@ -124,13 +127,19 @@
 ;;
 ;; TEST SAFELY:
 ;; 1. Open a journal file
-;; 2. Press C-c n w to enable
+;; 2. Press C-c n W to enable
 ;; 3. Start typing - cursor stays centered
 ;; 4. Click somewhere else - no jumping
 ;; 5. Use arrow keys - smooth navigation
-;; 6. Press C-c n w again to disable
+;; 6. Press C-c n W again to disable
 ;;
 ;; If you don't like it, just comment out this module in init.el!
+;;
+;; FIX NOTES (2026-02-07):
+;; - Added :defer t to prevent blocking on startup
+;; - Added :commands to lazy-load only when needed
+;; - Added (require 'writeroom-mode) in toggle function
+;; - This prevents "Blocking call to accept-process-output" error
 
 (provide '13-centered-writing)
 ;;; 13-centered-writing.el ends here
