@@ -44,7 +44,7 @@ This is buffer-local so each note can have its own state.")
   "Display 'W' in mode line when writing mode is enabled."
   (when my/centered-writing-mode
     (propertize "W "
-                'face '(:foreground "orange" :weight bold)
+                'face '(:foreground "black" :weight bold)
                 'help-echo "Writing mode: cursor at 60% from top")))
 
 ;; Add indicator to mode line (after word count)
