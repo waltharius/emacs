@@ -45,6 +45,7 @@
   (load (concat modules-dir "10-visual-fill.el"))   ; Centered text
   (load (concat modules-dir "11-org-appearance.el")) ; Org visual enhancements
   (load (concat modules-dir "12-transient.el"))     ; Transient menu (C-c n)
+  (load (concat modules-dir "13-centered-writing.el")) ; Writeroom mode (C-c n W)
   )
 
 ;; ============================================================
