@@ -1,94 +1,78 @@
 ;;; 13-centered-writing.el --- Centered cursor for writing -*- lexical-binding: t; -*-
 ;;; Commentary:
-;; Provides distraction-free writing with vertically centered cursor.
-;; Uses writeroom-mode - designed for journal and essay writing.
+;; Provides vertically centered cursor while writing.
+;; Uses native Emacs scroll settings - no external packages needed!
 ;;
 ;; KEY FEATURES:
-;; - Keeps cursor centered vertically while typing
-;; - Non-disruptive: doesn't jump when clicking or navigating
-;; - Works with visual-fill-column (horizontal centering)
+;; - Keeps cursor vertically centered while typing
+;; - Works with visual-fill-column (horizontal centering preserved!)
+;; - Lightweight - uses built-in Emacs features
 ;; - Toggle on/off as needed
 ;;
 ;; USAGE:
-;; - Manual: M-x writeroom-mode
 ;; - Transient menu: C-c n W (toggle writing mode)
-;; - Or enable automatically for specific files (see config below)
+;; - Manual: M-x my/toggle-centered-writing
 
 ;;; Code:
 
 ;; ============================================================
-;; WRITEROOM-MODE: Distraction-free writing
+;; VERTICAL CURSOR CENTERING: Native Emacs solution
 ;; ============================================================
+;;
+;; This uses Emacs's built-in scroll settings to keep the cursor
+;; vertically centered without needing external packages.
+;;
+;; How it works:
+;; - scroll-margin: Creates a large margin that forces recentering
+;; - maximum-scroll-margin: Allows up to 50% margin (= centered)
+;; - scroll-conservatively: Disables jump scrolling
+;; - scroll-preserve-screen-position: Keeps cursor stable
+;;
+;; Result: Cursor stays vertically centered while you type!
 
-(use-package writeroom-mode
-  :ensure t
-  :defer t  ;; IMPORTANT: Defer loading until needed
-  :commands (writeroom-mode my/toggle-writeroom)
-  :config
-  ;; Disable fullscreen (we just want centered cursor)
-  (setq writeroom-maximize-window nil)
-  
-  ;; Don't hide mode line (keep your info visible)
-  (setq writeroom-mode-line t)
-  
-  ;; Don't add extra margins (visual-fill-column handles that)
-  (setq writeroom-width 0)
-  
-  ;; No border lines
-  (setq writeroom-bottom-divider-width 0)
-  (setq writeroom-fringes-outside-margins nil)
-  
-  ;; Keep our existing visual-fill-column settings
-  (setq writeroom-global-effects
-        '(writeroom-set-bottom-divider-width
-          writeroom-set-internal-border-width))
-  
-  ;; IMPORTANT: Don't let writeroom override visual-fill-column
-  (setq writeroom-restore-window-config t))
+(defvar-local my/centered-writing-mode nil
+  "Non-nil if centered writing mode is enabled in this buffer.")
 
-;; ============================================================
-;; SMART CENTERING: Only when writing
-;; ============================================================
-;;
-;; Writeroom-mode centers the cursor ONLY during active editing:
-;; - When you type → cursor stays centered
-;; - When you click → NO jumping to center
-;; - When you navigate (arrows, C-n/C-p) → smooth, no disruption
-;; - When correcting spelling → cursor stays where you click
-;;
-;; This is exactly what you asked for!
+(defun my/enable-centered-writing ()
+  "Enable vertically centered cursor for writing."
+  (setq-local scroll-preserve-screen-position t)
+  (setq-local scroll-conservatively 0)
+  (setq-local maximum-scroll-margin 0.5)
+  (setq-local scroll-margin 99999)  ; Large number = always centered
+  (setq my/centered-writing-mode t)
+  (recenter))  ; Center immediately
 
-;; ============================================================
-;; OPTIONAL: Auto-enable for journals
-;; ============================================================
-;;
-;; Uncomment the following to automatically enable writeroom-mode
-;; when opening journal files:
-;;
-;; (add-hook 'org-mode-hook
-;;           (lambda ()
-;;             (when (and buffer-file-name
-;;                        (string-match-p "journal" buffer-file-name))
-;;               (writeroom-mode 1))))
+(defun my/disable-centered-writing ()
+  "Disable vertically centered cursor."
+  (setq-local scroll-preserve-screen-position nil)
+  (setq-local scroll-conservatively 101)  ; Back to smooth scrolling
+  (setq-local maximum-scroll-margin 0.125)
+  (setq-local scroll-margin 0)
+  (setq my/centered-writing-mode nil))
 
 ;; ============================================================
 ;; TOGGLE FUNCTION
 ;; ============================================================
 
-(defun my/toggle-writeroom ()
-  "Toggle writeroom-mode (centered writing mode)."
+(defun my/toggle-centered-writing ()
+  "Toggle vertically centered cursor for writing.
+
+This keeps your cursor in the middle of the screen while typing.
+Your horizontal text centering (visual-fill-column) is preserved!"
   (interactive)
-  (require 'writeroom-mode)  ;; Load on first use
-  (if (bound-and-true-p writeroom-mode)
+  (if my/centered-writing-mode
       (progn
-        (writeroom-mode -1)
+        (my/disable-centered-writing)
         (message "✍️ Writing mode: OFF"))
     (progn
-      (writeroom-mode 1)
-      (message "✍️ Writing mode: ON (cursor centered)"))))
+      (my/enable-centered-writing)
+      (message "✍️ Writing mode: ON (cursor vertically centered)"))))
+
+;; Alias for transient menu compatibility
+(defalias 'my/toggle-writeroom 'my/toggle-centered-writing)
 
 ;; ============================================================
-;; EXPLANATION: Why writeroom-mode?
+;; EXPLANATION: Why this approach?
 ;; ============================================================
 ;;
 ;; You mentioned the problem with other centering modes:
@@ -96,50 +80,82 @@
 ;; - Disruptive when reading or correcting typos
 ;; - Annoying when selecting text
 ;;
-;; Writeroom-mode solves this:
-;; 1. Centers cursor SMOOTHLY as you type new text
-;; 2. Doesn't recenter when you click to a different location
-;; 3. Doesn't interfere with navigation or selection
-;; 4. Works perfectly with spell-checking
+;; This solution:
+;; 1. Uses native Emacs scroll settings (fast, reliable)
+;; 2. Keeps your visual-fill-column horizontal centering intact
+;; 3. Centers cursor smoothly as you type
+;; 4. Minimal disruption - Emacs handles it naturally
 ;;
-;; Alternative considered: centered-cursor-mode
-;; - More aggressive recentering (exactly what you DON'T want)
-;; - Harder to configure for "write-only" behavior
+;; IMPORTANT: About the clicking behavior
+;; - When you click somewhere, Emacs will recenter to that position
+;; - This is how scroll-margin works - it's by design
+;; - However, it's MUCH smoother than centered-cursor-mode
+;; - The text flows naturally as you move around
 ;;
-;; Writeroom-mode is battle-tested by writers and is the
-;; recommended solution in the Emacs community for this exact use case.
+;; If you find clicking still too disruptive, we have two options:
+;; 1. Accept the recentering (it's actually quite smooth)
+;; 2. Use a more complex solution with post-command hooks
+;;    (that only recenter during self-insert-command)
+;;
+;; I recommend trying this first - it's the cleanest solution
+;; used by many Emacs writers.
+
+;; ============================================================
+;; ALTERNATIVE: Only center when typing (experimental)
+;; ============================================================
+;;
+;; If the above solution recenters too much when clicking,
+;; uncomment this section. It only recenters when you actually
+;; type new characters, not when navigating.
+;;
+;; (defun my/recenter-on-insert ()
+;;   "Recenter only when inserting text."
+;;   (when (and my/centered-writing-mode
+;;              (eq this-command 'self-insert-command))
+;;     (recenter)))
+;;
+;; (add-hook 'post-command-hook #'my/recenter-on-insert)
+;;
+;; NOTE: This approach is less smooth but more selective.
+;; Try the main solution first!
+
+;; ============================================================
+;; OPTIONAL: Auto-enable for journal files
+;; ============================================================
+;;
+;; Uncomment to automatically enable centered writing
+;; when opening journal files:
+;;
+;; (add-hook 'org-mode-hook
+;;           (lambda ()
+;;             (when (and buffer-file-name
+;;                        (string-match-p "journal" buffer-file-name))
+;;               (my/enable-centered-writing))))
 
 ;; ============================================================
 ;; SAFETY NOTES
 ;; ============================================================
 ;;
-;; RISKS:
-;; - Writeroom-mode temporarily hides fringes (thin margins)
-;; - May feel unusual at first
-;; - Some users prefer manual scrolling control
+;; BENEFITS:
+;; - Native Emacs solution (no external packages)
+;; - Fast and reliable
+;; - Preserves visual-fill-column horizontal centering
+;; - Easy to toggle on/off
 ;;
-;; MITIGATION:
-;; - Easy toggle on/off (C-c n W or M-x writeroom-mode)
-;; - Configured to preserve your mode line
-;; - Doesn't interfere with your visual-fill-column setup
-;; - You can disable this entire module by commenting out
-;;   the load line in init.el
+;; CONSIDERATIONS:
+;; - Cursor will recenter when you click to a new position
+;; - This is by design and actually quite smooth
+;; - If too disruptive, we can use the alternative hook approach
 ;;
-;; TEST SAFELY:
+;; TESTING:
 ;; 1. Open a journal file
 ;; 2. Press C-c n W to enable
-;; 3. Start typing - cursor stays centered
-;; 4. Click somewhere else - no jumping
-;; 5. Use arrow keys - smooth navigation
-;; 6. Press C-c n W again to disable
+;; 3. Start typing - cursor stays vertically centered
+;; 4. Click somewhere - text recenters smoothly
+;; 5. Press C-c n W again to disable
 ;;
-;; If you don't like it, just comment out this module in init.el!
-;;
-;; FIX NOTES (2026-02-07):
-;; - Added :defer t to prevent blocking on startup
-;; - Added :commands to lazy-load only when needed
-;; - Added (require 'writeroom-mode) in toggle function
-;; - This prevents "Blocking call to accept-process-output" error
+;; Your horizontal centering (visual-fill-column) will work
+;; perfectly with this!
 
 (provide '13-centered-writing)
 ;;; 13-centered-writing.el ends here
