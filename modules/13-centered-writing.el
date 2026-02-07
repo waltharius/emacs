@@ -4,10 +4,11 @@
 ;; Uses native Emacs scroll settings - no external packages needed!
 ;;
 ;; KEY FEATURES:
-;; - Keeps cursor vertically centered while typing
+;; - Keeps cursor vertically positioned while typing
 ;; - Works with visual-fill-column (horizontal centering preserved!)
 ;; - Lightweight - uses built-in Emacs features
 ;; - Toggle on/off as needed
+;; - Configurable position (default: 65% from top)
 ;;
 ;; USAGE:
 ;; - Transient menu: C-c n W (toggle writing mode)
@@ -16,49 +17,75 @@
 ;;; Code:
 
 ;; ============================================================
-;; VERTICAL CURSOR CENTERING: Native Emacs solution
+;; CONFIGURATION
+;; ============================================================
+
+(defvar my/writing-cursor-position 0.65
+  "Vertical position of cursor as fraction from top of window.
+0.5 = center (50% from top)
+0.65 = slightly below center (65% from top, 35% empty below)
+0.7 = even lower (70% from top, 30% empty below)
+0.35 = higher up (35% from top, 65% empty below)
+
+Adjust this value to your preference!")
+
+;; ============================================================
+;; VERTICAL CURSOR POSITIONING: Native Emacs solution
 ;; ============================================================
 ;;
-;; This uses Emacs's built-in scroll settings to keep the cursor
-;; vertically centered without needing external packages.
+;; This uses Emacs's built-in scroll settings combined with
+;; recenter to position the cursor at your preferred location.
 ;;
 ;; How it works:
-;; - scroll-margin: Creates a large margin that forces recentering
-;; - maximum-scroll-margin: Allows up to 50% margin (= centered)
-;; - scroll-conservatively: Disables jump scrolling
-;; - scroll-preserve-screen-position: Keeps cursor stable
+;; - scroll-margin: Forces recentering when approaching edges
+;; - recenter: Positions cursor at specific line
+;; - We calculate the line based on window height and your preference
 ;;
-;; Result: Cursor stays vertically centered while you type!
+;; Result: Cursor stays at your chosen position while you type!
 
 (defvar-local my/centered-writing-mode nil
   "Non-nil if centered writing mode is enabled in this buffer.")
 
+(defun my/recenter-at-position ()
+  "Recenter cursor at the configured writing position."
+  (let* ((window-height (window-height))
+         (target-line (round (* window-height my/writing-cursor-position))))
+    (recenter target-line)))
+
 (defun my/enable-centered-writing ()
-  "Enable vertically centered cursor for writing."
+  "Enable vertically positioned cursor for writing."
   (setq-local scroll-preserve-screen-position t)
   (setq-local scroll-conservatively 0)
   (setq-local maximum-scroll-margin 0.5)
-  (setq-local scroll-margin 99999)  ; Large number = always centered
+  (setq-local scroll-margin 99999)  ; Large number = always recenter
   (setq my/centered-writing-mode t)
-  (recenter))  ; Center immediately
+  ;; Position cursor at configured location
+  (my/recenter-at-position)
+  ;; Ensure recentering happens after each command
+  (add-hook 'post-command-hook #'my/recenter-at-position nil t))
 
 (defun my/disable-centered-writing ()
-  "Disable vertically centered cursor."
+  "Disable vertically positioned cursor."
   (setq-local scroll-preserve-screen-position nil)
   (setq-local scroll-conservatively 101)  ; Back to smooth scrolling
   (setq-local maximum-scroll-margin 0.125)
   (setq-local scroll-margin 0)
-  (setq my/centered-writing-mode nil))
+  (setq my/centered-writing-mode nil)
+  ;; Remove our recentering hook
+  (remove-hook 'post-command-hook #'my/recenter-at-position t))
 
 ;; ============================================================
 ;; TOGGLE FUNCTION
 ;; ============================================================
 
 (defun my/toggle-centered-writing ()
-  "Toggle vertically centered cursor for writing.
+  "Toggle vertically positioned cursor for writing.
 
-This keeps your cursor in the middle of the screen while typing.
-Your horizontal text centering (visual-fill-column) is preserved!"
+This keeps your cursor at a comfortable writing position.
+Your horizontal text centering (visual-fill-column) is preserved!
+
+Default position: 65% from top (35% empty space below)
+Change 'my/writing-cursor-position' to adjust (0.5 = center)."
   (interactive)
   (if my/centered-writing-mode
       (progn
@@ -66,58 +93,71 @@ Your horizontal text centering (visual-fill-column) is preserved!"
         (message "✍️ Writing mode: OFF"))
     (progn
       (my/enable-centered-writing)
-      (message "✍️ Writing mode: ON (cursor vertically centered)"))))
+      (message "✍️ Writing mode: ON (cursor at %.0f%% from top)"
+               (* 100 my/writing-cursor-position)))))
 
 ;; Alias for transient menu compatibility
 (defalias 'my/toggle-writeroom 'my/toggle-centered-writing)
 
 ;; ============================================================
-;; EXPLANATION: Why this approach?
+;; EASY ADJUSTMENT FUNCTIONS
 ;; ============================================================
 ;;
-;; You mentioned the problem with other centering modes:
-;; - They jump to center when you click anywhere
-;; - Disruptive when reading or correcting typos
-;; - Annoying when selecting text
-;;
-;; This solution:
-;; 1. Uses native Emacs scroll settings (fast, reliable)
-;; 2. Keeps your visual-fill-column horizontal centering intact
-;; 3. Centers cursor smoothly as you type
-;; 4. Minimal disruption - Emacs handles it naturally
-;;
-;; IMPORTANT: About the clicking behavior
-;; - When you click somewhere, Emacs will recenter to that position
-;; - This is how scroll-margin works - it's by design
-;; - However, it's MUCH smoother than centered-cursor-mode
-;; - The text flows naturally as you move around
-;;
-;; If you find clicking still too disruptive, we have two options:
-;; 1. Accept the recentering (it's actually quite smooth)
-;; 2. Use a more complex solution with post-command hooks
-;;    (that only recenter during self-insert-command)
-;;
-;; I recommend trying this first - it's the cleanest solution
-;; used by many Emacs writers.
+;; Want to quickly test different positions?
+;; Use these helper functions:
+
+(defun my/set-writing-position-center ()
+  "Set cursor to exact center (50/50)."
+  (interactive)
+  (setq my/writing-cursor-position 0.5)
+  (when my/centered-writing-mode
+    (my/recenter-at-position)
+    (message "Writing position: center (50%% from top)")))
+
+(defun my/set-writing-position-lower ()
+  "Set cursor lower (65% from top, 35% empty below)."
+  (interactive)
+  (setq my/writing-cursor-position 0.65)
+  (when my/centered-writing-mode
+    (my/recenter-at-position)
+    (message "Writing position: lower (65%% from top)")))
+
+(defun my/set-writing-position-higher ()
+  "Set cursor higher (35% from top, 65% empty below)."
+  (interactive)
+  (setq my/writing-cursor-position 0.35)
+  (when my/centered-writing-mode
+    (my/recenter-at-position)
+    (message "Writing position: higher (35%% from top)")))
 
 ;; ============================================================
-;; ALTERNATIVE: Only center when typing (experimental)
+;; EXPLANATION: Position adjustment
 ;; ============================================================
 ;;
-;; If the above solution recenters too much when clicking,
-;; uncomment this section. It only recenters when you actually
-;; type new characters, not when navigating.
+;; The variable my/writing-cursor-position controls where the
+;; cursor sits vertically in the window:
 ;;
-;; (defun my/recenter-on-insert ()
-;;   "Recenter only when inserting text."
-;;   (when (and my/centered-writing-mode
-;;              (eq this-command 'self-insert-command))
-;;     (recenter)))
+;; 0.5  = Exact center (50% from top, 50% below)
+;; 0.65 = Slightly lower (65% from top, 35% below) [DEFAULT]
+;; 0.7  = Even lower (70% from top, 30% below)
+;; 0.35 = Higher up (35% from top, 65% below)
 ;;
-;; (add-hook 'post-command-hook #'my/recenter-on-insert)
+;; TO CHANGE THE POSITION:
 ;;
-;; NOTE: This approach is less smooth but more selective.
-;; Try the main solution first!
+;; Method 1: Edit this file
+;; Change the default value in the defvar above (line 27)
+;;
+;; Method 2: Set in your custom.el or init.el
+;; Add this line:
+;; (setq my/writing-cursor-position 0.7)  ; 70% from top
+;;
+;; Method 3: While writing mode is active
+;; M-x my/set-writing-position-center    ; Try center
+;; M-x my/set-writing-position-lower     ; Try lower
+;; M-x my/set-writing-position-higher    ; Try higher
+;;
+;; The position is stored in the variable, so once you find
+;; your preferred value, you can set it permanently.
 
 ;; ============================================================
 ;; OPTIONAL: Auto-enable for journal files
@@ -141,17 +181,18 @@ Your horizontal text centering (visual-fill-column) is preserved!"
 ;; - Fast and reliable
 ;; - Preserves visual-fill-column horizontal centering
 ;; - Easy to toggle on/off
+;; - Fully configurable position
 ;;
 ;; CONSIDERATIONS:
-;; - Cursor will recenter when you click to a new position
-;; - This is by design and actually quite smooth
-;; - If too disruptive, we can use the alternative hook approach
+;; - Cursor will recenter after each command
+;; - This is intentional for consistent writing position
+;; - Uses post-command-hook (minimal performance impact)
 ;;
 ;; TESTING:
 ;; 1. Open a journal file
 ;; 2. Press C-c n W to enable
-;; 3. Start typing - cursor stays vertically centered
-;; 4. Click somewhere - text recenters smoothly
+;; 3. Start typing - cursor stays at configured position
+;; 4. Too high/low? M-x my/set-writing-position-* to adjust
 ;; 5. Press C-c n W again to disable
 ;;
 ;; Your horizontal centering (visual-fill-column) will work
