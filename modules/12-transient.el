@@ -62,6 +62,7 @@
    
    ["Toggle View"
     ("y" "Center text" my/toggle-visual-fill-column-center)
+    ("W" "Writing mode" my/toggle-writeroom)
     ("I" "Indent headings" my/toggle-org-indent)]
    
    ["Navigation"
@@ -119,6 +120,12 @@
 ;; - 'I' toggles org-indent-mode
 ;; - Default: OFF (better for older notes)
 ;; - Enable for new notes when you want visual hierarchy
+;;
+;; WRITING MODE:
+;; - 'W' toggles writeroom-mode (centered cursor for writing)
+;; - Keeps cursor vertically centered while typing
+;; - Non-disruptive: doesn't jump when clicking or navigating
+;; - Perfect for distraction-free journal and essay writing
 ;;
 ;; The menu stays open after most operations, so you can
 ;; perform multiple actions quickly. Press 'q' to quit.
