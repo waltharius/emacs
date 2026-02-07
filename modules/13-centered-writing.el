@@ -2,11 +2,9 @@
 ;;; Commentary:
 ;; Provides vertically positioned cursor while writing.
 ;; Only recenters when you actually TYPE, not on every command.
-;; Smart recentering: only moves view UP when cursor goes too low.
 ;;
 ;; KEY FEATURES:
-;; - Keeps cursor at 60% from top while typing (when below that line)
-;; - Does NOT recenter if cursor is already above 60% (at top of file)
+;; - Keeps cursor at 60% from top while typing (40% empty below)
 ;; - Shows "W" indicator in mode line when enabled
 ;; - Does NOT recenter when scrolling, clicking, or navigating
 ;; - Works with visual-fill-column (horizontal centering preserved!)
@@ -28,9 +26,6 @@
 0.60 = slightly below center (60% from top, 40% empty below) [DEFAULT]
 0.7 = even lower (70% from top, 30% empty below)
 
-Recentering only happens when cursor goes BELOW this line.
-If cursor is ABOVE this line (e.g., at top of file), no recentering occurs.
-
 Adjust this value to your preference!")
 
 ;; ============================================================
@@ -50,7 +45,7 @@ This is buffer-local so each note can have its own state.")
   (when my/centered-writing-mode
     (propertize "W "
                 'face '(:foreground "black" :weight bold)
-                'help-echo "Writing mode: cursor at 60% from top (smart recentering)")))
+                'help-echo "Writing mode: cursor at 60% from top")))
 
 ;; Add indicator to mode line (after word count)
 (setq-default mode-line-format
@@ -73,31 +68,14 @@ This is buffer-local so each note can have its own state.")
                 mode-line-end-spaces))
 
 ;; ============================================================
-;; SMART VERTICAL CURSOR POSITIONING
+;; VERTICAL CURSOR POSITIONING
 ;; ============================================================
 
-(defun my/get-cursor-position-percentage ()
-  "Get current cursor position as percentage from top of window.
-Returns value between 0.0 (top) and 1.0 (bottom)."
-  (let* ((window-height (window-height))
-         (cursor-line (- (line-number-at-pos (point))
-                        (line-number-at-pos (window-start))))
-         (percentage (/ (float cursor-line) window-height)))
-    percentage))
-
 (defun my/recenter-at-position ()
-  "Recenter cursor at the configured writing position (60% from top).
-But ONLY if cursor is currently BELOW that position.
-
-If cursor is ABOVE the target (e.g., at top of file), do nothing.
-This prevents annoying jumps when writing at the top of a file."
+  "Recenter cursor at the configured writing position (60% from top)."
   (let* ((window-height (window-height))
-         (target-percentage my/writing-cursor-position)
-         (current-percentage (my/get-cursor-position-percentage))
-         (target-line (round (* window-height target-percentage))))
-    ;; Only recenter if cursor is below (greater than) the target position
-    (when (> current-percentage target-percentage)
-      (recenter target-line))))
+         (target-line (round (* window-height my/writing-cursor-position))))
+    (recenter target-line)))
 
 (defun my/recenter-on-typing ()
   "Recenter only when typing new characters.
@@ -116,7 +94,7 @@ This runs in post-command-hook but checks if we're actually inserting text."
 (defun my/enable-centered-writing ()
   "Enable vertically positioned cursor for writing."
   (setq my/centered-writing-mode t)
-  ;; Position cursor at configured location immediately (if below target)
+  ;; Position cursor at configured location immediately
   (my/recenter-at-position)
   ;; Add hook that only recenters when typing
   (add-hook 'post-command-hook #'my/recenter-on-typing nil t)
@@ -139,14 +117,15 @@ This runs in post-command-hook but checks if we're actually inserting text."
   "Toggle vertically positioned cursor for writing.
 
 This keeps your cursor at 60% from top WHILE YOU TYPE.
-Smart recentering: only moves view when cursor goes below 60%.
-If you're at the top of the file, view stays put.
-
 Scrolling and navigation are NOT affected.
 Your horizontal text centering (visual-fill-column) is preserved!
 
 When enabled, shows 'W' in mode line (next to word count).
-This is buffer-local, so each note can have it on or off."
+This is buffer-local, so each note can have it on or off.
+
+NOTE: This will recenter even if you're at the top of the file.
+This is a trade-off - consistent position vs. natural top-of-file writing.
+If you find it annoying at the top, just toggle it off temporarily."
   (interactive)
   (if my/centered-writing-mode
       (progn
@@ -154,7 +133,7 @@ This is buffer-local, so each note can have it on or off."
         (message "✍️ Writing mode: OFF"))
     (progn
       (my/enable-centered-writing)
-      (message "✍️ Writing mode: ON (smart recentering at 60%%)"))))
+      (message "✍️ Writing mode: ON (cursor at 60%% from top)"))))
 
 ;; Alias for transient menu compatibility
 (defalias 'my/toggle-writeroom 'my/toggle-centered-writing)
@@ -196,30 +175,37 @@ This is buffer-local, so each note can have it on or off."
   (message "Writing position: higher (50%% from top)"))
 
 ;; ============================================================
-;; EXPLANATION: Smart recentering
+;; EXPLANATION: How this works
 ;; ============================================================
 ;;
-;; PROBLEM:
-;; - When writing at TOP of file, don't want view to jump down
-;; - When writing at BOTTOM of file, want cursor to move up to 60%
+;; RECENTERING:
+;; - Only happens when you TYPE (self-insert-command, newline, yank)
+;; - Does NOT happen when: scrolling, clicking, navigating
+;; - Cursor stays at 60% from top (40% empty below)
 ;;
-;; SOLUTION:
-;; - Calculate current cursor position as percentage from top
-;; - Only recenter if current position > target (60%)
-;; - If current position < target (above 60%), do nothing
+;; MODE-LINE INDICATOR:
+;; - Shows black "W" next to word count when enabled
+;; - Buffer-local: each buffer has its own state
+;; - Hover over "W" to see tooltip
 ;;
-;; EXAMPLES:
-;; Cursor at 10% (near top) → Do nothing, keep writing at top
-;; Cursor at 40% (above 60%) → Do nothing, stay where you are
-;; Cursor at 70% (below 60%) → Recenter up to 60%
-;; Cursor at 90% (near bottom) → Recenter up to 60%
+;; WHY 60%?
+;; - Not too high (like 50% center)
+;; - Not too low (like 70%)
+;; - Comfortable for most writing
+;; - Works well with both large and small fonts
 ;;
-;; RESULT:
-;; - Natural writing flow at top of file (no jumping)
-;; - Comfortable position maintained when writing new content
-;; - View only adjusts when you actually need it
+;; SAFE:
+;; - Only recenters on actual typing commands
+;; - Minimal performance impact
+;; - Preserves scrolling ability
+;; - No blocking issues
 ;;
-;; This is "smart" recentering - only when beneficial!
+;; TRADE-OFF:
+;; - Will recenter even at top of file
+;; - This is intentional for consistent cursor position
+;; - If annoying, just toggle off when writing at top
+;; - Smart recentering (only when below target) was attempted
+;;   but broke the feature, so we use simple consistent recentering
 
 ;; ============================================================
 ;; POSITION ADJUSTMENT GUIDE
@@ -228,8 +214,8 @@ This is buffer-local, so each note can have it on or off."
 ;; Default: 0.60 (60% from top, 40% empty below)
 ;;
 ;; To change permanently, add to custom.el:
-;; (setq my/writing-cursor-position 0.55)  ; Higher threshold
-;; (setq my/writing-cursor-position 0.65)  ; Lower threshold
+;; (setq my/writing-cursor-position 0.55)  ; Higher
+;; (setq my/writing-cursor-position 0.65)  ; Lower
 ;;
 ;; Or use helper functions while writing:
 ;; M-x my/set-writing-position-center   ; 50%
@@ -241,17 +227,20 @@ This is buffer-local, so each note can have it on or off."
 ;; DEBUGGING
 ;; ============================================================
 ;;
-;; Check current cursor position percentage:
-;; M-: (my/get-cursor-position-percentage) RET
-;;
 ;; Check if enabled in current buffer:
 ;; M-: my/centered-writing-mode RET
 ;;
-;; Check target position:
+;; Check current position:
 ;; M-: my/writing-cursor-position RET
+;;
+;; Check if hook is active:
+;; M-: (member 'my/recenter-on-typing post-command-hook) RET
 ;;
 ;; Disable immediately:
 ;; C-c n W (or M-x my/toggle-centered-writing)
+;;
+;; Remove hook manually if needed:
+;; M-: (remove-hook 'post-command-hook #'my/recenter-on-typing t)
 
 ;; ============================================================
 ;; OPTIONAL: Auto-enable for journal files
