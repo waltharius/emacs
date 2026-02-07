@@ -6,9 +6,7 @@
  '(column-number-mode t)
  '(display-line-numbers-type 'relative)
  '(global-display-line-numbers-mode t)
- '(package-selected-packages
-   '(consult-denote flyspell-correct-ivy magit modus-themes org-bullets
-                    visual-fill-column))
+ '(package-selected-packages nil)
  '(recentf-filename-handlers '(abbreviate-file-name))
  '(size-indication-mode t)
  '(tab-bar-mode t))
