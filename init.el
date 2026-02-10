@@ -46,6 +46,7 @@
   (load (concat modules-dir "11-org-appearance.el")) ; Org visual enhancements
   (load (concat modules-dir "12-transient.el"))     ; Transient menu (C-c n)
   (load (concat modules-dir "13-centered-writing.el")) ; Writeroom mode (C-c n W)
+  (load (concat modules-dir "14-typing-analytics.el")) ; Typing statistics (keyfreq + keylog)
   )
 
 ;; ============================================================
