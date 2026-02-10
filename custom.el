@@ -6,7 +6,15 @@
  '(column-number-mode t)
  '(display-line-numbers-type 'relative)
  '(global-display-line-numbers-mode t)
- '(package-selected-packages nil)
+ '(package-selected-packages
+   '(all-the-icons consult-denote dashboard flycheck-package
+                   flyspell-correct-ivy gnuplot highlight-parentheses
+                   htmlize keyfreq langtool magit marginalia
+                   modus-themes orderless org-appear org-bullets
+                   org-journal org-kanban org-roam-ui org-super-agenda
+                   org-superstar org-transclusion ox-hugo
+                   rainbow-delimiters undo-tree vertico writeroom-mode
+                   yasnippet-snippets))
  '(recentf-filename-handlers '(abbreviate-file-name))
  '(size-indication-mode t)
  '(tab-bar-mode t))
