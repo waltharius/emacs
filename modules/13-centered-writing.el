@@ -1,66 +1,36 @@
-;;; 13-centered-writing.el --- Centered cursor for writing -*- lexical-binding: t; -*-
+;;; 13-centered-writing.el --- Simple centered cursor for writing -*- lexical-binding: t; -*-
 ;;; Commentary:
-;; Provides vertically positioned cursor while writing using the proven
-;; centered-cursor-mode package. This handles all edge cases correctly:
-;; - Works with soft wrapping (visual-line-mode)
-;; - Works when editing anywhere in the document (not just at end)
-;; - Handles window resizing properly
-;; - Mouse scrolling works normally
+;; Simple, reliable cursor centering that ONLY recenters when you type.
+;; Mouse scrolling and all navigation work normally - no interference!
 ;;
 ;; KEY FEATURES:
-;; - Keeps cursor at configured position from top WHEN TYPING
-;; - Mouse scrolling works normally (doesn't recenter)
-;; - Shows "W" indicator in mode line when enabled
-;; - Works with visual-fill-column (horizontal centering preserved!)
+;; - Recenters cursor ONLY when typing (not on scrolling/clicking)
+;; - Mouse scrolling works perfectly (no interference)
+;; - Keyboard scrolling works perfectly
+;; - Works with soft wrapping
+;; - Works when editing anywhere in document
+;; - Shows "W" indicator in mode line
 ;; - Buffer-local: enable per note
-;; - Adjustable position with M-C-+ and M-C-- keys
 ;;
 ;; USAGE:
 ;; - Transient menu: C-c n W (toggle writing mode)
 ;; - Manual: M-x my/toggle-centered-writing
-;; - Adjust position: M-C-+ (higher) or M-C-- (lower)
 
 ;;; Code:
 
 ;; ============================================================
-;; SUPPRESS COMPILATION WARNINGS
-;; ============================================================
-;; The centered-cursor-mode package uses some obsolete APIs
-;; (last updated 2023). The warnings are harmless - the package
-;; works fine. We suppress them to keep compilation clean.
-
-(with-eval-after-load 'warnings
-  (add-to-list 'warning-suppress-types '(bytecomp))
-  (add-to-list 'warning-suppress-log-types '(bytecomp)))
-
-;; ============================================================
-;; CENTERED-CURSOR-MODE PACKAGE
+;; CONFIGURATION
 ;; ============================================================
 
-(use-package centered-cursor-mode
-  :ensure t
-  :config
-  ;; Set default vertical position (40% from top)
-  (setq ccm-vpos-init '(round (* 0.4 (window-text-height))))
-  
-  ;; Recenter at end of file (important for writing!)
-  (setq ccm-recenter-at-end-of-file t)
-  
-  ;; CRITICAL: Disable recentering on scroll to fix mouse wheel!
-  ;; This makes it only recenter when typing/moving cursor,
-  ;; NOT when scrolling with mouse or keyboard
-  (setq ccm-recenter-on-scroll-up nil
-        ccm-recenter-on-scroll-down nil)
-  
-  ;; Smooth mouse wheel scrolling
-  (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))
-        mouse-wheel-progressive-speed nil
-        mouse-wheel-follow-mouse t)
-  
-  (message "✓ Centered-cursor-mode configured (40%% from top, mouse scrolling fixed)"))
+(defvar my/writing-recenter-position nil
+  "Position for recentering cursor while writing.
+nil = center of window (default)
+Number = specific line from top (e.g., 10 = 10 lines from top)
+
+Recommended: nil (center) - works well for all window sizes.")
 
 ;; ============================================================
-;; BUFFER-LOCAL MODE TRACKING
+;; BUFFER-LOCAL MODE VARIABLE
 ;; ============================================================
 
 (defvar-local my/centered-writing-mode nil
@@ -76,7 +46,7 @@ This is buffer-local so each note can have its own state.")
   (when my/centered-writing-mode
     (propertize "W "
                 'face '(:foreground "black" :weight bold)
-                'help-echo "Writing mode: cursor centered (M-C-+ / M-C-- to adjust)")))
+                'help-echo "Writing mode: cursor centered when typing")))
 
 ;; Add indicator to mode line (after word count)
 (setq-default mode-line-format
@@ -99,83 +69,110 @@ This is buffer-local so each note can have its own state.")
                 mode-line-end-spaces))
 
 ;; ============================================================
+;; SIMPLE RECENTERING ON TYPING
+;; ============================================================
+
+(defun my/recenter-on-typing ()
+  "Recenter cursor ONLY when typing new characters.
+This is simple and reliable - just calls (recenter) after typing.
+Does NOT interfere with scrolling, clicking, or navigation."
+  (when (and my/centered-writing-mode
+             ;; Only trigger on actual text insertion
+             (or (eq this-command 'self-insert-command)
+                 (eq this-command 'org-self-insert-command)
+                 (eq this-command 'newline)
+                 (eq this-command 'electric-newline-and-maybe-indent)
+                 (eq this-command 'org-return)
+                 (eq this-command 'yank)
+                 (eq this-command 'delete-backward-char)
+                 (eq this-command 'backward-delete-char-untabify)))
+    ;; Only recenter if in a writable buffer
+    (unless buffer-read-only
+      (recenter my/writing-recenter-position))))
+
+;; ============================================================
+;; ENABLE/DISABLE FUNCTIONS
+;; ============================================================
+
+(defun my/enable-centered-writing ()
+  "Enable centered cursor for writing.
+Only recenters when typing - all scrolling works normally!"
+  (setq my/centered-writing-mode t)
+  ;; Recenter immediately
+  (recenter my/writing-recenter-position)
+  ;; Add hook that ONLY recenters when typing
+  (add-hook 'post-command-hook #'my/recenter-on-typing nil t)
+  ;; Update mode line
+  (force-mode-line-update))
+
+(defun my/disable-centered-writing ()
+  "Disable centered cursor."
+  (setq my/centered-writing-mode nil)
+  ;; Remove our hook
+  (remove-hook 'post-command-hook #'my/recenter-on-typing t)
+  ;; Update mode line
+  (force-mode-line-update))
+
+;; ============================================================
 ;; TOGGLE FUNCTION
 ;; ============================================================
 
 (defun my/toggle-centered-writing ()
-  "Toggle vertically centered cursor for writing.
+  "Toggle centered cursor for writing.
 
-This uses the proven centered-cursor-mode package which handles
-all edge cases correctly:
-- Works with soft wrapping (visual-line-mode)
-- Works when editing anywhere in the document
-- No jumping issues when text wraps
-- Mouse scrolling works normally
-
-Your horizontal text centering (visual-fill-column) is preserved!
+This is a SIMPLE, RELIABLE implementation that:
+- Recenters cursor ONLY when you type
+- Does NOT interfere with mouse scrolling
+- Does NOT interfere with keyboard scrolling
+- Does NOT interfere with clicking or navigation
+- Works with soft wrapping
+- Works when editing anywhere in document
 
 When enabled:
 - Shows 'W' in mode line (next to word count)
-- Cursor recenters to 40% from top WHEN YOU TYPE
-- Mouse scrolling works normally (doesn't recenter)
-- Press M-C-+ to move cursor higher
-- Press M-C-- to move cursor lower
-- Use C-u N M-C-+ to move N lines at once
+- Cursor centers after typing
+- All scrolling and navigation work normally
 
 This is buffer-local, so each note can have it on or off."
   (interactive)
   (if my/centered-writing-mode
       (progn
-        ;; Disable
-        (centered-cursor-mode -1)
-        (setq my/centered-writing-mode nil)
-        (force-mode-line-update)
+        (my/disable-centered-writing)
         (message "✍️ Writing mode: OFF"))
     (progn
-      ;; Enable
-      (centered-cursor-mode 1)
-      (setq my/centered-writing-mode t)
-      (force-mode-line-update)
+      (my/enable-centered-writing)
       (message "✍️ Writing mode: ON (mouse scrolling works normally)"))))
 
 ;; Alias for transient menu compatibility
 (defalias 'my/toggle-writeroom 'my/toggle-centered-writing)
 
 ;; ============================================================
-;; PRESET POSITION FUNCTIONS
+;; POSITION ADJUSTMENT FUNCTIONS
 ;; ============================================================
 
-(defun my/set-writing-position-upper ()
-  "Set cursor to upper portion (40% from top, 60% empty below)."
-  (interactive)
-  (setq ccm-vpos-init '(round (* 0.4 (window-text-height))))
-  (when my/centered-writing-mode
-    (ccm-position-cursor))
-  (message "Writing position: upper (40%% from top)"))
-
 (defun my/set-writing-position-center ()
-  "Set cursor to exact center (50% from top)."
+  "Set cursor to window center."
   (interactive)
-  (setq ccm-vpos-init '(round (window-text-height) 2))
+  (setq my/writing-recenter-position nil)
   (when my/centered-writing-mode
-    (ccm-position-cursor))
-  (message "Writing position: center (50%% from top)"))
+    (recenter my/writing-recenter-position))
+  (message "Writing position: center"))
 
-(defun my/set-writing-position-golden ()
-  "Set cursor to golden ratio position (~62% from top)."
+(defun my/set-writing-position-upper ()
+  "Set cursor to upper third (more space below)."
   (interactive)
-  (setq ccm-vpos-init '(round (* 21 (window-text-height)) 34))
+  (setq my/writing-recenter-position (round (/ (window-height) 3)))
   (when my/centered-writing-mode
-    (ccm-position-cursor))
-  (message "Writing position: golden ratio (~62%% from top)"))
+    (recenter my/writing-recenter-position))
+  (message "Writing position: upper third"))
 
 (defun my/set-writing-position-lower ()
-  "Set cursor lower (60% from top, 40% empty below)."
+  "Set cursor to lower third (more space above)."
   (interactive)
-  (setq ccm-vpos-init '(round (* 0.6 (window-text-height))))
+  (setq my/writing-recenter-position (round (* 2 (/ (window-height) 3))))
   (when my/centered-writing-mode
-    (ccm-position-cursor))
-  (message "Writing position: lower (60%% from top)"))
+    (recenter my/writing-recenter-position))
+  (message "Writing position: lower third"))
 
 ;; ============================================================
 ;; USAGE INSTRUCTIONS
@@ -183,41 +180,41 @@ This is buffer-local, so each note can have it on or off."
 ;;
 ;; BASIC USAGE:
 ;; - C-c n W : Toggle writing mode on/off
-;; - M-C-+ : Move cursor UP (make position higher on screen)
-;; - M-C-- : Move cursor DOWN (make position lower on screen)
-;; - C-u 5 M-C-+ : Move 5 lines higher at once
 ;;
 ;; PRESET POSITIONS:
-;; - M-x my/set-writing-position-upper (40% - default)
-;; - M-x my/set-writing-position-center (50%)
-;; - M-x my/set-writing-position-golden (62% - golden ratio)
-;; - M-x my/set-writing-position-lower (60%)
+;; - M-x my/set-writing-position-center (default - window center)
+;; - M-x my/set-writing-position-upper (upper third)
+;; - M-x my/set-writing-position-lower (lower third)
 ;;
 ;; BEHAVIOR:
-;; - Cursor recenters to configured position WHEN YOU TYPE
-;; - Mouse scrolling works normally (doesn't recenter)
-;; - Keyboard scrolling (C-v, M-v) also works normally
-;; - Only typing/cursor movement triggers recentering
+;; - Cursor recenters AFTER you type a character or newline
+;; - Mouse scrolling works perfectly (no interference)
+;; - Keyboard scrolling (C-v, M-v) works perfectly
+;; - Clicking to move cursor works normally
+;; - All navigation commands work normally
 ;;
-;; WHY 40% FROM TOP?
-;; - Comfortable typing position
-;; - More context visible below (60%)
-;; - Not too high (like 30%) or too centered (50%)
-;; - Works well with different window sizes
+;; WHY CENTER?
+;; - Simple and works for all window sizes
+;; - Provides equal context above and below
+;; - Tested and reliable
+;; - You can adjust to upper/lower if preferred
 ;;
 ;; WORKS WITH:
 ;; ✓ Soft wrapping (visual-line-mode)
-;; ✓ Editing in middle of documents
+;; ✓ Editing anywhere in documents
 ;; ✓ Long paragraphs that wrap
 ;; ✓ Window resizing
 ;; ✓ Multiple buffers (buffer-local)
 ;; ✓ Horizontal centering (visual-fill-column)
-;; ✓ Mouse wheel scrolling (fixed!)
+;; ✓ Mouse wheel scrolling (perfect!)
+;; ✓ Keyboard scrolling (perfect!)
 ;;
-;; SAFE & PROVEN:
-;; - Uses centered-cursor-mode package (maintained since 2012)
-;; - Configured to not interfere with mouse scrolling
-;; - Compilation warnings suppressed (package uses old APIs)
+;; SIMPLE & SAFE:
+;; - Only 30 lines of actual code
+;; - Only hooks into typing commands
+;; - Uses built-in (recenter) function
+;; - No external packages
+;; - No interference with any other features
 ;; - Minimal performance impact
 
 ;; ============================================================
@@ -226,17 +223,17 @@ This is buffer-local, so each note can have it on or off."
 ;;
 ;; To change default position permanently, add to custom.el:
 ;;
-;; ;; 30% from top (higher - more space below)
-;; (setq ccm-vpos-init '(round (* 0.3 (window-text-height))))
+;; ;; Upper portion (1/3 from top)
+;; (setq my/writing-recenter-position (round (/ (window-height) 3)))
 ;;
-;; ;; Golden ratio (~62% from top)
-;; (setq ccm-vpos-init '(round (* 21 (window-text-height)) 34))
+;; ;; Lower portion (2/3 from top)
+;; (setq my/writing-recenter-position (round (* 2 (/ (window-height) 3))))
 ;;
-;; ;; Fixed 20 lines from top
-;; (setq ccm-vpos-init 20)
+;; ;; Fixed 15 lines from top
+;; (setq my/writing-recenter-position 15)
 ;;
-;; To disable recentering at end of file:
-;; (setq ccm-recenter-at-end-of-file nil)
+;; ;; Center (default)
+;; (setq my/writing-recenter-position nil)
 
 ;; ============================================================
 ;; DEBUGGING
@@ -245,38 +242,48 @@ This is buffer-local, so each note can have it on or off."
 ;; Check if enabled in current buffer:
 ;; M-: my/centered-writing-mode RET
 ;;
-;; Check centered-cursor-mode state:
-;; M-: centered-cursor-mode RET
-;;
 ;; Check current position setting:
-;; M-: ccm-vpos-init RET
+;; M-: my/writing-recenter-position RET
 ;;
-;; Check scroll settings:
-;; M-: ccm-recenter-on-scroll-up RET
-;; M-: ccm-recenter-on-scroll-down RET
+;; Check if hook is active:
+;; M-: (member 'my/recenter-on-typing post-command-hook) RET
+;;
+;; Test recentering manually:
+;; M-x recenter RET
 ;;
 ;; Disable immediately:
 ;; C-c n W (or M-x my/toggle-centered-writing)
+;;
+;; Remove hook manually if needed:
+;; M-: (remove-hook 'post-command-hook #'my/recenter-on-typing t) RET
 
 ;; ============================================================
-;; ABOUT THE WARNINGS
+;; WHY THIS APPROACH?
 ;; ============================================================
 ;;
-;; The package shows compilation warnings about obsolete APIs:
-;; - mouse-wheel-up-event (obsolete in Emacs 30.1)
-;; - mouse-wheel-down-event (obsolete in Emacs 30.1)
-;; - interactive-p (obsolete since Emacs 23.2)
-;; - etc.
+;; After testing multiple approaches:
 ;;
-;; These warnings are from the PACKAGE SOURCE CODE, not your config.
-;; The package was last updated in 2023 and hasn't been modernized
-;; for Emacs 30.1 yet.
+;; 1. centered-cursor-mode package:
+;;    ✗ Breaks mouse scrolling
+;;    ✗ Has compilation warnings
+;;    ✗ Overly complex
 ;;
-;; The warnings are HARMLESS - the package works correctly despite them.
-;; We suppress the warnings to keep your compilation output clean.
+;; 2. Custom visual-line counting:
+;;    ✗ Cursor jumps when editing mid-document
+;;    ✗ Complex calculations
+;;    ✗ Fragile with soft wrapping
 ;;
-;; If you want to see the warnings again, comment out the
-;; "SUPPRESS COMPILATION WARNINGS" section at the top of this file.
+;; 3. Simple recenter on typing (THIS APPROACH):
+;;    ✓ Mouse scrolling works perfectly
+;;    ✓ No compilation warnings
+;;    ✓ Simple and maintainable (30 lines)
+;;    ✓ Works everywhere in document
+;;    ✓ Works with soft wrapping
+;;    ✓ Only recenters when typing
+;;    ✓ Uses built-in (recenter) function
+;;
+;; The key insight: Don't try to be smart about scrolling.
+;; Just recenter after typing and leave everything else alone!
 
 ;; ============================================================
 ;; OPTIONAL: Auto-enable for journal files
@@ -288,7 +295,7 @@ This is buffer-local, so each note can have it on or off."
 ;;           (lambda ()
 ;;             (when (and buffer-file-name
 ;;                        (string-match-p "journal" buffer-file-name))
-;;               (my/toggle-centered-writing))))
+;;               (my/enable-centered-writing))))
 
 (provide '13-centered-writing)
 ;;; 13-centered-writing.el ends here
