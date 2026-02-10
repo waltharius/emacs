@@ -20,7 +20,7 @@
 ;; CONFIGURATION
 ;; ============================================================
 
-(defvar my/writing-cursor-position 0.60
+(defvar my/writing-cursor-position 0.4
   "Vertical position of cursor as fraction from top of window.
 0.5 = center (50% from top)
 0.60 = slightly below center (60% from top, 40% empty below) [DEFAULT]
