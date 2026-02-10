@@ -35,6 +35,16 @@ projectile.cache
 smex-items
 
 # ============================================================
+# TYPING ANALYTICS DATA - Privacy sensitive keystroke data
+# ============================================================
+
+# Character-level typing data (timestamps + keystrokes)
+keys
+
+# Command frequency statistics
+.emacs.keyfreq
+
+# ============================================================
 # SYNCTHING CONFLICTS - Never commit these!
 # ============================================================
 
