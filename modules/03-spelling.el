@@ -43,11 +43,11 @@
 ;; ============================================================
 ;; CONFIGURATION: Size threshold for automatic checking
 ;; ============================================================
-
-(defvar my/spell-auto-check-word-threshold 7000
-  "If buffer has fewer than this many words, check entire buffer automatically.
-If more, only check visible region. Set to nil to disable auto-checking.")
-
+;
+;(defvar my/spell-auto-check-word-threshold 7000
+;  "If buffer has fewer than this many words, check entire buffer automatically.
+;If more, only check visible region. Set to nil to disable auto-checking.")
+;
 ;; ============================================================
 ;; SAFE HELPER: Check if spell-checking is available
 ;; ============================================================
@@ -221,46 +221,46 @@ If more, only check visible region. Set to nil to disable auto-checking.")
 ;; ============================================================
 ;; SMART AUTOMATIC CHECK (based on buffer size)
 ;; ============================================================
-
-(defun my/spell-auto-check-on-open ()
-  "Automatically check buffer based on size.
-  
-  Small buffers (< 7000 words): Check entire buffer
-  Large buffers (>= 7000 words): Check visible region only
-  
-  Runs 3 seconds after opening file (non-blocking)."
-  (when (and flyspell-mode
-             my/spell-auto-check-word-threshold
-             (derived-mode-p 'org-mode 'text-mode))
-    (let ((buffer (current-buffer)))
-      ;; Run after 3 seconds idle
-      (run-with-idle-timer
-       3 nil
-       (lambda ()
-         ;; Check buffer is still alive and visible
-         (when (and (buffer-live-p buffer)
-                    (get-buffer-window buffer))
-           (with-current-buffer buffer
-             (when flyspell-mode
-               (condition-case err
-                   (let ((word-count (count-words (point-min) (point-max))))
-                     (if (< word-count my/spell-auto-check-word-threshold)
-                         ;; Small buffer: check everything
-                         (progn
-                           (message "Auto-checking buffer (%d words)..." word-count)
-                           (flyspell-buffer)
-                           (message "✓ Buffer checked"))
-                       ;; Large buffer: visible region only
-                       (progn
-                         (message "Auto-checking visible region (buffer has %d words)..." word-count)
-                         (flyspell-region (window-start) (window-end))
-                         (message "✓ Visible region checked"))))
-                 (error
-                  (message "Auto-check failed: %s" (error-message-string err))))))))))))
-
-;; Add to file opening hook
-(add-hook 'find-file-hook 'my/spell-auto-check-on-open)
-
+;
+;(defun my/spell-auto-check-on-open ()
+;  "Automatically check buffer based on size.
+;  
+;  Small buffers (< 7000 words): Check entire buffer
+;  Large buffers (>= 7000 words): Check visible region only
+;  
+;  Runs 3 seconds after opening file (non-blocking)."
+;  (when (and flyspell-mode
+;             my/spell-auto-check-word-threshold
+;             (derived-mode-p 'org-mode 'text-mode))
+;    (let ((buffer (current-buffer)))
+;      ;; Run after 3 seconds idle
+;      (run-with-idle-timer
+;       3 nil
+;       (lambda ()
+;         ;; Check buffer is still alive and visible
+;         (when (and (buffer-live-p buffer)
+;                    (get-buffer-window buffer))
+;           (with-current-buffer buffer
+;             (when flyspell-mode
+;               (condition-case err
+;                   (let ((word-count (count-words (point-min) (point-max))))
+;                     (if (< word-count my/spell-auto-check-word-threshold)
+;                         ;; Small buffer: check everything
+;                         (progn
+;                           (message "Auto-checking buffer (%d words)..." word-count)
+;                           (flyspell-buffer)
+;                           (message "✓ Buffer checked"))
+;                       ;; Large buffer: visible region only
+;                       (progn
+;                         (message "Auto-checking visible region (buffer has %d words)..." word-count)
+;                         (flyspell-region (window-start) (window-end))
+;                         (message "✓ Visible region checked"))))
+;                 (error
+;                  (message "Auto-check failed: %s" (error-message-string err))))))))))))
+;
+;;; Add to file opening hook
+;(add-hook 'find-file-hook 'my/spell-auto-check-on-open)
+;
 ;; ============================================================
 ;; FLYSPELL CONFIGURATION - INCREMENTAL CHECKING
 ;; ============================================================
