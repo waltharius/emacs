@@ -28,14 +28,14 @@
   
   ;; Optional: Exclude basic movement commands to focus on meaningful operations
   ;; Uncomment these if you want cleaner statistics:
-  ;; (setq keyfreq-excluded-commands
+(setq keyfreq-excluded-commands
   ;;       '(self-insert-command
   ;;         forward-char
   ;;         backward-char
   ;;         previous-line
   ;;         next-line
   ;;         delete-backward-char
-  ;;         mouse-set-point))
+         mouse-set-point))
   
   (message "✓ Keyfreq tracking enabled (~/.emacs.keyfreq)"))
 
