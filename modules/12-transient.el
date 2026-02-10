@@ -11,6 +11,7 @@
 ;; - File Management: Rename, tag, delete
 ;; - Tools: Insert time/date, well-being, toggle view settings
 ;; - Spelling: Check, correct errors, add to dictionary, toggle spell-checking
+;; - Analytics: Typing statistics for ergonomic keyboard research
 
 ;;; Code:
 
@@ -63,7 +64,14 @@
    ["Toggle View"
     ("y" "Center text" my/toggle-visual-fill-column-center)
     ("W" "Writing mode" my/toggle-writeroom)
-    ("I" "Indent headings" my/toggle-org-indent)]
+    ("I" "Indent headings" my/toggle-org-indent)]]
+  
+  ["Analytics & Navigation"
+   ["Typing Analytics"
+    ("k" "Command stats" keyfreq-show)
+    ("K" "Keylog status" keylog-status :transient t)
+    ("[" "Disable tracking" keylog-disable)
+    ("]" "Enable tracking" keylog-enable)]
    
    ["Navigation"
     ("q" "Quit" transient-quit-one)
@@ -90,6 +98,7 @@
 ;; - Insert timestamps
 ;; - Toggle view settings
 ;; - Spell-checking with smart correction
+;; - Typing analytics for keyboard ergonomics research
 ;;
 ;; SEARCH:
 ;; - 'F' (Find) - Fuzzy search for files across all silos
@@ -126,6 +135,18 @@
 ;; - Keeps cursor vertically centered while typing
 ;; - Non-disruptive: doesn't jump when clicking or navigating
 ;; - Perfect for distraction-free journal and essay writing
+;;
+;; TYPING ANALYTICS:
+;; - 'k' shows command frequency statistics (which commands you use most)
+;; - 'K' shows keylog status (keystrokes buffered, file size) - menu stays open
+;; - '[' temporarily disables character tracking (privacy/performance)
+;; - ']' re-enables character tracking
+;; 
+;; Data collection for ergonomic keyboard selection:
+;; - Commands tracked in ~/.emacs.keyfreq
+;; - Keystrokes tracked in ~/.emacs.d/keys
+;; - All data stays local (in .gitignore)
+;; - Recommended: collect 2-4 weeks of data before analyzing
 ;;
 ;; The menu stays open after most operations, so you can
 ;; perform multiple actions quickly. Press 'q' to quit.
