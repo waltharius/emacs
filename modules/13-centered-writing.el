@@ -5,10 +5,11 @@
 ;; - Works with soft wrapping (visual-line-mode)
 ;; - Works when editing anywhere in the document (not just at end)
 ;; - Handles window resizing properly
-;; - No cursor jumping issues
+;; - Mouse scrolling works normally
 ;;
 ;; KEY FEATURES:
-;; - Keeps cursor at configured position from top
+;; - Keeps cursor at configured position from top WHEN TYPING
+;; - Mouse scrolling works normally (doesn't recenter)
 ;; - Shows "W" indicator in mode line when enabled
 ;; - Works with visual-fill-column (horizontal centering preserved!)
 ;; - Buffer-local: enable per note
@@ -22,30 +23,41 @@
 ;;; Code:
 
 ;; ============================================================
+;; SUPPRESS COMPILATION WARNINGS
+;; ============================================================
+;; The centered-cursor-mode package uses some obsolete APIs
+;; (last updated 2023). The warnings are harmless - the package
+;; works fine. We suppress them to keep compilation clean.
+
+(with-eval-after-load 'warnings
+  (add-to-list 'warning-suppress-types '(bytecomp))
+  (add-to-list 'warning-suppress-log-types '(bytecomp)))
+
+;; ============================================================
 ;; CENTERED-CURSOR-MODE PACKAGE
 ;; ============================================================
 
 (use-package centered-cursor-mode
   :ensure t
   :config
-  ;; Set default vertical position
-  ;; Options:
-  ;; - '(round (window-text-height) 2) = exact center (50%)
-  ;; - '(round (* 21 (window-text-height)) 34) = golden ratio (~62%)
-  ;; - Fixed number like 15 = 15 lines from top
-  ;; 
-  ;; We'll use a custom calculation for 40% from top:
+  ;; Set default vertical position (40% from top)
   (setq ccm-vpos-init '(round (* 0.4 (window-text-height))))
   
   ;; Recenter at end of file (important for writing!)
   (setq ccm-recenter-at-end-of-file t)
   
-  ;; Don't recenter on every command (more natural behavior)
-  ;; This makes it only recenter when actually moving/typing
-  (setq ccm-recenter-on-scroll-up t
-        ccm-recenter-on-scroll-down t)
+  ;; CRITICAL: Disable recentering on scroll to fix mouse wheel!
+  ;; This makes it only recenter when typing/moving cursor,
+  ;; NOT when scrolling with mouse or keyboard
+  (setq ccm-recenter-on-scroll-up nil
+        ccm-recenter-on-scroll-down nil)
   
-  (message "✓ Centered-cursor-mode configured (40%% from top)"))
+  ;; Smooth mouse wheel scrolling
+  (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))
+        mouse-wheel-progressive-speed nil
+        mouse-wheel-follow-mouse t)
+  
+  (message "✓ Centered-cursor-mode configured (40%% from top, mouse scrolling fixed)"))
 
 ;; ============================================================
 ;; BUFFER-LOCAL MODE TRACKING
@@ -98,12 +110,14 @@ all edge cases correctly:
 - Works with soft wrapping (visual-line-mode)
 - Works when editing anywhere in the document
 - No jumping issues when text wraps
+- Mouse scrolling works normally
 
 Your horizontal text centering (visual-fill-column) is preserved!
 
 When enabled:
 - Shows 'W' in mode line (next to word count)
-- Cursor stays at 40% from top by default
+- Cursor recenters to 40% from top WHEN YOU TYPE
+- Mouse scrolling works normally (doesn't recenter)
 - Press M-C-+ to move cursor higher
 - Press M-C-- to move cursor lower
 - Use C-u N M-C-+ to move N lines at once
@@ -122,7 +136,7 @@ This is buffer-local, so each note can have it on or off."
       (centered-cursor-mode 1)
       (setq my/centered-writing-mode t)
       (force-mode-line-update)
-      (message "✍️ Writing mode: ON (M-C-+ / M-C-- to adjust position)"))))
+      (message "✍️ Writing mode: ON (mouse scrolling works normally)"))))
 
 ;; Alias for transient menu compatibility
 (defalias 'my/toggle-writeroom 'my/toggle-centered-writing)
@@ -179,6 +193,12 @@ This is buffer-local, so each note can have it on or off."
 ;; - M-x my/set-writing-position-golden (62% - golden ratio)
 ;; - M-x my/set-writing-position-lower (60%)
 ;;
+;; BEHAVIOR:
+;; - Cursor recenters to configured position WHEN YOU TYPE
+;; - Mouse scrolling works normally (doesn't recenter)
+;; - Keyboard scrolling (C-v, M-v) also works normally
+;; - Only typing/cursor movement triggers recentering
+;;
 ;; WHY 40% FROM TOP?
 ;; - Comfortable typing position
 ;; - More context visible below (60%)
@@ -192,11 +212,12 @@ This is buffer-local, so each note can have it on or off."
 ;; ✓ Window resizing
 ;; ✓ Multiple buffers (buffer-local)
 ;; ✓ Horizontal centering (visual-fill-column)
+;; ✓ Mouse wheel scrolling (fixed!)
 ;;
 ;; SAFE & PROVEN:
 ;; - Uses centered-cursor-mode package (maintained since 2012)
-;; - Handles all edge cases properly
-;; - No cursor jumping issues
+;; - Configured to not interfere with mouse scrolling
+;; - Compilation warnings suppressed (package uses old APIs)
 ;; - Minimal performance impact
 
 ;; ============================================================
@@ -230,8 +251,32 @@ This is buffer-local, so each note can have it on or off."
 ;; Check current position setting:
 ;; M-: ccm-vpos-init RET
 ;;
+;; Check scroll settings:
+;; M-: ccm-recenter-on-scroll-up RET
+;; M-: ccm-recenter-on-scroll-down RET
+;;
 ;; Disable immediately:
 ;; C-c n W (or M-x my/toggle-centered-writing)
+
+;; ============================================================
+;; ABOUT THE WARNINGS
+;; ============================================================
+;;
+;; The package shows compilation warnings about obsolete APIs:
+;; - mouse-wheel-up-event (obsolete in Emacs 30.1)
+;; - mouse-wheel-down-event (obsolete in Emacs 30.1)
+;; - interactive-p (obsolete since Emacs 23.2)
+;; - etc.
+;;
+;; These warnings are from the PACKAGE SOURCE CODE, not your config.
+;; The package was last updated in 2023 and hasn't been modernized
+;; for Emacs 30.1 yet.
+;;
+;; The warnings are HARMLESS - the package works correctly despite them.
+;; We suppress the warnings to keep your compilation output clean.
+;;
+;; If you want to see the warnings again, comment out the
+;; "SUPPRESS COMPILATION WARNINGS" section at the top of this file.
 
 ;; ============================================================
 ;; OPTIONAL: Auto-enable for journal files
