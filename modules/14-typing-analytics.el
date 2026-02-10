@@ -16,6 +16,9 @@
 ;; KEYFREQ: Track command frequency
 ;; ============================================================
 
+;; Ensure json library is loaded (fixes compilation warning)
+(require 'json)
+
 (use-package keyfreq
   :ensure t
   :config
