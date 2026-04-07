@@ -12,11 +12,11 @@
 ;;   3. Denote-explore          - Tag stats and network (on demand)
 ;;
 ;; SORTING STRATEGY:
-;;   - Main dashboard sections (journal/pks/docu): by modification time.
-;;     Rationale: shows what you were actively working on recently.
-;;   - Tag popup list: by creation date from Denote identifier.
-;;     Rationale: stable, never changes, reflects original note order.
-;;     Files without a Denote identifier (e.g. captures.org) sort last.
+;;   - Recently Modified section : by mtime (what you edited last)
+;;   - Journal section           : by creation date from identifier, last 10
+;;   - PKS / Docu sections       : by mtime (what you edited last)
+;;   - Tag popup                 : by creation date from identifier, newest first
+;;                                 Files without identifier (captures.org) sort last.
 ;;
 ;; KEYBINDINGS:
 ;;   C-c w d  - Open/refresh notes dashboard (also C-c n o in transient)
@@ -59,22 +59,21 @@
 (defun my/denote-file-identifier (file)
   "Return the Denote identifier string from FILE basename, or nil.
 Denote identifiers have the form YYYYMMDDTHHMMSS at the start of
-the filename. Returns the 15-character string, e.g. \"20240312T143022\".
-Files without an identifier (e.g. captures.org) return nil and will
-be sorted to the end of any list."
+the filename. Returns the 15-character string e.g. \"20240312T143022\".
+Files without an identifier (e.g. captures.org) return nil."
   (let ((base (file-name-base file)))
     (when (string-match "^\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)" base)
       (match-string 1 base))))
 
 (defun my/denote-identifier< (file-a file-b)
   "Return t if FILE-A was created before FILE-B by Denote identifier.
-Files without an identifier sort last (after all dated files)."
+Files without an identifier sort last."
   (let ((id-a (my/denote-file-identifier file-a))
         (id-b (my/denote-file-identifier file-b)))
     (cond
-     ((and id-a id-b) (string< id-a id-b))   ; both dated: compare strings
-     (id-a            t)                       ; only a has date: a is earlier
-     (t               nil))))                  ; b has no date or neither: b last
+     ((and id-a id-b) (string< id-a id-b))
+     (id-a            t)
+     (t               nil))))
 
 (defun my/denote-org-files-in (directory)
   "Return .org files in DIRECTORY sorted newest-modified first."
@@ -83,6 +82,17 @@ Files without an identifier sort last (after all dated files)."
           (lambda (a b)
             (time-less-p (nth 5 (file-attributes b))
                          (nth 5 (file-attributes a)))))))
+
+(defun my/denote-org-files-in-by-id (directory)
+  "Return .org files in DIRECTORY sorted newest-created first (by identifier).
+Files without a Denote identifier sort last."
+  (when (file-directory-p directory)
+    (let* ((all    (directory-files directory t "\\.org$" t))
+           (dated   (seq-filter  #'my/denote-file-identifier all))
+           (undated (seq-remove   #'my/denote-file-identifier all)))
+      (append
+       (sort dated (lambda (a b) (my/denote-identifier< b a))) ; newest first
+       undated))))
 
 (defun my/denote-recently-modified (days)
   "Return .org files across all silos modified within DAYS, newest first."
@@ -130,7 +140,7 @@ Files without an identifier sort last (after all dated files)."
   (insert "\n"))
 
 (defun my/dashboard-insert-file-link (file)
-  "Insert a clickable line showing date + org title for FILE."
+  "Insert a clickable line showing modification date + org title for FILE."
   (let* ((title   (my/denote-file-title file))
          (mtime   (format-time-string "%Y-%m-%d" (nth 5 (file-attributes file))))
          (display (format "  %s  %s" mtime title))
@@ -146,11 +156,10 @@ Files without an identifier sort last (after all dated files)."
     (insert "\n")))
 
 (defun my/dashboard-insert-file-link-with-id-date (file)
-  "Like `my/dashboard-insert-file-link' but shows creation date from identifier.
-Falls back to mtime if file has no Denote identifier."
+  "Insert a clickable line showing creation date (from identifier) + org title.
+Falls back to mtime for files without a Denote identifier."
   (let* ((title   (my/denote-file-title file))
          (id      (my/denote-file-identifier file))
-         ;; Parse YYYYMMDD from identifier, fall back to mtime
          (date    (if id
                       (concat (substring id 0 4) "-"
                               (substring id 4 6) "-"
@@ -186,9 +195,8 @@ Falls back to mtime if file has no Denote identifier."
 (defun my/dashboard-show-tag-notes (tag files)
   "Pop up a clickable list of FILES tagged TAG, sorted by creation date newest first.
 Files without a Denote identifier (e.g. captures.org) appear last."
-  (let* ((dated   (seq-filter  #'my/denote-file-identifier files))
-         (undated (seq-remove  #'my/denote-file-identifier files))
-         ;; Sort dated newest-first: reverse the < comparator
+  (let* ((dated   (seq-filter #'my/denote-file-identifier files))
+         (undated (seq-remove #'my/denote-file-identifier files))
          (sorted  (append
                    (sort dated (lambda (a b) (my/denote-identifier< b a)))
                    undated))
@@ -227,26 +235,26 @@ Files without a Denote identifier (e.g. captures.org) appear last."
                                    (format-time-string "Refreshed: %Y-%m-%d %H:%M"))
                             'face '(:foreground "#888888")))
 
-        ;; Section: Recently Modified
+        ;; Section: Recently Modified (mtime, all silos)
         (my/dashboard-insert-section-header "Recently Modified  (last 10 days)")
         (let ((recent (my/denote-recently-modified 10)))
           (if recent
               (dolist (f recent) (my/dashboard-insert-file-link f))
             (insert "  (no files modified in the last 10 days)\n")))
 
-        ;; Section: Journal
+        ;; Section: Journal (creation date from identifier, last 10)
         (my/dashboard-insert-section-header
          (format "Journal  [%s]" (abbreviate-file-name my-notes-journal)))
-        (dolist (f (seq-take (my/denote-org-files-in my-notes-journal) 20))
-          (my/dashboard-insert-file-link f))
+        (dolist (f (seq-take (my/denote-org-files-in-by-id my-notes-journal) 10))
+          (my/dashboard-insert-file-link-with-id-date f))
 
-        ;; Section: PKS
+        ;; Section: PKS (mtime)
         (my/dashboard-insert-section-header
          (format "PKS -- Personal Knowledge  [%s]" (abbreviate-file-name my-notes-pks)))
         (dolist (f (seq-take (my/denote-org-files-in my-notes-pks) 20))
           (my/dashboard-insert-file-link f))
 
-        ;; Section: Documentation
+        ;; Section: Documentation (mtime)
         (my/dashboard-insert-section-header
          (format "Documentation  [%s]" (abbreviate-file-name my-notes-docu)))
         (dolist (f (seq-take (my/denote-org-files-in my-notes-docu) 20))
