@@ -47,6 +47,7 @@
   (load (concat modules-dir "12-transient.el"))     ; Transient menu (C-c n)
   (load (concat modules-dir "13-centered-writing.el")) ; Writeroom mode (C-c n W)
   (load (concat modules-dir "14-typing-analytics.el")) ; Typing statistics (keyfreq + keylog)
+  (load (concat modules-dir "15-workspace.el"))     ; Obsidian-like panels (EXPERIMENTAL)
   )
 
 ;; ============================================================
