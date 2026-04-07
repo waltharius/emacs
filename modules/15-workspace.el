@@ -6,8 +6,8 @@
 ;; LAYOUT (3 columns, width calculated from window at render time):
 ;;
 ;;   LEFT (33%)          MIDDLE (33%)         RIGHT (33%)
-;;   ─────────────────   ──────────────────   ─────────────────────
-;;   Recently Modified   PKS — Personal       Documentation
+;;   -----------------   ------------------   ---------------------
+;;   Recently Modified   PKS -- Personal      Documentation
 ;;   Journal             Knowledge            Tags
 ;;
 ;; KEYBINDINGS:
@@ -86,41 +86,40 @@
 ;; ============================================================
 ;; COLUMN LAYOUT ENGINE
 ;; ============================================================
-;; Strategy: build each column as a list of plain strings first,
-;; then render them side by side with text-properties for buttons.
-;; We store (text . file-or-action) pairs per line so we can attach
-;; buttons after the columnar layout is printed.
+;; Each column is built as a list of (display-string . payload) pairs.
+;; display-string is pre-padded to col-width chars.
+;; payload is: nil (plain text), a file path string, or (tag . files).
+;; The render loop zips all three lists row-by-row, inserting text
+;; and attaching buttons based on payload type.
 
 (defun my/col-pad (str width)
   "Truncate or right-pad STR to exactly WIDTH characters."
   (let ((len (length str)))
     (cond
      ((= len width) str)
-     ((> len width) (concat (substring str 0 (- width 1)) "…"))
+     ((> len width) (concat (substring str 0 (- width 1)) "~"))
      (t (concat str (make-string (- width len) ?\ ))))))
 
 (defun my/col-header (title width)
-  "Return a list of strings: header line + separator for TITLE at WIDTH."
+  "Return list of two strings: bold title line + separator, each WIDTH chars."
   (list
    (my/col-pad (concat " " title) width)
-   (make-string width ?─)))
+   (make-string width ?-)))
 
 (defun my/col-file-line (file width)
-  "Return (display-string . file) for FILE truncated to WIDTH."
+  "Return (display-string . file-path) truncated to WIDTH."
   (let* ((mtime (format-time-string "%m-%d" (nth 5 (file-attributes file))))
          (title (my/denote-file-title file))
-         (text (my/col-pad (format " %s %s" mtime title) width)))
+         (text  (my/col-pad (format " %s %s" mtime title) width)))
     (cons text file)))
 
 (defun my/col-tag-line (tag files width)
   "Return (display-string . (tag . files)) truncated to WIDTH."
-  (let* ((text (my/col-pad
-                (format " %-18s %2d" tag (length files))
-                width)))
-    (cons text (cons tag files))))
+  (cons (my/col-pad (format " %-18s %2d" tag (length files)) width)
+        (cons tag files)))
 
 (defun my/col-blank (width)
-  "Return a blank padding string of WIDTH."
+  "Return blank string of WIDTH spaces."
   (make-string width ?\ ))
 
 ;; ============================================================
@@ -128,9 +127,8 @@
 ;; ============================================================
 
 (defun my/dashboard-build-left (col-width)
-  "Build left column lines: Recently Modified + Journal."
+  "Build left column: Recently Modified + Journal."
   (let ((lines '()))
-    ;; Recently modified
     (dolist (s (my/col-header "Recently Modified (10d)" col-width))
       (push (cons s nil) lines))
     (let ((recent (my/denote-recently-modified 10)))
@@ -138,7 +136,6 @@
           (dolist (f (seq-take recent 12))
             (push (my/col-file-line f col-width) lines))
         (push (cons (my/col-pad " (none in 10 days)" col-width) nil) lines)))
-    ;; Journal section
     (push (cons (my/col-pad "" col-width) nil) lines)
     (dolist (s (my/col-header "Journal" col-width))
       (push (cons s nil) lines))
@@ -147,22 +144,21 @@
     (nreverse lines)))
 
 (defun my/dashboard-build-middle (col-width)
-  "Build middle column lines: PKS."
+  "Build middle column: PKS."
   (let ((lines '()))
-    (dolist (s (my/col-header "PKS — Personal Knowledge" col-width))
+    (dolist (s (my/col-header "PKS -- Personal Knowledge" col-width))
       (push (cons s nil) lines))
     (dolist (f (seq-take (my/denote-org-files-in my-notes-pks) 35))
       (push (my/col-file-line f col-width) lines))
     (nreverse lines)))
 
 (defun my/dashboard-build-right (col-width)
-  "Build right column lines: Documentation + Tags."
+  "Build right column: Documentation + Tags."
   (let ((lines '()))
     (dolist (s (my/col-header "Documentation" col-width))
       (push (cons s nil) lines))
     (dolist (f (seq-take (my/denote-org-files-in my-notes-docu) 15))
       (push (my/col-file-line f col-width) lines))
-    ;; Tags section
     (push (cons (my/col-pad "" col-width) nil) lines)
     (dolist (s (my/col-header "Tags" col-width))
       (push (cons s nil) lines))
@@ -171,7 +167,7 @@
     (nreverse lines)))
 
 ;; ============================================================
-;; DASHBOARD: Render to buffer with clickable buttons
+;; DASHBOARD: Actions
 ;; ============================================================
 
 (defconst my/dashboard-buffer-name "*Notes Dashboard*")
@@ -194,13 +190,15 @@
                          (lambda (a b)
                            (time-less-p (nth 5 (file-attributes b))
                                         (nth 5 (file-attributes a))))))
-          (let* ((title (my/denote-file-title f))
-                 (mtime (format-time-string "%Y-%m-%d" (nth 5 (file-attributes f))))
+          (let* ((title   (my/denote-file-title f))
+                 (mtime   (format-time-string "%Y-%m-%d" (nth 5 (file-attributes f))))
                  (display (format "  %s  %s\n" mtime title))
-                 (start (point)))
+                 (start   (point)))
             (insert display)
             (make-text-button start (1- (point))
-                              'action (lambda (_b) (my/dashboard-open-in-new-tab f))
+                              'action (let ((ff f))
+                                        (lambda (_b)
+                                          (my/dashboard-open-in-new-tab ff)))
                               'follow-link t
                               'mouse-face 'highlight
                               'face '(:foreground "#2aa198"))))
@@ -210,110 +208,72 @@
         (local-set-key (kbd "q") #'kill-buffer-and-window)))
     (display-buffer buf '(display-buffer-below-selected (window-height . 0.4)))))
 
+;; ============================================================
+;; DASHBOARD: Render 3-column layout
+;; ============================================================
+
+(defun my/dashboard-insert-cell (text payload face-file face-tag)
+  "Insert TEXT as a button if PAYLOAD is non-nil, else as plain text.
+PAYLOAD is a file path string or a (tag . files) cons."
+  (let ((start (point)))
+    (insert text)
+    (cond
+     ((stringp payload)
+      (make-text-button start (point)
+                        'action (let ((f payload))
+                                  (lambda (_b) (my/dashboard-open-in-new-tab f)))
+                        'follow-link t
+                        'mouse-face 'highlight
+                        'face face-file))
+     ((consp payload)
+      (make-text-button start (point)
+                        'action (let ((tag (car payload))
+                                      (files (cdr payload)))
+                                  (lambda (_b)
+                                    (my/dashboard-show-tag-notes tag files)))
+                        'follow-link t
+                        'mouse-face 'highlight
+                        'face face-tag)))))
+
 (defun my/render-notes-dashboard ()
   "Render the 3-column notes dashboard. Returns the buffer."
-  (let* ((buf (get-buffer-create my/dashboard-buffer-name))
-         ;; Leave 2 chars gutter between columns; subtract 1 for left margin
-         (total (- (window-total-width) 2))
-         (col-w (/ total 3))
+  (let* ((buf    (get-buffer-create my/dashboard-buffer-name))
+         (total  (- (window-total-width) 2))
+         (col-w  (/ total 3))
          (left   (my/dashboard-build-left   col-w))
          (middle (my/dashboard-build-middle col-w))
-         (right  (my/dashboard-build-right  col-w)))
+         (right  (my/dashboard-build-right  col-w))
+         (blank  (my/col-blank col-w))
+         (face-file '(:foreground "#2aa198"))
+         (face-tag  '(:foreground "#859900")))
     (with-current-buffer buf
       (let ((inhibit-read-only t))
         (erase-buffer)
 
-        ;; ── Header ────────────────────────────────────────────────────
-        (insert (propertize "  📓 Notes Dashboard"
+        ;; Header
+        (insert (propertize "  Notes Dashboard"
                             'face '(:weight bold :height 1.2)))
-        (insert (propertize (format "   —   %s\n"
+        (insert (propertize (format "   --   %s\n"
                                    (format-time-string "%Y-%m-%d %H:%M"))
                             'face '(:foreground "#888888")))
-        (insert (propertize (make-string (- (window-total-width) 1) ?═) "
-                            'face '(:foreground "#cccccc")))
+        (insert (make-string (- (window-total-width) 1) ?=))
         (insert "\n")
 
-        ;; ── 3-column body ─────────────────────────────────────────────
-        ;; Zip the three columns line by line.
-        ;; Each element is (text . payload) where payload is:
-        ;;   nil          → plain text (header / separator)
-        ;;   string       → file path  → open in new tab on click
-        ;;   (tag . files)→ tag entry  → open tag popup on click
-        (let ((max-rows (max (length left) (length middle) (length right)))
-              (blank-l  (my/col-blank col-w))
-              (blank-m  (my/col-blank col-w))
-              (blank-r  (my/col-blank col-w)))
+        ;; 3-column body
+        (let ((max-rows (max (length left) (length middle) (length right))))
           (dotimes (i max-rows)
-            (let* ((lp (or (nth i left)   (cons blank-l nil)))
-                   (mp (or (nth i middle) (cons blank-m nil)))
-                   (rp (or (nth i right)  (cons blank-r nil)))
-                   (lt (car lp)) (lv (cdr lp))
-                   (mt (car mp)) (mv (cdr mp))
-                   (rt (car rp)) (rv (cdr rp)))
-
-              ;; LEFT cell
-              (let ((start (point)))
-                (insert lt)
-                (cond
-                 ((stringp lv)
-                  (make-text-button start (point)
-                                    'action (let ((f lv))
-                                              (lambda (_b)
-                                                (my/dashboard-open-in-new-tab f)))
-                                    'follow-link t 'mouse-face 'highlight
-                                    'face '(:foreground "#2aa198")))
-                 ((consp lv)
-                  (make-text-button start (point)
-                                    'action (let ((tag (car lv)) (files (cdr lv)))
-                                              (lambda (_b)
-                                                (my/dashboard-show-tag-notes tag files)))
-                                    'follow-link t 'mouse-face 'highlight
-                                    'face '(:foreground "#859900")))))
-              (insert " ")        ; 1-char gutter
-
-              ;; MIDDLE cell
-              (let ((start (point)))
-                (insert mt)
-                (cond
-                 ((stringp mv)
-                  (make-text-button start (point)
-                                    'action (let ((f mv))
-                                              (lambda (_b)
-                                                (my/dashboard-open-in-new-tab f)))
-                                    'follow-link t 'mouse-face 'highlight
-                                    'face '(:foreground "#2aa198")))
-                 ((consp mv)
-                  (make-text-button start (point)
-                                    'action (let ((tag (car mv)) (files (cdr mv)))
-                                              (lambda (_b)
-                                                (my/dashboard-show-tag-notes tag files)))
-                                    'follow-link t 'mouse-face 'highlight
-                                    'face '(:foreground "#859900")))))
-              (insert " ")        ; 1-char gutter
-
-              ;; RIGHT cell
-              (let ((start (point)))
-                (insert rt)
-                (cond
-                 ((stringp rv)
-                  (make-text-button start (point)
-                                    'action (let ((f rv))
-                                              (lambda (_b)
-                                                (my/dashboard-open-in-new-tab f)))
-                                    'follow-link t 'mouse-face 'highlight
-                                    'face '(:foreground "#2aa198")))
-                 ((consp rv)
-                  (make-text-button start (point)
-                                    'action (let ((tag (car rv)) (files (cdr rv)))
-                                              (lambda (_b)
-                                                (my/dashboard-show-tag-notes tag files)))
-                                    'follow-link t 'mouse-face 'highlight
-                                    'face '(:foreground "#859900")))))
+            (let* ((lp (or (nth i left)   (cons blank nil)))
+                   (mp (or (nth i middle) (cons blank nil)))
+                   (rp (or (nth i right)  (cons blank nil))))
+              (my/dashboard-insert-cell (car lp) (cdr lp) face-file face-tag)
+              (insert " ")
+              (my/dashboard-insert-cell (car mp) (cdr mp) face-file face-tag)
+              (insert " ")
+              (my/dashboard-insert-cell (car rp) (cdr rp) face-file face-tag)
               (insert "\n"))))
 
-        ;; ── Footer ────────────────────────────────────────────────────
-        (insert (propertize (make-string (- (window-total-width) 1) ?─)
-                            'face '(:foreground "#cccccc")))
+        ;; Footer
+        (insert (make-string (- (window-total-width) 1) ?-))
         (insert "\n")
         (insert (propertize
                  "  g refresh   C-c d b backlinks   C-c w r random note   q bury\n"
