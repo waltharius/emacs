@@ -2,19 +2,19 @@
 ;;; Commentary:
 ;;
 ;; Custom notes dashboard and workspace features for Denote.
+;; Replaces dired-sidebar (which conflicted with transient menus).
 ;;
-;; LAYOUT (3 columns, width calculated from window at render time):
-;;
-;;   LEFT (33%)          MIDDLE (33%)         RIGHT (33%)
-;;   -----------------   ------------------   ---------------------
-;;   Recently Modified   PKS -- Personal      Documentation
-;;   Journal             Knowledge            Tags
+;; FEATURES:
+;;   1. Custom notes dashboard  - Full buffer with clickable titles,
+;;                                grouped by silo, recency, and tags.
+;;                                Opens in its own named tab on startup.
+;;   2. Denote backlinks panel  - Right side window (C-c d b)
+;;   3. Denote-explore          - Tag stats and network (on demand)
 ;;
 ;; KEYBINDINGS:
 ;;   C-c w d  - Open/refresh notes dashboard (also C-c n o in transient)
 ;;   C-c w x  - Show tag statistics
 ;;   C-c w r  - Jump to random note
-;;   C-c d b  - Show backlinks (defined in 08-keybindings.el)
 ;;   g        - Refresh dashboard (inside dashboard buffer)
 ;;   q        - Bury dashboard
 ;;
@@ -63,7 +63,7 @@
         (result '()))
     (dolist (dir (list my-notes-journal my-notes-pks my-notes-docu))
       (when (file-directory-p dir)
-        (dolist (f (directory-files dir t "\\.org$" t))
+        (dolist (f (directory-files dir t "\.org$" t))
           (when (time-less-p cutoff (nth 5 (file-attributes f)))
             (push f result)))))
     (sort result
@@ -76,7 +76,7 @@
   (let ((tag-map (make-hash-table :test 'equal)))
     (dolist (dir (list my-notes-journal my-notes-pks my-notes-docu))
       (when (file-directory-p dir)
-        (dolist (f (directory-files dir t "\\.org$" t))
+        (dolist (f (directory-files dir t "\.org$" t))
           (dolist (tag (my/denote-file-tags f))
             (puthash tag (cons f (gethash tag tag-map '())) tag-map)))))
     (let ((pairs '()))
@@ -84,90 +84,7 @@
       (sort pairs (lambda (a b) (> (length (cdr a)) (length (cdr b))))))))
 
 ;; ============================================================
-;; COLUMN LAYOUT ENGINE
-;; ============================================================
-;; Each column is built as a list of (display-string . payload) pairs.
-;; display-string is pre-padded to col-width chars.
-;; payload is: nil (plain text), a file path string, or (tag . files).
-;; The render loop zips all three lists row-by-row, inserting text
-;; and attaching buttons based on payload type.
-
-(defun my/col-pad (str width)
-  "Truncate or right-pad STR to exactly WIDTH characters."
-  (let ((len (length str)))
-    (cond
-     ((= len width) str)
-     ((> len width) (concat (substring str 0 (- width 1)) "~"))
-     (t (concat str (make-string (- width len) ?\ ))))))
-
-(defun my/col-header (title width)
-  "Return list of two strings: bold title line + separator, each WIDTH chars."
-  (list
-   (my/col-pad (concat " " title) width)
-   (make-string width ?-)))
-
-(defun my/col-file-line (file width)
-  "Return (display-string . file-path) truncated to WIDTH."
-  (let* ((mtime (format-time-string "%m-%d" (nth 5 (file-attributes file))))
-         (title (my/denote-file-title file))
-         (text  (my/col-pad (format " %s %s" mtime title) width)))
-    (cons text file)))
-
-(defun my/col-tag-line (tag files width)
-  "Return (display-string . (tag . files)) truncated to WIDTH."
-  (cons (my/col-pad (format " %-18s %2d" tag (length files)) width)
-        (cons tag files)))
-
-(defun my/col-blank (width)
-  "Return blank string of WIDTH spaces."
-  (make-string width ?\ ))
-
-;; ============================================================
-;; DASHBOARD: Build column data
-;; ============================================================
-
-(defun my/dashboard-build-left (col-width)
-  "Build left column: Recently Modified + Journal."
-  (let ((lines '()))
-    (dolist (s (my/col-header "Recently Modified (10d)" col-width))
-      (push (cons s nil) lines))
-    (let ((recent (my/denote-recently-modified 10)))
-      (if recent
-          (dolist (f (seq-take recent 12))
-            (push (my/col-file-line f col-width) lines))
-        (push (cons (my/col-pad " (none in 10 days)" col-width) nil) lines)))
-    (push (cons (my/col-pad "" col-width) nil) lines)
-    (dolist (s (my/col-header "Journal" col-width))
-      (push (cons s nil) lines))
-    (dolist (f (seq-take (my/denote-org-files-in my-notes-journal) 20))
-      (push (my/col-file-line f col-width) lines))
-    (nreverse lines)))
-
-(defun my/dashboard-build-middle (col-width)
-  "Build middle column: PKS."
-  (let ((lines '()))
-    (dolist (s (my/col-header "PKS -- Personal Knowledge" col-width))
-      (push (cons s nil) lines))
-    (dolist (f (seq-take (my/denote-org-files-in my-notes-pks) 35))
-      (push (my/col-file-line f col-width) lines))
-    (nreverse lines)))
-
-(defun my/dashboard-build-right (col-width)
-  "Build right column: Documentation + Tags."
-  (let ((lines '()))
-    (dolist (s (my/col-header "Documentation" col-width))
-      (push (cons s nil) lines))
-    (dolist (f (seq-take (my/denote-org-files-in my-notes-docu) 15))
-      (push (my/col-file-line f col-width) lines))
-    (push (cons (my/col-pad "" col-width) nil) lines)
-    (dolist (s (my/col-header "Tags" col-width))
-      (push (cons s nil) lines))
-    (dolist (pair (seq-take (my/denote-all-tags) 25))
-      (push (my/col-tag-line (car pair) (cdr pair) col-width) lines))
-    (nreverse lines)))
-
-;; ============================================================
-;; DASHBOARD: Actions
+;; DASHBOARD: Rendering helpers
 ;; ============================================================
 
 (defconst my/dashboard-buffer-name "*Notes Dashboard*")
@@ -177,6 +94,44 @@
   (tab-bar-new-tab)
   (find-file file)
   (tab-bar-rename-tab (my/denote-file-title file)))
+
+(defun my/dashboard-insert-section-header (title)
+  "Insert a styled section TITLE line."
+  (insert "\n")
+  (insert (propertize (concat "  " title "\n")
+                      'face '(:weight bold :underline t)))
+  (insert "\n"))
+
+(defun my/dashboard-insert-file-link (file)
+  "Insert a clickable line showing date + org title for FILE."
+  (let* ((title   (my/denote-file-title file))
+         (mtime   (format-time-string "%Y-%m-%d" (nth 5 (file-attributes file))))
+         (display (format "  %s  %s" mtime title))
+         (start   (point)))
+    (insert display)
+    (make-text-button start (point)
+                      'action (let ((f file))
+                                (lambda (_b) (my/dashboard-open-in-new-tab f)))
+                      'follow-link t
+                      'help-echo file
+                      'mouse-face 'highlight
+                      'face '(:foreground "#2aa198"))
+    (insert "\n")))
+
+(defun my/dashboard-insert-tag-line (tag files)
+  "Insert a clickable TAG line showing note count."
+  (let* ((display (format "  %-24s  %d notes" tag (length files)))
+         (start   (point)))
+    (insert display)
+    (make-text-button start (point)
+                      'action (let ((tg tag) (fl files))
+                                (lambda (_b)
+                                  (my/dashboard-show-tag-notes tg fl)))
+                      'follow-link t
+                      'help-echo (format "Show notes tagged :%s:" tag)
+                      'mouse-face 'highlight
+                      'face '(:foreground "#859900"))
+    (insert "\n")))
 
 (defun my/dashboard-show-tag-notes (tag files)
   "Pop up a clickable list of FILES tagged TAG."
@@ -190,18 +145,7 @@
                          (lambda (a b)
                            (time-less-p (nth 5 (file-attributes b))
                                         (nth 5 (file-attributes a))))))
-          (let* ((title   (my/denote-file-title f))
-                 (mtime   (format-time-string "%Y-%m-%d" (nth 5 (file-attributes f))))
-                 (display (format "  %s  %s\n" mtime title))
-                 (start   (point)))
-            (insert display)
-            (make-text-button start (1- (point))
-                              'action (let ((ff f))
-                                        (lambda (_b)
-                                          (my/dashboard-open-in-new-tab ff)))
-                              'follow-link t
-                              'mouse-face 'highlight
-                              'face '(:foreground "#2aa198"))))
+          (my/dashboard-insert-file-link f))
         (insert "\n")
         (insert (propertize "  q = close" 'face '(:foreground "#888888")))
         (read-only-mode 1)
@@ -209,74 +153,59 @@
     (display-buffer buf '(display-buffer-below-selected (window-height . 0.4)))))
 
 ;; ============================================================
-;; DASHBOARD: Render 3-column layout
+;; DASHBOARD: Main render function
 ;; ============================================================
 
-(defun my/dashboard-insert-cell (text payload face-file face-tag)
-  "Insert TEXT as a button if PAYLOAD is non-nil, else as plain text.
-PAYLOAD is a file path string or a (tag . files) cons."
-  (let ((start (point)))
-    (insert text)
-    (cond
-     ((stringp payload)
-      (make-text-button start (point)
-                        'action (let ((f payload))
-                                  (lambda (_b) (my/dashboard-open-in-new-tab f)))
-                        'follow-link t
-                        'mouse-face 'highlight
-                        'face face-file))
-     ((consp payload)
-      (make-text-button start (point)
-                        'action (let ((tag (car payload))
-                                      (files (cdr payload)))
-                                  (lambda (_b)
-                                    (my/dashboard-show-tag-notes tag files)))
-                        'follow-link t
-                        'mouse-face 'highlight
-                        'face face-tag)))))
-
 (defun my/render-notes-dashboard ()
-  "Render the 3-column notes dashboard. Returns the buffer."
-  (let* ((buf    (get-buffer-create my/dashboard-buffer-name))
-         (total  (- (window-total-width) 2))
-         (col-w  (/ total 3))
-         (left   (my/dashboard-build-left   col-w))
-         (middle (my/dashboard-build-middle col-w))
-         (right  (my/dashboard-build-right  col-w))
-         (blank  (my/col-blank col-w))
-         (face-file '(:foreground "#2aa198"))
-         (face-tag  '(:foreground "#859900")))
+  "Render the notes dashboard into `my/dashboard-buffer-name'. Returns buffer."
+  (let ((buf (get-buffer-create my/dashboard-buffer-name)))
     (with-current-buffer buf
       (let ((inhibit-read-only t))
         (erase-buffer)
 
         ;; Header
-        (insert (propertize "  Notes Dashboard"
-                            'face '(:weight bold :height 1.2)))
-        (insert (propertize (format "   --   %s\n"
-                                   (format-time-string "%Y-%m-%d %H:%M"))
-                            'face '(:foreground "#888888")))
-        (insert (make-string (- (window-total-width) 1) ?=))
         (insert "\n")
+        (insert (propertize "  Notes Dashboard\n"
+                            'face '(:weight bold :height 1.3)))
+        (insert (propertize (format "  %s\n"
+                                   (format-time-string "Refreshed: %Y-%m-%d %H:%M"))
+                            'face '(:foreground "#888888")))
 
-        ;; 3-column body
-        (let ((max-rows (max (length left) (length middle) (length right))))
-          (dotimes (i max-rows)
-            (let* ((lp (or (nth i left)   (cons blank nil)))
-                   (mp (or (nth i middle) (cons blank nil)))
-                   (rp (or (nth i right)  (cons blank nil))))
-              (my/dashboard-insert-cell (car lp) (cdr lp) face-file face-tag)
-              (insert " ")
-              (my/dashboard-insert-cell (car mp) (cdr mp) face-file face-tag)
-              (insert " ")
-              (my/dashboard-insert-cell (car rp) (cdr rp) face-file face-tag)
-              (insert "\n"))))
+        ;; Section: Recently Modified
+        (my/dashboard-insert-section-header
+         (format "Recently Modified  (last 10 days)"))
+        (let ((recent (my/denote-recently-modified 10)))
+          (if recent
+              (dolist (f recent) (my/dashboard-insert-file-link f))
+            (insert "  (no files modified in the last 10 days)\n")))
+
+        ;; Section: Journal
+        (my/dashboard-insert-section-header
+         (format "Journal  [%s]" (abbreviate-file-name my-notes-journal)))
+        (dolist (f (seq-take (my/denote-org-files-in my-notes-journal) 20))
+          (my/dashboard-insert-file-link f))
+
+        ;; Section: PKS
+        (my/dashboard-insert-section-header
+         (format "PKS -- Personal Knowledge  [%s]" (abbreviate-file-name my-notes-pks)))
+        (dolist (f (seq-take (my/denote-org-files-in my-notes-pks) 20))
+          (my/dashboard-insert-file-link f))
+
+        ;; Section: Documentation
+        (my/dashboard-insert-section-header
+         (format "Documentation  [%s]" (abbreviate-file-name my-notes-docu)))
+        (dolist (f (seq-take (my/denote-org-files-in my-notes-docu) 20))
+          (my/dashboard-insert-file-link f))
+
+        ;; Section: Tags
+        (my/dashboard-insert-section-header "Tags  (click to list notes)")
+        (dolist (pair (seq-take (my/denote-all-tags) 30))
+          (my/dashboard-insert-tag-line (car pair) (cdr pair)))
 
         ;; Footer
-        (insert (make-string (- (window-total-width) 1) ?-))
         (insert "\n")
         (insert (propertize
-                 "  g refresh   C-c d b backlinks   C-c w r random note   q bury\n"
+                 "  g = refresh  |  C-c d b = backlinks  |  C-c w r = random note  |  q = bury\n"
                  'face '(:foreground "#888888")))
 
         (read-only-mode 1)
@@ -303,11 +232,11 @@ PAYLOAD is a file path string or a (tag . files) cons."
     (switch-to-buffer (my/render-notes-dashboard))))
 
 ;; ============================================================
-;; STARTUP: Open Dashboard tab automatically
+;; STARTUP: Open Dashboard tab after desktop restore
 ;; ============================================================
 
 (defun my/startup-open-dashboard ()
-  "Open Dashboard tab at startup after desktop restore settles."
+  "Open Dashboard tab at startup, after desktop restore settles."
   (run-with-timer
    0.5 nil
    (lambda ()
@@ -319,7 +248,7 @@ PAYLOAD is a file path string or a (tag . files) cons."
 (add-hook 'emacs-startup-hook #'my/startup-open-dashboard)
 
 ;; ============================================================
-;; BACKLINKS: Right side-window (non-conflicting with transient)
+;; BACKLINKS: Right side-window
 ;; ============================================================
 
 (with-eval-after-load 'denote
