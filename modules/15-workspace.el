@@ -11,6 +11,13 @@
 ;;   2. Denote backlinks panel  - Right side window (C-c d b)
 ;;   3. Denote-explore          - Tag stats and network (on demand)
 ;;
+;; SORTING STRATEGY:
+;;   - Main dashboard sections (journal/pks/docu): by modification time.
+;;     Rationale: shows what you were actively working on recently.
+;;   - Tag popup list: by creation date from Denote identifier.
+;;     Rationale: stable, never changes, reflects original note order.
+;;     Files without a Denote identifier (e.g. captures.org) sort last.
+;;
 ;; KEYBINDINGS:
 ;;   C-c w d  - Open/refresh notes dashboard (also C-c n o in transient)
 ;;   C-c w x  - Show tag statistics
@@ -48,6 +55,26 @@
             (split-string (match-string 1) ":" t " ")
           nil))
     (error nil)))
+
+(defun my/denote-file-identifier (file)
+  "Return the Denote identifier string from FILE basename, or nil.
+Denote identifiers have the form YYYYMMDDTHHMMSS at the start of
+the filename. Returns the 15-character string, e.g. \"20240312T143022\".
+Files without an identifier (e.g. captures.org) return nil and will
+be sorted to the end of any list."
+  (let ((base (file-name-base file)))
+    (when (string-match "^\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)" base)
+      (match-string 1 base))))
+
+(defun my/denote-identifier< (file-a file-b)
+  "Return t if FILE-A was created before FILE-B by Denote identifier.
+Files without an identifier sort last (after all dated files)."
+  (let ((id-a (my/denote-file-identifier file-a))
+        (id-b (my/denote-file-identifier file-b)))
+    (cond
+     ((and id-a id-b) (string< id-a id-b))   ; both dated: compare strings
+     (id-a            t)                       ; only a has date: a is earlier
+     (t               nil))))                  ; b has no date or neither: b last
 
 (defun my/denote-org-files-in (directory)
   "Return .org files in DIRECTORY sorted newest-modified first."
@@ -118,6 +145,29 @@
                       'face '(:foreground "#2aa198"))
     (insert "\n")))
 
+(defun my/dashboard-insert-file-link-with-id-date (file)
+  "Like `my/dashboard-insert-file-link' but shows creation date from identifier.
+Falls back to mtime if file has no Denote identifier."
+  (let* ((title   (my/denote-file-title file))
+         (id      (my/denote-file-identifier file))
+         ;; Parse YYYYMMDD from identifier, fall back to mtime
+         (date    (if id
+                      (concat (substring id 0 4) "-"
+                              (substring id 4 6) "-"
+                              (substring id 6 8))
+                    (format-time-string "%Y-%m-%d" (nth 5 (file-attributes file)))))
+         (display (format "  %s  %s" date title))
+         (start   (point)))
+    (insert display)
+    (make-text-button start (point)
+                      'action (let ((f file))
+                                (lambda (_b) (my/dashboard-open-in-new-tab f)))
+                      'follow-link t
+                      'help-echo file
+                      'mouse-face 'highlight
+                      'face '(:foreground "#2aa198"))
+    (insert "\n")))
+
 (defun my/dashboard-insert-tag-line (tag files)
   "Insert a clickable TAG line showing note count."
   (let* ((display (format "  %-24s  %d notes" tag (length files)))
@@ -134,18 +184,24 @@
     (insert "\n")))
 
 (defun my/dashboard-show-tag-notes (tag files)
-  "Pop up a clickable list of FILES tagged TAG."
-  (let ((buf (get-buffer-create (format "*Tag: %s*" tag))))
+  "Pop up a clickable list of FILES tagged TAG, sorted by creation date newest first.
+Files without a Denote identifier (e.g. captures.org) appear last."
+  (let* ((dated   (seq-filter  #'my/denote-file-identifier files))
+         (undated (seq-remove  #'my/denote-file-identifier files))
+         ;; Sort dated newest-first: reverse the < comparator
+         (sorted  (append
+                   (sort dated (lambda (a b) (my/denote-identifier< b a)))
+                   undated))
+         (buf (get-buffer-create (format "*Tag: %s*" tag))))
     (with-current-buffer buf
       (let ((inhibit-read-only t))
         (erase-buffer)
-        (insert (propertize (format "Notes tagged :%s: (%d)\n\n" tag (length files))
-                            'face '(:weight bold)))
-        (dolist (f (sort (copy-sequence files)
-                         (lambda (a b)
-                           (time-less-p (nth 5 (file-attributes b))
-                                        (nth 5 (file-attributes a))))))
-          (my/dashboard-insert-file-link f))
+        (insert (propertize
+                 (format "Notes tagged :%s: (%d)  --  sorted by creation date\n\n"
+                         tag (length files))
+                 'face '(:weight bold)))
+        (dolist (f sorted)
+          (my/dashboard-insert-file-link-with-id-date f))
         (insert "\n")
         (insert (propertize "  q = close" 'face '(:foreground "#888888")))
         (read-only-mode 1)
@@ -172,8 +228,7 @@
                             'face '(:foreground "#888888")))
 
         ;; Section: Recently Modified
-        (my/dashboard-insert-section-header
-         (format "Recently Modified  (last 10 days)"))
+        (my/dashboard-insert-section-header "Recently Modified  (last 10 days)")
         (let ((recent (my/denote-recently-modified 10)))
           (if recent
               (dolist (f recent) (my/dashboard-insert-file-link f))
