@@ -231,5 +231,13 @@
             (message "Deleted: %s" name)))
         (kill-buffer (current-buffer))))))
 
+(with-eval-after-load 'org
+  (setq org-agenda-files
+        (list my-notes-journal
+              my-notes-pks
+              my-notes-docu
+              my-fleeting-file
+              my-journal-captures)))
+
 (provide '05-notes)
 ;;; 05-notes.el ends here

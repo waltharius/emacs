@@ -50,6 +50,15 @@
 (defvar my-journal-captures (expand-file-name "~/notes/journal/captures.org")
   "Journal captures - ideas worth developing later.")
 
+;; Agenda scans all three silos + capture files
+(defvar my-tasks-agenda-dirs
+  (list my-notes-journal
+        my-notes-pks
+        my-notes-docu
+        my-fleeting-file
+        my-journal-captures)
+  "All locations org-agenda should scan for TODO items.")
+
 ;; Backup directories
 (defvar my-notes-backups (expand-file-name "~/notes/.backups/")
   "Backup directory for note files.")
