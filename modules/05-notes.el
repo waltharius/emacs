@@ -79,14 +79,23 @@
 
 (defun my/denote-journal-date ()
   "Create or open journal for a specific date (for migrating old entries).
-  If a journal for the chosen date already exists, open it, append
-  a '* Uzupełnienie' heading at the bottom and place the cursor there.
-  If no journal exists for that date, create a new one as usual."
+
+  Behaviour:
+  - If a journal for the chosen date already exists: open it, append
+    a heading '* Uzupelnienie DD.MM.YYYY HH:MM' (actual current time)
+    at the bottom and place the cursor there - ready to write.
+  - If no journal exists for that date: create a new file.
+    The denote identifier uses T000000 (zeroed time) to signal that
+    the file was created retroactively.  The first heading is also
+    '* Uzupelnienie DD.MM.YYYY HH:MM' with the real current time."
   (interactive)
-  (let* ((date-input (org-read-date nil nil nil "Date: "))
-         (parsed-time (org-parse-time-string date-input))
-         (encoded-time (apply 'encode-time parsed-time))
+  (let* ((date-input    (org-read-date nil nil nil "Date: "))
+         (parsed-time   (org-parse-time-string date-input))
+         (encoded-time  (apply 'encode-time parsed-time))
          (date-formatted (format-time-string "%Y-%m-%d" encoded-time))
+         ;; Actual wall-clock moment - used in headings so every
+         ;; supplement is traceable regardless of the chosen date.
+         (now-stamp     (format-time-string "%d.%m.%Y %H:%M"))
          (journal-pattern (concat "--" date-formatted "-journal"))
          (existing-journal nil))
 
@@ -96,40 +105,46 @@
         (setq existing-journal file)))
 
     (if existing-journal
-        ;; Journal for that date exists - open and append supplement heading
+        ;; --------------------------------------------------------
+        ;; Journal for that date exists - append supplement heading
+        ;; --------------------------------------------------------
         (progn
           (find-file existing-journal)
 
-          ;; Clean up trailing whitespace/newlines before appending
+          ;; Clean trailing whitespace/newlines
           (save-excursion
             (goto-char (point-max))
             (skip-chars-backward " \t\n")
             (delete-region (point) (point-max)))
 
           (goto-char (point-max))
-          (insert "\n\n* Uzupełnienie\n")
-          (message "Opened existing journal for %s — cursor below '* Uzupełnienie'"
-                   date-formatted))
+          (insert (format "\n\n* Uzupełnienie %s\n" now-stamp))
+          (message "Opened existing journal for %s - cursor below '* Uzupelnienie %s'"
+                   date-formatted now-stamp))
 
-      ;; No journal for that date - create a fresh one
-      (let* ((id (format-time-string "%Y%m%dT%H%M%S" encoded-time))
-             (slug (format "%s-journal" date-formatted))
+      ;; --------------------------------------------------------
+      ;; No journal for that date - create a fresh backdated file
+      ;; ID uses T000000 to mark it as retroactively created.
+      ;; --------------------------------------------------------
+      (let* ((id       (format-time-string "%Y%m%dT000000" encoded-time))
+             (slug     (format "%s-journal" date-formatted))
              (filename (format "%s--%s__journal.org" id slug))
              (filepath (expand-file-name filename my-notes-journal)))
 
         (find-file filepath)
         (insert (format "#+title:      %s Journal\n" date-formatted))
         (insert (format "#+date:       %s\n"
-                        (format-time-string "[%Y-%m-%d %a %H:%M]" encoded-time)))
+                        (format-time-string "[%Y-%m-%d %a]" encoded-time)))
         (insert "#+filetags:   :journal:\n")
-        (insert (format "#+identifier: %s\n\n" id))
+        (insert (format "#+identifier: %s\n" id))
         (insert ":PROPERTIES:\n")
         (insert ":well-being:  \n")
         (insert ":END:\n\n")
-        (insert (format-time-string "* %H:%M" encoded-time))
-        (insert "\n")
+        ;; First heading carries the real creation timestamp
+        (insert (format "* Uzupełnienie %s\n" now-stamp))
         (save-buffer)
-        (message "Created new journal for %s" date-formatted)))))
+        (message "Created backdated journal for %s (written %s)"
+                 date-formatted now-stamp)))))
 
 ;; ============================================================
 ;; BASE NOTE: Simple note with title and tags
