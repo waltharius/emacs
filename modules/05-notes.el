@@ -78,33 +78,58 @@
 ;; ============================================================
 
 (defun my/denote-journal-date ()
-  "Create journal with specific date (for migrating old entries)."
+  "Create or open journal for a specific date (for migrating old entries).
+  If a journal for the chosen date already exists, open it, append
+  a '* Uzupełnienie' heading at the bottom and place the cursor there.
+  If no journal exists for that date, create a new one as usual."
   (interactive)
   (let* ((date-input (org-read-date nil nil nil "Date: "))
          (parsed-time (org-parse-time-string date-input))
-         (date-formatted (format-time-string "%Y-%m-%d"
-                                             (apply 'encode-time parsed-time)))
-         (title (format "%s Journal" date-formatted))
-         (time-now (format-time-string "%H:%M")))
-    
-    (let* ((id (format-time-string "%Y%m%dT%H%M%S" (apply 'encode-time parsed-time)))
-           (slug (format "%s-journal" date-formatted))
-           (filename (format "%s--%s__journal.org" id slug))
-           (filepath (expand-file-name filename my-notes-journal)))
-      
-      (find-file filepath)
-      (insert (format "#+title:      %s\n" title))
-      (insert (format "#+date:       %s\n"
-                      (format-time-string "[%Y-%m-%d %a %H:%M]"
-                                          (apply 'encode-time parsed-time))))
-      (insert "#+filetags:   :journal:\n")
-      (insert (format "#+identifier: %s\n\n" id))
-      (insert ":PROPERTIES:\n")
-      (insert ":well-being:  \n")
-      (insert ":END:\n\n")
-      (insert (format "* %s\n" time-now))
-      (save-buffer)
-      (message "Created journal for %s" date-formatted))))
+         (encoded-time (apply 'encode-time parsed-time))
+         (date-formatted (format-time-string "%Y-%m-%d" encoded-time))
+         (journal-pattern (concat "--" date-formatted "-journal"))
+         (existing-journal nil))
+
+    ;; Search for existing journal for the chosen date
+    (dolist (file (directory-files my-notes-journal t "\\.org$"))
+      (when (string-match-p journal-pattern (file-name-nondirectory file))
+        (setq existing-journal file)))
+
+    (if existing-journal
+        ;; Journal for that date exists - open and append supplement heading
+        (progn
+          (find-file existing-journal)
+
+          ;; Clean up trailing whitespace/newlines before appending
+          (save-excursion
+            (goto-char (point-max))
+            (skip-chars-backward " \t\n")
+            (delete-region (point) (point-max)))
+
+          (goto-char (point-max))
+          (insert "\n\n* Uzupełnienie\n")
+          (message "Opened existing journal for %s — cursor below '* Uzupełnienie'"
+                   date-formatted))
+
+      ;; No journal for that date - create a fresh one
+      (let* ((id (format-time-string "%Y%m%dT%H%M%S" encoded-time))
+             (slug (format "%s-journal" date-formatted))
+             (filename (format "%s--%s__journal.org" id slug))
+             (filepath (expand-file-name filename my-notes-journal)))
+
+        (find-file filepath)
+        (insert (format "#+title:      %s Journal\n" date-formatted))
+        (insert (format "#+date:       %s\n"
+                        (format-time-string "[%Y-%m-%d %a %H:%M]" encoded-time)))
+        (insert "#+filetags:   :journal:\n")
+        (insert (format "#+identifier: %s\n\n" id))
+        (insert ":PROPERTIES:\n")
+        (insert ":well-being:  \n")
+        (insert ":END:\n\n")
+        (insert (format-time-string "* %H:%M" encoded-time))
+        (insert "\n")
+        (save-buffer)
+        (message "Created new journal for %s" date-formatted)))))
 
 ;; ============================================================
 ;; BASE NOTE: Simple note with title and tags
