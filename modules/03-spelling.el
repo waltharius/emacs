@@ -33,8 +33,11 @@
     (write-file ispell-personal-dictionary)))
 (setq ispell-silently-savep t)
 
-;; Initialize Hunspell with UTF-8
+;; Initialize Hunspell with UTF-8 - NixOS paths via per-user profile
 (with-eval-after-load 'ispell
+  (setq ispell-hunspell-dict-paths-alist
+        '(("pl_PL" "/etc/profiles/per-user/marcin/share/hunspell/pl_PL.aff")
+          ("en_GB" "/etc/profiles/per-user/marcin/share/hunspell/en_GB.aff")))
   (ispell-set-spellchecker-params)
   (ispell-hunspell-add-multi-dic "pl_PL,en_GB"))
 
