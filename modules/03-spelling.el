@@ -41,12 +41,12 @@
   (ispell-set-spellchecker-params)
   (ispell-hunspell-add-multi-dic "pl_PL,en_GB"))
 
-;; --- Automatic refresh after dictionary save ---
-(defun my/ispell-refresh-after-save (&rest _)
-  "Refresh Hunspell process after saving dictionary."
-  (when (and (boundp 'ispell-process) (process-live-p ispell-process))
-    (ispell-kill-ispell)))
-(advice-add 'ispell-pdict-save :after #'my/ispell-refresh-after-save)
+;; NOTE: No process-kill-on-save advice here.
+;; ispell-send-string "*word" already tells the live Hunspell process to
+;; accept a new word immediately. ispell-pdict-save only writes to disk
+;; for persistence across Emacs restarts. Killing and restarting the
+;; process after each dictionary save is unnecessary and causes a
+;; multi-second delay on every 'a' (add to dictionary) keypress.
 
 ;; ============================================================
 ;; SAFE HELPER: Check if process is alive (read-only, no side effects)
@@ -69,7 +69,12 @@ Use `my/spell-ensure-process' when you need the process to be running."
 
 If the process is not alive, this function starts it and waits briefly
 for the NixOS wrapper to complete its iconv probe (which produces the
-harmless 'iconv: ISO8859-2 -> UTF-8' banner lines on first start).
+harmless \='iconv: ISO8859-2 -> UTF-8\=' banner lines on first start).
+
+Called only when the process is dead (i.e. on very first use after
+Emacs starts, or after an unexpected crash). Normal corrections and
+add-to-dictionary operations never kill the process, so this function
+is a no-op in steady-state use.
 
 Returns t if the process is ready, nil if it could not be started."
   (unless (and (boundp 'ispell-process) (process-live-p ispell-process))
@@ -95,9 +100,7 @@ Returns t if the process is ready, nil if it could not be started."
   (let ((min (point-min))
         (found nil))
     (save-excursion
-      ;; Move back one word to start search
       (backward-word 1)
-      ;; Search backward for flyspell overlay
       (while (and (> (point) min) (not found))
         (let ((overlays (overlays-at (point))))
           (if (seq-some #'flyspell-overlay-p overlays)
@@ -116,8 +119,8 @@ Returns t if the process is ready, nil if it could not be started."
 
 Workflow:
 1. Save current cursor position.
-2. Ensure Hunspell process is running (starts it on first use, waits for
-   its startup handshake — this is why the first press always works now).
+2. Ensure Hunspell process is running (starts it on first use after
+   Emacs boots; instant no-op on every subsequent call).
 3. Find previous spelling error.
 4. Show correction menu via flyspell-correct-wrapper.
 5. Return cursor to original position after correction.
@@ -151,13 +154,15 @@ Workflow:
 1. Save current cursor position.
 2. Ensure Hunspell process is running.
 3. Find previous spelling error.
-4. Add word to ~/.hunspell_personal (global dictionary).
-5. Remove error overlay.
-6. Return cursor to original position.
+4. Send '*word' to running Hunspell process (accepted immediately
+   in-session, no restart needed).
+5. Save word to ~/.hunspell_personal for persistence across restarts.
+6. Remove error overlay.
+7. Return cursor to original position.
 
-NOT as LocalWords in the current file!
+NOT saved as LocalWords in the current file.
 
-SAFE: Handles process startup; cursor always returns home."
+SAFE: No process restart; instant on all but the very first call."
   (interactive)
   (let ((start-pos (point)))
     (condition-case err
@@ -171,17 +176,15 @@ SAFE: Handles process startup; cursor always returns home."
          (t
           (let ((word (downcase (thing-at-point 'word t))))
             (when word
-              ;; Send '*word' command to ispell process (adds to personal dict)
+              ;; Tell the running process to accept this word immediately
               (ispell-send-string (concat "*" word "\n"))
-              ;; Mark dictionary as modified so it gets saved
+              ;; Mark dictionary modified and save to disk (no process restart)
               (setq ispell-pdict-modified-p '(t))
-              ;; Save the personal dictionary immediately
               (ispell-pdict-save t t)
-              ;; Remove overlay
+              ;; Remove the flyspell overlay
               (dolist (o (overlays-at (point)))
                 (when (flyspell-overlay-p o)
                   (delete-overlay o)))
-              ;; Return to starting position
               (goto-char start-pos)
               (message "✓ Added to personal dictionary: %s" word)))))
       (error
@@ -256,17 +259,10 @@ Warning: May take a few seconds on large files."
   :hook ((text-mode . flyspell-mode)
          (org-mode  . flyspell-mode))
   :config
-  ;; Reduce verbosity
   (setq flyspell-issue-message-flag nil)
   (setq flyspell-issue-welcome-flag nil)
-
-  ;; Check words AS YOU TYPE (incremental, safe)
-  (setq flyspell-delay 3)  ; Check after 3 seconds of idle typing
-
-  ;; PREVENT OVERLAYS FROM DISAPPEARING
+  (setq flyspell-delay 3)
   (setq flyspell-delete-overlays nil)
-
-  ;; Dash handling
   (setq flyspell-consider-dash-as-word-delimiter-flag t))
 
 ;; ============================================================
@@ -315,41 +311,31 @@ Warning: May take a few seconds on large files."
 ;; KEYBINDINGS
 ;; ============================================================
 
-;; Keep old binding for compatibility (now checks visible region)
 (global-set-key (kbd "C-c f b") 'my/spell-check-visible)
 
 ;; ============================================================
-;; HOW IT WORKS NOW
+;; HOW IT WORKS
 ;; ============================================================
 ;;
+;; PROCESS LIFECYCLE:
+;; - Hunspell starts once on the first C-c n s or C-c n a after Emacs boots.
+;; - It stays alive for the entire session.
+;; - 's' and 'a' never kill or restart the process.
+;; - Words added via 'a' are accepted by the running process immediately
+;;   (via ispell '*word' protocol) and also written to disk for future sessions.
+;;
 ;; INCREMENTAL CHECKING (as you type):
-;; - Flyspell checks each word after 3 seconds of idle typing
-;; - Safe, never blocks
+;; - Flyspell checks each word after 3 seconds of idle typing.
 ;;
 ;; MANUAL CHECKING:
 ;; - C-c n S → Check visible region (fast, always safe)
-;; - C-c n b → Check entire buffer (use for small files or final review)
+;; - C-c n b → Check entire buffer
 ;; - C-c n s → Correct previous error (shows menu, returns cursor home)
 ;; - C-c n a → Add previous error to dictionary (returns cursor home)
 ;; - C-c n T → Toggle flyspell on/off
 ;;
-;; FIRST USE BEHAVIOUR (cold start):
-;; - On the very first C-c n s / C-c n a after Emacs starts, the function
-;;   will start the Hunspell process, wait 0.3s for its handshake, then
-;;   immediately show the correction menu — no second press needed.
-;; - The NixOS wrapper may still print "iconv: ISO8859-2 -> UTF-8" to
-;;   *Messages* on that first start. This is harmless wrapper noise and
-;;   does NOT mean the correction failed.
-;;
 ;; CURSOR BEHAVIOR:
-;; - Both C-c n s and C-c n a return cursor to starting position
-;; - You stay where you were, error is corrected in background
-;;
-;; ADDING WORDS TO DICTIONARY:
-;; - Words are added to ~/.hunspell_personal (global)
-;; - NOT as "# LocalWords:" comments in buffer
-;; - Dictionary is saved automatically
-;; - Hunspell process is reloaded to pick up changes
+;; - Both C-c n s and C-c n a return cursor to starting position.
 
 (provide '03-spelling)
 ;;; 03-spelling.el ends here
