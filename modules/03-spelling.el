@@ -28,7 +28,7 @@
 
 ;; Ensure personal dictionary has UTF-8 header
 (unless (file-exists-p ispell-personal-dictionary)
-  (with-temp-buffer 
+  (with-temp-buffer
     (insert "personal_ws-1.1 pl_PL 0 utf-8\n")
     (write-file ispell-personal-dictionary)))
 (setq ispell-silently-savep t)
@@ -49,23 +49,42 @@
 (advice-add 'ispell-pdict-save :after #'my/ispell-refresh-after-save)
 
 ;; ============================================================
-;; CONFIGURATION: Size threshold for automatic checking
-;; ============================================================
-;
-;(defvar my/spell-auto-check-word-threshold 7000
-;  "If buffer has fewer than this many words, check entire buffer automatically.
-;If more, only check visible region. Set to nil to disable auto-checking.")
-;
-;; ============================================================
-;; SAFE HELPER: Check if spell-checking is available
+;; SAFE HELPER: Check if process is alive (read-only, no side effects)
 ;; ============================================================
 
 (defun my/spell-check-can-run-p ()
-  "Check if spell-checking can safely run.
-  Returns t if flyspell-mode is on and process is alive (or can be started)."
+  "Return t if flyspell-mode is on AND the Hunspell process is already running.
+This function ONLY checks — it never starts the process.
+Use `my/spell-ensure-process' when you need the process to be running."
   (and flyspell-mode
-       (or (and (boundp 'ispell-process) (process-live-p ispell-process))
-           (ignore-errors (ispell-check-version) t))))
+       (boundp 'ispell-process)
+       (process-live-p ispell-process)))
+
+;; ============================================================
+;; PROCESS STARTER: Ensure Hunspell is running and ready
+;; ============================================================
+
+(defun my/spell-ensure-process ()
+  "Ensure the Hunspell process is running and has finished its startup handshake.
+
+If the process is not alive, this function starts it and waits briefly
+for the NixOS wrapper to complete its iconv probe (which produces the
+harmless 'iconv: ISO8859-2 -> UTF-8' banner lines on first start).
+
+Returns t if the process is ready, nil if it could not be started."
+  (unless (and (boundp 'ispell-process) (process-live-p ispell-process))
+    (message "Starting Hunspell…")
+    (condition-case nil
+        (ispell-set-spellchecker-params)
+      (error nil))
+    (condition-case nil
+        (ispell-init-process)
+      (error nil))
+    ;; Allow the process handshake and NixOS wrapper banner to flush through
+    ;; before we try to send correction commands.
+    (sit-for 0.3))
+  (and (boundp 'ispell-process)
+       (process-live-p ispell-process)))
 
 ;; ============================================================
 ;; HELPER: Find previous spelling error
@@ -73,8 +92,7 @@
 
 (defun my/flyspell-goto-previous-error ()
   "Go to previous spelling error. Returns position or nil."
-  (let ((pos (point))
-        (min (point-min))
+  (let ((min (point-min))
         (found nil))
     (save-excursion
       ;; Move back one word to start search
@@ -95,31 +113,32 @@
 
 (defun my/spell-correct-previous ()
   "Jump to previous spelling error, show correction menu, then return to start.
-  
-  Workflow:
-  1. Save current cursor position
-  2. Find previous spelling error
-  3. Show correction menu
-  4. After correction, return cursor to original position
-  
-  SAFE: Checks process before running."
+
+Workflow:
+1. Save current cursor position.
+2. Ensure Hunspell process is running (starts it on first use, waits for
+   its startup handshake — this is why the first press always works now).
+3. Find previous spelling error.
+4. Show correction menu via flyspell-correct-wrapper.
+5. Return cursor to original position after correction.
+
+SAFE: Handles process startup correctly; cursor always returns home."
   (interactive)
-  (let ((start-pos (point)))  ; Save starting position
+  (let ((start-pos (point)))
     (condition-case err
-        (if (not (my/spell-check-can-run-p))
-            (message "⚠️ Spell-checking not available. Toggle it on with C-c n T")
-          ;; Find previous error
-          (if (not (my/flyspell-goto-previous-error))
-              (message "No spelling errors found backward from cursor")
-            ;; Found error and cursor is on it, show corrections
-            (progn
-              (flyspell-correct-wrapper)
-              ;; Return to starting position after correction
-              (goto-char start-pos))))
+        (cond
+         ((not flyspell-mode)
+          (message "⚠️ Spell-checking not active. Toggle with C-c n T"))
+         ((not (my/spell-ensure-process))
+          (message "⚠️ Could not start Hunspell. Check dictionary configuration."))
+         ((not (my/flyspell-goto-previous-error))
+          (message "No spelling errors found backward from cursor"))
+         (t
+          (flyspell-correct-wrapper)
+          (goto-char start-pos)))
       (error
-       (progn
-         (goto-char start-pos)  ; Return even on error
-         (message "Error in spell correction: %s" (error-message-string err)))))))
+       (goto-char start-pos)
+       (message "Error in spell correction: %s" (error-message-string err))))))
 
 ;; ============================================================
 ;; ADD WORD TO PERSONAL DICTIONARY - Returns to start position
@@ -127,45 +146,47 @@
 
 (defun my/spell-add-previous-to-dict ()
   "Add previous misspelled word to PERSONAL dictionary, then return to start.
-  
-  Workflow:
-  1. Save current cursor position
-  2. Find previous spelling error
-  3. Add word to ~/.hunspell_personal (global dictionary)
-  4. Remove error overlay
-  5. Return cursor to original position
-  
-  NOT as LocalWords in the current file!
-  
-  SAFE: Checks process before running."
+
+Workflow:
+1. Save current cursor position.
+2. Ensure Hunspell process is running.
+3. Find previous spelling error.
+4. Add word to ~/.hunspell_personal (global dictionary).
+5. Remove error overlay.
+6. Return cursor to original position.
+
+NOT as LocalWords in the current file!
+
+SAFE: Handles process startup; cursor always returns home."
   (interactive)
-  (let ((start-pos (point)))  ; Save starting position
+  (let ((start-pos (point)))
     (condition-case err
-        (if (not (my/spell-check-can-run-p))
-            (message "⚠️ Spell-checking not available")
-          ;; Find previous error
-          (if (not (my/flyspell-goto-previous-error))
-              (message "No spelling errors found")
-            ;; Found error, add to personal dictionary
-            (let ((word (downcase (thing-at-point 'word t))))
-              (when word
-                ;; Send '*word' command to ispell process (adds to personal dict)
-                (ispell-send-string (concat "*" word "\n"))
-                ;; Mark dictionary as modified so it gets saved
-                (setq ispell-pdict-modified-p '(t))
-                ;; Save the personal dictionary immediately
-                (ispell-pdict-save t t)
-                ;; Remove overlay
-                (dolist (o (overlays-at (point)))
-                  (when (flyspell-overlay-p o)
-                    (delete-overlay o)))
-                ;; Return to starting position
-                (goto-char start-pos)
-                (message "✓ Added to personal dictionary: %s" word)))))
+        (cond
+         ((not flyspell-mode)
+          (message "⚠️ Spell-checking not active. Toggle with C-c n T"))
+         ((not (my/spell-ensure-process))
+          (message "⚠️ Could not start Hunspell. Check dictionary configuration."))
+         ((not (my/flyspell-goto-previous-error))
+          (message "No spelling errors found"))
+         (t
+          (let ((word (downcase (thing-at-point 'word t))))
+            (when word
+              ;; Send '*word' command to ispell process (adds to personal dict)
+              (ispell-send-string (concat "*" word "\n"))
+              ;; Mark dictionary as modified so it gets saved
+              (setq ispell-pdict-modified-p '(t))
+              ;; Save the personal dictionary immediately
+              (ispell-pdict-save t t)
+              ;; Remove overlay
+              (dolist (o (overlays-at (point)))
+                (when (flyspell-overlay-p o)
+                  (delete-overlay o)))
+              ;; Return to starting position
+              (goto-char start-pos)
+              (message "✓ Added to personal dictionary: %s" word)))))
       (error
-       (progn
-         (goto-char start-pos)  ; Return even on error
-         (message "Error adding word: %s" (error-message-string err)))))))
+       (goto-char start-pos)
+       (message "Error adding word: %s" (error-message-string err))))))
 
 ;; ============================================================
 ;; TOGGLE FLYSPELL MODE
@@ -188,7 +209,7 @@
 
 (defun my/spell-check-visible ()
   "Check spelling in visible region only.
-  SAFE: Fast and won't block. Use this for large buffers."
+SAFE: Fast and won't block. Use this for large buffers."
   (interactive)
   (condition-case err
       (progn
@@ -207,13 +228,13 @@
 
 (defun my/spell-check-buffer-full ()
   "Check spelling in ENTIRE buffer.
-  
-  Use this for:
-  - Small files (< 7000 words)
-  - When you want to check everything
-  - Before finishing a document
-  
-  Warning: May take a few seconds on large files."
+
+Use this for:
+- Small files (< 7000 words)
+- When you want to check everything
+- Before finishing a document
+
+Warning: May take a few seconds on large files."
   (interactive)
   (condition-case err
       (let ((word-count (count-words (point-min) (point-max))))
@@ -227,49 +248,6 @@
      (message "Error checking buffer: %s" (error-message-string err)))))
 
 ;; ============================================================
-;; SMART AUTOMATIC CHECK (based on buffer size)
-;; ============================================================
-;
-;(defun my/spell-auto-check-on-open ()
-;  "Automatically check buffer based on size.
-;  
-;  Small buffers (< 7000 words): Check entire buffer
-;  Large buffers (>= 7000 words): Check visible region only
-;  
-;  Runs 3 seconds after opening file (non-blocking)."
-;  (when (and flyspell-mode
-;             my/spell-auto-check-word-threshold
-;             (derived-mode-p 'org-mode 'text-mode))
-;    (let ((buffer (current-buffer)))
-;      ;; Run after 3 seconds idle
-;      (run-with-idle-timer
-;       3 nil
-;       (lambda ()
-;         ;; Check buffer is still alive and visible
-;         (when (and (buffer-live-p buffer)
-;                    (get-buffer-window buffer))
-;           (with-current-buffer buffer
-;             (when flyspell-mode
-;               (condition-case err
-;                   (let ((word-count (count-words (point-min) (point-max))))
-;                     (if (< word-count my/spell-auto-check-word-threshold)
-;                         ;; Small buffer: check everything
-;                         (progn
-;                           (message "Auto-checking buffer (%d words)..." word-count)
-;                           (flyspell-buffer)
-;                           (message "✓ Buffer checked"))
-;                       ;; Large buffer: visible region only
-;                       (progn
-;                         (message "Auto-checking visible region (buffer has %d words)..." word-count)
-;                         (flyspell-region (window-start) (window-end))
-;                         (message "✓ Visible region checked"))))
-;                 (error
-;                  (message "Auto-check failed: %s" (error-message-string err))))))))))))
-;
-;;; Add to file opening hook
-;(add-hook 'find-file-hook 'my/spell-auto-check-on-open)
-;
-;; ============================================================
 ;; FLYSPELL CONFIGURATION - INCREMENTAL CHECKING
 ;; ============================================================
 
@@ -281,13 +259,13 @@
   ;; Reduce verbosity
   (setq flyspell-issue-message-flag nil)
   (setq flyspell-issue-welcome-flag nil)
-  
+
   ;; Check words AS YOU TYPE (incremental, safe)
   (setq flyspell-delay 3)  ; Check after 3 seconds of idle typing
-  
+
   ;; PREVENT OVERLAYS FROM DISAPPEARING
   (setq flyspell-delete-overlays nil)
-  
+
   ;; Dash handling
   (setq flyspell-consider-dash-as-word-delimiter-flag t))
 
@@ -344,11 +322,6 @@
 ;; HOW IT WORKS NOW
 ;; ============================================================
 ;;
-;; AUTOMATIC CHECKING (on file open):
-;; - Buffer < 7000 words → Check entire buffer after 3 seconds ✓
-;; - Buffer >= 7000 words → Check visible region only after 3 seconds
-;; - Can disable by setting my/spell-auto-check-word-threshold to nil
-;;
 ;; INCREMENTAL CHECKING (as you type):
 ;; - Flyspell checks each word after 3 seconds of idle typing
 ;; - Safe, never blocks
@@ -360,8 +333,16 @@
 ;; - C-c n a → Add previous error to dictionary (returns cursor home)
 ;; - C-c n T → Toggle flyspell on/off
 ;;
+;; FIRST USE BEHAVIOUR (cold start):
+;; - On the very first C-c n s / C-c n a after Emacs starts, the function
+;;   will start the Hunspell process, wait 0.3s for its handshake, then
+;;   immediately show the correction menu — no second press needed.
+;; - The NixOS wrapper may still print "iconv: ISO8859-2 -> UTF-8" to
+;;   *Messages* on that first start. This is harmless wrapper noise and
+;;   does NOT mean the correction failed.
+;;
 ;; CURSOR BEHAVIOR:
-;; - Both C-c n s and C-c n a now return cursor to starting position
+;; - Both C-c n s and C-c n a return cursor to starting position
 ;; - You stay where you were, error is corrected in background
 ;;
 ;; ADDING WORDS TO DICTIONARY:
@@ -369,34 +350,6 @@
 ;; - NOT as "# LocalWords:" comments in buffer
 ;; - Dictionary is saved automatically
 ;; - Hunspell process is reloaded to pick up changes
-;;
-;; WORKFLOW:
-;; 1. Open small file → Auto-checks everything after 3 sec ✓
-;; 2. Open large file → Auto-checks visible part after 3 sec ✓
-;; 3. Type/edit → Errors appear as you type ✓
-;; 4. Want full check? → C-c n b (entire buffer)
-;; 5. Quick check? → C-c n S (visible region)
-;; 6. Fix errors → C-c n s (correct) or C-c n a (add to dictionary)
-;; 7. Keep typing → Cursor returns to where you were!
-;;
-;; SAFETY:
-;; - All automatic checks have 3-second delay (non-blocking)
-;; - Large files only check visible region automatically
-;; - All functions have error handling
-;; - User can disable auto-check or adjust threshold
-;; - Cursor always returns to start position (even on errors)
-
-;; ============================================================
-;; CONFIGURATION OPTIONS
-;; ============================================================
-;;
-;; Adjust auto-check threshold:
-;; (setq my/spell-auto-check-word-threshold 10000)  ; Check up to 10k words
-;; (setq my/spell-auto-check-word-threshold nil)    ; Disable auto-check
-;;
-;; Current setting: 7000 words
-;; - Typical org note: 500-2000 words → Full auto-check ✓
-;; - Large document: 10000+ words → Visible region only ✓
 
 (provide '03-spelling)
 ;;; 03-spelling.el ends here
