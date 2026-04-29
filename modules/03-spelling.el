@@ -8,14 +8,19 @@
 
 ;; --- Hunspell: spell checking pl_PL + en_GB (UTF-8) ---
 (require 'ispell)
+;; Force UTF-8 locale for the Hunspell subprocess
+(setenv "LANG" "pl_PL.UTF-8")
+(setenv "LC_ALL" "pl_PL.UTF-8")
 
 ;; FORCE UTF-8 encoding for Hunspell
 (setq ispell-program-name "hunspell")
-(setq ispell-local-dictionary-alist
+(setq ispell-hunspell-dictionary-alist
       '(("pl_PL" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
-         ("-d" "pl_PL") nil utf-8)
+         ("-d" "pl_PL" "-i" "utf-8") nil utf-8)
         ("en_GB" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
-         ("-d" "en_GB") nil utf-8)))
+         ("-d" "en_GB" "-i" "utf-8") nil utf-8)
+        ("pl_PL,en_GB" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
+         ("-d" "pl_PL,en_GB" "-i" "utf-8") nil utf-8)))
 
 (setq ispell-dictionary "pl_PL,en_GB")
 (setq ispell-personal-dictionary (expand-file-name "~/.hunspell_personal"))
