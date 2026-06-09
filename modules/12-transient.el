@@ -37,7 +37,9 @@
    ["File Management"
     ("r" "Rename file" denote-rename-file)
     ("t" "Add keywords" denote-rename-file-keywords)
-    ("d" "Delete note" my/denote-delete-note)]
+    ("d" "Delete note" my/denote-delete-note)
+    ("p" "Export to PDF" my/org-export-to-pdf)
+    ("P" "Batch PDF by keyword" my/org-export-pdf-by-keyword)]
    
    ["Insert"
     ("h" "Time (HH:MM)" insert-current-time)

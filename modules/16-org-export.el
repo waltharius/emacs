@@ -7,13 +7,14 @@
 ;; - No author, no date, no section numbers, no inline ToC in document body
 ;; - PDF bookmarks/ToC visible in PDF reader (via hyperref template)
 ;; - All PDFs saved to ~/notes/pdf/ (directory auto-created if missing)
-;; - PDF filename taken from #+title: (not the Denote filename)
-;; - ALL intermediate build files isolated in /tmp and deleted after export
-;; - Batch export: export all .org files matching a keyword
+;; - PDF filename taken from #+title: as-is (spaces preserved, safe chars only)
+;; - Denote [[denote:ID][Description]] links stripped to plain Description text
+;; - ALL build files isolated in /tmp and deleted after export
+;; - Batch export: multiple keywords (space-separated), each file exported once
 ;;
 ;; Usage:
 ;;   C-c p                            - export current buffer to PDF
-;;   M-x my/org-export-pdf-by-keyword - batch export by keyword
+;;   M-x my/org-export-pdf-by-keyword - batch export by keyword(s)
 
 ;;; Code:
 
@@ -24,23 +25,38 @@
 ;; LATEX / ORG EXPORT SETTINGS
 ;; ============================================================
 
-;; --- Margins ---
 (setq org-latex-packages-alist
       '(("margin=2.5cm" "geometry" t)))
 
-;; --- Suppress author, date, section numbers, and inline ToC ---
 (setq org-export-with-author          nil)
 (setq org-export-with-date            nil)
 (setq org-export-with-toc             nil)
 (setq org-export-with-section-numbers nil)
 
-;; --- hyperref via Org's own template (avoids double-\usepackage clash) ---
+;; hyperref via Org's own template - avoids double-\usepackage clash
 (setq org-latex-hyperref-template
       "\\hypersetup{\n  bookmarks=true,\n  bookmarksnumbered=true,\n  colorlinks=false,\n  pdfauthor={%a},\n  pdftitle={%t},\n  pdfkeywords={%k},\n  pdfsubject={%d},\n  pdfcreator={%c},\n  pdflang={%L}}\n")
 
-;; --- Document class and compiler ---
 (setq org-latex-default-class "article")
 (setq org-latex-compiler      "lualatex")
+
+;; ============================================================
+;; DENOTE LINK FILTER
+;; ============================================================
+;; Strips [[denote:IDENTIFIER][Description]] links from LaTeX output,
+;; leaving only the Description text. This runs during export and never
+;; modifies the original .org file.
+
+(defun my/--strip-denote-links-filter (text _backend _info)
+  "Export filter: replace [[denote:ID][Desc]] with Desc in TEXT.
+Applied to the final LaTeX string before it is written to disk."
+  (replace-regexp-in-string
+   "\\[\\[denote:[^]]+\\]\\[\\([^]]+\\)\\]\\]"
+   "\\1"
+   text))
+
+(add-to-list 'org-export-filter-body-functions
+             #'my/--strip-denote-links-filter)
 
 ;; ============================================================
 ;; OUTPUT DIRECTORY
@@ -60,9 +76,8 @@
 ;; ============================================================
 
 (defun my/--org-title (org-file)
-  "Return the #+title: value from ORG-FILE, or nil if not found.
-Reads the file in a temporary buffer without activating org-mode
-to avoid triggering hooks."
+  "Return the #+title: value from ORG-FILE as a string, or nil.
+Reads the file without activating org-mode to avoid triggering hooks."
   (with-temp-buffer
     (insert-file-contents org-file)
     (goto-char (point-min))
@@ -70,21 +85,12 @@ to avoid triggering hooks."
       (string-trim (match-string 1)))))
 
 (defun my/--title-to-filename (title)
-  "Convert TITLE string to a safe, lowercase filename without spaces.
-Example: \"Szkoła Frankfurcka\" -> \"szkola-frankfurcka\"
-Handles Polish diacritics by transliterating them."
-  (let* ((tr '((?ą . "a") (?ć . "c") (?ę . "e") (?ł . "l") (?ń . "n")
-               (?ó . "o") (?ś . "s") (?ź . "z") (?ż . "z")
-               (?Ą . "a") (?Ć . "c") (?Ę . "e") (?Ł . "l") (?Ń . "n")
-               (?Ó . "o") (?Ś . "s") (?Ź . "z") (?Ż . "z")))
-         (result (mapconcat
-                  (lambda (ch)
-                    (or (cdr (assq ch tr)) (string ch)))
-                  title "")))
-    (thread-last result
-                 downcase
-                 (replace-regexp-in-string "[^a-z0-9]+" "-")
-                 (replace-regexp-in-string "^-+\\|-+$" ""))))
+  "Convert TITLE to a safe filename, preserving spaces and capitalisation.
+Only strips characters that are genuinely unsafe in filenames: / \ : * ? \" < > |
+and control characters.  Everything else - including Polish diacritics,
+dashes and normal punctuation - is kept exactly as written in #+title:.
+Example: \"Nietzsche - notatki z kolokwium\" -> \"Nietzsche - notatki z kolokwium\""
+  (replace-regexp-in-string "[/\\\\:*?\"<>|[:cntrl:]]" "" title))
 
 ;; ============================================================
 ;; INTERNAL: export one .org file to PDF
@@ -93,12 +99,12 @@ Handles Polish diacritics by transliterating them."
 (defun my/--export-file-to-pdf (org-file)
   "Export ORG-FILE to PDF and place result in `my-pdf-output-dir'.
 
-The PDF filename is derived from the file's #+title: value.
-If no #+title: is found, the Denote base filename is used as fallback.
+Filename is taken from #+title: (spaces and diacritics preserved).
+Fallback to Denote base name if no #+title: is found.
 
 All build files (.tex .aux .log .out .toc .fls .fdb_latexmk) are
-created inside a temporary directory under /tmp and deleted afterwards.
-The original .org file is never touched.
+created inside a /tmp directory and deleted after export.
+The original .org file is never modified.
 
 Returns the destination PDF path on success, nil on failure."
   (let* ((raw-title  (my/--org-title org-file))
@@ -112,13 +118,11 @@ Returns the destination PDF path on success, nil on failure."
          (result     nil))
     (unwind-protect
         (progn
-          ;; Step 1: export .org -> .tex directly into build-dir
+          ;; Step 1: .org -> .tex directly into build-dir (never touches notes dir)
           (with-current-buffer (find-file-noselect org-file)
             (org-export-to-file 'latex tex-file))
 
-          ;; Step 2: run latexmk inside build-dir
-          ;; We call the process directly so we control CWD and output dir.
-          ;; Running twice is not needed - latexmk decides reruns itself.
+          ;; Step 2: latexmk builds PDF inside build-dir
           (let ((exit-code
                  (call-process
                   "latexmk" nil
@@ -135,7 +139,7 @@ Returns the destination PDF path on success, nil on failure."
                   (setq result pdf-dest))
               (message "Build failed for %s (exit %s) - see *org-pdf-build-log*"
                        (file-name-nondirectory org-file) exit-code))))
-      ;; unwind: always delete the temp directory
+      ;; unwind: always remove temp dir regardless of success or error
       (when (file-exists-p build-dir)
         (delete-directory build-dir t)))
     result))
@@ -146,7 +150,7 @@ Returns the destination PDF path on success, nil on failure."
 
 (defun my/org-export-to-pdf ()
   "Export the current Org buffer to PDF -> `my-pdf-output-dir'.
-Filename is taken from #+title:; build files go to /tmp and are deleted."
+Filename comes from #+title:; build files go to /tmp and are deleted."
   (interactive)
   (unless (buffer-file-name)
     (user-error "Buffer is not visiting a file"))
@@ -160,35 +164,46 @@ Filename is taken from #+title:; build files go to /tmp and are deleted."
       (message "✗ Export failed - check *org-pdf-build-log* buffer"))))
 
 ;; ============================================================
-;; BATCH EXPORT by keyword  (M-x my/org-export-pdf-by-keyword)
+;; BATCH EXPORT by keyword(s)  (M-x my/org-export-pdf-by-keyword)
 ;; ============================================================
 
-(defun my/org-export-pdf-by-keyword (keyword)
-  "Export all .org files whose name contains KEYWORD to PDF.
-Searches all note directories defined in `my-tasks-agenda-dirs'.
-Filenames in ~/notes/pdf/ are derived from each file's #+title:.
-Shows a summary in *PDF Export Results* when done."
-  (interactive "sKeyword (substring of filename): ")
-  (when (string-empty-p keyword)
-    (user-error "Keyword must not be empty"))
+(defun my/org-export-pdf-by-keyword (keywords-input)
+  "Export .org files whose names match one or more keywords to PDF.
+
+KEYWORDS-INPUT is a space-separated string of keywords, e.g.
+\"kolokwium heidegger\".  A file is included if its name contains
+ANY of the keywords.  Each matching file is exported at most once
+regardless of how many keywords it matches.
+
+Searches all directories in `my-tasks-agenda-dirs'.
+Results are shown in *PDF Export Results*."
+  (interactive "sKeyword(s) - space-separated: ")
+  (when (string-empty-p (string-trim keywords-input))
+    (user-error "Please provide at least one keyword"))
   (my/ensure-pdf-dir)
-  (let* ((search-dirs (seq-filter #'file-directory-p my-tasks-agenda-dirs))
+  (let* ((keywords   (split-string (string-trim keywords-input) "[ \t]+" t))
+         (search-dirs (seq-filter #'file-directory-p my-tasks-agenda-dirs))
          (all-org-files
           (seq-mapcat
            (lambda (dir)
              (directory-files-recursively dir "\\.org$"))
            search-dirs))
+         ;; Collect matching files, deduplicated (delete-dups compares by equal)
          (matching
-          (seq-filter
-           (lambda (f)
-             (string-match-p (regexp-quote keyword)
-                             (file-name-nondirectory f)))
-           all-org-files))
+          (delete-dups
+           (seq-filter
+            (lambda (f)
+              (let ((fname (file-name-nondirectory f)))
+                (seq-some (lambda (kw)
+                            (string-match-p (regexp-quote kw) fname))
+                          keywords)))
+            all-org-files)))
          (ok  '())
          (err '()))
     (if (null matching)
-        (message "No .org files found with '%s' in their name." keyword)
-      (message "Found %d matching file(s). Exporting..." (length matching))
+        (message "No .org files found matching: %s"
+                 (mapconcat #'identity keywords ", "))
+      (message "Found %d unique file(s). Exporting..." (length matching))
       (dolist (f matching)
         (message "  Exporting: %s" (file-name-nondirectory f))
         (condition-case e
@@ -202,7 +217,9 @@ Shows a summary in *PDF Export Results* when done."
                  err))))
       (with-current-buffer (get-buffer-create "*PDF Export Results*")
         (erase-buffer)
-        (insert (format "PDF export — keyword: \"%s\"\n" keyword))
+        (insert (format "PDF export — keyword(s): %s\n"
+                        (mapconcat (lambda (k) (format "\"%s\"" k))
+                                   keywords ", ")))
         (insert (make-string 50 ?-) "\n")
         (if ok
             (progn
