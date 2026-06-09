@@ -43,20 +43,43 @@
 ;; ============================================================
 ;; DENOTE LINK FILTER
 ;; ============================================================
-;; Strips [[denote:IDENTIFIER][Description]] links from LaTeX output,
-;; leaving only the Description text. This runs during export and never
-;; modifies the original .org file.
+;; org-export-filter-link-functions is called by Org for every single
+;; link element *after* it has been translated to the target format
+;; (here: LaTeX).  At this point the link is already a LaTeX string
+;; like \href{denote:20240101T120000}{Opis} or just the raw path.
+;;
+;; The right place to intercept it is *before* translation, using
+;; org-export-filter-link-functions which receives the original Org
+;; link object.  We check the link type; if it is "denote", we return
+;; only the description (content) - already rendered to LaTeX by Org -
+;; and discard the href wrapper entirely.
+;;
+;; If the link has no description we return an empty string so nothing
+;; leaks into the output.
 
-(defun my/--strip-denote-links-filter (text _backend _info)
-  "Export filter: replace [[denote:ID][Desc]] with Desc in TEXT.
-Applied to the final LaTeX string before it is written to disk."
-  (replace-regexp-in-string
-   "\\[\\[denote:[^]]+\\]\\[\\([^]]+\\)\\]\\]"
-   "\\1"
-   text))
+(defun my/--filter-denote-link (link-str link-obj _info)
+  "Export filter for links: strip denote: links, keep only their description.
+LINK-STR is the already-rendered LaTeX string for this link.
+LINK-OBJ is the original Org element (a link parse-tree node).
+Returns description text as plain LaTeX, or empty string if no description."
+  (when (string= (org-element-property :type link-obj) "denote")
+    ;; org-element-contents gives us the list of child elements (= description).
+    ;; We render them back to LaTeX via org-export-data.
+    (let ((contents (org-element-contents link-obj)))
+      (if contents
+          ;; Return the description as-is; Org already rendered it in link-str
+          ;; but wrapped in \href{...}{DESC} - we want only DESC.
+          ;; Simplest: extract from link-str with a regexp.
+          (if (string-match "\\\\href{[^}]*}{\\(.*\\)}" link-str)
+              (match-string 1 link-str)
+            ;; fallback: use link-str as-is (shouldn't normally happen)
+            link-str)
+        "")))
+  ;; For non-denote links, return nil = keep Org's default rendering
+  )
 
-(add-to-list 'org-export-filter-body-functions
-             #'my/--strip-denote-links-filter)
+(add-to-list 'org-export-filter-link-functions
+             #'my/--filter-denote-link)
 
 ;; ============================================================
 ;; OUTPUT DIRECTORY
@@ -86,9 +109,9 @@ Reads the file without activating org-mode to avoid triggering hooks."
 
 (defun my/--title-to-filename (title)
   "Convert TITLE to a safe filename, preserving spaces and capitalisation.
-Only strips characters that are genuinely unsafe in filenames: / \ : * ? \" < > |
-and control characters.  Everything else - including Polish diacritics,
-dashes and normal punctuation - is kept exactly as written in #+title:.
+Only strips characters that are genuinely unsafe in filenames:
+/ \\ : * ? \" < > | and control characters.
+Everything else (Polish diacritics, dashes, spaces) is kept as-is.
 Example: \"Nietzsche - notatki z kolokwium\" -> \"Nietzsche - notatki z kolokwium\""
   (replace-regexp-in-string "[/\\\\:*?\"<>|[:cntrl:]]" "" title))
 
@@ -118,11 +141,11 @@ Returns the destination PDF path on success, nil on failure."
          (result     nil))
     (unwind-protect
         (progn
-          ;; Step 1: .org -> .tex directly into build-dir (never touches notes dir)
+          ;; Step 1: .org -> .tex directly into build-dir
           (with-current-buffer (find-file-noselect org-file)
             (org-export-to-file 'latex tex-file))
 
-          ;; Step 2: latexmk builds PDF inside build-dir
+          ;; Step 2: latexmk builds PDF entirely inside build-dir
           (let ((exit-code
                  (call-process
                   "latexmk" nil
@@ -150,7 +173,8 @@ Returns the destination PDF path on success, nil on failure."
 
 (defun my/org-export-to-pdf ()
   "Export the current Org buffer to PDF -> `my-pdf-output-dir'.
-Filename comes from #+title:; build files go to /tmp and are deleted."
+Filename comes from #+title:; build files go to /tmp and are deleted.
+Denote links are stripped to their description text."
   (interactive)
   (unless (buffer-file-name)
     (user-error "Buffer is not visiting a file"))
@@ -181,14 +205,13 @@ Results are shown in *PDF Export Results*."
   (when (string-empty-p (string-trim keywords-input))
     (user-error "Please provide at least one keyword"))
   (my/ensure-pdf-dir)
-  (let* ((keywords   (split-string (string-trim keywords-input) "[ \t]+" t))
+  (let* ((keywords    (split-string (string-trim keywords-input) "[ \t]+" t))
          (search-dirs (seq-filter #'file-directory-p my-tasks-agenda-dirs))
          (all-org-files
           (seq-mapcat
            (lambda (dir)
              (directory-files-recursively dir "\\.org$"))
            search-dirs))
-         ;; Collect matching files, deduplicated (delete-dups compares by equal)
          (matching
           (delete-dups
            (seq-filter
