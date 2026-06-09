@@ -9,7 +9,7 @@
   ;; Default Org LaTeX classes have large margins. We override geometry
   ;; globally so every exported document uses narrower margins.
   (setq org-latex-packages-alist
-        '(("margin=2,5cm" "geometry" t)))
+        '(("margin=2.5cm" "geometry" t)))
 
   ;; --- Remove author and date from exported documents ---
   ;; nil = do not include these fields in the LaTeX output at all
