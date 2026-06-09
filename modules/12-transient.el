@@ -39,7 +39,8 @@
     ("t" "Add keywords" denote-rename-file-keywords)
     ("d" "Delete note" my/denote-delete-note)
     ("p" "Export to PDF" my/org-export-to-pdf)
-    ("P" "Batch PDF by keyword" my/org-export-pdf-by-keyword)]
+    ("P" "Batch PDF — ANY keyword" my/org-export-pdf-by-keyword)
+    ("Q" "Batch PDF — ALL keywords" my/org-export-pdf-by-all-keywords)]
    
    ["Insert"
     ("h" "Time (HH:MM)" insert-current-time)

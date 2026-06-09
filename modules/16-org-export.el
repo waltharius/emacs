@@ -8,19 +8,24 @@
 ;; - PDF bookmarks/ToC visible in PDF reader (via hyperref template)
 ;; - Output structure mirrors notes: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc.
 ;; - PDF filename taken from #+title: as-is (spaces preserved, safe chars only)
-;; - Denote [[denote:ID][Description]] links stripped to plain Description text
+;; - Denote links stripped to their description text
 ;; - Overwrite prompt when PDF already exists (overwrite / rename with index)
 ;; - ALL build files isolated in /tmp and deleted after export
-;; - Batch export: multiple Denote keywords with completion, each file once
+;; - Journal files (#+filetags: :journal:) use Playpen Sans Hebrew font in PDF
+;; - verbatim/code blocks wrap correctly (no overflow past margins)
+;; - Batch ANY-mode: files matching any of the given keywords
+;; - Batch ALL-mode: files matching ALL of the given keywords simultaneously
 ;;
 ;; Usage:
-;;   C-c p                            - export current buffer to PDF
-;;   M-x my/org-export-pdf-by-keyword - batch export, keyword completion
+;;   C-c p                             - export current buffer to PDF
+;;   M-x my/org-export-pdf-by-keyword  - batch, ANY keyword matches
+;;   M-x my/org-export-pdf-by-all-keywords - batch, ALL keywords must match
 
 ;;; Code:
 
 (require 'ox-latex)
 (require 'ox)
+(require 'cl-lib)
 
 ;; ============================================================
 ;; LATEX / ORG EXPORT SETTINGS
@@ -42,16 +47,49 @@
 (setq org-latex-compiler      "lualatex")
 
 ;; ============================================================
+;; LATEX DOCUMENT CLASSES
+;; ============================================================
+;; Two classes: default article and journal-article (handwriting font).
+;; Both share the same base settings; journal-article adds fontspec
+;; and microtype for proper font rendering and line-breaking.
+
+(with-eval-after-load 'ox-latex
+  ;; --- Standard class (pks, docu) ---
+  ;; microtype improves paragraph justification and prevents verbatim overflow.
+  (add-to-list 'org-latex-classes
+               '("article"
+                 "\\documentclass[11pt,a4paper]{article}
+\\usepackage{microtype}
+\\setlength{\\emergencystretch}{3em}"
+                 ("\\section{%s}" . "\\section*{%s}")
+                 ("\\subsection{%s}" . "\\subsection*{%s}")
+                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
+                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
+
+  ;; --- Journal class (handwriting font via fontspec) ---
+  ;; fontspec is a lualatex package for system/OTF fonts.
+  ;; microtype + emergencystretch prevent verbatim/code from overflowing.
+  (add-to-list 'org-latex-classes
+               '("journal-article"
+                 "\\documentclass[11pt,a4paper]{article}
+\\usepackage{fontspec}
+\\setmainfont{Playpen Sans Hebrew}
+\\usepackage{microtype}
+\\setlength{\\emergencystretch}{3em}"
+                 ("\\section{%s}" . "\\section*{%s}")
+                 ("\\subsection{%s}" . "\\subsection*{%s}")
+                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
+                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}"))))
+
+;; ============================================================
 ;; DENOTE LINK FILTER
 ;; ============================================================
-;; Uses org-export-filter-link-functions - called per-link during export,
-;; receives both the rendered LaTeX string and the original parse-tree node.
-;; For denote: links we extract only the description from \href{...}{DESC}.
 
 (defun my/--filter-denote-link (link-str link-obj _info)
   "Strip denote: links to their description text only.
-Returns description string for denote links, nil for all others
-(nil = keep Org's default rendering)."
+Returns description string for denote links, nil for all others."
   (when (string= (org-element-property :type link-obj) "denote")
     (if (string-match "\\\\href{[^}]*}{\\(.*\\)}" link-str)
         (match-string 1 link-str)
@@ -66,21 +104,16 @@ Returns description string for denote links, nil for all others
 
 (defvar my-pdf-output-dir (expand-file-name "~/notes/pdf/")
   "Root directory for exported PDFs.
-Subfolders are created automatically to mirror the notes structure:
-  ~/notes/pks/note.org  ->  ~/notes/pdf/pks/Title.pdf
-  ~/notes/journal/note.org  ->  ~/notes/pdf/journal/Title.pdf")
+Subfolders mirror the notes silo structure automatically.")
 
 (defun my/--pdf-dest-dir (org-file)
   "Return the PDF output subdirectory for ORG-FILE.
 Mirrors the silo subfolder under `my-pdf-output-dir'.
-Example: ~/notes/pks/foo.org -> ~/notes/pdf/pks/
-If the file is not under `my-notes-dir', returns `my-pdf-output-dir' directly."
+Example: ~/notes/pks/foo.org -> ~/notes/pdf/pks/"
   (let* ((notes-root (expand-file-name my-notes-dir))
          (file-dir   (expand-file-name (file-name-directory org-file)))
-         ;; relative path from notes root, e.g. "pks/" or "journal/"
          (rel        (when (string-prefix-p notes-root file-dir)
                        (substring file-dir (length notes-root))))
-         ;; take only the first path component (the silo name)
          (silo       (when (and rel (not (string-empty-p rel)))
                        (car (split-string rel "/" t))))
          (dest-dir   (if silo
@@ -100,14 +133,12 @@ If the file is not under `my-notes-dir', returns `my-pdf-output-dir' directly."
 ;; ============================================================
 
 (defun my/--next-available-path (path)
-  "If PATH does not exist, return it as-is.
-Otherwise append (2), (3), ... before the extension until a free name is found.
-Example: if \"Nietzsche.pdf\" exists, returns \"Nietzsche (2).pdf\"."
+  "Return PATH if it does not exist, else append (2), (3)... until free."
   (if (not (file-exists-p path))
       path
     (let* ((dir  (file-name-directory path))
            (base (file-name-base path))
-           (ext  (file-name-extension path t)) ; includes the dot
+           (ext  (file-name-extension path t))
            (n    2)
            candidate)
       (while (progn
@@ -118,21 +149,16 @@ Example: if \"Nietzsche.pdf\" exists, returns \"Nietzsche (2).pdf\"."
       candidate)))
 
 (defun my/--resolve-pdf-dest (pdf-dest)
-  "Ask what to do if PDF-DEST already exists.
-Offers three choices:
-  o - Overwrite the existing file
-  r - Rename the new file (appends index)
-  q - Quit / cancel this export
-Returns the resolved destination path, or nil if the user chose to cancel."
+  "Prompt if PDF-DEST exists: overwrite, rename with index, or cancel.
+Returns resolved path or nil if cancelled."
   (if (not (file-exists-p pdf-dest))
       pdf-dest
-    (let* ((fname    (file-name-nondirectory pdf-dest))
-           (renamed  (my/--next-available-path pdf-dest))
-           (choice   (read-char-choice
-                      (format "'%s' already exists.  [o]verwrite  [r]ename to '%s'  [q]uit: "
-                              fname
-                              (file-name-nondirectory renamed))
-                      '(?o ?r ?q))))
+    (let* ((fname   (file-name-nondirectory pdf-dest))
+           (renamed (my/--next-available-path pdf-dest))
+           (choice  (read-char-choice
+                     (format "'%s' exists.  [o]verwrite  [r]ename -> '%s'  [q]uit: "
+                             fname (file-name-nondirectory renamed))
+                     '(?o ?r ?q))))
       (pcase choice
         (?o pdf-dest)
         (?r renamed)
@@ -143,8 +169,7 @@ Returns the resolved destination path, or nil if the user chose to cancel."
 ;; ============================================================
 
 (defun my/--org-title (org-file)
-  "Return the #+title: value from ORG-FILE as a string, or nil.
-Reads the file without activating org-mode to avoid triggering hooks."
+  "Return #+title: value from ORG-FILE, or nil."
   (with-temp-buffer
     (insert-file-contents org-file)
     (goto-char (point-min))
@@ -152,30 +177,37 @@ Reads the file without activating org-mode to avoid triggering hooks."
       (string-trim (match-string 1)))))
 
 (defun my/--title-to-filename (title)
-  "Convert TITLE to a safe filename preserving spaces and capitalisation.
-Strips only genuinely unsafe chars: / \\ : * ? \" < > | and control chars.
-Polish diacritics, dashes, and spaces are kept as written in #+title:."
+  "Convert TITLE to a safe filename; keep spaces, diacritics, capitalisation.
+Strips only: / \\ : * ? \" < > | and control characters."
   (replace-regexp-in-string "[/\\\\:*?\"<>|[:cntrl:]]" "" title))
 
-;; ============================================================
-;; INTERNAL: collect Denote keywords from all notes
-;; ============================================================
+(defun my/--org-has-tag-p (org-file tag)
+  "Return non-nil if ORG-FILE has TAG in its #+filetags: line."
+  (with-temp-buffer
+    (insert-file-contents org-file nil 0 2000)
+    (goto-char (point-min))
+    (when (re-search-forward "^#\\+filetags:[ \t]*\\(.+\\)" nil t)
+      (member tag (split-string (match-string 1) ":" t " \t")))))
+
+(defun my/--org-latex-class (org-file)
+  "Return the LaTeX class string to use when exporting ORG-FILE.
+Journal files (tagged :journal:) get 'journal-article'.
+All others get the default 'article'."
+  (if (my/--org-has-tag-p org-file "journal")
+      "journal-article"
+    "article"))
 
 (defun my/--denote-all-keywords ()
-  "Return a sorted, deduplicated list of all Denote keywords in use.
-Scans #+filetags: lines in all .org files under `my-notes-dir'.
-This is the same pool that Denote itself uses for completion."
+  "Sorted, deduplicated list of all Denote keywords in use across notes."
   (let ((keywords '()))
     (dolist (f (directory-files-recursively
                 (expand-file-name my-notes-dir) "\\.org$"))
       (with-temp-buffer
-        (insert-file-contents f nil 0 2000) ; read only first 2kb (headers)
+        (insert-file-contents f nil 0 2000)
         (goto-char (point-min))
         (when (re-search-forward "^#\\+filetags:[ \t]*\\(.+\\)" nil t)
-          (let ((tags-str (match-string 1)))
-            ;; filetags format: :tag1:tag2:tag3:
-            (dolist (tag (split-string tags-str ":" t " \t"))
-              (push tag keywords))))))
+          (dolist (tag (split-string (match-string 1) ":" t " \t"))
+            (push tag keywords)))))
     (sort (delete-dups keywords) #'string<)))
 
 ;; ============================================================
@@ -183,40 +215,36 @@ This is the same pool that Denote itself uses for completion."
 ;; ============================================================
 
 (defun my/--export-file-to-pdf (org-file)
-  "Export ORG-FILE to PDF.
+  "Export ORG-FILE to PDF in the appropriate ~/notes/pdf/<silo>/ subfolder.
 
-Output goes to a subfolder of `my-pdf-output-dir' that mirrors the
-notes silo (pks/, journal/, docu/, etc.).
+Automatically selects LaTeX class:
+  - journal tag present -> journal-article (Playpen Sans Hebrew font)
+  - otherwise           -> article (default)
 
-Filename is taken from #+title: (spaces and diacritics preserved).
-Fallback to Denote base name if no #+title: is found.
-
-If the destination PDF already exists, the user is prompted:
-overwrite, rename with index, or cancel.
-
-All build files are created in /tmp and deleted after export.
-The original .org file is never modified.
-
-Returns the destination PDF path on success, nil on failure or cancel."
-  (let* ((raw-title  (my/--org-title org-file))
-         (pdf-name   (if raw-title
-                         (my/--title-to-filename raw-title)
-                       (file-name-base org-file)))
-         (dest-dir   (my/--pdf-dest-dir org-file))
-         (pdf-dest   (expand-file-name (concat pdf-name ".pdf") dest-dir))
-         ;; Resolve overwrite before starting the (slow) build
-         (pdf-dest   (my/--resolve-pdf-dest pdf-dest)))
+Filename from #+title:; fallback to Denote base name.
+Prompts on overwrite.  All build files go to /tmp and are deleted.
+Returns destination path on success, nil on failure or cancel."
+  (let* ((raw-title   (my/--org-title org-file))
+         (pdf-name    (if raw-title
+                          (my/--title-to-filename raw-title)
+                        (file-name-base org-file)))
+         (dest-dir    (my/--pdf-dest-dir org-file))
+         (pdf-dest    (expand-file-name (concat pdf-name ".pdf") dest-dir))
+         (pdf-dest    (my/--resolve-pdf-dest pdf-dest)))
     (unless pdf-dest
-      (message "Export cancelled for: %s" (file-name-nondirectory org-file))
+      (message "Export cancelled: %s" (file-name-nondirectory org-file))
       (cl-return-from my/--export-file-to-pdf nil))
-    (let* ((build-dir  (make-temp-file "org-latex-" t))
-           (tex-file   (expand-file-name (concat pdf-name ".tex") build-dir))
-           (pdf-src    (expand-file-name (concat pdf-name ".pdf") build-dir))
-           (result     nil))
+    (let* ((latex-class (my/--org-latex-class org-file))
+           (build-dir   (make-temp-file "org-latex-" t))
+           (tex-file    (expand-file-name (concat pdf-name ".tex") build-dir))
+           (pdf-src     (expand-file-name (concat pdf-name ".pdf") build-dir))
+           (result      nil))
       (unwind-protect
           (progn
             (with-current-buffer (find-file-noselect org-file)
-              (org-export-to-file 'latex tex-file))
+              ;; Temporarily override the LaTeX class for this export only
+              (let ((org-latex-default-class latex-class))
+                (org-export-to-file 'latex tex-file)))
             (let ((exit-code
                    (call-process
                     "latexmk" nil
@@ -242,11 +270,9 @@ Returns the destination PDF path on success, nil on failure or cancel."
 ;; ============================================================
 
 (defun my/org-export-to-pdf ()
-  "Export the current Org buffer to PDF.
-Output goes to ~/notes/pdf/<silo>/ mirroring the notes structure.
-Filename comes from #+title:; build files go to /tmp and are deleted.
-Denote links are stripped to their description text.
-If the PDF already exists you are asked whether to overwrite or rename."
+  "Export current Org buffer to PDF -> ~/notes/pdf/<silo>/.
+Journal files use Playpen Sans Hebrew; others use default font.
+Filename from #+title:. Prompts if PDF already exists."
   (interactive)
   (unless (buffer-file-name)
     (user-error "Buffer is not visiting a file"))
@@ -257,43 +283,75 @@ If the PDF already exists you are asked whether to overwrite or rename."
   (let ((dest (my/--export-file-to-pdf (buffer-file-name))))
     (if dest
         (message "✓ PDF saved to: %s" dest)
-      (message "✗ Export cancelled or failed - check *org-pdf-build-log* if unexpected"))))
+      (message "✗ Export cancelled or failed"))))
 
 ;; ============================================================
-;; BATCH EXPORT by Denote keyword(s)
+;; INTERNAL: batch export helper
+;; ============================================================
+
+(defun my/--batch-export-and-report (matching label)
+  "Export all files in MATCHING list to PDF, then show results buffer.
+LABEL is a string describing the search (shown in results header)."
+  (let ((ok '()) (err '()))
+    (message "Found %d file(s). Exporting..." (length matching))
+    (dolist (f matching)
+      (message "  Exporting: %s" (file-name-nondirectory f))
+      (condition-case e
+          (let ((dest (my/--export-file-to-pdf f)))
+            (if dest
+                (push (file-name-nondirectory dest) ok)
+              (push (file-name-nondirectory f) err)))
+        (error
+         (push (format "%s  [%s]" (file-name-nondirectory f)
+                       (error-message-string e))
+               err))))
+    (with-current-buffer (get-buffer-create "*PDF Export Results*")
+      (erase-buffer)
+      (insert (format "PDF export — %s\n" label))
+      (insert (make-string 50 ?-) "\n")
+      (if ok
+          (progn
+            (insert (format "\n✓ OK (%d):\n" (length ok)))
+            (dolist (f (nreverse ok)) (insert (format "  %s\n" f))))
+        (insert "\nNo files exported successfully.\n"))
+      (when err
+        (insert (format "\n✗ Failed/cancelled (%d):\n" (length err)))
+        (dolist (f (nreverse err)) (insert (format "  %s\n" f))))
+      (insert (format "\nOutput directory: %s\n" my-pdf-output-dir))
+      (display-buffer (current-buffer)))))
+
+(defun my/--all-notes-org-files ()
+  "Return list of all .org files under note directories."
+  (seq-mapcat
+   (lambda (dir)
+     (when (file-directory-p dir)
+       (directory-files-recursively dir "\\.org$")))
+   my-tasks-agenda-dirs))
+
+;; ============================================================
+;; BATCH EXPORT - ANY mode  (files with ANY of the keywords)
 ;; ============================================================
 
 (defun my/org-export-pdf-by-keyword (keywords-input)
-  "Export .org files whose filenames match one or more Denote keywords.
+  "Batch export: files whose names contain ANY of the given keywords.
 
-Keywords are selected interactively with completion drawn from all
-keywords actually in use across your notes (same pool as Denote itself).
-Type a keyword and press RET; separate multiple keywords with commas
-(completing-read-multiple behaviour).
+Keywords are selected with completion (TAB) from all Denote tags in use.
+Separate multiple keywords with commas in the prompt.
+Each matching file is exported once regardless of how many keywords match.
 
-A file is included if its name contains ANY of the selected keywords.
-Each matching file is exported at most once.
-Subfolder structure under ~/notes/pdf/ mirrors the notes silos.
-
-Results are shown in *PDF Export Results* when done."
+Output mirrors notes structure: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc."
   (interactive
    (list
     (mapconcat #'identity
                (completing-read-multiple
-                "Keyword(s) [comma-separated, TAB to complete]: "
+                "ANY keyword(s) [comma-sep, TAB]: "
                 (my/--denote-all-keywords)
                 nil nil)
                " ")))
   (when (string-empty-p (string-trim keywords-input))
     (user-error "Please provide at least one keyword"))
   (my/ensure-pdf-dir)
-  (let* ((keywords    (split-string (string-trim keywords-input) "[ \t]+" t))
-         (search-dirs (seq-filter #'file-directory-p my-tasks-agenda-dirs))
-         (all-org-files
-          (seq-mapcat
-           (lambda (dir)
-             (directory-files-recursively dir "\\.org$"))
-           search-dirs))
+  (let* ((keywords (split-string (string-trim keywords-input) "[ \t]+" t))
          (matching
           (delete-dups
            (seq-filter
@@ -302,40 +360,58 @@ Results are shown in *PDF Export Results* when done."
                 (seq-some (lambda (kw)
                             (string-match-p (regexp-quote kw) fname))
                           keywords)))
-            all-org-files)))
-         (ok  '())
-         (err '()))
+            (my/--all-notes-org-files)))))
     (if (null matching)
-        (message "No .org files found matching: %s"
-                 (mapconcat #'identity keywords ", "))
-      (message "Found %d unique file(s). Exporting..." (length matching))
-      (dolist (f matching)
-        (message "  Exporting: %s" (file-name-nondirectory f))
-        (condition-case e
-            (let ((dest (my/--export-file-to-pdf f)))
-              (if dest
-                  (push (file-name-nondirectory dest) ok)
-                (push (file-name-nondirectory f) err)))
-          (error
-           (push (format "%s  [%s]" (file-name-nondirectory f)
-                         (error-message-string e))
-                 err))))
-      (with-current-buffer (get-buffer-create "*PDF Export Results*")
-        (erase-buffer)
-        (insert (format "PDF export — keyword(s): %s\n"
-                        (mapconcat (lambda (k) (format "\"%s\"" k))
-                                   keywords ", ")))
-        (insert (make-string 50 ?-) "\n")
-        (if ok
-            (progn
-              (insert (format "\n✓ OK (%d):\n" (length ok)))
-              (dolist (f (nreverse ok)) (insert (format "  %s\n" f))))
-          (insert "\nNo files exported successfully.\n"))
-        (when err
-          (insert (format "\n✗ Failed / cancelled (%d):\n" (length err)))
-          (dolist (f (nreverse err)) (insert (format "  %s\n" f))))
-        (insert (format "\nOutput directory: %s\n" my-pdf-output-dir))
-        (display-buffer (current-buffer))))))
+        (message "No files found matching ANY of: %s"
+                 (string-join keywords ", "))
+      (my/--batch-export-and-report
+       matching
+       (format "ANY of: %s"
+               (mapconcat (lambda (k) (format "\"%s\"" k)) keywords ", "))))))
+
+;; ============================================================
+;; BATCH EXPORT - ALL mode  (files with ALL keywords simultaneously)
+;; ============================================================
+
+(defun my/org-export-pdf-by-all-keywords (keywords-input)
+  "Batch export: files whose names contain ALL of the given keywords.
+
+A file is included only if EVERY keyword appears somewhere in its
+filename.  Use this when you want the intersection of multiple tags,
+e.g. 'kolokwium' AND 'heidegger' (not just files with either tag).
+
+Keywords are selected with completion (TAB) from all Denote tags in use.
+Separate multiple keywords with commas in the prompt.
+
+Output mirrors notes structure: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc."
+  (interactive
+   (list
+    (mapconcat #'identity
+               (completing-read-multiple
+                "ALL keyword(s) [comma-sep, TAB]: "
+                (my/--denote-all-keywords)
+                nil nil)
+               " ")))
+  (when (string-empty-p (string-trim keywords-input))
+    (user-error "Please provide at least one keyword"))
+  (my/ensure-pdf-dir)
+  (let* ((keywords (split-string (string-trim keywords-input) "[ \t]+" t))
+         (matching
+          (delete-dups
+           (seq-filter
+            (lambda (f)
+              (let ((fname (file-name-nondirectory f)))
+                (seq-every-p (lambda (kw)
+                               (string-match-p (regexp-quote kw) fname))
+                             keywords)))
+            (my/--all-notes-org-files)))))
+    (if (null matching)
+        (message "No files found matching ALL of: %s"
+                 (string-join keywords ", "))
+      (my/--batch-export-and-report
+       matching
+       (format "ALL of: %s"
+               (mapconcat (lambda (k) (format "\"%s\"" k)) keywords ", "))))))
 
 (provide '16-org-export)
 ;;; 16-org-export.el ends here
