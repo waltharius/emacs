@@ -32,6 +32,14 @@
 (global-set-key (kbd "C-c d t") 'denote-rename-file-keywords); Modify keywords
 
 ;; ============================================================
+;; PDF EXPORT (C-c p)
+;; ============================================================
+;; Export current Org buffer to PDF -> ~/notes/pdf/
+;; Defined in modules/16-org-export.el
+
+(global-set-key (kbd "C-c p") #'my/org-export-to-pdf)
+
+;; ============================================================
 ;; ORG-CAPTURE (already defined in 06-capture.el)
 ;; ============================================================
 ;; C-c c = org-capture menu
@@ -103,6 +111,9 @@ Denote Quick Access (C-c d):
   C-c d r - Rename file
   C-c d t - Modify keywords
   C-c d s - Save desktop
+
+PDF Export:
+  C-c p   - Export current Org file to PDF -> ~/notes/pdf/
 
 Capture (C-c c):
   C-c c   - Org-capture menu

@@ -4,10 +4,12 @@
 ;;
 ;; Features:
 ;; - 2.5cm margins via geometry package
-;; - No author, no date, no inline table of contents in the document body
-;; - PDF bookmarks/ToC visible in PDF reader (via hyperref)
+;; - No author, no date, no section numbers, no inline ToC in document body
+;; - PDF bookmarks/ToC visible in PDF reader (via hyperref template)
 ;; - All PDFs saved to ~/notes/pdf/ (directory auto-created if missing)
 ;; - Temporary LaTeX build files cleaned up after export
+;;
+;; Usage: M-x my/org-export-to-pdf  or  C-c p
 
 ;;; Code:
 
@@ -33,24 +35,25 @@
 
 Steps:
 1. Ensure ~/notes/pdf/ exists.
-2. Export to PDF via LaTeX in the system temp directory.
+2. Export .org -> .tex -> .pdf using latexmk in a temp directory.
 3. Move the resulting PDF to ~/notes/pdf/.
 4. Delete all temporary build files (.tex, .aux, .log, .out, .toc, etc.)."
   (interactive)
+  (unless (buffer-file-name)
+    (user-error "Buffer is not visiting a file"))
   (my/ensure-pdf-dir)
-  (let* ((org-file (buffer-file-name))
+  (let* ((org-file  (buffer-file-name))
          (base-name (file-name-base org-file))
-         ;; Build in a dedicated temp dir to isolate all intermediate files
+         ;; Build in a dedicated temp dir - keeps all intermediate files away
+         ;; from the notes directory
          (build-dir (make-temp-file "org-latex-" t))
          (pdf-src   (expand-file-name (concat base-name ".pdf") build-dir))
          (pdf-dest  (expand-file-name (concat base-name ".pdf") my-pdf-output-dir)))
-    ;; Tell ox-latex to write output into the temp build directory
+    ;; Use latexmk: handles reruns automatically, respects org-latex-compiler
     (let ((org-latex-pdf-process
-           (list (concat "lualatex -interaction nonstopmode"
-                         " -output-directory " build-dir " %f")
-                 (concat "lualatex -interaction nonstopmode"
-                         " -output-directory " build-dir " %f"))))
-      ;; Export .org -> .tex -> .pdf
+           (list (concat "latexmk -lualatex -interaction=nonstopmode"
+                         " -output-directory=" build-dir
+                         " -f %f"))))
       (org-latex-export-to-pdf nil nil nil nil
                                `(:output-file ,(expand-file-name
                                                 (concat base-name ".tex")
@@ -60,10 +63,10 @@ Steps:
         (progn
           (rename-file pdf-src pdf-dest t)
           (message "PDF saved to: %s" pdf-dest))
-      (message "ERROR: PDF not found at %s" pdf-src))
-    ;; Remove the entire temp build directory (all intermediate files)
+      (message "ERROR: PDF not found at %s - check *org-export-latex* buffer" pdf-src))
+    ;; Remove the entire temp build directory
     (delete-directory build-dir t)
-    (message "Build directory cleaned up.")))
+    (message "Temp files cleaned up.")))
 
 ;; ============================================================
 ;; LATEX / ORG EXPORT SETTINGS
@@ -71,19 +74,25 @@ Steps:
 
 (with-eval-after-load 'ox-latex
   ;; --- Margins ---
+  ;; geometry is loaded here; hyperref is handled separately below
+  ;; to avoid the 'Option clash for package hyperref' error.
   (setq org-latex-packages-alist
         '(("margin=2.5cm" "geometry" t)))
 
-  ;; --- Suppress author, date, and inline ToC in document body ---
-  (setq org-export-with-author nil)
-  (setq org-export-with-date   nil)
-  (setq org-export-with-toc    nil)  ; No ToC rendered as body text
+  ;; --- Suppress author, date, section numbers, and inline ToC ---
+  (setq org-export-with-author          nil)
+  (setq org-export-with-date            nil)
+  (setq org-export-with-toc             nil) ; No ToC in document body
+  (setq org-export-with-section-numbers nil) ; No numbered headings
 
-  ;; --- PDF bookmarks (ToC visible in PDF reader, not in body) ---
-  ;; hyperref is already included by Org by default; this makes sure
-  ;; bookmarks are enabled and the PDF outline is built from headings.
-  (add-to-list 'org-latex-packages-alist
-               '("bookmarks=true,bookmarksnumbered=true" "hyperref" t))
+  ;; --- hyperref configuration via Org's dedicated template ---
+  ;; Org inserts hyperref itself using org-latex-hyperref-template.
+  ;; Setting options here avoids the double-\usepackage clash.
+  ;; bookmarks=true     -> PDF reader shows outline panel
+  ;; bookmarksnumbered  -> outline entries show section numbers (internal only)
+  ;; colorlinks=false   -> no coloured links in print
+  (setq org-latex-hyperref-template
+        "\\hypersetup{\n  bookmarks=true,\n  bookmarksnumbered=true,\n  colorlinks=false,\n  pdfauthor={%a},\n  pdftitle={%t},\n  pdfkeywords={%k},\n  pdfsubject={%d},\n  pdfcreator={%c},\n  pdflang={%L}}\n")
 
   ;; --- Default document class and compiler ---
   (setq org-latex-default-class "article")
