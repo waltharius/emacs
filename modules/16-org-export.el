@@ -12,6 +12,9 @@
 ;; - Overwrite prompt when PDF already exists (overwrite / rename with index)
 ;; - ALL build files isolated in /tmp and deleted after export
 ;; - Journal files (#+filetags: :journal:) use Playpen Sans Hebrew font in PDF
+;; - polyglossia: Polish hyphenation and typography rules
+;; - csquotes: automatic „Polish" quotation marks
+;; - setspace 1.2: line spacing matching Emacs visual appearance
 ;; - verbatim/code blocks wrap correctly (no overflow past margins)
 ;; - Batch ANY-mode: files matching any of the given keywords
 ;; - Batch ALL-mode: files matching ALL of the given keywords simultaneously
@@ -49,18 +52,34 @@
 ;; ============================================================
 ;; LATEX DOCUMENT CLASSES
 ;; ============================================================
-;; Two classes: default article and journal-article (handwriting font).
-;; Both share the same base settings; journal-article adds fontspec
-;; and microtype for proper font rendering and line-breaking.
+;; Shared preamble for both classes:
+;;   polyglossia  - Polish hyphenation patterns and typography rules
+;;   csquotes     - „Polish" quotation marks (replaces ASCII " with „…")
+;;   setspace     - line spacing 1.2 (matches Emacs line-spacing 0.2)
+;;   microtype    - better paragraph justification (lualatex-native)
+;;   emergencystretch - last-resort stretch to avoid verbatim overflow
+;;
+;; journal-article additionally uses:
+;;   fontspec     - lualatex package for loading system/OTF fonts
+;;   Playpen Sans Hebrew - handwriting-style font for journal notes
 
-(with-eval-after-load 'ox-latex
-  ;; --- Standard class (pks, docu) ---
-  ;; microtype improves paragraph justification and prevents verbatim overflow.
-  (add-to-list 'org-latex-classes
-               '("article"
-                 "\\documentclass[11pt,a4paper]{article}
+(defconst my/--latex-shared-preamble
+  "\\usepackage{polyglossia}
+\\setmainlanguage{polish}
+\\usepackage[autostyle,polish]{csquotes}
+\\usepackage{setspace}
+\\setstretch{1.2}
 \\usepackage{microtype}
 \\setlength{\\emergencystretch}{3em}"
+  "LaTeX preamble packages shared by all export classes.")
+
+(with-eval-after-load 'ox-latex
+
+  ;; --- Standard class (pks, docu) ---
+  (add-to-list 'org-latex-classes
+               `("article"
+                 ,(concat "\\documentclass[11pt,a4paper]{article}\n"
+                          my/--latex-shared-preamble)
                  ("\\section{%s}" . "\\section*{%s}")
                  ("\\subsection{%s}" . "\\subsection*{%s}")
                  ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
@@ -68,15 +87,13 @@
                  ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
 
   ;; --- Journal class (handwriting font via fontspec) ---
-  ;; fontspec is a lualatex package for system/OTF fonts.
-  ;; microtype + emergencystretch prevent verbatim/code from overflowing.
+  ;; fontspec must come before polyglossia when used together with lualatex.
   (add-to-list 'org-latex-classes
-               '("journal-article"
-                 "\\documentclass[11pt,a4paper]{article}
-\\usepackage{fontspec}
-\\setmainfont{Playpen Sans Hebrew}
-\\usepackage{microtype}
-\\setlength{\\emergencystretch}{3em}"
+               `("journal-article"
+                 ,(concat "\\documentclass[11pt,a4paper]{article}\n"
+                          "\\usepackage{fontspec}\n"
+                          "\\setmainfont{Playpen Sans Hebrew}\n"
+                          my/--latex-shared-preamble)
                  ("\\section{%s}" . "\\section*{%s}")
                  ("\\subsection{%s}" . "\\subsection*{%s}")
                  ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
@@ -218,8 +235,11 @@ All others get the default 'article'."
   "Export ORG-FILE to PDF in the appropriate ~/notes/pdf/<silo>/ subfolder.
 
 Automatically selects LaTeX class:
-  - journal tag present -> journal-article (Playpen Sans Hebrew font)
-  - otherwise           -> article (default)
+  - journal tag present -> journal-article (Playpen Sans Hebrew + Polish)
+  - otherwise           -> article (default + Polish)
+
+Both classes use polyglossia (Polish), csquotes, setspace 1.2,
+microtype, and emergencystretch.
 
 Filename from #+title:; fallback to Denote base name.
 Prompts on overwrite.  All build files go to /tmp and are deleted.
@@ -242,7 +262,6 @@ Returns destination path on success, nil on failure or cancel."
       (unwind-protect
           (progn
             (with-current-buffer (find-file-noselect org-file)
-              ;; Temporarily override the LaTeX class for this export only
               (let ((org-latex-default-class latex-class))
                 (org-export-to-file 'latex tex-file)))
             (let ((exit-code
@@ -272,6 +291,7 @@ Returns destination path on success, nil on failure or cancel."
 (defun my/org-export-to-pdf ()
   "Export current Org buffer to PDF -> ~/notes/pdf/<silo>/.
 Journal files use Playpen Sans Hebrew; others use default font.
+All files get Polish hyphenation, csquotes and 1.2 line spacing.
 Filename from #+title:. Prompts if PDF already exists."
   (interactive)
   (unless (buffer-file-name)
