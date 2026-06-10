@@ -11,9 +11,10 @@
 ;; - Denote links stripped to their description text
 ;; - Overwrite prompt when PDF already exists (overwrite / rename with index)
 ;; - ALL build files isolated in /tmp and deleted after export
+;; - Language auto-detected from #+filetags:: :en: -> English, default -> Polish
 ;; - Journal files (#+filetags: :journal:) use Playpen Sans Hebrew font in PDF
-;; - polyglossia: Polish hyphenation and typography rules
-;; - csquotes: automatic „Polish" quotation marks
+;; - polyglossia: correct hyphenation for detected language
+;; - csquotes: quotation marks matching detected language
 ;; - setspace 1.2: line spacing matching Emacs visual appearance
 ;; - verbatim/code blocks wrap correctly (no overflow past margins)
 ;; - Batch ANY-mode: files matching any of the given keywords
@@ -52,53 +53,81 @@
 ;; ============================================================
 ;; LATEX DOCUMENT CLASSES
 ;; ============================================================
+;; Language is detected per-file from #+filetags::
+;;   :en: tag present -> English (hyphenation, csquotes style)
+;;   no :en: tag      -> Polish (default)
+;;
+;; Class selection:
+;;   :journal: tag  -> journal-article  (Playpen Sans Hebrew)
+;;   otherwise      -> article          (default system font)
+;;
 ;; Shared preamble for both classes:
-;;   polyglossia  - Polish hyphenation patterns and typography rules
-;;   csquotes     - „Polish" quotation marks (replaces ASCII " with „…")
+;;   polyglossia  - hyphenation patterns for detected language
+;;   csquotes     - quotation marks matching detected language
 ;;   setspace     - line spacing 1.2 (matches Emacs line-spacing 0.2)
 ;;   microtype    - better paragraph justification (lualatex-native)
 ;;   emergencystretch - last-resort stretch to avoid verbatim overflow
 ;;
-;; journal-article additionally uses:
-;;   fontspec     - lualatex package for loading system/OTF fonts
-;;   Playpen Sans Hebrew - handwriting-style font for journal notes
+;; journal-article additionally:
+;;   fontspec     - must come BEFORE polyglossia with lualatex
+;;   Playpen Sans Hebrew - handwriting-style font
 
-(defconst my/--latex-shared-preamble
-  "\\usepackage{polyglossia}
-\\setmainlanguage{polish}
-\\usepackage[autostyle,polish]{csquotes}
-\\usepackage{setspace}
-\\setstretch{1.2}
-\\usepackage{microtype}
-\\setlength{\\emergencystretch}{3em}"
-  "LaTeX preamble packages shared by all export classes.")
+(defun my/--latex-preamble (language journal-p)
+  "Build the LaTeX document preamble string.
+LANGUAGE is a polyglossia language name string (\"polish\" or \"english\").
+JOURNAL-P non-nil adds fontspec + Playpen Sans Hebrew before the rest."
+  (concat
+   (when journal-p
+     "\\usepackage{fontspec}\n\\setmainfont{Playpen Sans Hebrew}\n")
+   "\\usepackage{polyglossia}\n"
+   (format "\\setmainlanguage{%s}\n" language)
+   ;; csquotes autostyle picks quote style from polyglossia language
+   "\\usepackage[autostyle]{csquotes}\n"
+   "\\usepackage{setspace}\n"
+   "\\setstretch{1.2}\n"
+   "\\usepackage{microtype}\n"
+   "\\setlength{\\emergencystretch}{3em}"))
 
+(defconst my/--latex-section-levels
+  '(("\\section{%s}"       . "\\section*{%s}")
+    ("\\subsection{%s}"    . "\\subsection*{%s}")
+    ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+    ("\\paragraph{%s}"     . "\\paragraph*{%s}")
+    ("\\subparagraph{%s}"  . "\\subparagraph*{%s}"))
+  "Standard LaTeX section hierarchy used by all export classes.")
+
+;; Register both base classes once at startup.
+;; Language variants are handled dynamically per-file via
+;; my/--org-latex-class, which temporarily overrides
+;; org-latex-default-class during export.
 (with-eval-after-load 'ox-latex
 
-  ;; --- Standard class (pks, docu) ---
+  ;; Standard class - language placeholder, replaced at export time
   (add-to-list 'org-latex-classes
                `("article"
                  ,(concat "\\documentclass[11pt,a4paper]{article}\n"
-                          my/--latex-shared-preamble)
-                 ("\\section{%s}" . "\\section*{%s}")
-                 ("\\subsection{%s}" . "\\subsection*{%s}")
-                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
-                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
-                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
+                          (my/--latex-preamble "polish" nil))
+                 ,@my/--latex-section-levels))
 
-  ;; --- Journal class (handwriting font via fontspec) ---
-  ;; fontspec must come before polyglossia when used together with lualatex.
+  ;; Journal class - language placeholder, replaced at export time
   (add-to-list 'org-latex-classes
                `("journal-article"
                  ,(concat "\\documentclass[11pt,a4paper]{article}\n"
-                          "\\usepackage{fontspec}\n"
-                          "\\setmainfont{Playpen Sans Hebrew}\n"
-                          my/--latex-shared-preamble)
-                 ("\\section{%s}" . "\\section*{%s}")
-                 ("\\subsection{%s}" . "\\subsection*{%s}")
-                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
-                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
-                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}"))))
+                          (my/--latex-preamble "polish" t))
+                 ,@my/--latex-section-levels))
+
+  ;; English variants - same structure, English polyglossia
+  (add-to-list 'org-latex-classes
+               `("article-en"
+                 ,(concat "\\documentclass[11pt,a4paper]{article}\n"
+                          (my/--latex-preamble "english" nil))
+                 ,@my/--latex-section-levels))
+
+  (add-to-list 'org-latex-classes
+               `("journal-article-en"
+                 ,(concat "\\documentclass[11pt,a4paper]{article}\n"
+                          (my/--latex-preamble "english" t))
+                 ,@my/--latex-section-levels)))
 
 ;; ============================================================
 ;; DENOTE LINK FILTER
@@ -207,12 +236,20 @@ Strips only: / \\ : * ? \" < > | and control characters."
       (member tag (split-string (match-string 1) ":" t " \t")))))
 
 (defun my/--org-latex-class (org-file)
-  "Return the LaTeX class string to use when exporting ORG-FILE.
-Journal files (tagged :journal:) get 'journal-article'.
-All others get the default 'article'."
-  (if (my/--org-has-tag-p org-file "journal")
-      "journal-article"
-    "article"))
+  "Return the LaTeX class name to use when exporting ORG-FILE.
+
+Decision matrix:
+  journal + en tag -> journal-article-en  (Playpen Sans + English)
+  journal, no en   -> journal-article     (Playpen Sans + Polish)
+  no journal + en  -> article-en          (default font + English)
+  no journal, no en -> article            (default font + Polish)"
+  (let ((journal-p (my/--org-has-tag-p org-file "journal"))
+        (english-p (my/--org-has-tag-p org-file "en")))
+    (cond
+     ((and journal-p english-p) "journal-article-en")
+     (journal-p                 "journal-article")
+     (english-p                 "article-en")
+     (t                         "article"))))
 
 (defun my/--denote-all-keywords ()
   "Sorted, deduplicated list of all Denote keywords in use across notes."
@@ -234,12 +271,10 @@ All others get the default 'article'."
 (defun my/--export-file-to-pdf (org-file)
   "Export ORG-FILE to PDF in the appropriate ~/notes/pdf/<silo>/ subfolder.
 
-Automatically selects LaTeX class:
-  - journal tag present -> journal-article (Playpen Sans Hebrew + Polish)
-  - otherwise           -> article (default + Polish)
-
-Both classes use polyglossia (Polish), csquotes, setspace 1.2,
-microtype, and emergencystretch.
+Class and language are chosen automatically from #+filetags::
+  :journal: -> Playpen Sans Hebrew font
+  :en:       -> English hyphenation and quotation marks
+  (both can be combined; absence of :en: defaults to Polish)
 
 Filename from #+title:; fallback to Denote base name.
 Prompts on overwrite.  All build files go to /tmp and are deleted.
@@ -290,8 +325,8 @@ Returns destination path on success, nil on failure or cancel."
 
 (defun my/org-export-to-pdf ()
   "Export current Org buffer to PDF -> ~/notes/pdf/<silo>/.
+Language detected from #+filetags:: :en: -> English, default -> Polish.
 Journal files use Playpen Sans Hebrew; others use default font.
-All files get Polish hyphenation, csquotes and 1.2 line spacing.
 Filename from #+title:. Prompts if PDF already exists."
   (interactive)
   (unless (buffer-file-name)
@@ -355,10 +390,8 @@ LABEL is a string describing the search (shown in results header)."
 (defun my/org-export-pdf-by-keyword (keywords-input)
   "Batch export: files whose names contain ANY of the given keywords.
 
-Keywords are selected with completion (TAB) from all Denote tags in use.
-Separate multiple keywords with commas in the prompt.
-Each matching file is exported once regardless of how many keywords match.
-
+Keywords selected with completion (TAB) from all Denote tags in use.
+Separate multiple keywords with commas. Each file exported at most once.
 Output mirrors notes structure: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc."
   (interactive
    (list
@@ -382,8 +415,7 @@ Output mirrors notes structure: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc."
                           keywords)))
             (my/--all-notes-org-files)))))
     (if (null matching)
-        (message "No files found matching ANY of: %s"
-                 (string-join keywords ", "))
+        (message "No files found matching ANY of: %s" (string-join keywords ", "))
       (my/--batch-export-and-report
        matching
        (format "ANY of: %s"
@@ -396,13 +428,9 @@ Output mirrors notes structure: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc."
 (defun my/org-export-pdf-by-all-keywords (keywords-input)
   "Batch export: files whose names contain ALL of the given keywords.
 
-A file is included only if EVERY keyword appears somewhere in its
-filename.  Use this when you want the intersection of multiple tags,
-e.g. 'kolokwium' AND 'heidegger' (not just files with either tag).
-
-Keywords are selected with completion (TAB) from all Denote tags in use.
-Separate multiple keywords with commas in the prompt.
-
+A file is included only if EVERY keyword appears in its filename.
+Keywords selected with completion (TAB) from all Denote tags in use.
+Separate multiple keywords with commas.
 Output mirrors notes structure: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc."
   (interactive
    (list
@@ -426,8 +454,7 @@ Output mirrors notes structure: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc."
                              keywords)))
             (my/--all-notes-org-files)))))
     (if (null matching)
-        (message "No files found matching ALL of: %s"
-                 (string-join keywords ", "))
+        (message "No files found matching ALL of: %s" (string-join keywords ", "))
       (my/--batch-export-and-report
        matching
        (format "ALL of: %s"
