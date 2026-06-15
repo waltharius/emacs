@@ -19,6 +19,10 @@
 ;;
 ;; NOTE: Both functions are intentionally limited to org-mode buffers.
 ;;       Extending to markdown-mode would require different markers (**word**).
+;;
+;; NOTE: The keybinding is registered inside `with-eval-after-load' to avoid
+;;       the "Symbol's value as variable is void: org-mode-map" error that
+;;       occurs when this file is loaded before org.el is initialized.
 
 ;;; Code:
 
@@ -140,10 +144,13 @@ emits a message explaining why."
 ;; ============================================================
 ;; KEYBINDING: C-= to expand bold backward
 ;; ============================================================
-;; NOTE: Verify this does not collide with `er/expand-region' in your setup.
-;; As of 2026-06, 08-keybindings.el does not bind C-=, so it is safe.
+;; Wrapped in with-eval-after-load so that org-mode-map is guaranteed
+;; to exist when this define-key call executes.  Without this guard,
+;; loading the file before org.el causes:
+;;   "Symbol's value as variable is void: org-mode-map"
 
-(define-key org-mode-map (kbd "C-=") #'my/bold-expand-backward)
+(with-eval-after-load 'org
+  (define-key org-mode-map (kbd "C-=") #'my/bold-expand-backward))
 
 ;; ============================================================
 ;; RESET: Clear expansion state when point moves
