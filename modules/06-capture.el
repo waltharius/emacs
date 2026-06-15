@@ -1,214 +1,251 @@
-;;; 06-capture.el --- Org-capture for fleeting notes -*- lexical-binding: t; -*-
+;;; 06-capture.el --- Org-capture for ideas -*- lexical-binding: t; -*-
 ;;; Commentary:
-;; Quick capture system for fleeting thoughts and journal ideas
-;; Two capture files:
-;; - ~/notes/fleeting.org - General fleeting thoughts
-;; - ~/notes/journal/captures.org - Ideas from journal to develop later
+;; Quick capture system for ideas and fleeting thoughts.
+;;
+;; C-c c j  / C-c n c  — Ideas capture with source link (opens right side)
+;; C-c c f             — Fleeting note (opens right side)
+;;
+;; Processing captures:
+;; C-c n m  — Promote heading to new Denote note (preserves SOURCE)
+;; C-c C-w  — Refile heading to existing note (standard org-refile)
 
 ;;; Code:
 
 ;; ============================================================
-;; HELPER: Get title from ORIGINAL buffer (not capture buffer)
+;; HELPER: Get #+title: from ORIGINAL buffer
 ;; ============================================================
 
 (defun my/get-capture-origin-title ()
-  "Get title from the buffer where capture was initiated.
-   Uses org-capture's internal original-buffer."
+  "Get #+title: from the buffer where capture was initiated."
   (let ((orig-buf (org-capture-get :original-buffer)))
     (if orig-buf
         (with-current-buffer orig-buf
           (condition-case nil
-              (or 
-               ;; Try to get #+title:
-               (when (eq major-mode 'org-mode)
-                 (cadar (org-collect-keywords '("title"))))
-               ;; Fallback to filename
-               (when (buffer-file-name)
-                 (file-name-base (buffer-file-name)))
-               ;; Last resort: buffer name
-               (buffer-name)
-               ;; Absolute fallback
-               "Untitled")
-            ;; If anything fails, return safe default
+              (or (when (eq major-mode 'org-mode)
+                    (cadar (org-collect-keywords '("title"))))
+                  (when (buffer-file-name)
+                    (file-name-base (buffer-file-name)))
+                  (buffer-name)
+                  "Untitled")
             (error "Untitled")))
-      ;; If no original buffer found, return fallback
       "Untitled")))
 
 ;; ============================================================
-;; HELPER: Get denote ID from ORIGINAL buffer
+;; HELPER: Get denote: link from ORIGINAL buffer
 ;; ============================================================
 
 (defun my/get-capture-origin-id ()
-  "Get denote identifier from the buffer where capture was initiated.
-   Returns either the denote ID or the full file path as fallback."
+  "Get denote: link from the buffer where capture was initiated."
   (let ((orig-buf (org-capture-get :original-buffer)))
     (if orig-buf
         (with-current-buffer orig-buf
           (condition-case nil
               (let ((file-path (buffer-file-name)))
                 (if file-path
-                    ;; Try to extract denote ID from filename
                     (let ((id (denote-retrieve-filename-identifier file-path)))
                       (if id
-                          (format "denote:%s" id)  ; Return denote: link
-                        (format "file:%s" file-path)))  ; Fallback to file path
-                  "Untitled"))  ; No file
-            (error "Untitled")))  ; Error case
-      "Untitled")))  ; No original buffer
+                          (format "denote:%s" id)
+                        (format "file:%s" file-path)))
+                  "Untitled"))
+            (error "Untitled")))
+      "Untitled")))
 
 ;; ============================================================
-;; ORG-CAPTURE: Configuration
+;; CAPTURE WINDOW: open capture buffer to the right
+;; ============================================================
+
+(defun my/capture-display-right (buffer alist)
+  "Display capture BUFFER in a window to the right.
+If a right window already exists, reuse it.
+Used via `display-buffer-alist'."
+  (let* ((origin (selected-window))
+         (right  (window-in-direction 'right origin)))
+    (if right
+        (progn
+          (select-window right)
+          (switch-to-buffer buffer)
+          right)
+      (let ((new-win (split-window origin nil 'right)))
+        (select-window new-win)
+        (switch-to-buffer buffer)
+        new-win))))
+
+(add-to-list 'display-buffer-alist
+             '("\\*Org Capture\\*"
+               (my/capture-display-right)))
+
+;; ============================================================
+;; ORG-CAPTURE: Templates
 ;; ============================================================
 
 (use-package org-capture
   :ensure nil
   :config
-  ;; Create capture files if they don't exist
+
+  ;; Create captures file if it doesn't exist
+  (unless (file-exists-p my-journal-captures)
+    (with-temp-file my-journal-captures
+      (insert "#+title: Ideas\n")
+      (insert "#+filetags: :captures:\n\n")
+      (insert "* Ideas\n\n")))
+
+  ;; Create fleeting file if it doesn't exist
   (unless (file-exists-p my-fleeting-file)
     (with-temp-file my-fleeting-file
       (insert "#+title: Fleeting Notes\n")
       (insert "#+filetags: :fleeting:\n\n")
       (insert "* Inbox\n\n")))
-  
-  (unless (file-exists-p my-journal-captures)
-    (with-temp-file my-journal-captures
-      (insert "#+title: Journal Captures\n")
-      (insert "#+filetags: :journal:captures:\n\n")))
-  
-  ;; Capture templates
+
   (setq org-capture-templates
-        '(("f" "Fleeting Note" entry
-           (file+headline my-fleeting-file "Inbox")
-           "* %?\nCaptured: %U\n"
+        '(("j" "Ideas capture" entry
+           (file+headline my-journal-captures "Ideas")
+           "* %?\n:PROPERTIES:\n:SOURCE: [[%(my/get-capture-origin-id)][%(my/get-capture-origin-title)]]\n:CAPTURED: %U\n:END:\n\n"
            :empty-lines 1
            :prepend nil)
-          
-          ("j" "Journal Capture" entry
-           (file+headline my-journal-captures "Ideas from Journal")
-           "* %(my/get-capture-origin-title)\n:PROPERTIES:\n:SOURCE: [[%(my/get-capture-origin-id)][%(my/get-capture-origin-title)]]\n:CAPTURED: %U\n:END:\n\n%?"
+
+          ("f" "Fleeting Note" entry
+           (file+headline my-fleeting-file "Inbox")
+           "* %?\nCaptured: %U\n"
            :empty-lines 1
            :prepend nil))))
 
 ;; ============================================================
-;; SMART JOURNAL CAPTURE OPENING
+;; DIRECT CAPTURE: C-c n c fires template "j" without menu
 ;; ============================================================
 
-(defun my/open-journal-captures ()
-  "Open journal captures file.
-  - Goes to end of file
-  - Adds today's date heading if not present
-  - Positions cursor ONE line below date heading (not two!)"
+(defun my/capture-idea ()
+  "Directly invoke Ideas capture (template j) — no menu shown.
+Opens capture buffer to the right of the current window.
+Records SOURCE link to the originating note automatically."
   (interactive)
-  (find-file my-journal-captures)
-  
-  ;; Go to end of file
-  (goto-char (point-max))
-  
-  ;; Get today's date in format: * 2026-02-04 (level 1 heading)
-  (let* ((today-date (format-time-string "%Y-%m-%d"))
-         (date-heading (concat "* " today-date)))
-    
-    ;; Search for today's date heading in the file
-    (goto-char (point-min))
-    (if (search-forward date-heading nil t)
-        ;; Date exists - go to end of that section
-        (progn
-          (org-end-of-subtree)
-          (newline)  ; Just ONE newline
-          (message "Positioned below existing date: %s" today-date))
-      
-      ;; Date doesn't exist - add it at the end
-      (goto-char (point-max))
-      (unless (bolp) (newline 2))  ; Two newlines to separate from previous content
-      (insert date-heading "\n")   ; Date heading with ONE newline after it
-      (message "Added new date heading: %s" today-date)))
-  
-  ;; Final positioning - cursor ready to write (already on the line after date)
-  (unless (looking-at-p "^$")
-    (newline)))
+  (org-capture nil "j"))
 
 ;; ============================================================
-;; CAPTURE KEYBINDINGS
+;; OPEN FLEETING NOTES in side window
 ;; ============================================================
 
-(global-set-key (kbd "C-c c") 'org-capture)
-
-;; Quick access to capture files
 (defun my/open-fleeting-notes ()
-  "Open fleeting notes file."
+  "Open fleeting notes file in a window to the right."
   (interactive)
-  (find-file my-fleeting-file)
-  (goto-char (point-max)))  ; Also go to end for consistency
+  (let* ((origin (selected-window))
+         (right  (window-in-direction 'right origin))
+         (win    (or right (split-window origin nil 'right))))
+    (select-window win)
+    (find-file my-fleeting-file)
+    (goto-char (point-max))))
 
+;; ============================================================
+;; HELPER: Extract SOURCE value from PROPERTIES block
+;; ============================================================
+
+(defun my/--capture-extract-source (text)
+  "Extract the raw value of :SOURCE: property from TEXT string.
+Returns the value string or nil if not found."
+  (when (string-match ":SOURCE:[ \t]+\\(.+\\)" text)
+    (string-trim (match-string 1 text))))
+
+;; ============================================================
+;; HELPER: Strip PROPERTIES block from TEXT string
+;; ============================================================
+
+(defun my/--capture-strip-properties (text)
+  "Remove :PROPERTIES:...:END: block from TEXT string.
+Uses a safe multiline regex."
+  (replace-regexp-in-string
+   "\\(:PROPERTIES:\\(?:.\\|\n\\)*?:END:\\)\n?" "" text nil nil 1))
+
+;; ============================================================
+;; PROMOTE CAPTURE HEADING TO NEW DENOTE NOTE
+;; ============================================================
+
+(defun my/capture-promote-to-note ()
+  "Create a new Denote note from the heading at point in captures.org.
+
+What this does:
+- Uses heading text as proposed title (editable)
+- Asks for tags and silo — identical prompts to my/denote-base
+- Calls (denote title keywords) for consistent front matter
+- Adds #+source: to front matter if SOURCE property exists
+- Copies subtree body (H3/H4 included, stops before next H2)
+- Removes the original heading from captures.org after success
+
+The SOURCE link (reference to the originating note) is preserved
+as #+source: in the new note's front matter. Remove it manually
+if not needed."
+  (interactive)
+  (unless (eq major-mode 'org-mode)
+    (user-error "Not in org-mode"))
+  ;; Validate we are on or inside a heading
+  (save-excursion
+    (condition-case nil
+        (org-back-to-heading t)
+      (error (user-error "Not inside an org heading"))))
+  (let* (;; -- Collect heading data --
+         (heading-title (org-get-heading t t t t))
+         (title         (read-string "Note title: " heading-title))
+         (tags-input    (read-string "Tags (space-separated): "))
+         (keywords      (unless (string-empty-p tags-input)
+                          (split-string tags-input " " t)))
+         (silo          (completing-read "Save in: " '("pks" "docu") nil t "pks"))
+         (target-dir    (if (string= silo "docu") my-notes-docu my-notes-pks))
+         ;; -- Extract subtree body (everything under the heading) --
+         (subtree-raw
+          (save-excursion
+            (org-back-to-heading t)
+            (forward-line 1)                      ; skip heading line itself
+            (let ((beg (point))
+                  (end (save-excursion
+                         (org-end-of-subtree t)   ; stops before next same-level heading
+                         (point))))
+              (buffer-substring-no-properties beg end))))
+         ;; -- Extract SOURCE before stripping PROPERTIES --
+         (source-value  (my/--capture-extract-source subtree-raw))
+         ;; -- Clean body: strip PROPERTIES block, trim whitespace --
+         (body          (string-trim (my/--capture-strip-properties subtree-raw)))
+         ;; -- Remember captures buffer and region for cleanup --
+         (captures-buf  (current-buffer))
+         (heading-beg   (save-excursion (org-back-to-heading t) (point)))
+         (heading-end   (save-excursion
+                          (org-end-of-subtree t)
+                          (forward-line 1)
+                          (point))))
+
+    ;; -- Create Denote note: identical mechanism to my/denote-base --
+    (let ((denote-directory target-dir))
+      (denote title keywords))
+
+    ;; -- We are now in the new note buffer --
+    ;; Insert #+source: after front matter if SOURCE existed
+    (when source-value
+      (save-excursion
+        (goto-char (point-min))
+        ;; Find end of front matter (last #+keyword: line)
+        (while (re-search-forward "^#\\+" nil t))
+        (end-of-line)
+        (insert (format "\n#+source:     %s" source-value))))
+
+    ;; -- Insert body content --
+    (unless (string-empty-p body)
+      (goto-char (point-max))
+      (insert "\n\n" body "\n"))
+
+    (save-buffer)
+
+    ;; -- Remove original heading from captures.org --
+    (with-current-buffer captures-buf
+      (delete-region heading-beg heading-end)
+      (save-buffer))
+
+    (message "✓ Note created: \"%s\" → %s/" title silo)))
+
+;; ============================================================
+;; KEYBINDINGS
+;; ============================================================
+
+(global-set-key (kbd "C-c c")   'org-capture)
+(global-set-key (kbd "C-c n c") 'my/capture-idea)
 (global-set-key (kbd "C-c n f") 'my/open-fleeting-notes)
-(global-set-key (kbd "C-c n c") 'my/open-journal-captures)
-
-;; ============================================================
-;; WORKFLOW EXPLANATION
-;; ============================================================
-;;
-;; TWO DIFFERENT WAYS TO ADD TO CAPTURES.ORG:
-;;
-;; Method 1: C-c c j (Structured capture FROM journal notes)
-;; -------------------------------------------------------
-;; Use this when you're IN a journal/note and want to capture
-;; an idea for later development.
-;;
-;; What it does:
-;; - Accesses the ORIGINAL buffer (where you pressed C-c c j)
-;; - Extracts its title AND denote identifier
-;; - Opens capture dialog
-;; - Automatically creates denote link to current note
-;; - Uses extracted title for BOTH heading AND link
-;; - Adds timestamp
-;; - Saves under "Ideas from Journal" heading
-;; - Cursor positioned in content area (not heading)
-;;
-;; Example result:
-;; * 2026-02-04 Journal                    ← Auto-filled from source!
-;; :PROPERTIES:
-;; :SOURCE: [[denote:20260204T165223][2026-02-04 Journal]]  ← Denote ID link!
-;; :CAPTURED: [2026-02-04 śro 17:05]
-;; :END:
-;;
-;; Your thoughts go here...               ← Cursor starts here
-;;
-;; WHY DENOTE ID INSTEAD OF FILE PATH?
-;; ------------------------------------
-;; - Backlinks work properly with denote system
-;; - Links survive file renames
-;; - Compatible with denote-backlinks
-;; - Integrates with your note-taking workflow
-;;
-;; Method 2: C-c n c (Quick manual entry by date)
-;; -------------------------------------------------------
-;; Use this for quick thoughts you want to write down fast,
-;; organized by date.
-;;
-;; What it does:
-;; - Opens captures.org
-;; - Adds/finds today's date heading (* 2026-02-04)
-;; - Positions cursor for immediate typing
-;; - No structure, no properties, just write!
-;;
-;; Example result:
-;; * 2026-02-04
-;; Quick thought I want to remember.
-;; Another thought from later today.
-;;
-;; WHICH TO USE WHEN?
-;; ------------------
-;; C-c c j → When reading a note and you get an idea to develop
-;; C-c n c → When you just want to jot something down quickly
-;;
-;; Both methods write to the same file (captures.org) but with
-;; different structures. That's OK! Review them later and process.
-;;
-;; Fleeting Notes (C-c c f):
-;; 1. Press C-c c f anywhere to capture a quick thought
-;; 2. Type the idea, press C-c C-c to save
-;; 3. Later, review ~/notes/fleeting.org
-;; 4. Promote good ideas to proper notes in pks/ or docu/
+(global-set-key (kbd "C-c n m") 'my/capture-promote-to-note)
 
 (provide '06-capture)
 ;;; 06-capture.el ends here

@@ -21,10 +21,11 @@
     ("e" "Essay" my/denote-essay)]
    
    ["Capture"
-    ("c" "Journal captures" my/open-journal-captures)
-    ("f" "Fleeting notes" my/open-fleeting-notes)
-    ("C" "Capture menu" org-capture)]
-   
+    ("c" "Ideas capture"   my/capture-idea)
+    ("f" "Fleeting notes"  my/open-fleeting-notes)
+    ("C" "Capture menu"    org-capture)
+    ("m" "Promote to note" my/capture-promote-to-note)]
+
    ["Search & Find"
     ("F" "Find file" denote-open-or-create)
     ("g" "Grep notes" consult-denote-grep)]
