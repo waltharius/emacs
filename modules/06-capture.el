@@ -99,7 +99,7 @@ Used via `display-buffer-alist'."
   (setq org-capture-templates
         '(("j" "Ideas capture" entry
            (file+headline my-journal-captures "Ideas")
-           "* %?\n:PROPERTIES:\n:SOURCE: [[%(my/get-capture-origin-id)][%(my/get-capture-origin-title)]]\n:CAPTURED: %U\n:END:\n\n"
+           "* \n:PROPERTIES:\n:SOURCE: [[%(my/get-capture-origin-id)][%(my/get-capture-origin-title)]]\n:CAPTURED: %U\n:END:\n%?"
            :empty-lines 1
            :prepend nil)
 
