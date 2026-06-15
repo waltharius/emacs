@@ -1,171 +1,196 @@
-;;; 02b-bold-marker.el --- Obsidian-style bold marker for org-mode -*- lexical-binding: t; -*-
+;;; 02b-bold-marker.el --- Obsidian-style inline markers for org-mode -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Replicates Obsidian's inline bold behavior in org-mode.
+;; Replicates Obsidian's inline formatting behavior for org-mode.
 ;;
-;; PART 1 - Auto-bold on asterisk:
-;;   Typing `word*` (asterisk directly after a word, no space) wraps the word
-;;   in org-mode bold markers: *word*
-;;   The trigger fires only when the char before `*` is a word character,
-;;   preventing accidental activation on headlines, list items, etc.
+;; PART 1 - Auto-wrap on trigger character:
+;;   Typing a trigger character directly after a word (no space) wraps that
+;;   word in the corresponding org-mode inline markers:
 ;;
-;; PART 2 - Expand bold backward:
-;;   After the auto-bold fires, pressing C-= extends the bold region one word
-;;   to the left.  Each subsequent press of C-= extends by one more word.
-;;   The expansion state resets as soon as point moves away.
+;;     word*   ->  *word*    bold
+;;     word_   ->  _word_    underline
+;;     word/   ->  /word/    italic
+;;     word~   ->  ~word~    code
+;;     word=   ->  =word=    verbatim
 ;;
-;; Keybindings added here:
-;;   C-= ... expand bold region backward, one word per press
+;;   The trigger fires only when:
+;;     - The buffer is in org-mode (or a derived mode).
+;;     - The character immediately before the trigger is a word constituent.
+;;     - The same trigger character does not already appear immediately before
+;;       that word character (prevents double-wrapping).
 ;;
-;; NOTE: Both functions are intentionally limited to org-mode buffers.
-;;       Extending to markdown-mode would require different markers (**word**).
+;; PART 2 - Expand marked region backward (C-=):
+;;   After auto-wrap fires, pressing C-= moves the opening marker one word
+;;   to the left, extending the marked span.  Each subsequent C-= extends
+;;   by one more word.  State resets when point moves away.
 ;;
-;; NOTE: The keybinding is registered inside `with-eval-after-load' to avoid
-;;       the "Symbol's value as variable is void: org-mode-map" error that
-;;       occurs when this file is loaded before org.el is initialized.
+;; Keybindings:
+;;   C-=   expand inline marker region one word backward (repeatable)
+;;
+;; NOTE: Trigger chars that appear mid-word in URLs, paths, or dates are NOT
+;;       wrapped because org requires a word boundary before the trigger.
+;;       Use \char to insert a literal trigger character without formatting.
+;;
+;; NOTE: The org-mode-map keybinding is registered inside with-eval-after-load
+;;       to avoid "Symbol's value as variable is void: org-mode-map" on startup.
 
 ;;; Code:
 
 ;; ============================================================
-;; STATE: Track the opening marker position for expansion
+;; CONFIGURATION: trigger chars -> (open-marker close-marker)
 ;; ============================================================
 
-(defvar my/bold-marker-start nil
-  "Marker pointing to the opening `*` of the most recently inserted bold.
-Used by `my/bold-expand-backward' to know where to move the opening marker.
-Reset to nil whenever point moves away from inside the bold region.")
-
-(defvar my/bold-marker-end nil
-  "Marker pointing just after the closing `*` of the most recently inserted bold.
-Used to detect whether point is still inside the bold region.")
-
-;; ============================================================
-;; PART 1: Auto-bold trigger on `*`
-;; ============================================================
-
-(defun my/bold-on-asterisk ()
-  "Wrap the word before point in org bold markers when `*` is typed after it.
-
-Fires via `post-self-insert-hook'.  Conditions that must ALL be true:
-  - Current buffer is an org-mode buffer (or derived mode).
-  - The character just inserted is `*'.
-  - The character immediately before `*' is a word constituent (\\w).
-  - There is no existing `*' immediately before that word char
-    (prevents double-wrapping when user types a second asterisk).
-
-When all conditions are met:
-  1. Deletes the typed `*'.
-  2. Moves backward to the start of the word.
-  3. Inserts opening `*'.
-  4. Moves forward to the end of the word.
-  5. Inserts closing `*'.
-  6. Records marker positions for `my/bold-expand-backward'."
-  (when (and (derived-mode-p 'org-mode)
-             (eq (char-before) ?*)
-             ;; char before the asterisk must be a word character
-             (save-excursion
-               (backward-char 1)
-               (looking-back "\\w" 1))
-             ;; prevent double-trigger: char two positions back must NOT be `*'
-             (not (save-excursion
-                    (backward-char 2)
-                    (eq (char-after) ?*))))
-    (let (open-pos close-pos)
-      ;; Remove the asterisk the user just typed
-      (delete-char -1)
-      ;; Remember end-of-word position
-      (setq close-pos (point))
-      ;; Move to start of word
-      (save-excursion
-        (backward-word 1)
-        (setq open-pos (point))
-        ;; Insert opening marker
-        (goto-char open-pos)
-        (insert "*"))
-      ;; After inserting opening `*', close-pos shifted by 1
-      (goto-char (+ close-pos 1))
-      ;; Insert closing marker
-      (insert "*")
-      ;; Store marker positions for expansion (point is now after closing `*')
-      (setq my/bold-marker-start (copy-marker (+ open-pos 0)))
-      (setq my/bold-marker-end   (copy-marker (point))))))
-
-(add-hook 'post-self-insert-hook #'my/bold-on-asterisk)
+(defvar my/inline-marker-triggers
+  '((?*  "*"  "*")   ; bold
+    (?_  "_"  "_")   ; underline
+    (?/  "/"  "/")   ; italic
+    (?~  "~"  "~")   ; code
+    (?=  "="  "="))  ; verbatim
+  "Alist of (trigger-char open-marker close-marker) for org inline formatting.
+Each entry causes `my/inline-marker-on-trigger' to wrap the preceding word
+when trigger-char is typed directly after it.")
 
 ;; ============================================================
-;; PART 2: Expand bold region backward (C-=, repeatable)
+;; STATE: track opening marker position for C-= expansion
 ;; ============================================================
 
-(defun my/bold-expand-backward ()
-  "Extend the most recently created org bold region one word to the left.
+(defvar my/inline-marker-start nil
+  "Buffer marker at the opening marker character of the last auto-wrap.
+Used by `my/inline-marker-expand-backward' to move the opening marker left.
+Set to nil when point moves away from the end of the wrapped region.")
 
-Each call moves the opening `*' one word backward, effectively growing the
-bold span.  Can be called repeatedly (e.g. C-= C-= C-=) to include more
-words.
+(defvar my/inline-marker-end nil
+  "Buffer marker just after the closing marker of the last auto-wrap.
+Used to detect whether point is still adjacent to the wrapped region.")
 
-Preconditions:
-  - `my/bold-marker-start' and `my/bold-marker-end' must be set (i.e., an
-    auto-bold was just inserted and point has not moved away).
-  - Point must still be at `my/bold-marker-end' (inside/adjacent to bold).
+(defvar my/inline-marker-open-char nil
+  "The opening marker string of the last auto-wrap (e.g. \"*\", \"/\", \"~\").
+Used by `my/inline-marker-expand-backward' to verify marker integrity.")
 
-If the markers are stale or point has moved, the function does nothing and
-emits a message explaining why."
+;; ============================================================
+;; PART 1: generic auto-wrap on trigger character
+;; ============================================================
+
+(defun my/inline-marker-on-trigger ()
+  "Wrap the word before point in org inline markers when a trigger char is typed.
+
+Fires via `post-self-insert-hook'.  Looks up the just-inserted character in
+`my/inline-marker-triggers'.  If found, and if the character immediately
+before the trigger is a word constituent (not the same trigger char), wraps
+the preceding word with the configured open/close marker pair.
+
+Side effects:
+  - Sets `my/inline-marker-start', `my/inline-marker-end', and
+    `my/inline-marker-open-char' for use by `my/inline-marker-expand-backward'."
+  (when (derived-mode-p 'org-mode)
+    (let* ((trigger (char-before))
+           (entry   (assq trigger my/inline-marker-triggers)))
+      (when (and entry
+                 ;; char before the trigger must be a word character
+                 (save-excursion
+                   (backward-char 1)
+                   (looking-back "\\w" 1))
+                 ;; same trigger char must NOT immediately precede the word char
+                 ;; (prevents double-wrapping if user types the char twice)
+                 (not (save-excursion
+                        (backward-char 2)
+                        (eq (char-after) trigger))))
+        (let ((open  (nth 1 entry))
+              (close (nth 2 entry))
+              open-pos close-pos)
+          ;; Remove the trigger character the user just typed
+          (delete-char -1)
+          ;; Remember end-of-word position
+          (setq close-pos (point))
+          ;; Insert opening marker at start of word
+          (save-excursion
+            (backward-word 1)
+            (setq open-pos (point))
+            (insert open))
+          ;; close-pos shifted right by length of open marker
+          (goto-char (+ close-pos (length open)))
+          ;; Insert closing marker
+          (insert close)
+          ;; Record state for expansion
+          (setq my/inline-marker-start    (copy-marker open-pos)
+                my/inline-marker-end      (copy-marker (point))
+                my/inline-marker-open-char open))))))
+
+(add-hook 'post-self-insert-hook #'my/inline-marker-on-trigger)
+
+;; ============================================================
+;; PART 2: expand marked region backward (C-=, repeatable)
+;; ============================================================
+
+(defun my/inline-marker-expand-backward ()
+  "Extend the most recently auto-wrapped org inline region one word to the left.
+
+Moves the opening marker one word backward each time it is called.
+Can be repeated (C-= C-= C-=) to grow the region further.
+
+Aborts with a message if:
+  - No auto-wrap has been performed yet (markers are nil).
+  - Point has moved away from the end of the wrapped region.
+  - The expected opening marker character is not found at the recorded position."
   (interactive)
   (cond
-   ;; Guard: markers not set yet
-   ((or (null my/bold-marker-start)
-        (null my/bold-marker-end)
-        (not (marker-buffer my/bold-marker-start)))
-    (message "No active bold region to expand. Type word* first."))
+   ;; Guard: no active region
+   ((or (null my/inline-marker-start)
+        (null my/inline-marker-end)
+        (not (marker-buffer my/inline-marker-start)))
+    (message "No active inline region to expand. Type word<trigger> first."))
 
-   ;; Guard: point moved away from the bold region
-   ((not (= (point) (marker-position my/bold-marker-end)))
-    (message "Point moved away from bold region; expansion cancelled.")
-    (setq my/bold-marker-start nil
-          my/bold-marker-end   nil))
+   ;; Guard: point has moved away
+   ((not (= (point) (marker-position my/inline-marker-end)))
+    (message "Point moved away from inline region; expansion cancelled.")
+    (setq my/inline-marker-start     nil
+          my/inline-marker-end       nil
+          my/inline-marker-open-char nil))
 
-   ;; Main expansion logic
+   ;; Main expansion
    (t
     (save-excursion
-      (goto-char (marker-position my/bold-marker-start))
-      ;; Sanity check: there should be a `*' here
-      (unless (eq (char-after) ?*)
-        (user-error "Expected `*' at bold-marker-start position; aborting expansion"))
-      ;; Delete the current opening marker
-      (delete-char 1)
-      ;; Move one word to the left (skip whitespace then jump over word)
+      (goto-char (marker-position my/inline-marker-start))
+      ;; Verify the opening marker is where we expect it
+      (unless (and my/inline-marker-open-char
+                   (looking-at (regexp-quote my/inline-marker-open-char)))
+        (user-error "Expected '%s' at marker-start position; aborting expansion"
+                    my/inline-marker-open-char))
+      ;; Delete current opening marker
+      (delete-char (length my/inline-marker-open-char))
+      ;; Skip any whitespace to the left, then move one full word left
       (skip-chars-backward " \t")
       (backward-word 1)
       ;; Insert new opening marker here
-      (insert "*")
-      ;; Update the start marker (now points to the newly inserted `*')
-      (setq my/bold-marker-start (copy-marker (1- (point))))))))
+      (insert my/inline-marker-open-char)
+      ;; Update start marker (points to the newly inserted marker)
+      (setq my/inline-marker-start
+            (copy-marker (- (point) (length my/inline-marker-open-char))))))))
 
 ;; ============================================================
-;; KEYBINDING: C-= to expand bold backward
+;; KEYBINDING: C-= expands inline region backward
 ;; ============================================================
-;; Wrapped in with-eval-after-load so that org-mode-map is guaranteed
-;; to exist when this define-key call executes.  Without this guard,
-;; loading the file before org.el causes:
-;;   "Symbol's value as variable is void: org-mode-map"
+;; Scoped to org-mode-map so it does not override global C-= elsewhere.
+;; Wrapped in with-eval-after-load to guarantee org-mode-map exists.
 
 (with-eval-after-load 'org
-  (define-key org-mode-map (kbd "C-=") #'my/bold-expand-backward))
+  (define-key org-mode-map (kbd "C-=") #'my/inline-marker-expand-backward))
 
 ;; ============================================================
-;; RESET: Clear expansion state when point moves
+;; RESET: clear expansion state when point moves away
 ;; ============================================================
 
-(defun my/bold-reset-state ()
-  "Reset bold-expansion state if point has moved away from the bold region.
-Attached to `post-command-hook' so it fires after every command."
-  (when (and my/bold-marker-end
-             (marker-buffer my/bold-marker-end)
-             (not (= (point) (marker-position my/bold-marker-end))))
-    (setq my/bold-marker-start nil
-          my/bold-marker-end   nil)))
+(defun my/inline-marker-reset-state ()
+  "Clear inline-marker expansion state when point leaves the wrapped region.
+Attached to `post-command-hook'; runs after every command."
+  (when (and my/inline-marker-end
+             (marker-buffer my/inline-marker-end)
+             (not (= (point) (marker-position my/inline-marker-end))))
+    (setq my/inline-marker-start     nil
+          my/inline-marker-end       nil
+          my/inline-marker-open-char nil)))
 
-(add-hook 'post-command-hook #'my/bold-reset-state)
+(add-hook 'post-command-hook #'my/inline-marker-reset-state)
 
 (provide '02b-bold-marker)
 ;;; 02b-bold-marker.el ends here
