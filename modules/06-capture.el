@@ -214,21 +214,18 @@ if not needed."
     (let ((denote-directory target-dir))
       (denote title keywords))
 
-    ;; -- We are now in the new note buffer --
-    ;; Insert #+source: after front matter if SOURCE existed
-    (when source-value
-      (save-excursion
-        (goto-char (point-min))
-        ;; Find end of front matter (last #+keyword: line)
-        (while (re-search-forward "^#\\+" nil t))
-        (end-of-line)
-        (insert (format "\n#+source:     %s" source-value))))
-
-    ;; -- Insert body content --
-    (unless (string-empty-p body)
-      (goto-char (point-max))
-      (insert "\n\n" body "\n"))
-
+    ;; -- Insert body content with optional source link at top --
+    (goto-char (point-max))
+    (if source-value
+        ;; Source exists: link as first visible line, then body
+        (progn
+          (insert (format "\n\nSource: %s\n" source-value))
+          (unless (string-empty-p body)
+            (insert "\n" body "\n")))
+      ;; No source: just body
+      (unless (string-empty-p body)
+        (insert "\n\n" body "\n")))
+    
     (save-buffer)
 
     ;; -- Remove original heading from captures.org --
