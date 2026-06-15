@@ -34,6 +34,7 @@
   (load (concat modules-dir "00-core.el"))          ; Package system + variables
   (load (concat modules-dir "01-ui.el"))            ; Interface + sessions
   (load (concat modules-dir "02-editing.el"))       ; Modern conveniences
+  (load (concat modules-dir "02b-bold-marker.el"))  ; Obsidian-style bold (word*)
   (load (concat modules-dir "03-spelling.el"))      ; Spellcheck (WORKING!)
   (load (concat modules-dir "03b-fonts.el"))        ; Fonts (PlaypenSans for journals)
   (load (concat modules-dir "04-denote.el"))        ; Denote multi-silo
