@@ -219,7 +219,7 @@ if not needed."
     (if source-value
         ;; Source exists: link as first visible line, then body
         (progn
-          (insert (format "\n\nSource: %s\n" source-value))
+          (insert (format "Source: %s\n" source-value))
           (unless (string-empty-p body)
             (insert "\n" body "\n")))
       ;; No source: just body
