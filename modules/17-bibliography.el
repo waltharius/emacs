@@ -43,9 +43,11 @@
   ;; New bibliographic notes go into pks/ silo
   (citar-denote-subdir "pks/")
   ;; Keyword automatically added to all bibliographic notes
-  (citar-denote-keyword "zotero")
+  ;; (citar-denote-keyword "zotero")
   ;; Use org-cite [cite:@key] format (not @key alone)
   (citar-denote-use-bib-keywords t)
+  ;; Better title for new notes from refs
+  (citar-denote-title-format . "author-title")
   :config
   (citar-denote-mode 1))
 
@@ -62,8 +64,9 @@
   :magic ("%PDF" . pdf-view-mode)
   :config
   ;; Install silently on first load if epdfinfo is not yet compiled
-  (pdf-tools-install :no-query))
-
+  (pdf-tools-install :no-query)
+  (add-hook 'pdf-view-mode-hook
+          (lambda () (display-line-numbers-mode -1))))
 ;; ============================================================
 ;; PHASE 3: ORG-NOTER — side-by-side reading + annotation
 ;; ============================================================
