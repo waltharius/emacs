@@ -6,67 +6,63 @@
 ;;   - ~/notes/refs.bib   — auto-exported by Better BibTeX in Zotero
 ;;   - poppler, poppler_utils, pkg-config, libpng in home.packages (for pdf-tools)
 ;;
-;; Phase 1: citar + citar-denote — search and insert citations
-;; Phase 2: org-cite export via biblatex
-;; Phase 3: pdf-tools + org-noter — side-by-side reading and highlight extraction
+;; Workflow:
+;;   1. M-x my/zotero-menu (C-c x) → n  — create note from Zotero ref, PDF opens on the right
+;;   2. M-x my/zotero-menu (C-c x) → f  — reopen PDF on the right for the current note
 
 ;;; Code:
 
 ;; ============================================================
-;; PHASE 1: CITAR — citation search and insertion
+;; CITAR — citation search and insertion
 ;; ============================================================
 
 (use-package citar
   :ensure t
   :custom
-  ;; Path to Better BibTeX auto-exported bibliography
   (citar-bibliography '("~/notes/refs.bib"))
-  ;; Where to look for PDF/ePub attachments (Zotero storage)
   (citar-library-paths '("~/syncthing/Zotero/storage/"))
-  ;; Notes live in pks/ silo
   (citar-notes-paths (list (expand-file-name "pks/" my-notes-dir)))
   :config
-  ;; Tell org-cite to use citar for completion and insertion
   (setq org-cite-global-bibliography '("~/notes/refs.bib"))
   (setq org-cite-insert-processor 'citar)
   (setq org-cite-follow-processor 'citar)
   (setq org-cite-activate-processor 'citar))
 
 ;; ============================================================
-;; DENOTE TEMPLATE: Bibliographic note structure
+;; DENOTE TEMPLATE: Bibliographic note front matter
 ;; ============================================================
 
 (with-eval-after-load 'denote
   (add-to-list 'denote-templates
                '(biblio . "#+entry-type:  %^{=type=}
-#+citekey:     %^{=key=}                        
+#+citekey:     %^{=key=}
 #+authors:     %^{author}
 #+translator:  %^{translator}
 #+publisher:   %^{publisher}
-#+year:        %^{year}
+#+year:        %^{date}
+#+origdate:    %^{origdate}
 #+language:    %^{langid}
+#+pages:       %^{pagetotal}
 
-:PROPERTIES:
-:NOTER_DOCUMENT: %^{file}
-:END:
+* Streszczenie
 
+* Kluczowe argumenty
+
+* Moje notatki
+
+* Cytaty
 ")))
 
 ;; ============================================================
-;; PHASE 1: CITAR-DENOTE — bridge citar into Denote
+;; CITAR-DENOTE — bridge citar into Denote
 ;; ============================================================
 
 (use-package citar-denote
   :ensure t
   :after (citar denote)
   :custom
-  ;; New bibliographic notes go into pks/ silo
   (citar-denote-subdir "pks/")
-  ;; Keyword automatically added to all bibliographic notes
-  ;; (citar-denote-keyword "zotero")
-  ;; Use org-cite [cite:@key] format (not @key alone)
   (citar-denote-use-bib-keywords t)
-  ;; Better title for new notes from refs
   (citar-denote-title-format "author-year-title")
   (citar-denote-title-format-authors 1)
   (citar-denote-template 'biblio)
@@ -74,12 +70,27 @@
   (citar-denote-mode 1))
 
 ;; ============================================================
-;; PHASE 3: PDF-TOOLS — native PDF viewer (replaces doc-view)
+;; HELPER: Reopen PDF for current bibliographic note on the right
 ;; ============================================================
-;; Requires: poppler, poppler_utils, pkg-config, libpng in NixOS packages.nix
-;; First-time setup: M-x pdf-tools-install (compiles epdfinfo binary)
-;; Verify prerequisites BEFORE running pdf-tools-install:
-;;   $ pkg-config --exists poppler-glib && echo OK
+;; Use this when you return to a note whose PDF is closed.
+;; Splits the window vertically and opens the PDF on the right,
+;; mimicking the behaviour of citar-create-note on first creation.
+
+(defun my/open-bib-pdf-right ()
+  "Open PDF for the current bibliographic note in a right window split."
+  (interactive)
+  (if-let* ((file (buffer-file-name))
+             (keys (citar-denote--retrieve-references file))
+             (key (car keys)))
+      (progn
+        (when (one-window-p) (split-window-right))
+        (other-window 1)
+        (citar-open-files key))
+    (message "No #+reference found in this note")))
+
+;; ============================================================
+;; PDF-TOOLS — native PDF viewer
+;; ============================================================
 
 (use-package pdf-tools
   :ensure t
@@ -90,39 +101,7 @@
             (lambda () (display-line-numbers-mode -1))))
 
 ;; ============================================================
-;; PHASE 3: ORG-NOTER — side-by-side reading + annotation
-;; ============================================================
-
-(use-package org-noter
-  :ensure t
-  :after (org pdf-tools)
-  :custom
-  ;; Search for notes in the pks/ silo
-  (org-noter-notes-search-path
-   (list (expand-file-name "pks/" my-notes-dir)))
-  ;; Do not create a single monolithic notes file — use citar-denote notes
-  (org-noter-default-notes-file-names nil)
-  ;; Always split window vertically (PDF left, notes right)
-  (org-noter-notes-window-location 'vertical-split)
-  ;; Insert precise location on every note
-  (org-noter-always-create-frame nil)
-  (org-noter-insert-note-no-questions t))
-
-;; ============================================================
-;; PHASE 3: ORG-PDFTOOLS — richer annotation + highlight extraction
-;; ============================================================
-
-(use-package org-pdftools
-  :ensure t
-  :after (pdf-tools org-noter)
-  :hook (org-mode . org-pdftools-setup-link))
-
-(use-package org-noter-pdftools
-  :ensure t
-  :after (org-noter org-pdftools))
-
-;; ============================================================
-;; PHASE 3: NOV — ePub reader (for ePub annotations via org-noter)
+;; NOV — ePub reader
 ;; ============================================================
 
 (use-package nov
