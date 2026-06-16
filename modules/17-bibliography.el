@@ -47,7 +47,8 @@
   ;; Use org-cite [cite:@key] format (not @key alone)
   (citar-denote-use-bib-keywords t)
   ;; Better title for new notes from refs
-  (citar-denote-title-format . "author-title")
+  (citar-denote-title-format "author-year-title")
+  (citar-denote-title-format-authors 1)
   :config
   (citar-denote-mode 1))
 

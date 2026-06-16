@@ -23,8 +23,9 @@
     ("u" "Open URL or DOI"              citar-open-links)]]
 
   ["Denote Notes — Bibliographic"
-   [("n" "Open/create note (dwim)"    citar-denote-dwim)
-    ("N" "Open note for ref"          citar-denote-open-note)
+   [("n" "Master book create note"    citar-create-note)
+    ("N" "Open/create note (dwim)"    citar-denote-dwim)
+    ("R" "Open note for ref"          citar-denote-open-note)
     ("A" "Add reference to note"      citar-denote-add-reference)
     ("D" "Remove reference from note" citar-denote-remove-reference)
     ("f" "Find citation in notes"     citar-denote-find-citation)
