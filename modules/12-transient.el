@@ -70,7 +70,8 @@
    ["Workspace"
     ("o" "Notes Dashboard" my/open-notes-dashboard)
     ("x" "Tag statistics" my/notes-explore)
-    ("R" "Random note" denote-explore-random-note)]
+    ("R" "Random note" denote-explore-random-note)
+    ("u" "Zotero/Bib" my/zotero-menu)]
 
    ["Navigation"
     ("q" "Quit" transient-quit-one)
