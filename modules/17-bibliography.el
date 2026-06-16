@@ -43,13 +43,6 @@
 #+year:        %^{year}
 #+language:    %^{langid}
 
-* Streszczenie
-
-* Kluczowe argumenty
-
-* Moje notatki
-
-* Cytaty
 ")))
 
 ;; ============================================================
