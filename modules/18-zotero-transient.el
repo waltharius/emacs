@@ -23,10 +23,11 @@
     ("u" "Open URL or DOI"              citar-open-links)]]
 
   ["Denote Notes — Bibliographic"
-   [("n" "Open note for ref"            citar-denote-open-note)
-    ("N" "Create new note for ref"      citar-denote-create-note)
-    ("r" "Find note by reference"       citar-denote-find-reference)
-    ("b" "Find refs cited in this note" citar-denote-cite-sources)]]
+   [("n" "Open/create note for ref"     citar-denote-dwim)
+    ("N" "Open note for ref"            citar-denote-open-note)
+    ("R" "Refs not in any note"         citar-denote-nocite)
+    ("b" "Keys cited here, not in bib"  citar-denote-nobib)
+    ("r" "Find note by reference"       citar-denote-find-reference)]]
 
   ["PDF Reading — org-noter"
    [("p" "Start org-noter session"      org-noter)
