@@ -9,6 +9,8 @@
 ;; Workflow:
 ;;   1. M-x my/zotero-menu (C-c x) → n  — create note from Zotero ref, PDF opens on the right
 ;;   2. M-x my/zotero-menu (C-c x) → f  — reopen PDF on the right for the current note
+;;   3. M-x my/zotero-menu (C-c x) → R  — insert full bibliography at point
+;;   4. M-x my/zotero-menu (C-c x) → S  — insert short reference (Author, Title, Year) at point
 
 ;;; Code:
 
@@ -64,9 +66,6 @@
 ;; ============================================================
 ;; HELPER: Reopen PDF for current bibliographic note on the right
 ;; ============================================================
-;; Use this when you return to a note whose PDF is closed.
-;; Splits the window vertically and opens the PDF on the right,
-;; mimicking the behaviour of citar-create-note on first creation.
 
 (defun my/open-bib-pdf-right ()
   "Open PDF for the current bibliographic note in a right window split."
@@ -79,6 +78,53 @@
         (other-window 1)
         (citar-open-files key))
     (message "No #+reference found in this note")))
+
+;; ============================================================
+;; HELPER: Insert full bibliography entry at point
+;; ============================================================
+;; Prompts to select a reference, then inserts a formatted
+;; bibliography line at point, e.g.:
+;; Cioran, Emil. /O niedogodności narodzin/. Warszawa: Aletheia, 2021.
+
+(defun my/insert-full-reference ()
+  "Select a reference and insert full bibliography at point."
+  (interactive)
+  (let* ((key (car (citar-select-refs)))
+         (author   (citar-get-value "author" key))
+         (title    (citar-get-value "title" key))
+         (publisher (citar-get-value "publisher" key))
+         (location  (citar-get-value "location" key))
+         (year     (or (citar-get-value "year" key)
+                       (citar-get-value "date" key)))
+         (location-publisher
+          (cond ((and location publisher) (concat location ": " publisher))
+                (publisher publisher)
+                (location location)
+                (t nil)))
+         (ref (concat author ". /" title "/."
+                      (when location-publisher (concat " " location-publisher ","))
+                      (when year (concat " " year))
+                      ".")))
+    (insert ref)))
+
+;; ============================================================
+;; HELPER: Insert short reference (Author, Title, Year) at point
+;; ============================================================
+;; Inserts a compact reference, e.g.:
+;; Cioran, Emil. /O niedogodności narodzin/ (2021).
+
+(defun my/insert-short-reference ()
+  "Select a reference and insert short Author, Title (Year) at point."
+  (interactive)
+  (let* ((key (car (citar-select-refs)))
+         (author (citar-get-value "author" key))
+         (title  (citar-get-value "title" key))
+         (year   (or (citar-get-value "year" key)
+                     (citar-get-value "date" key)))
+         (ref (concat author ". /" title "/"
+                      (when year (concat " (" year ")"))
+                      ".")))
+    (insert ref)))
 
 ;; ============================================================
 ;; PDF-TOOLS — native PDF viewer
