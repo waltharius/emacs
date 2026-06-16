@@ -23,12 +23,23 @@
     ("u" "Open URL or DOI"              citar-open-links)]]
 
   ["Denote Notes — Bibliographic"
-   [("n" "Open/create note for ref"     citar-denote-dwim)
-    ("N" "Open note for ref"            citar-denote-open-note)
-    ("R" "Refs not in any note"         citar-denote-nocite)
-    ("b" "Keys cited here, not in bib"  citar-denote-nobib)
-    ("r" "Find note by reference"       citar-denote-find-reference)]]
+   [("n" "Open/create note (dwim)"    citar-denote-dwim)
+    ("N" "Open note for ref"          citar-denote-open-note)
+    ("A" "Add reference to note"      citar-denote-add-reference)
+    ("D" "Remove reference from note" citar-denote-remove-reference)
+    ("f" "Find citation in notes"     citar-denote-find-citation)
+    ("F" "Find notes citing this ref" citar-denote-find-reference)
+    ("u" "Uncited entries"            citar-denote-nocite)
+    ("b" "Dead citekeys check"        citar-denote-nobib)]]
 
+  ["Citar"
+   [("o" "Open ref (files/notes/links)" citar-open)
+    ("e" "Open BibTeX entry"            citar-open-entry)
+    ("p" "Open PDF/file"                citar-open-files)
+    ("l" "Open DOI/URL"                 citar-open-links)
+    ("c" "Insert citation"              citar-insert-citation)
+    ("r" "Copy reference"               citar-copy-reference)]]
+  
   ["PDF Reading — org-noter"
    [("p" "Start org-noter session"      org-noter)
     ("I" "Insert precise note (in noter)" org-noter-insert-precise-note :transient t)
