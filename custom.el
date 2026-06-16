@@ -4,8 +4,6 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(column-number-mode t)
- '(display-line-numbers-type 'relative)
- '(global-display-line-numbers-mode t)
  '(package-selected-packages nil)
  '(recentf-filename-handlers '(abbreviate-file-name))
  '(safe-local-variable-values

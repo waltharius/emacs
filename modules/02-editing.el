@@ -20,16 +20,11 @@
 ;; ============================================================
 ;; LINE NUMBERS
 ;; ============================================================
+;; LINE NUMBERS — only in programming and config files
 
-(global-display-line-numbers-mode t)
-(setq display-line-numbers-type 'relative)  ; or 'absolute or t
-
-;; Disable in certain modes
-(dolist (mode '(org-mode-hook
-                term-mode-hook
-                shell-mode-hook
-                eshell-mode-hook))
-  (add-hook mode (lambda () (display-line-numbers-mode 0))))
+(setq display-line-numbers-type 'relative)
+(add-hook 'prog-mode-hook #'display-line-numbers-mode)
+(add-hook 'conf-mode-hook #'display-line-numbers-mode)
 
 ;; ============================================================
 ;; HIGHLIGHT CURRENT LINE
