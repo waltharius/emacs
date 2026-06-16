@@ -39,11 +39,16 @@
 (with-eval-after-load 'denote
   (add-to-list 'denote-templates
                '(biblio . "#+entry-type:  %^{=type=}
+#+citekey:     %^{=key=}                        
 #+authors:     %^{author}
 #+translator:  %^{translator}
 #+publisher:   %^{publisher}
 #+year:        %^{year}
 #+language:    %^{langid}
+
+:PROPERTIES:
+:NOTER_DOCUMENT: %^{file}
+:END:
 
 ")))
 
