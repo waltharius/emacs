@@ -75,14 +75,15 @@
   :ensure nil
   :init
   (setq desktop-dirname             "~/.emacs.d/desktop/"
-        desktop-base-file-name      "refactor-desktop"
-        desktop-base-lock-name      "refactor-desktop.lock"
+        desktop-base-file-name      "desktop"
+        desktop-base-lock-name      "desktop.lock"
         desktop-path               (list desktop-dirname)
         desktop-save               t
         desktop-load-locked-desktop t)
   :config
   (unless (file-exists-p desktop-dirname)
     (make-directory desktop-dirname t))
+  (add-to-list 'desktop-modes-not-to-save 'pdf-view-mode)
   (desktop-save-mode 1))
 
 ;; Don't save temporary/auxiliary files

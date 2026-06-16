@@ -14,7 +14,7 @@
 (add-hook 'after-init-hook
           (lambda ()
             (setq gc-cons-threshold (* 16 1024 1024))
-            (message "✨ Emacs ready (refactor-clean)!")))
+            (message "✨ Emacs ready (Main)!")))
 
 ;; ============================================================
 ;; WINDOW TITLE: Identify this is refactor branch
