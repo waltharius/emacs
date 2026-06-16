@@ -45,12 +45,6 @@
     ("I" "Insert precise note (in noter)" org-noter-insert-precise-note :transient t)
     ("s" "Sync scroll position"         org-noter-sync-current-note :transient t)]]
 
-  ["Bibliography File"
-   [("e" "Open refs.bib directly"
-     (lambda () (interactive)
-       (find-file "~/notes/refs.bib")))
-    ("R" "Refresh citar cache"          citar-refresh)]]
-
   [("q" "Quit"  transient-quit-one)])
 
 ;; ============================================================
