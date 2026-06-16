@@ -31,18 +31,17 @@
 ;; ============================================================
 ;; DENOTE TEMPLATE: Bibliographic note front matter
 ;; ============================================================
+;; Note: #+reference is added automatically by citar-denote — do not duplicate it here.
+;; Fields that do not expand (origdate, pagetotal) are omitted — add manually if needed.
 
 (with-eval-after-load 'denote
   (add-to-list 'denote-templates
                '(biblio . "#+entry-type:  %^{=type=}
-#+citekey:     %^{=key=}
 #+authors:     %^{author}
 #+translator:  %^{translator}
 #+publisher:   %^{publisher}
-#+year:        %^{date}
-#+origdate:    %^{origdate}
+#+year:        %^{year}
 #+language:    %^{langid}
-#+pages:       %^{pagetotal}
 
 * Streszczenie
 
