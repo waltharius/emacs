@@ -33,6 +33,21 @@
   (setq org-cite-activate-processor 'citar))
 
 ;; ============================================================
+;; DENOTE TEMPLATE: Bibliographic note structure
+;; ============================================================
+
+(with-eval-after-load 'denote
+  (add-to-list 'denote-templates
+               '(biblio . "#+entry-type:  %^{=type=}
+#+authors:     %^{author}
+#+translator:  %^{translator}
+#+publisher:   %^{publisher}
+#+year:        %^{year}
+#+language:    %^{langid}
+
+")))
+
+;; ============================================================
 ;; PHASE 1: CITAR-DENOTE — bridge citar into Denote
 ;; ============================================================
 
@@ -49,6 +64,7 @@
   ;; Better title for new notes from refs
   (citar-denote-title-format "author-year-title")
   (citar-denote-title-format-authors 1)
+  (citar-denote-template 'biblio)
   :config
   (citar-denote-mode 1))
 
