@@ -65,7 +65,8 @@
   :magic ("%PDF" . pdf-view-mode)
   :config
   ;; Install silently on first load if epdfinfo is not yet compiled
-  (pdf-tools-install :no-query)
+  (pdf-tools-install :no-query))
+
 ;; ============================================================
 ;; PHASE 3: ORG-NOTER — side-by-side reading + annotation
 ;; ============================================================
