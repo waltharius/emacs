@@ -392,10 +392,19 @@
         (save-buffer))
 
       ;; --- Open new note to the right, move cursor there ---
-      (let ((new-window (split-window-right)))
-        (select-window new-window)
-        (find-file new-file)
-        (goto-char (point-max)))
+      (let ((source-window (get-buffer-window source-buffer))
+          (new-buffer    (find-file-noselect new-file)))
+      (if source-window
+          ;; Źródłowe okno jest widoczne — podziel je i pokaż nową notatkę po prawej
+          (progn
+            (select-window source-window)
+            (let ((new-window (split-window-right)))
+              (select-window new-window)
+              (switch-to-buffer new-buffer)
+              (goto-char (point-max))))
+        ;; Źródłowe okno nie jest widoczne — po prostu otwórz nową notatkę
+        (switch-to-buffer new-buffer)
+        (goto-char (point-max))))
 
       (message "Linked note created: %s ← → %s" source-title new-title))))
 
