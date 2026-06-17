@@ -120,7 +120,7 @@
           (insert ":PROPERTIES:\n")
           (insert (format ":ADDED_AT:   [%s]\n" added-at-stamp))
           (insert (format ":EVENT_DATE: [%s]\n" date-formatted))
-          (insert ":END:\n")
+          (insert ":END:\n\n")
           (message "Opened existing journal for %s - cursor below '* Uzupełnienie'"
                    date-formatted))
 
