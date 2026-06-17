@@ -190,6 +190,14 @@
 ;; MISC IMPROVEMENTS
 ;; ============================================================
 
+(defun my/unfill-region (beg end)
+  "Join lines in region, replacing hard newlines with spaces."
+  (interactive "r")
+  (let ((fill-column most-positive-fixnum))
+    (fill-region beg end)))
+
+(global-set-key (kbd "M-Q") 'my/unfill-region)
+
 (setq visible-bell t)                ; Flash instead of beep
 (setq echo-keystrokes 0.1)           ; Show keystrokes immediately
 (setq undo-limit 80000000)           ; Large undo limit
