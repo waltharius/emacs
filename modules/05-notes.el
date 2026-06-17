@@ -285,5 +285,119 @@
               my-fleeting-file
               my-journal-captures)))
 
+;; ============================================================
+;; LINKED NOTE: Create new note with backlink to source
+;; ============================================================
+
+(defun my/denote-linked-note ()
+  "Create a new note linked to the current .org buffer.
+
+  From source note:
+  - Inserts a forward link [[denote:ID][Title]] at point.
+
+  In new note:
+  - Adds :BACKLINK: property pointing back to the source.
+  - Opens in a window to the right, cursor moves there.
+
+  Only works when called from a Denote .org file with #+identifier."
+  (interactive)
+
+  ;; --- Guard: must be called from an .org file ---
+  (unless (and (buffer-file-name)
+               (string-suffix-p ".org" (buffer-file-name)))
+    (user-error "Not an .org file — aborting"))
+
+  ;; --- Collect source note data ---
+  (let* ((source-buffer (current-buffer))
+         (source-file   (buffer-file-name))
+
+         ;; Extract #+identifier from source file
+         (source-id
+          (save-excursion
+            (goto-char (point-min))
+            (if (re-search-forward "^#\\+identifier:[ \t]+\\([0-9A-Za-z]+\\)" nil t)
+                (match-string-no-properties 1)
+              nil)))
+
+         ;; Extract #+title from source file
+         (source-title
+          (save-excursion
+            (goto-char (point-min))
+            (if (re-search-forward "^#\\+title:[ \t]+\\(.+\\)" nil t)
+                (string-trim (match-string-no-properties 1))
+              (file-name-nondirectory source-file)))))
+
+    ;; --- Guard: source must have a Denote identifier ---
+    (unless source-id
+      (user-error "Source file has no #+identifier — not a Denote note?"))
+
+    ;; --- Ask for new note parameters ---
+    (let* ((new-title
+            (read-string "New note title: "))
+           (keywords-string
+            (read-string "Tags (space-separated): "))
+           (keywords
+            (if (string-empty-p keywords-string)
+                nil
+              (split-string keywords-string " " t)))
+           (silo
+            (completing-read "Save in: "
+                             '("pks" "docu" "journal")
+                             nil t "pks"))
+           (target-dir
+            (cond
+             ((string= silo "journal") my-notes-journal)
+             ((string= silo "docu")   my-notes-docu)
+             (t                        my-notes-pks)))
+
+           ;; --- Create the new note via Denote ---
+           (new-file
+            (let ((denote-directory target-dir))
+              (denote new-title keywords)
+              (buffer-file-name)))
+
+           ;; --- Extract new note's ID from its filename ---
+           (new-id
+            (if (string-match "\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)" new-file)
+                (match-string 1 new-file)
+              nil)))
+
+      ;; --- Guard: new note ID extraction must succeed ---
+      (unless new-id
+        (user-error "Could not extract ID from new note filename: %s" new-file))
+
+      ;; --- In new note: add :BACKLINK: property to file-level PROPERTIES ---
+      (with-current-buffer (find-file-noselect new-file)
+        (save-excursion
+          (goto-char (point-min))
+          ;; Find or create the file-level :PROPERTIES: drawer
+          (if (re-search-forward "^:PROPERTIES:" nil t)
+              ;; Drawer exists — insert before :END:
+              (progn
+                (re-search-forward "^:END:" nil t)
+                (beginning-of-line)
+                (insert (format ":BACKLINK:   [[denote:%s][%s]]\n"
+                                source-id source-title)))
+            ;; No drawer yet — insert after last #+keyword line
+            (goto-char (point-min))
+            (while (looking-at "^#\\+")
+              (forward-line 1))
+            (insert (format ":PROPERTIES:\n:BACKLINK:   [[denote:%s][%s]]\n:END:\n\n"
+                            source-id source-title))))
+        (save-buffer))
+
+      ;; --- In source note: insert forward link at original cursor position ---
+      (with-current-buffer source-buffer
+        (insert (format "[[denote:%s][%s]]" new-id new-title))
+        (save-buffer))
+
+      ;; --- Open new note to the right, move cursor there ---
+      (let ((new-window (split-window-right)))
+        (select-window new-window)
+        (find-file new-file)
+        (goto-char (point-max)))
+
+      (message "Linked note created: %s ← → %s" source-title new-title))))
+
 (provide '05-notes)
 ;;; 05-notes.el ends here
