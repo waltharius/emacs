@@ -4,7 +4,16 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(column-number-mode t)
- '(package-selected-packages nil)
+ '(package-selected-packages
+   '(all-the-icons citar-denote consult-denote dashboard denote-explore
+                   dired-sidebar flycheck-package flyspell-correct-ivy
+                   gnuplot highlight-parentheses htmlize keyfreq
+                   langtool magit marginalia modus-themes nov
+                   orderless org-appear org-bullets org-journal
+                   org-kanban org-noter-pdftools org-roam-ui
+                   org-super-agenda org-superstar org-transclusion
+                   ox-hugo rainbow-delimiters undo-tree vertico
+                   writeroom-mode yasnippet-snippets))
  '(recentf-filename-handlers '(abbreviate-file-name))
  '(safe-local-variable-values
    '((eval progn (visual-fill-column-mode -1)
