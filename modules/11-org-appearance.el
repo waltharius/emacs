@@ -41,6 +41,8 @@
    '(org-level-7 ((t (:height 1.0))))
    '(org-level-8 ((t (:height 1.0))))
 
+   '(org-link ((t (:foreground "#555555" :underline nil :weight normal))))
+
       ;; SCHEDULED line: small, grey, unobtrusive
    '(org-scheduled ((t (:height 0.8 :foreground "#777777"))))
    ;; DEADLINE line: small, slightly warm red so it's visible but not loud
@@ -63,7 +65,7 @@
   (set-face-attribute 'org-special-keyword nil :inherit 'fixed-pitch)
   (set-face-attribute 'org-meta-line nil :inherit 'fixed-pitch)
   (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-link nil :inherit 'fixed-pitch))
+  ;;(set-face-attribute 'org-link nil :inherit 'fixed-pitch))
 
 ;; ============================================================
 ;; VISUAL IMPROVEMENTS

@@ -33,4 +33,4 @@
  '(org-level-8 ((t (:height 1.0))))
  '(org-quote ((t (:background "#f9f9f9" :slant italic :foreground "#555555"))))
  '(org-scheduled ((t (:height 0.8 :foreground "#777777"))))
- '(org-special-keyword ((t (:height 0.75 :foreground "#666666" :inherit fixed-pitch)))))
+ '(org-special-keyword ((t (:inherit fixed-pitch :height 1.0)))))
