@@ -308,7 +308,8 @@
     (user-error "Not an .org file — aborting"))
 
   ;; --- Collect source note data ---
-  (let* ((source-buffer (current-buffer))
+  (let* ((source-window (selected-window))   ; zapisz PRZED wywołaniem denote
+         (source-buffer (current-buffer))
          (source-file   (buffer-file-name))
 
          ;; Extract #+identifier from source file
@@ -351,6 +352,8 @@
              (t                        my-notes-pks)))
 
            ;; --- Create the new note via Denote ---
+           ;; denote switches the active buffer/window here,
+           ;; that is why source-window was saved before this let*
            (new-file
             (let ((denote-directory target-dir))
               (denote new-title keywords)
@@ -370,15 +373,12 @@
       (with-current-buffer (find-file-noselect new-file)
         (save-excursion
           (goto-char (point-min))
-          ;; Find or create the file-level :PROPERTIES: drawer
           (if (re-search-forward "^:PROPERTIES:" nil t)
-              ;; Drawer exists — insert before :END:
               (progn
                 (re-search-forward "^:END:" nil t)
                 (beginning-of-line)
                 (insert (format ":BACKLINK:   [[denote:%s][%s]]\n"
                                 source-id source-title)))
-            ;; No drawer yet — insert after last #+keyword line
             (goto-char (point-min))
             (while (looking-at "^#\\+")
               (forward-line 1))
@@ -391,20 +391,12 @@
         (insert (format "[[denote:%s][%s]]" new-id new-title))
         (save-buffer))
 
-      ;; --- Open new note to the right, move cursor there ---
-      (let ((source-window (get-buffer-window source-buffer))
-          (new-buffer    (find-file-noselect new-file)))
-      (if source-window
-          ;; Źródłowe okno jest widoczne — podziel je i pokaż nową notatkę po prawej
-          (progn
-            (select-window source-window)
-            (let ((new-window (split-window-right)))
-              (select-window new-window)
-              (switch-to-buffer new-buffer)
-              (goto-char (point-max))))
-        ;; Źródłowe okno nie jest widoczne — po prostu otwórz nową notatkę
-        (switch-to-buffer new-buffer)
-        (goto-char (point-max))))
+      ;; --- Split source window and show new note on the right ---
+      (select-window source-window)
+      (let ((new-window (split-window-right)))
+        (select-window new-window)
+        (switch-to-buffer (find-file-noselect new-file))
+        (goto-char (point-max)))
 
       (message "Linked note created: %s ← → %s" source-title new-title))))
 
