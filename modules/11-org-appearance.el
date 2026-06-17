@@ -41,14 +41,14 @@
    '(org-level-7 ((t (:height 1.0))))
    '(org-level-8 ((t (:height 1.0))))
 
-   '(org-link ((t (:foreground "#555555" :underline nil :weight normal))))
+   ;;'(org-link ((t (:foreground "#555555" :underline nil :weight normal))))
 
       ;; SCHEDULED line: small, grey, unobtrusive
    '(org-scheduled ((t (:height 0.8 :foreground "#777777"))))
    ;; DEADLINE line: small, slightly warm red so it's visible but not loud
    '(org-deadline-announce ((t (:height 0.8 :foreground "#aa5555"))))
    ;; The actual timestamp text inside <...>
-   '(org-date ((t (:height 0.8 :foreground "#888888" :underline nil))))
+   ;;'(org-date ((t (:height 0.8 :foreground "#888888" :underline nil))))
    ;; The keyword words "SCHEDULED:" and "DEADLINE:" themselves
    '(org-special-keyword ((t (:height 0.75 :foreground "#666666" :inherit fixed-pitch))))))
 
