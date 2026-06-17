@@ -308,11 +308,9 @@
     (user-error "Not an .org file — aborting"))
 
   ;; --- Collect source note data ---
-  (let* ((source-window (selected-window))   ; zapisz PRZED wywołaniem denote
-         (source-buffer (current-buffer))
+  (let* ((source-buffer (current-buffer))
          (source-file   (buffer-file-name))
 
-         ;; Extract #+identifier from source file
          (source-id
           (save-excursion
             (goto-char (point-min))
@@ -320,7 +318,6 @@
                 (match-string-no-properties 1)
               nil)))
 
-         ;; Extract #+title from source file
          (source-title
           (save-excursion
             (goto-char (point-min))
@@ -328,48 +325,40 @@
                 (string-trim (match-string-no-properties 1))
               (file-name-nondirectory source-file)))))
 
-    ;; --- Guard: source must have a Denote identifier ---
     (unless source-id
       (user-error "Source file has no #+identifier — not a Denote note?"))
 
-    ;; --- Ask for new note parameters ---
-    (let* ((new-title
-            (read-string "New note title: "))
-           (keywords-string
-            (read-string "Tags (space-separated): "))
-           (keywords
-            (if (string-empty-p keywords-string)
-                nil
-              (split-string keywords-string " " t)))
-           (silo
-            (completing-read "Save in: "
-                             '("pks" "docu" "journal")
-                             nil t "pks"))
-           (target-dir
-            (cond
-             ((string= silo "journal") my-notes-journal)
-             ((string= silo "docu")   my-notes-docu)
-             (t                        my-notes-pks)))
+    ;; --- Ask for parameters BEFORE touching windows ---
+    (let* ((new-title       (read-string "New note title: "))
+           (keywords-string (read-string "Tags (space-separated): "))
+           (keywords        (if (string-empty-p keywords-string)
+                                nil
+                              (split-string keywords-string " " t)))
+           (silo            (completing-read "Save in: "
+                                            '("pks" "docu" "journal")
+                                            nil t "pks"))
+           (target-dir      (cond
+                             ((string= silo "journal") my-notes-journal)
+                             ((string= silo "docu")   my-notes-docu)
+                             (t                        my-notes-pks)))
 
-           ;; --- Create the new note via Denote ---
-           ;; denote switches the active buffer/window here,
-           ;; that is why source-window was saved before this let*
+           ;; --- Create note inside save-window-excursion so Denote
+           ;;     cannot change the window layout ---
            (new-file
-            (let ((denote-directory target-dir))
-              (denote new-title keywords)
+            (save-window-excursion
+              (let ((denote-directory target-dir))
+                (denote new-title keywords))
               (buffer-file-name)))
 
-           ;; --- Extract new note's ID from its filename ---
            (new-id
             (if (string-match "\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)" new-file)
                 (match-string 1 new-file)
               nil)))
 
-      ;; --- Guard: new note ID extraction must succeed ---
       (unless new-id
         (user-error "Could not extract ID from new note filename: %s" new-file))
 
-      ;; --- In new note: add :BACKLINK: property to file-level PROPERTIES ---
+      ;; --- Backlink in new note ---
       (with-current-buffer (find-file-noselect new-file)
         (save-excursion
           (goto-char (point-min))
@@ -386,16 +375,17 @@
                             source-id source-title))))
         (save-buffer))
 
-      ;; --- In source note: insert forward link at original cursor position ---
+      ;; --- Forward link in source note ---
       (with-current-buffer source-buffer
         (insert (format "[[denote:%s][%s]]" new-id new-title))
         (save-buffer))
 
-      ;; --- Split source window and show new note on the right ---
-      (select-window source-window)
+      ;; --- Layout: source on left, new note on right ---
+      ;; At this point current-buffer is source-buffer (save-window-excursion
+      ;; restored the window layout), so split-window-right splits it correctly.
       (let ((new-window (split-window-right)))
         (select-window new-window)
-        (switch-to-buffer (find-file-noselect new-file))
+        (find-file new-file)
         (goto-char (point-max)))
 
       (message "Linked note created: %s ← → %s" source-title new-title))))
