@@ -82,20 +82,18 @@
 
   Behaviour:
   - If a journal for the chosen date already exists: open it, append
-    a heading '* Uzupelnienie DD.MM.YYYY HH:MM' (actual current time)
+    a heading '* Uzupełnienie' with ADDED_AT and EVENT_DATE properties
     at the bottom and place the cursor there - ready to write.
   - If no journal exists for that date: create a new file.
     The denote identifier uses T000000 (zeroed time) to signal that
-    the file was created retroactively.  The first heading is also
-    '* Uzupelnienie DD.MM.YYYY HH:MM' with the real current time."
+    the file was created retroactively. The first heading is also
+    '* Uzupełnienie' with properties."
   (interactive)
   (let* ((date-input    (org-read-date nil nil nil "Date: "))
          (parsed-time   (org-parse-time-string date-input))
          (encoded-time  (apply 'encode-time parsed-time))
          (date-formatted (format-time-string "%Y-%m-%d" encoded-time))
-         ;; Actual wall-clock moment - used in headings so every
-         ;; supplement is traceable regardless of the chosen date.
-         (now-stamp     (format-time-string "%d.%m.%Y %H:%M"))
+         (added-at-stamp (format-time-string "%Y-%m-%d %a %H:%M"))
          (journal-pattern (concat "--" date-formatted "-journal"))
          (existing-journal nil))
 
@@ -118,9 +116,13 @@
             (delete-region (point) (point-max)))
 
           (goto-char (point-max))
-          (insert (format "\n\n* Uzupełnienie %s\n" now-stamp))
-          (message "Opened existing journal for %s - cursor below '* Uzupelnienie %s'"
-                   date-formatted now-stamp))
+          (insert "\n\n* Uzupełnienie\n")
+          (insert ":PROPERTIES:\n")
+          (insert (format ":ADDED_AT:   [%s]\n" added-at-stamp))
+          (insert (format ":EVENT_DATE: [%s]\n" date-formatted))
+          (insert ":END:\n")
+          (message "Opened existing journal for %s - cursor below '* Uzupełnienie'"
+                   date-formatted))
 
       ;; --------------------------------------------------------
       ;; No journal for that date - create a fresh backdated file
@@ -140,11 +142,15 @@
         (insert ":PROPERTIES:\n")
         (insert ":well-being:  \n")
         (insert ":END:\n\n")
-        ;; First heading carries the real creation timestamp
-        (insert (format "* Uzupełnienie %s\n" now-stamp))
+        ;; First heading carries the real creation timestamp in properties
+        (insert "* Uzupełnienie\n")
+        (insert ":PROPERTIES:\n")
+        (insert (format ":ADDED_AT:   [%s]\n" added-at-stamp))
+        (insert (format ":EVENT_DATE: [%s]\n" date-formatted))
+        (insert ":END:\n")
         (save-buffer)
         (message "Created backdated journal for %s (written %s)"
-                 date-formatted now-stamp)))))
+                 date-formatted added-at-stamp)))))
 
 ;; ============================================================
 ;; BASE NOTE: Simple note with title and tags
