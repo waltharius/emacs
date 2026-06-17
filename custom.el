@@ -18,10 +18,11 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(denote-faces-date ((t (:foreground "dark magenta"))))
  '(org-block ((t (:background "#fef8e0" :extend t :family "Georgia"))))
  '(org-block-begin-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9))))
  '(org-block-end-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9))))
- '(org-date ((t (:height 0.8 :foreground "#888888" :underline nil))))
+ '(org-date ((t (:inherit modus-themes-fixed-pitch :foreground "firebrick" :underline nil :height 1.0))))
  '(org-deadline-announce ((t (:height 0.8 :foreground "#aa5555"))))
  '(org-level-1 ((t (:height 1.3 :weight bold))))
  '(org-level-2 ((t (:height 1.2 :weight bold))))
@@ -31,6 +32,8 @@
  '(org-level-6 ((t (:height 1.0))))
  '(org-level-7 ((t (:height 1.0))))
  '(org-level-8 ((t (:height 1.0))))
+ '(org-link ((t (:foreground "#555555" :underline nil :weight normal))))
+ '(org-property-value ((t (:inherit modus-themes-fixed-pitch :foreground "dark violet"))))
  '(org-quote ((t (:background "#f9f9f9" :slant italic :foreground "#555555"))))
  '(org-scheduled ((t (:height 0.8 :foreground "#777777"))))
- '(org-special-keyword ((t (:inherit fixed-pitch :height 1.0)))))
+ '(org-special-keyword ((t (:height 0.75 :foreground "#666666" :inherit fixed-pitch)))))
