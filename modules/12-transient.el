@@ -32,7 +32,8 @@
    
    ["Linking"
     ("i" "Insert link" denote-link)
-    ("B" "Backlinks" denote-backlinks)]]
+    ("B" "Backlinks" denote-backlinks)
+    ("L" "Linked note" my/denote-linked-note)]]
   
   ["File Management & Tools"
    ["File Management"
