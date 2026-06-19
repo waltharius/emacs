@@ -122,6 +122,30 @@
       (message "✅ Indentation ON - Visual hierarchy enabled"))))
 
 ;; ============================================================
+;; TOGGLE EMPHASIS MARKERS (C-c n E)
+;; ============================================================
+
+(defun my/toggle-emphasis-markers ()
+  "Toggle visibility of Org-mode emphasis markers (*bold*, /italic/, etc.).
+
+When markers are HIDDEN (default): text looks pretty, markers invisible.
+When markers are VISIBLE: raw syntax shown, useful for debugging extra
+asterisks or mismatched markers.
+
+Note: this changes org-hide-emphasis-markers globally (all org buffers).
+Toggle: C-c n E  (in notes transient menu)"
+  (interactive)
+  (if org-hide-emphasis-markers
+      (progn
+        (setq org-hide-emphasis-markers nil)
+        (font-lock-fontify-buffer)
+        (message "👁 Markers VISIBLE - raw syntax: *bold* /italic/ _under_"))
+    (progn
+      (setq org-hide-emphasis-markers t)
+      (font-lock-fontify-buffer)
+      (message "✨ Markers HIDDEN - pretty rendering active"))))
+
+;; ============================================================
 ;; HOW IT LOOKS
 ;; ============================================================
 ;;
@@ -145,6 +169,11 @@
 ;; - Toggle: C-c n I (available in transient menu)
 ;; - Use when: You want visual hierarchy in new notes
 ;; - Emacs remembers your choice per-file automatically
+;;
+;; EMPHASIS MARKERS:
+;; - Default: HIDDEN (org-hide-emphasis-markers = t)
+;; - Toggle: C-c n E (available in transient menu)
+;; - Use when: Debugging extra asterisks or markup errors
 
 (provide '11-org-appearance)
 ;;; 11-org-appearance.el ends here
