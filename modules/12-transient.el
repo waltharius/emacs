@@ -57,9 +57,10 @@
     ("T" "Toggle spellcheck" my/toggle-flyspell)]
    
    ["Toggle View"
-    ("y" "Center text" my/toggle-visual-fill-column-center)
-    ("W" "Writing mode" my/toggle-writeroom)
-    ("I" "Indent headings" my/toggle-org-indent)]]
+    ("y" "Center text"      my/toggle-visual-fill-column-center)
+    ("W" "Writing mode"     my/toggle-writeroom)
+    ("I" "Indent headings"  my/toggle-org-indent)
+    ("E" "Emphasis markers" my/toggle-emphasis-markers)]]
   
   ["Analytics & Navigation"
    ["Typing Analytics"
