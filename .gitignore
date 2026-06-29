@@ -110,6 +110,14 @@ Thumbs.db
 tutorial/
 
 # ============================================================
+# SESSION COOKIES AND AUTHENTICATION TOKENS
+# ============================================================
+
+# curl/request.el cookie jar (may contain session tokens!)
+request/curl-cookie-jar
+curl-cookie-jar
+
+# ============================================================
 # KEEP ONLY CONFIGURATION FILES
 # ============================================================
 # Everything above is ignored, but these are explicitly tracked:
