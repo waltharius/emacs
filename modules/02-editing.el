@@ -157,15 +157,15 @@
 (global-set-key (kbd "C-x C-b") 'ibuffer)
 
 ;; IDO mode for fuzzy matching
-(use-package ido
-  :ensure nil
-  :init
-  (ido-mode t)
-  :config
-  (setq ido-enable-flex-matching t)
-  (setq ido-everywhere t)
-  (setq ido-create-new-buffer 'always))
-
+;;(use-package ido
+;;  :ensure nil
+;;  :init
+;;  (ido-mode t)
+;;  :config
+;;  (setq ido-enable-flex-matching t)
+;;  (setq ido-everywhere t)
+;;  (setq ido-create-new-buffer 'always))
+;;
 ;; ============================================================
 ;; UNIQUIFY: Better duplicate buffer names
 ;; ============================================================
