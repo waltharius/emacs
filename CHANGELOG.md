@@ -7,6 +7,102 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-06-30 — Performance & Warning Cleanup (Session 2)
+
+### Context
+
+After the Quality Control pass (Session 1), three remaining issues were
+addressed: runaway desktop file growth causing slow startups, a spurious
+face warning on every startup, and a fragile load-order dependency for
+`custom.el`.
+
+---
+
+### E — `modules/01-ui.el` — Desktop buffer trimming
+**Commits:** `6d5e829`, `59da4c4`
+
+#### What changed
+
+Added `my/desktop-trim-buffers`, a function registered on
+`desktop-save-hook`. Before every desktop save it:
+
+1. Collects all file-visiting buffers eligible for desktop-save
+   (respecting `desktop-modes-not-to-save` and `desktop-files-not-to-save`).
+2. Sorts them by file mtime — newest first.
+3. Kills every buffer beyond position 100 in that list.
+
+This prevents the desktop file from growing indefinitely. With 400+
+buffers previously persisted, startup was spending significant time
+just reading and locking the desktop file. After the fix: 2 buffers
+restored on first clean run, startup time stable at ~2.3 s.
+
+The trimming integrates into the existing 3-layer strategy:
+
+| Layer | Mechanism | Effect |
+|---|---|---|
+| Trim | `desktop-save-hook` → kill old buffers | Desktop file stays ≤ 100 entries |
+| Eager | `desktop-restore-eager = 10` | UI appears after ~2 s regardless of list size |
+| Lazy | Background idle restore | Remaining buffers load without blocking |
+
+Also removed a duplicate `custom-set-faces` block for `org-quote`,
+`org-block`, `org-block-begin-line`, `org-block-end-line` that had
+been left in `01-ui.el` — `custom.el` is the authoritative source
+for all Customize-managed face definitions (see F below).
+
+#### How to reset on first use
+
+After `git pull`, delete the old oversized desktop file so the trim
+takes effect immediately:
+```bash
+rm ~/.emacs.d/desktop/desktop
+emacs
+```
+
+---
+
+### F — `init.el` + `modules/03b-fonts.el` — `org-quote` face warning
+**Commits:** `0f205c5`, `7a815e3`
+
+#### What changed
+
+**Root cause:** `03b-fonts.el` called:
+```elisp
+(set-face-attribute 'org-quote nil
+                    :family "Georgia"
+                    :slant 'italic
+                    :height 1.1
+                    :foreground nil)   ; ← invalid
+```
+`nil` is not a valid face attribute value when passed explicitly to
+`set-face-attribute`. Emacs requires `'unspecified` to mean "do not
+set this attribute; inherit from parent". This produced on every
+startup:
+```
+Warning: setting attribute ':foreground' of face 'org-quote':
+nil value is invalid, use 'unspecified' instead. [2 times]
+```
+The `[2 times]` came from two separate `with-eval-after-load 'org`
+blocks in the same file, both firing when org first loaded.
+
+**Fixes applied:**
+
+1. `03b-fonts.el`: changed `:foreground nil` → `:foreground 'unspecified`;
+   merged the two `with-eval-after-load 'org` blocks into one.
+
+2. `init.el`: moved `(load custom-file)` to the **top** of init, before
+   all modules. Previously `custom.el` loaded last, meaning org's
+   built-in default face (which has no `:foreground`) was applied first
+   and only overridden after all modules had loaded. Loading `custom.el`
+   early ensures Customize face definitions are in place before any
+   package triggers org to load.
+
+#### Rule added (see L8 below)
+
+Never pass `nil` as an explicit face attribute value. Use `'unspecified`
+when you want an attribute to be inherited rather than set.
+
+---
+
 ## Session 2026-06-30 — Quality Control Pass (Paczki B1, C, D)
 
 ### Context
@@ -185,6 +281,24 @@ concern"), say so explicitly. It prevents future editors (including
 yourself six months later) from "fixing" working code because the
 rationale was invisible.
 
+### L8 — Use `'unspecified` not `nil` for face attributes
+
+When calling `set-face-attribute` and you want an attribute to be
+inherited from the parent face rather than explicitly set, always use
+`'unspecified` — never `nil`. Passing `nil` explicitly is invalid and
+generates a warning on every startup. `nil` as a *default* in
+`defface` is different — there it means "attribute not specified in
+this spec" — but in a direct `set-face-attribute` call the value is
+always passed through and `nil` is rejected.
+
+```elisp
+;; Wrong — generates warning
+(set-face-attribute 'org-quote nil :foreground nil)
+
+;; Correct — inherits foreground from parent face
+(set-face-attribute 'org-quote nil :foreground 'unspecified)
+```
+
 ---
 
 ## File Ownership Map (current)
@@ -210,6 +324,7 @@ rationale was invisible.
 | Org export (PDF, HTML, LaTeX) | `16-org-export.el` |
 | Bibliography (Citar, BibTeX) | `17-bibliography.el` |
 | Zotero transient menu | `18-zotero-transient.el` |
+| **Custom file load order, startup perf** | **`init.el`** |
 
 **Before adding a new feature:** find the owning file in this table and
 add the code there. If no file owns the concern yet, create a new
