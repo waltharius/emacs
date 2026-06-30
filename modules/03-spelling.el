@@ -1,6 +1,6 @@
 ;;; 03-spelling.el --- Spell checking configuration -*- lexical-binding: t; -*-
 ;;
-;; Description: Hunspell (pl_PL + en_GB UTF-8) for spelling
+;; Description: Hunspell (pl_PL + en_GB-large UTF-8) for spelling
 ;;              Flyspell for highlighting errors AS YOU TYPE
 ;;
 ;; STARTUP BEHAVIOUR
@@ -20,7 +20,7 @@
 ;; ============================================================
 
 (setq ispell-program-name "hunspell")
-(setq ispell-dictionary "pl_PL,en_GB")
+(setq ispell-dictionary "pl_PL,en_GB-large")
 (setq ispell-personal-dictionary (expand-file-name "~/.hunspell_personal"))
 (setenv  "HUNSPELL_PERSONAL" ispell-personal-dictionary)
 (setenv  "LANG"   "pl_PL.UTF-8")
@@ -30,10 +30,10 @@
 (setq ispell-hunspell-dictionary-alist
       '(("pl_PL" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
          ("-d" "pl_PL" "-i" "utf-8") nil utf-8)
-        ("en_GB" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
-         ("-d" "en_GB" "-i" "utf-8") nil utf-8)
-        ("pl_PL,en_GB" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
-         ("-d" "pl_PL,en_GB" "-i" "utf-8") nil utf-8)))
+        ("en_GB-large" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
+         ("-d" "en_GB-large" "-i" "utf-8") nil utf-8)
+        ("pl_PL,en_GB-large" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
+         ("-d" "pl_PL,en_GB-large" "-i" "utf-8") nil utf-8)))
 
 ;; Ensure personal dictionary exists with correct UTF-8 header
 (unless (file-exists-p ispell-personal-dictionary)
@@ -42,24 +42,42 @@
     (write-file ispell-personal-dictionary)))
 
 ;; ============================================================
-;; DEFERRED HUNSPELL SETUP
+;; HUNSPELL DICT PATH REGISTRATION
 ;; ============================================================
 ;; On NixOS, hunspellDicts.pl_PL ships ISO8859-2 only.
 ;; A UTF-8 copy is maintained at ~/.local/share/hunspell/ by
 ;; home.activation.hunspellUtf8 (users/marcin/base/packages.nix).
-;; DICPATH ensures Hunspell finds that copy before the system profile.
+;;
+;; DICPATH alone is not enough: ispell-phaf resolves dictionary paths
+;; from `ispell-hunspell-dict-paths-alist', which is built by scanning
+;; known system directories — ~/.local/share/hunspell is NOT in that
+;; scan.  We therefore add both dictionaries explicitly BEFORE calling
+;; ispell-set-spellchecker-params, which reads the alist.
 
 (with-eval-after-load 'ispell
   (let* ((user-dict (expand-file-name "~/.local/share/hunspell"))
          (login     (user-login-name))
-         (nix-path  (format "/etc/profiles/per-user/%s/share/hunspell" login))
-         (dict-path (cond
-                     ((file-directory-p user-dict) user-dict)
-                     ((file-directory-p nix-path)  nix-path)
-                     (t "/usr/share/hunspell"))))
-    (setenv "DICPATH" dict-path))
+         (nix-path  (format "/etc/profiles/per-user/%s/share/hunspell" login)))
+
+    ;; DICPATH: hunspell subprocess uses this to locate .aff/.dic at runtime
+    (setenv "DICPATH" (concat user-dict ":" nix-path))
+
+    ;; pl_PL — UTF-8 copy lives in user-dict (written by home.activation)
+    (when (file-exists-p (expand-file-name "pl_PL.aff" user-dict))
+      (add-to-list 'ispell-hunspell-dict-paths-alist
+                   (list "pl_PL"
+                         (expand-file-name "pl_PL.aff" user-dict))))
+
+    ;; en_GB-large — comes directly from the nix profile (already UTF-8)
+    (when (file-exists-p (expand-file-name "en_GB.aff" nix-path))
+      (add-to-list 'ispell-hunspell-dict-paths-alist
+                   (list "en_GB-large"
+                         (expand-file-name "en_GB.aff" nix-path)))))
+
+  ;; Rebuild internal ispell state with the updated alist
   (ispell-set-spellchecker-params)
-  (ispell-hunspell-add-multi-dic "pl_PL,en_GB"))
+  (ispell-hunspell-add-multi-dic "pl_PL,en_GB-large"))
+
 ;; ============================================================
 ;; E6 — SUPPRESS "Save .hunspell_personal?" ON QUIT
 ;; ============================================================
