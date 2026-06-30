@@ -1,87 +1,122 @@
-;;; 10-visual-fill.el --- Centered text layout -*- lexical-binding: t; -*-
+;;; 10-visual-fill.el --- Visual fill column: single source of truth -*- lexical-binding: t; -*-
 ;;; Commentary:
-;; Creates beautiful centered text layout with equal margins on both sides
-;; Like reading a book! Text limited to 80 characters width.
+;; ALL visual-fill-column and line-wrapping logic lives here.
+;; No other module should set visual-fill-column-* variables.
 ;;
-;; NO THICK BOUNDARY LINES - just clean margins!
+;; Rules:
+;;   Files under ~/notes/         -> visual-fill ON, text centered
+;;     :docu: tag in #+filetags:  -> width 100
+;;     all other notes            -> width 80  (my-fill-column)
+;;   Files outside ~/notes/       -> visual-fill OFF, full-width
+;;     (intentional: clear visual signal that you left the notes tree)
+;;   Non-org / non-text files     -> visual-fill never activated
+;;
+;; display-fill-column-indicator-mode is never enabled by this config
+;; (clean margins, no boundary lines).
 
 ;;; Code:
 
 ;; ============================================================
-;; VISUAL-FILL-COLUMN: Center text with margins
+;; PACKAGE: load visual-fill-column
 ;; ============================================================
 
 (use-package visual-fill-column
   :ensure t
-  :hook ((org-mode . visual-fill-column-mode)
-         (text-mode . visual-fill-column-mode))
   :config
-  ;; Text width (80 characters)
-  (setq-default visual-fill-column-width 80)
-  
-  ;; Center the text (equal margins on both sides!)
-  (setq-default visual-fill-column-center-text t)
-  
-  ;; NO THICK LINES: Set extra width to 0
+  ;; Conservative global defaults — actual per-buffer values are set
+  ;; by my/visual-fill-notes-setup below.  Nothing else should touch
+  ;; these setq-defaults.
+  (setq-default visual-fill-column-width       my-fill-column) ; 80
+  (setq-default visual-fill-column-center-text nil)            ; no centering outside notes
   (setq-default visual-fill-column-extra-text-width '(0 . 0))
-  
-  ;; Don't show fringes (the gray area on sides)
-  (setq-default visual-fill-column-fringes-outside-margins nil)
-  
-  ;; DISABLE fill-column-indicator (no boundary lines!)
-  (add-hook 'visual-fill-column-mode-hook
-            (lambda ()
-              (display-fill-column-indicator-mode -1))))
+  (setq-default visual-fill-column-fringes-outside-margins nil))
 
 ;; ============================================================
-;; GLOBALLY DISABLE FILL-COLUMN-INDICATOR
+;; CORE SETUP FUNCTION
 ;; ============================================================
-;; Turn off the thick colored lines that show column boundaries
-(when (fboundp 'global-display-fill-column-indicator-mode)
-  (global-display-fill-column-indicator-mode -1))
+
+(defun my/visual-fill-notes-setup ()
+  "Configure visual-fill-column for the current buffer.
+
+Called from find-file-hook and org-mode-hook.
+
+Files under `my-notes-dir' (~/notes/):
+  - Enable visual-fill-column-mode and visual-line-mode.
+  - Center text.
+  - Width = 100 when #+filetags contains :docu:, else `my-fill-column' (80).
+
+Files outside `my-notes-dir':
+  - Disable visual-fill-column-mode if active.
+  - Full-width display (intentional visual signal)."
+  (when (and (buffer-file-name)
+             (derived-mode-p 'org-mode 'text-mode))
+    (let ((in-notes (string-match-p
+                     (regexp-quote (expand-file-name my-notes-dir))
+                     (buffer-file-name))))
+      (if (not in-notes)
+          ;; Outside ~/notes/ -> full width, no centering
+          (when (bound-and-true-p visual-fill-column-mode)
+            (visual-fill-column-mode -1))
+        ;; Inside ~/notes/ -> centered column
+        (let ((is-docu nil))
+          (save-excursion
+            (goto-char (point-min))
+            (when (re-search-forward "^#\\+filetags:.*:docu:" nil t)
+              (setq is-docu t)))
+          (let ((width (if is-docu 100 my-fill-column)))
+            (setq fill-column                          width)
+            (setq-local visual-fill-column-width       width)
+            (setq-local visual-fill-column-center-text t))
+          (visual-line-mode 1)
+          (visual-fill-column-mode 1)
+          ;; Never show the indicator line (clean margins).
+          (display-fill-column-indicator-mode -1)
+          (visual-fill-column--adjust-window))))))
 
 ;; ============================================================
-;; EXPLANATION
+;; HOOKS
 ;; ============================================================
-;;
-;; This creates the "book-like" layout WITHOUT any boundary lines:
-;;
-;; Before (full width with ugly lines):
-;; |│Text starts here and goes all the way...                      │|
-;;
-;; After (centered, clean margins):
-;; |        Text is centered with invisible margins                  |
-;; |        Clean and professional look!                             |
-;;
-;; Benefits:
-;; - Easier to read (optimal line length)
-;; - Looks more professional
-;; - No visual clutter
-;; - Perfect for writing
-;;
-;; What changed:
-;; - Removed display-fill-column-indicator-mode
-;; - Set extra-text-width to (0 . 0) - no thick margins
-;; - Kept centering and text wrapping
-;; - Result: Clean, centered text without ANY boundary lines
+
+;; find-file-hook : fires when a file is opened (covers all denote notes)
+;; org-mode-hook  : fires when org-mode activates (covers *Capture* etc.)
+;;                  the guard inside the function handles non-note files.
+(add-hook 'find-file-hook #'my/visual-fill-notes-setup)
+(add-hook 'org-mode-hook  #'my/visual-fill-notes-setup)
 
 ;; ============================================================
-;; TOGGLE FUNCTION (optional)
+;; TOGGLE FUNCTIONS (used by transient menu 12-transient.el)
 ;; ============================================================
 
 (defun my/toggle-visual-fill-column ()
-  "Toggle centered text layout."
+  "Toggle visual-fill-column-mode in current buffer."
   (interactive)
-  (if visual-fill-column-mode
+  (if (bound-and-true-p visual-fill-column-mode)
       (progn
         (visual-fill-column-mode -1)
         (message "Centered layout: OFF"))
     (progn
       (visual-fill-column-mode 1)
       (message "Centered layout: ON"))))
-  
-;; Optional: Bind to a key (uncomment if you want)
-;; (global-set-key (kbd "C-c v") 'my/toggle-visual-fill-column)
+
+(defun my/toggle-visual-fill-column-center ()
+  "Toggle text centering in current buffer (transient menu: C-c n y)."
+  (interactive)
+  (if (bound-and-true-p visual-fill-column-mode)
+      (progn
+        (setq-local visual-fill-column-center-text
+                    (not visual-fill-column-center-text))
+        (visual-fill-column--adjust-window)
+        (message "Centering: %s"
+                 (if visual-fill-column-center-text "✅ ON" "❌ OFF")))
+    (message "⚠️ visual-fill-column-mode not active in this buffer")))
+
+;; ============================================================
+;; GLOBALLY DISABLE FILL-COLUMN-INDICATOR
+;; ============================================================
+;; Belt-and-suspenders: turn off any indicator lines that may have been
+;; activated before this module loaded.
+(when (fboundp 'global-display-fill-column-indicator-mode)
+  (global-display-fill-column-indicator-mode -1))
 
 (provide '10-visual-fill)
 ;;; 10-visual-fill.el ends here
