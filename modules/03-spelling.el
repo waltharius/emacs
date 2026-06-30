@@ -33,11 +33,20 @@
     (write-file ispell-personal-dictionary)))
 (setq ispell-silently-savep t)
 
-;; Initialize Hunspell with UTF-8 - NixOS paths via per-user profile
+;; Initialize Hunspell with UTF-8.
+;; Paths are resolved at runtime using (user-login-name) so this config
+;; works for any user without modification.
+;; NixOS per-user profile is tried first; /usr/share/hunspell is the
+;; fallback for Fedora, Debian, and other distros.
 (with-eval-after-load 'ispell
-  (setq ispell-hunspell-dict-paths-alist
-        '(("pl_PL" "/etc/profiles/per-user/marcin/share/hunspell/pl_PL.aff")
-          ("en_GB" "/etc/profiles/per-user/marcin/share/hunspell/en_GB.aff")))
+  (let* ((login (user-login-name))
+         (nix-path (format "/etc/profiles/per-user/%s/share/hunspell" login))
+         (fallback-path "/usr/share/hunspell")
+         (dict-path (if (file-directory-p nix-path) nix-path fallback-path)))
+    (setq ispell-hunspell-dict-paths-alist
+          (list
+           (list "pl_PL" (expand-file-name "pl_PL.aff" dict-path))
+           (list "en_GB" (expand-file-name "en_GB.aff" dict-path)))))
   (ispell-set-spellchecker-params)
   (ispell-hunspell-add-multi-dic "pl_PL,en_GB"))
 
@@ -296,16 +305,16 @@ Warning: May take a few seconds on large files."
 ;; FLYSPELL-CORRECT: Interactive corrections
 ;; ============================================================
 
+;; flyspell-correct provides the correction UI via completing-read.
+;; Vertico intercepts completing-read automatically, so the popup
+;; looks and behaves exactly like other Vertico completions.
+;; No ivy or other completion framework needed as a dependency.
 (use-package flyspell-correct
   :ensure t
   :after flyspell
   :config
-  (setq flyspell-correct-interface #'flyspell-correct-ivy)
+  (setq flyspell-correct-interface #'flyspell-correct-completing-read)
   (define-key flyspell-mode-map (kbd "C-;") 'flyspell-correct-wrapper))
-
-(use-package flyspell-correct-ivy
-  :ensure t
-  :after flyspell-correct)
 
 ;; ============================================================
 ;; KEYBINDINGS
@@ -336,6 +345,11 @@ Warning: May take a few seconds on large files."
 ;;
 ;; CURSOR BEHAVIOR:
 ;; - Both C-c n s and C-c n a return cursor to starting position.
+;;
+;; DICTIONARY PATHS (NixOS + fallback):
+;; - NixOS: /etc/profiles/per-user/<login>/share/hunspell/
+;; - Other: /usr/share/hunspell/
+;; - Path resolved at runtime via (user-login-name) — no hardcoded names.
 
 (provide '03-spelling)
 ;;; 03-spelling.el ends here
