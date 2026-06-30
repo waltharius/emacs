@@ -48,7 +48,18 @@
 ;; ============================================================
 ;; DESKTOP-SAVE-MODE: Session persistence
 ;; ============================================================
-;; This saves all open files, window layouts, and tabs between sessions
+;; Saves all open files and cursor positions between sessions.
+;;
+;; LAZY RESTORE STRATEGY
+;; ---------------------
+;; With 400+ buffers, restoring everything synchronously blocks the UI
+;; for several seconds.  `desktop-restore-eager' controls how many
+;; buffers are restored synchronously before Emacs shows the first
+;; frame.  The remaining buffers are restored lazily in background
+;; idle time — Emacs is fully responsive while this happens.
+;;
+;; Value of 10 means: restore 10 buffers synchronously (fast), then
+;; show UI, then restore the rest in the background.
 
 (use-package desktop
   :ensure nil
@@ -58,18 +69,22 @@
         desktop-base-lock-name      "desktop.lock"
         desktop-path               (list desktop-dirname)
         desktop-save               t
-        desktop-load-locked-desktop t)
+        desktop-load-locked-desktop t
+        ;; Lazy restore: only 10 buffers block startup, rest load in background
+        desktop-restore-eager      10)
   :config
   (unless (file-exists-p desktop-dirname)
     (make-directory desktop-dirname t))
   (add-to-list 'desktop-modes-not-to-save 'pdf-view-mode)
+  ;; nov.el (epub reader) buffers trigger 'Version not specified' on restore
+  (add-to-list 'desktop-modes-not-to-save 'nov-mode)
   (desktop-save-mode 1))
 
 ;; Don't save temporary/auxiliary files
 (add-to-list 'desktop-modes-not-to-save 'fundamental-mode)
 (setq desktop-files-not-to-save
       (concat desktop-files-not-to-save
-              "\\|\\(\\.aux\\|\\.log\\|\\.out\\|\\.toc\\|\\.tex\\)$"))
+              "\\|\\(\\.aux\\|\\.log\\|\\.out\\|\\.toc\\|\\.tex\\|\\.epub\\)$"))
 
 ;; Manual save command
 (defun my/desktop-save-now ()
@@ -130,7 +145,9 @@
           (lambda ()
             (setq fill-column my-fill-column)))
 
-;; Prettify quote blocks
+;; Prettify quote blocks.
+;; Note: use 'unspecified instead of nil for any face attribute that
+;; should be inherited — nil causes "nil value is invalid" warnings.
 (custom-set-faces
  '(org-quote ((t (:background "#f9f9f9" :slant italic :foreground "#555555"))))
  '(org-block ((t (:background "#fef8e0" :extend t :family "Georgia"))))
