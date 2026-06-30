@@ -89,18 +89,19 @@
   "Non-nil during desktop-restore to prevent Hunspell from starting.
 Set to nil by `my/flyspell--recheck-all-buffers' after restore.")
 
-(defun my/flyspell--block-during-restore (orig-fun arg)
+(defun my/flyspell--block-during-restore (orig-fun &rest args)
   "Advice around `flyspell-mode'.
 When `my/flyspell-desktop-restoring' is non-nil and ARG enables
 the mode (arg >= 0 or nil), enable the mode variable but skip
 `flyspell-mode-on' to prevent Hunspell from starting during
 desktop-restore.  Pass through normally in all other cases."
-  (if (and my/flyspell-desktop-restoring
-           (or (null arg) (> arg 0)))
-      ;; Enable mode flag silently, skip the subprocess start.
-      (setq flyspell-mode t)
-    ;; Normal path: call the real flyspell-mode.
-    (funcall orig-fun arg)))
+  (let ((arg (car args)))
+    (if (and my/flyspell-desktop-restoring
+             (or (null arg) (> arg 0)))
+        ;; Enable mode flag silently, skip the subprocess start.
+        (setq flyspell-mode t)
+      ;; Normal path: call the real flyspell-mode.
+      (apply orig-fun args))))
 
 (advice-add 'flyspell-mode :around #'my/flyspell--block-during-restore)
 
