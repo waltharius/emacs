@@ -46,16 +46,6 @@
 (setq crm-separator ",")
 
 ;; ============================================================
-;; VISUAL-FILL-COLUMN: Soft wrap at fill-column
-;; ============================================================
-
-(use-package visual-fill-column
-  :ensure t
-  :config
-  (setq-default visual-fill-column-width my-fill-column)  ; Use variable from 00-core
-  (setq-default visual-fill-column-center-text nil))      ; Default: no center
-
-;; ============================================================
 ;; WHICH-KEY: Show keybinding hints
 ;; ============================================================
 
@@ -146,12 +136,14 @@
 ;; ORG-MODE VISUAL SETTINGS
 ;; ============================================================
 
-;; Soft wrap with visual indicator - uses my-fill-column from 00-core.el
-(add-hook 'org-mode-hook 
+;; visual-line-mode and fill-column variable for org files.
+;; display-fill-column-indicator-mode is intentionally NOT set here
+;; -- 10-visual-fill.el owns all column/centering logic and globally
+;; disables the indicator line (clean margins, no boundary lines).
+(add-hook 'org-mode-hook
           (lambda ()
             (visual-line-mode 1)
-            (setq fill-column my-fill-column)  ; Use variable
-            (display-fill-column-indicator-mode 1)))
+            (setq fill-column my-fill-column)))
 
 ;; Prettify quote blocks
 (custom-set-faces
@@ -164,14 +156,14 @@
 
 ;; Replace block markers with Unicode symbols
 (setq-default prettify-symbols-alist
-              '(("#+BEGIN_QUOTE" . "💬")
-                ("#+END_QUOTE" . "💬")
-                ("#+begin_quote" . "💬")
-                ("#+end_quote" . "💬")
-                ("#+BEGIN_SRC" . "λ")
-                ("#+END_SRC" . "λ")
-                ("#+begin_src" . "λ")
-                ("#+end_src" . "λ")))
+              '(("#+BEGIN_QUOTE" . "\U0001F4AC")
+                ("#+END_QUOTE" . "\U0001F4AC")
+                ("#+begin_quote" . "\U0001F4AC")
+                ("#+end_quote" . "\U0001F4AC")
+                ("#+BEGIN_SRC" . "\u03BB")
+                ("#+END_SRC" . "\u03BB")
+                ("#+begin_src" . "\u03BB")
+                ("#+end_src" . "\u03BB")))
 
 (setq prettify-symbols-unprettify-at-point 'right-edge)
 (add-hook 'org-mode-hook 'prettify-symbols-mode)
