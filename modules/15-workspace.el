@@ -90,10 +90,14 @@
        undated))))
 
 (defun my/denote-recently-modified (days)
-  "Return .org files across all silos modified within DAYS, newest first."
+  "Return .org files across all silos modified within DAYS, newest first.
+
+Uses `my-tasks-agenda-dirs' from 00-core.el so that any new silo
+added there is automatically included here too.  Entries that are
+files rather than directories (e.g. captures.org) are skipped."
   (let ((cutoff (time-subtract (current-time) (days-to-time days)))
         (result '()))
-    (dolist (dir (list my-notes-journal my-notes-pks my-notes-docu))
+    (dolist (dir my-tasks-agenda-dirs)
       (when (file-directory-p dir)
         (dolist (f (directory-files dir t "\.org$" t))
           (when (time-less-p cutoff (nth 5 (file-attributes f)))
@@ -104,15 +108,19 @@
                          (nth 5 (file-attributes a)))))))
 
 (defun my/denote-all-tags ()
-  "Return alist of (tag . files) sorted by usage count descending."
+  "Return alist of (tag . files) sorted by usage count descending.
+
+Uses `my-tasks-agenda-dirs' from 00-core.el so that any new silo
+added there is automatically picked up in the Tags section too.
+Entries that are files rather than directories are skipped."
   (let ((tag-map (make-hash-table :test 'equal)))
-    (dolist (dir (list my-notes-journal my-notes-pks my-notes-docu))
+    (dolist (dir my-tasks-agenda-dirs)
       (when (file-directory-p dir)
         (dolist (f (directory-files dir t "\.org$" t))
           (dolist (tag (my/denote-file-tags f))
             (puthash tag (cons f (gethash tag tag-map '())) tag-map)))))
     (let ((pairs '()))
-      (mafhash (lambda (tag files) (push (cons tag files) pairs)) tag-map)
+      (maphash (lambda (tag files) (push (cons tag files) pairs)) tag-map)
       (sort pairs (lambda (a b) (> (length (cdr a)) (length (cdr b))))))))
 
 ;; ============================================================
