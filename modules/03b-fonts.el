@@ -41,47 +41,44 @@
                                  :height 1.0))
     ;; This is NOT a journal file - ensure monospace
     (progn
-      (variable-pitch-mode -1)     ; Disable variable-pitch
+      (variable-pitch-mode -1)
       (visual-line-mode 1))))
 
 (add-hook 'org-mode-hook 'my/journal-font-setup)
 
 ;; ============================================================
-;; KEEP MONOSPACE FOR CODE, TABLES, BLOCKS (in journal too)
+;; ORG FACE TWEAKS (run once when org is first loaded)
 ;; ============================================================
 
 (with-eval-after-load 'org
-  (set-face-attribute 'org-table nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-code nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-block nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-verbatim nil :inherit 'fixed-pitch)
+  ;; --- Monospace for code, tables, blocks (even in journal) ---
+  (set-face-attribute 'org-table nil           :inherit 'fixed-pitch)
+  (set-face-attribute 'org-code nil            :inherit 'fixed-pitch)
+  (set-face-attribute 'org-block nil           :inherit 'fixed-pitch)
+  (set-face-attribute 'org-verbatim nil        :inherit 'fixed-pitch)
   (set-face-attribute 'org-special-keyword nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-meta-line nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-link nil :inherit 'fixed-pitch))
+  (set-face-attribute 'org-meta-line nil       :inherit 'fixed-pitch)
+  (set-face-attribute 'org-checkbox nil        :inherit 'fixed-pitch)
+  (set-face-attribute 'org-link nil            :inherit 'fixed-pitch)
 
-;; ============================================================
-;; FLEETING NOTES - Beautiful quote styling with serif font
-;; ============================================================
-
-(with-eval-after-load 'org
-  ;; Quotes get serif font (like in books!)
+  ;; --- Quotes: serif font, italic, slightly larger ---
+  ;; Use 'unspecified (not nil) to leave :foreground inherited from
+  ;; the face defined in custom.el (org-quote :foreground "#555555").
   (set-face-attribute 'org-quote nil
-                      :family "Georgia"         ; Serif font for quotes
-                      :slant 'italic
-                      :height 1.1               ; Slightly bigger
-                      :foreground nil)
-  
-  ;; BEGIN/END stay small and monospace
+                      :family     "Georgia"
+                      :slant      'italic
+                      :height     1.1
+                      :foreground 'unspecified)
+
+  ;; --- Block delimiters: small, monospace, grey ---
   (set-face-attribute 'org-block-begin-line nil
-                      :inherit 'fixed-pitch
+                      :inherit    'fixed-pitch
                       :foreground "#888888"
-                      :height 0.85)
-  
+                      :height     0.85)
   (set-face-attribute 'org-block-end-line nil
-                      :inherit 'fixed-pitch
+                      :inherit    'fixed-pitch
                       :foreground "#888888"
-                      :height 0.85))
+                      :height     0.85))
 
 (provide '03b-fonts)
 ;;; 03b-fonts.el ends here
