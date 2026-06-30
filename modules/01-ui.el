@@ -67,7 +67,6 @@
 Keeps the N most recently modified file-visiting buffers; kills the rest
 so they are not written into the desktop file."
   (let* ((file-bufs
-          ;; Collect only file-visiting buffers that desktop would save
           (seq-filter
            (lambda (buf)
              (and (buffer-file-name buf)
@@ -77,7 +76,6 @@ so they are not written into the desktop file."
                                        (buffer-file-name buf)))))
            (buffer-list)))
          (sorted
-          ;; Sort newest-modified first using file mtime
           (sort file-bufs
                 (lambda (a b)
                   (let ((ta (nth 5 (file-attributes (buffer-file-name a))))
@@ -105,7 +103,6 @@ so they are not written into the desktop file."
   (unless (file-exists-p desktop-dirname)
     (make-directory desktop-dirname t))
   (add-to-list 'desktop-modes-not-to-save 'pdf-view-mode)
-  ;; nov.el (epub reader) buffers trigger 'Version not specified' on restore
   (add-to-list 'desktop-modes-not-to-save 'nov-mode)
   ;; Layer 1: trim buffer list before every save
   (add-hook 'desktop-save-hook #'my/desktop-trim-buffers)
@@ -176,15 +173,9 @@ so they are not written into the desktop file."
           (lambda ()
             (setq fill-column my-fill-column)))
 
-;; Prettify quote blocks.
-;; Note: use 'unspecified instead of nil for any face attribute that
-;; should be inherited — nil causes "nil value is invalid" warnings.
-(custom-set-faces
- '(org-quote ((t (:background "#f9f9f9" :slant italic :foreground "#555555"))))
- '(org-block ((t (:background "#fef8e0" :extend t :family "Georgia"))))
- '(org-block-begin-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9))))
- '(org-block-end-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9)))))
-
+;; Face definitions for org-quote, org-block etc. live exclusively in
+;; custom.el (managed by Customize).  Do NOT add custom-set-faces calls
+;; here — duplicate definitions cause nil-attribute merge warnings.
 (setq org-fontify-quote-and-verse-blocks t)
 
 ;; Replace block markers with Unicode symbols
