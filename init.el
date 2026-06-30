@@ -17,11 +17,20 @@
             (message "✨ Emacs ready (Main)!")))
 
 ;; ============================================================
+;; CUSTOM FILE: Load early so face definitions are set before
+;; any package loads org (prevents nil :foreground warnings)
+;; ============================================================
+
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+(when (file-exists-p custom-file)
+  (load custom-file))
+
+;; ============================================================
 ;; WINDOW TITLE: Identify this is refactor branch
 ;; ============================================================
 
 (setq frame-title-format
-      '("Emacs [REFACTOR-CLEAN] - " 
+      '("Emacs [REFACTOR-CLEAN] - "
         (:eval (if (buffer-file-name)
                    (file-name-nondirectory (buffer-file-name))
                  "%b"))))
@@ -53,14 +62,6 @@
   (load (concat modules-dir "17-bibliography.el"))  ; Citar + org-noter + pdf-tools
   (load (concat modules-dir "18-zotero-transient.el")) ; Zotero transient menu
   )
-
-;; ============================================================
-;; CUSTOM FILE
-;; ============================================================
-
-(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
-(when (file-exists-p custom-file)
-  (load custom-file))
 
 (add-hook 'emacs-startup-hook
           (lambda ()
