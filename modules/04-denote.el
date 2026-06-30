@@ -19,22 +19,11 @@
 (use-package denote
   :ensure t
   :custom
-  ;; Main directory set to root for better search across all silos
   (denote-directory my-notes-dir)
-
-  ;; Base keyword list (Denote will add more automatically)
   (denote-known-keywords my-denote-keywords)
-
-  ;; Auto-discover keywords from existing notes and ADD to known list
   (denote-infer-keywords t)
-
-  ;; Sort keywords alphabetically in completion
   (denote-sort-keywords t)
-
-  ;; File type (nil = org-mode)
   (denote-file-type nil)
-
-  ;; What to prompt for when creating notes
   (denote-prompts '(title keywords)))
 
 ;; ============================================================
@@ -45,7 +34,6 @@
   :ensure t
   :after (denote consult)
   :config
-  ;; Make consult-denote work with silos
   (consult-denote-mode 1))
 
 ;; ============================================================
@@ -60,23 +48,13 @@
 ;; - ~/notes/docu/
 ;; - Any other subdirectories
 ;;
-;; Functions that benefit:
-;; - consult-denote-grep  (C-c n g) - searches all subdirs
-;; - denote-link          (C-c n i) - links to any file
-;; - denote-open-or-create (C-c n F) - finds any file
-;;
-;; Individual note creation functions (journal, essay, etc.)
-;; explicitly set their target directory, so they still
-;; save to the correct silo.
+;; Individual note creation functions explicitly set target directory.
 
 ;; ============================================================
 ;; DENOTE CONVENIENCE SETTINGS
 ;; ============================================================
 
-;; Automatically rename buffer to note title
 (add-hook 'denote-after-new-note-hook 'denote-rename-buffer-mode)
-
-;; Link using title instead of ID
 (setq denote-link-button-action 'find-file)
 
 ;; ============================================================
@@ -89,27 +67,28 @@
             (electric-indent-local-mode -1)
             (setq-local electric-indent-chars nil)))
 
-;; Alphabetical lists
 (setq org-list-allow-alphabetical t)
 (setq org-list-demote-modify-bullet
       '(("+" . "-") ("-" . "+") ("*" . "-") ("1." . "a.")))
-
-;; Columns for PROPERTIES display
 (setq org-columns-default-format
       "%40ITEM(Title) %10STATUS %8YEAR %6PAGES %10PROJECT")
-
-;; RET follows links
 (setq org-return-follows-link t)
-
-;; Left mouse click follows links
 (setq org-mouse-1-follows-link t)
 
-;; Require y-or-n confirmation before executing elisp links.
-;; Rationale: notes imported from Readwise or synced via Syncthing are
-;; external input. A malicious [[elisp:...]] link in an .org file would
-;; execute silently if this were nil.  y-or-n-p costs one keypress and
-;; keeps the protection without being disruptive for own notes.
+;; Confirm before executing elisp links (security: external .org files)
 (setq org-confirm-elisp-link-function #'y-or-n-p)
+
+;; ============================================================
+;; E4 — DISABLE ORG-CLOCK PERSISTENCE
+;; ============================================================
+;; org-clock-persist is enabled by default in modern Emacs.
+;; It writes ~/.emacs.d/.org-clock.save.el on every quit and reads
+;; it on every startup, causing a noticeable delay even when you
+;; never use org-clock.  Disabled here because org-agenda and
+;; time-clocking are not part of this workflow.
+
+(setq org-clock-persist nil)
+(setq org-clock-persist-file nil)
 
 (provide '04-denote)
 ;;; 04-denote.el ends here

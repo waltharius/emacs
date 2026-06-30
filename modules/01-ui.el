@@ -46,20 +46,9 @@
 (setq crm-separator ",")
 
 ;; ============================================================
-;; WHICH-KEY: Show keybinding hints
-;; ============================================================
-
-(use-package which-key
-  :ensure t
-  :config
-  (which-key-mode 1)
-  (setq which-key-idle-delay 0.5))
-
-;; ============================================================
 ;; DESKTOP-SAVE-MODE: Session persistence
 ;; ============================================================
 ;; This saves all open files, window layouts, and tabs between sessions
-;; Modern Emacs handles flyspell state correctly, no special handling needed
 
 (use-package desktop
   :ensure nil
@@ -110,20 +99,18 @@
   :ensure nil
   :init
   (tab-bar-mode 1)
-  :bind (("C-c t n" . tab-bar-new-tab)       ; New tab
-         ("C-c t c" . tab-bar-close-tab)     ; Close tab
-         ("C-c t o" . tab-bar-switch-to-tab) ; Switch tab
-         ("C-c t r" . tab-bar-rename-tab))   ; Rename tab
+  :bind (("C-c t n" . tab-bar-new-tab)
+         ("C-c t c" . tab-bar-close-tab)
+         ("C-c t o" . tab-bar-switch-to-tab)
+         ("C-c t r" . tab-bar-rename-tab))
   :config
-  (setq tab-bar-show t)                      ; Always show tab bar
-  (setq tab-bar-new-tab-choice "*scratch*")  ; New tab opens scratch
-  (setq tab-bar-close-button-show t))        ; Show X button
+  (setq tab-bar-show t)
+  (setq tab-bar-new-tab-choice "*scratch*")
+  (setq tab-bar-close-button-show t))
 
 ;; ============================================================
 ;; WINNER-MODE: Undo/redo window configurations
 ;; ============================================================
-;; C-c <left>  = Undo window layout change
-;; C-c <right> = Redo window layout change
 
 (use-package winner
   :ensure nil
@@ -137,12 +124,10 @@
 ;; ============================================================
 
 ;; visual-line-mode and fill-column variable for org files.
-;; display-fill-column-indicator-mode is intentionally NOT set here
-;; -- 10-visual-fill.el owns all column/centering logic and globally
-;; disables the indicator line (clean margins, no boundary lines).
+;; NOTE: visual-line-mode hook is owned by 02-editing.el.
+;; display-fill-column-indicator-mode is owned by 10-visual-fill.el.
 (add-hook 'org-mode-hook
           (lambda ()
-            (visual-line-mode 1)
             (setq fill-column my-fill-column)))
 
 ;; Prettify quote blocks
@@ -225,14 +210,6 @@
 
 (add-hook 'emacs-startup-hook 'my/kill-auxiliary-buffers)
 (add-hook 'org-export-before-processing-hook 'my/kill-auxiliary-buffers)
-
-;; ============================================================
-;; NOTE: Removed flyspell disable on desktop-save
-;; ============================================================
-;; Previously, we disabled flyspell before desktop-save every 30 seconds.
-;; This was an old workaround that's no longer needed in modern Emacs.
-;; Desktop-save handles flyspell state correctly without intervention.
-;; Keeping flyspell active ensures continuous spell-checking.
 
 (provide '01-ui)
 ;;; 01-ui.el ends here

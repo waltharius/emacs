@@ -4,16 +4,35 @@
 ;;              Flyspell for highlighting errors AS YOU TYPE
 ;;              SMART automatic checking based on buffer size
 ;;
+;; STARTUP BEHAVIOUR
+;; -----------------
+;; ispell variables are set immediately at load time (flyspell needs
+;; them before any hook fires).  However, the Hunspell subprocess is
+;; NOT started during Emacs init or desktop-restore.  It starts on the
+;; first keystroke that flyspell wants to check — typically 3 seconds
+;; after you start typing in any org/text buffer.  This avoids the
+;; ~18-second hang caused by Hunspell starting N times while
+;; desktop-restore opens all saved .org buffers.
+;;
 ;;; Code:
 
-;; --- Hunspell: spell checking pl_PL + en_GB (UTF-8) ---
-(require 'ispell)
-;; Force UTF-8 locale for the Hunspell subprocess
-(setenv "LANG" "pl_PL.UTF-8")
-(setenv "LC_ALL" "pl_PL.UTF-8")
+;; ============================================================
+;; ISPELL CORE VARIABLES  (set immediately — flyspell reads these
+;;                          before the subprocess is ever needed)
+;; ============================================================
 
-;; FORCE UTF-8 encoding for Hunspell
 (setq ispell-program-name "hunspell")
+(setq ispell-dictionary "pl_PL,en_GB")
+(setq ispell-personal-dictionary (expand-file-name "~/.hunspell_personal"))
+(setenv  "HUNSPELL_PERSONAL" ispell-personal-dictionary)
+(setenv  "LANG"   "pl_PL.UTF-8")
+(setenv  "LC_ALL" "pl_PL.UTF-8")
+
+;; Save personal dictionary silently (no "Save buffer?" prompt for
+;; ispell's internal save calls).  The remaining quit-prompt fix is
+;; in E6 below.
+(setq ispell-silently-savep t)
+
 (setq ispell-hunspell-dictionary-alist
       '(("pl_PL" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
          ("-d" "pl_PL" "-i" "utf-8") nil utf-8)
@@ -22,27 +41,25 @@
         ("pl_PL,en_GB" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
          ("-d" "pl_PL,en_GB" "-i" "utf-8") nil utf-8)))
 
-(setq ispell-dictionary "pl_PL,en_GB")
-(setq ispell-personal-dictionary (expand-file-name "~/.hunspell_personal"))
-(setenv "HUNSPELL_PERSONAL" ispell-personal-dictionary)
-
-;; Ensure personal dictionary has UTF-8 header
+;; Ensure personal dictionary exists with correct UTF-8 header
 (unless (file-exists-p ispell-personal-dictionary)
   (with-temp-buffer
     (insert "personal_ws-1.1 pl_PL 0 utf-8\n")
     (write-file ispell-personal-dictionary)))
-(setq ispell-silently-savep t)
 
-;; Initialize Hunspell with UTF-8.
-;; Paths are resolved at runtime using (user-login-name) so this config
-;; works for any user without modification.
-;; NixOS per-user profile is tried first; /usr/share/hunspell is the
-;; fallback for Fedora, Debian, and other distros.
+;; ============================================================
+;; DEFERRED HUNSPELL SETUP  (runs after ispell.el is loaded,
+;;                            NOT during Emacs startup)
+;; ============================================================
+;; ispell.el is loaded lazily — only when flyspell actually needs it
+;; (first word checked after first keystroke).  Everything below runs
+;; at that point, not during desktop-restore.
+
 (with-eval-after-load 'ispell
-  (let* ((login (user-login-name))
-         (nix-path (format "/etc/profiles/per-user/%s/share/hunspell" login))
-         (fallback-path "/usr/share/hunspell")
-         (dict-path (if (file-directory-p nix-path) nix-path fallback-path)))
+  (let* ((login     (user-login-name))
+         (nix-path  (format "/etc/profiles/per-user/%s/share/hunspell" login))
+         (fallback  "/usr/share/hunspell")
+         (dict-path (if (file-directory-p nix-path) nix-path fallback)))
     (setq ispell-hunspell-dict-paths-alist
           (list
            (list "pl_PL" (expand-file-name "pl_PL.aff" dict-path))
@@ -50,12 +67,29 @@
   (ispell-set-spellchecker-params)
   (ispell-hunspell-add-multi-dic "pl_PL,en_GB"))
 
-;; NOTE: No process-kill-on-save advice here.
-;; ispell-send-string "*word" already tells the live Hunspell process to
-;; accept a new word immediately. ispell-pdict-save only writes to disk
-;; for persistence across Emacs restarts. Killing and restarting the
-;; process after each dictionary save is unnecessary and causes a
-;; multi-second delay on every 'a' (add to dictionary) keypress.
+;; ============================================================
+;; E6 — SUPPRESS "Save .hunspell_personal?" ON QUIT
+;; ============================================================
+;; ispell-pdict-save can leave the personal dictionary file open as
+;; an Emacs buffer.  When Emacs quits, save-some-buffers sees the
+;; modified buffer and prompts.  We suppress the prompt by telling
+;; save-some-buffers to skip that specific file path.
+
+(defun my/spell--personal-dict-buffer-p ()
+  "Return t if the current buffer is the hunspell personal dictionary.
+Used by `save-some-buffers-default-predicate' to skip the prompt."
+  (when (buffer-file-name)
+    (string= (file-truename (buffer-file-name))
+             (file-truename ispell-personal-dictionary))))
+
+;; Add to the list of buffers save-some-buffers should NOT ask about.
+;; The predicate returns non-nil → buffer is skipped (not saved interactively).
+;; ispell-pdict-save already wrote the file to disk, so skipping here
+;; is safe — no data is lost.
+(add-to-list 'save-some-buffers-action-alist
+             (list #'my/spell--personal-dict-buffer-p
+                   (lambda (_buf) (ignore))
+                   "skip hunspell personal dictionary"))
 
 ;; ============================================================
 ;; SAFE HELPER: Check if process is alive (read-only, no side effects)
@@ -63,8 +97,7 @@
 
 (defun my/spell-check-can-run-p ()
   "Return t if flyspell-mode is on AND the Hunspell process is already running.
-This function ONLY checks — it never starts the process.
-Use `my/spell-ensure-process' when you need the process to be running."
+This function ONLY checks — it never starts the process."
   (and flyspell-mode
        (boundp 'ispell-process)
        (process-live-p ispell-process)))
@@ -75,27 +108,13 @@ Use `my/spell-ensure-process' when you need the process to be running."
 
 (defun my/spell-ensure-process ()
   "Ensure the Hunspell process is running and has finished its startup handshake.
-
-If the process is not alive, this function starts it and waits briefly
-for the NixOS wrapper to complete its iconv probe (which produces the
-harmless \='iconv: ISO8859-2 -> UTF-8\=' banner lines on first start).
-
-Called only when the process is dead (i.e. on very first use after
-Emacs starts, or after an unexpected crash). Normal corrections and
-add-to-dictionary operations never kill the process, so this function
-is a no-op in steady-state use.
-
-Returns t if the process is ready, nil if it could not be started."
+If the process is not alive, start it and wait briefly for the NixOS
+wrapper iconv probe to flush through.  This is a no-op in steady state.
+Returns t if process is ready, nil if it could not be started."
   (unless (and (boundp 'ispell-process) (process-live-p ispell-process))
     (message "Starting Hunspell…")
-    (condition-case nil
-        (ispell-set-spellchecker-params)
-      (error nil))
-    (condition-case nil
-        (ispell-init-process)
-      (error nil))
-    ;; Allow the process handshake and NixOS wrapper banner to flush through
-    ;; before we try to send correction commands.
+    (condition-case nil (ispell-set-spellchecker-params) (error nil))
+    (condition-case nil (ispell-init-process)            (error nil))
     (sit-for 0.3))
   (and (boundp 'ispell-process)
        (process-live-p ispell-process)))
@@ -105,7 +124,7 @@ Returns t if the process is ready, nil if it could not be started."
 ;; ============================================================
 
 (defun my/flyspell-goto-previous-error ()
-  "Go to previous spelling error. Returns position or nil."
+  "Go to previous spelling error.  Returns position or nil."
   (let ((min (point-min))
         (found nil))
     (save-excursion
@@ -124,17 +143,7 @@ Returns t if the process is ready, nil if it could not be started."
 ;; ============================================================
 
 (defun my/spell-correct-previous ()
-  "Jump to previous spelling error, show correction menu, then return to start.
-
-Workflow:
-1. Save current cursor position.
-2. Ensure Hunspell process is running (starts it on first use after
-   Emacs boots; instant no-op on every subsequent call).
-3. Find previous spelling error.
-4. Show correction menu via flyspell-correct-wrapper.
-5. Return cursor to original position after correction.
-
-SAFE: Handles process startup correctly; cursor always returns home."
+  "Jump to previous spelling error, show correction menu, then return to start."
   (interactive)
   (let ((start-pos (point)))
     (condition-case err
@@ -157,21 +166,7 @@ SAFE: Handles process startup correctly; cursor always returns home."
 ;; ============================================================
 
 (defun my/spell-add-previous-to-dict ()
-  "Add previous misspelled word to PERSONAL dictionary, then return to start.
-
-Workflow:
-1. Save current cursor position.
-2. Ensure Hunspell process is running.
-3. Find previous spelling error.
-4. Send '*word' to running Hunspell process (accepted immediately
-   in-session, no restart needed).
-5. Save word to ~/.hunspell_personal for persistence across restarts.
-6. Remove error overlay.
-7. Return cursor to original position.
-
-NOT saved as LocalWords in the current file.
-
-SAFE: No process restart; instant on all but the very first call."
+  "Add previous misspelled word to personal dictionary, then return to start."
   (interactive)
   (let ((start-pos (point)))
     (condition-case err
@@ -185,12 +180,9 @@ SAFE: No process restart; instant on all but the very first call."
          (t
           (let ((word (downcase (thing-at-point 'word t))))
             (when word
-              ;; Tell the running process to accept this word immediately
               (ispell-send-string (concat "*" word "\n"))
-              ;; Mark dictionary modified and save to disk (no process restart)
               (setq ispell-pdict-modified-p '(t))
               (ispell-pdict-save t t)
-              ;; Remove the flyspell overlay
               (dolist (o (overlays-at (point)))
                 (when (flyspell-overlay-p o)
                   (delete-overlay o)))
@@ -208,59 +200,41 @@ SAFE: No process restart; instant on all but the very first call."
   "Toggle flyspell-mode on/off."
   (interactive)
   (if flyspell-mode
-      (progn
-        (flyspell-mode -1)
-        (message "✗ Spell-checking OFF"))
-    (progn
-      (flyspell-mode 1)
-      (message "✓ Spell-checking ON"))))
+      (progn (flyspell-mode -1) (message "✗ Spell-checking OFF"))
+    (progn (flyspell-mode 1)  (message "✓ Spell-checking ON"))))
 
 ;; ============================================================
 ;; CHECK VISIBLE REGION (manual, fast)
 ;; ============================================================
 
 (defun my/spell-check-visible ()
-  "Check spelling in visible region only.
-SAFE: Fast and won't block. Use this for large buffers."
+  "Check spelling in visible region only."
   (interactive)
   (condition-case err
       (progn
-        (unless flyspell-mode
-          (flyspell-mode 1)
-          (message "✓ Flyspell enabled"))
+        (unless flyspell-mode (flyspell-mode 1) (message "✓ Flyspell enabled"))
         (message "Checking visible region...")
         (flyspell-region (window-start) (window-end))
         (message "✓ Visible region checked"))
-    (error
-     (message "Error checking visible region: %s" (error-message-string err)))))
+    (error (message "Error checking visible region: %s" (error-message-string err)))))
 
 ;; ============================================================
 ;; CHECK ENTIRE BUFFER (manual, slower)
 ;; ============================================================
 
 (defun my/spell-check-buffer-full ()
-  "Check spelling in ENTIRE buffer.
-
-Use this for:
-- Small files (< 7000 words)
-- When you want to check everything
-- Before finishing a document
-
-Warning: May take a few seconds on large files."
+  "Check spelling in ENTIRE buffer.  May take a few seconds on large files."
   (interactive)
   (condition-case err
       (let ((word-count (count-words (point-min) (point-max))))
-        (unless flyspell-mode
-          (flyspell-mode 1)
-          (message "✓ Flyspell enabled"))
+        (unless flyspell-mode (flyspell-mode 1) (message "✓ Flyspell enabled"))
         (message "Checking entire buffer (%d words)..." word-count)
         (flyspell-buffer)
         (message "✓ Buffer checked (%d words)" word-count))
-    (error
-     (message "Error checking buffer: %s" (error-message-string err)))))
+    (error (message "Error checking buffer: %s" (error-message-string err)))))
 
 ;; ============================================================
-;; FLYSPELL CONFIGURATION - INCREMENTAL CHECKING
+;; FLYSPELL CONFIGURATION — INCREMENTAL CHECKING
 ;; ============================================================
 
 (use-package flyspell
@@ -275,20 +249,17 @@ Warning: May take a few seconds on large files."
   (setq flyspell-consider-dash-as-word-delimiter-flag t))
 
 ;; ============================================================
-;; ENSURE FLYSPELL STAYS ON (run AFTER other hooks)
+;; ENSURE FLYSPELL STAYS ON (run AFTER other hooks, priority 100)
 ;; ============================================================
+;; These hooks guarantee flyspell-mode is active even if another hook
+;; accidentally disabled it.  They do NOT start the Hunspell process —
+;; that only happens on the first word flyspell actually needs to check.
 
 (add-hook 'org-mode-hook
-          (lambda ()
-            (unless flyspell-mode
-              (flyspell-mode 1)))
-          100)
+          (lambda () (unless flyspell-mode (flyspell-mode 1))) 100)
 
 (add-hook 'text-mode-hook
-          (lambda ()
-            (unless flyspell-mode
-              (flyspell-mode 1)))
-          100)
+          (lambda () (unless flyspell-mode (flyspell-mode 1))) 100)
 
 ;; ============================================================
 ;; PREVENT OVERLAY DELETION
@@ -299,16 +270,13 @@ Warning: May take a few seconds on large files."
   (when (and flyspell-mode (called-interactively-p 'any))
     (apply orig-fun args)))
 
-(advice-add 'flyspell-delete-all-overlays :around #'my/flyspell-prevent-overlay-deletion)
+(advice-add 'flyspell-delete-all-overlays
+            :around #'my/flyspell-prevent-overlay-deletion)
 
 ;; ============================================================
-;; FLYSPELL-CORRECT: Interactive corrections
+;; FLYSPELL-CORRECT: Interactive corrections via Vertico
 ;; ============================================================
 
-;; flyspell-correct provides the correction UI via completing-read.
-;; Vertico intercepts completing-read automatically, so the popup
-;; looks and behaves exactly like other Vertico completions.
-;; No ivy or other completion framework needed as a dependency.
 (use-package flyspell-correct
   :ensure t
   :after flyspell
@@ -321,35 +289,6 @@ Warning: May take a few seconds on large files."
 ;; ============================================================
 
 (global-set-key (kbd "C-c f b") 'my/spell-check-visible)
-
-;; ============================================================
-;; HOW IT WORKS
-;; ============================================================
-;;
-;; PROCESS LIFECYCLE:
-;; - Hunspell starts once on the first C-c n s or C-c n a after Emacs boots.
-;; - It stays alive for the entire session.
-;; - 's' and 'a' never kill or restart the process.
-;; - Words added via 'a' are accepted by the running process immediately
-;;   (via ispell '*word' protocol) and also written to disk for future sessions.
-;;
-;; INCREMENTAL CHECKING (as you type):
-;; - Flyspell checks each word after 3 seconds of idle typing.
-;;
-;; MANUAL CHECKING:
-;; - C-c n S → Check visible region (fast, always safe)
-;; - C-c n b → Check entire buffer
-;; - C-c n s → Correct previous error (shows menu, returns cursor home)
-;; - C-c n a → Add previous error to dictionary (returns cursor home)
-;; - C-c n T → Toggle flyspell on/off
-;;
-;; CURSOR BEHAVIOR:
-;; - Both C-c n s and C-c n a return cursor to starting position.
-;;
-;; DICTIONARY PATHS (NixOS + fallback):
-;; - NixOS: /etc/profiles/per-user/<login>/share/hunspell/
-;; - Other: /usr/share/hunspell/
-;; - Path resolved at runtime via (user-login-name) — no hardcoded names.
 
 (provide '03-spelling)
 ;;; 03-spelling.el ends here
