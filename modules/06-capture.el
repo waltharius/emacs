@@ -2,14 +2,53 @@
 ;;; Commentary:
 ;; Quick capture system for ideas and fleeting thoughts.
 ;;
-;; C-c c j  / C-c n c  — Ideas capture with source link (opens right side)
-;; C-c c f             — Fleeting note (opens right side)
+;; C-c n c  — Ideas capture (opens to the RIGHT of the current window)
+;; C-c c    — Standard org-capture menu
 ;;
 ;; Processing captures:
 ;; C-c n m  — Promote heading to new Denote note (preserves SOURCE)
 ;; C-c C-w  — Refile heading to existing note (standard org-refile)
+;;
+;; HOW THE RIGHT-SIDE WINDOW WORKS
+;; --------------------------------
+;; org-capture-mode-hook fires after the capture buffer is created
+;; and displayed.  At that point we:
+;;   1. Remember which window was selected when capture was invoked
+;;      (stored in my/capture--origin-window before org-capture runs).
+;;   2. In the hook, delete all windows except the origin, then split
+;;      right, and display the capture buffer in the new right window.
+;; This bypasses display-buffer-alist entirely, which org-capture
+;; ignores for its own buffer management.
 
 ;;; Code:
+
+;; ============================================================
+;; CAPTURE WINDOW: track origin window before capture fires
+;; ============================================================
+
+(defvar my/capture--origin-window nil
+  "Window that was selected when my/capture-idea was invoked.
+Used by `my/capture--show-right' to place the capture buffer
+to the right of the originating note window.")
+
+(defun my/capture--show-right ()
+  "Place the just-created capture buffer to the right of the origin window.
+Called from `org-capture-mode-hook'.
+Only acts when `my/capture--origin-window' is set (i.e. capture was
+started via `my/capture-idea', not the generic org-capture menu)."
+  (when (and my/capture--origin-window
+             (window-live-p my/capture--origin-window))
+    (let ((cap-buf (current-buffer)))
+      ;; Return to a predictable state: show only the origin window.
+      (delete-other-windows my/capture--origin-window)
+      ;; Split vertically (side by side) and put capture on the right.
+      (let ((right-win (split-window my/capture--origin-window nil 'right)))
+        (set-window-buffer right-win cap-buf)
+        (select-window right-win))
+      ;; Clear so generic org-capture calls are unaffected.
+      (setq my/capture--origin-window nil))))
+
+(add-hook 'org-capture-mode-hook #'my/capture--show-right)
 
 ;; ============================================================
 ;; HELPER: Get #+title: from ORIGINAL buffer
@@ -51,30 +90,6 @@
       "Untitled")))
 
 ;; ============================================================
-;; CAPTURE WINDOW: open capture buffer to the right
-;; ============================================================
-
-(defun my/capture-display-right (buffer alist)
-  "Display capture BUFFER in a window to the right.
-If a right window already exists, reuse it.
-Used via `display-buffer-alist'."
-  (let* ((origin (selected-window))
-         (right  (window-in-direction 'right origin)))
-    (if right
-        (progn
-          (select-window right)
-          (switch-to-buffer buffer)
-          right)
-      (let ((new-win (split-window origin nil 'right)))
-        (select-window new-win)
-        (switch-to-buffer buffer)
-        new-win))))
-
-(add-to-list 'display-buffer-alist
-             '("\\*Org Capture\\*"
-               (my/capture-display-right)))
-
-;; ============================================================
 ;; ORG-CAPTURE: Templates
 ;; ============================================================
 
@@ -89,23 +104,10 @@ Used via `display-buffer-alist'."
       (insert "#+filetags: :captures:\n\n")
       (insert "* Ideas\n\n")))
 
-  ;; Create fleeting file if it doesn't exist
-  (unless (file-exists-p my-fleeting-file)
-    (with-temp-file my-fleeting-file
-      (insert "#+title: Fleeting Notes\n")
-      (insert "#+filetags: :fleeting:\n\n")
-      (insert "* Inbox\n\n")))
-
   (setq org-capture-templates
         '(("j" "Ideas capture" entry
            (file+headline my-journal-captures "Ideas")
            "* \n:PROPERTIES:\n:SOURCE: [[%(my/get-capture-origin-id)][%(my/get-capture-origin-title)]]\n:CAPTURED: %U\n:END:\n\n%?"
-           :empty-lines 1
-           :prepend nil)
-
-          ("f" "Fleeting Note" entry
-           (file+headline my-fleeting-file "Inbox")
-           "* %?\nCaptured: %U\n"
            :empty-lines 1
            :prepend nil))))
 
@@ -115,24 +117,12 @@ Used via `display-buffer-alist'."
 
 (defun my/capture-idea ()
   "Directly invoke Ideas capture (template j) — no menu shown.
-Opens capture buffer to the right of the current window.
+Opens capture buffer to the RIGHT of the current window.
 Records SOURCE link to the originating note automatically."
   (interactive)
+  ;; Store the origin window BEFORE org-capture changes window layout.
+  (setq my/capture--origin-window (selected-window))
   (org-capture nil "j"))
-
-;; ============================================================
-;; OPEN FLEETING NOTES in side window
-;; ============================================================
-
-(defun my/open-fleeting-notes ()
-  "Open fleeting notes file in a window to the right."
-  (interactive)
-  (let* ((origin (selected-window))
-         (right  (window-in-direction 'right origin))
-         (win    (or right (split-window origin nil 'right))))
-    (select-window win)
-    (find-file my-fleeting-file)
-    (goto-char (point-max))))
 
 ;; ============================================================
 ;; HELPER: Extract SOURCE value from PROPERTIES block
@@ -225,7 +215,7 @@ if not needed."
       ;; No source: just body
       (unless (string-empty-p body)
         (insert "\n\n" body "\n")))
-    
+
     (save-buffer)
 
     ;; -- Remove original heading from captures.org --
@@ -241,7 +231,6 @@ if not needed."
 
 (global-set-key (kbd "C-c c")   'org-capture)
 (global-set-key (kbd "C-c n c") 'my/capture-idea)
-(global-set-key (kbd "C-c n f") 'my/open-fleeting-notes)
 (global-set-key (kbd "C-c n m") 'my/capture-promote-to-note)
 
 (provide '06-capture)

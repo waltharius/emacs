@@ -25,51 +25,51 @@
          (time-now (format-time-string "%H:%M"))
          (journal-pattern (concat "--" today "-journal"))
          (existing-journal nil))
-    
+
     ;; Search for existing journal in journal silo
     (dolist (file (directory-files my-notes-journal t "\\.org$"))
       (when (string-match-p journal-pattern (file-name-nondirectory file))
         (setq existing-journal file)))
-    
+
     (if existing-journal
         ;; Journal exists - add new entry
         (progn
           (find-file existing-journal)
           (goto-char (point-max))
-          
+
           ;; Smart spacing: always one blank line
           (save-excursion
             (goto-char (point-max))
             (skip-chars-backward " \t\n")
             (delete-region (point) (point-max)))
-          
+
           (goto-char (point-max))
           (insert "\n\n")
           (insert (format "* %s\n" time-now))
           (message "Added entry to journal"))
-      
+
       ;; Create new journal
       (let* ((id (format-time-string "%Y%m%dT%H%M%S"))
              (slug (format "%s-journal" today))
              (filename (format "%s--%s__journal.org" id slug))
              (filepath (expand-file-name filename my-notes-journal)))
-        
+
         (find-file filepath)
-        
+
         ;; Front matter
         (insert (format "#+title:      %s Journal\n" today))
         (insert (format "#+date:       [%s]\n" (format-time-string "%Y-%m-%d %a %H:%M")))
         (insert "#+filetags:   :journal:\n")
         (insert (format "#+identifier: %s\n" id))
-        
+
         ;; Well-being property
         (insert ":PROPERTIES:\n")
         (insert ":well-being:  \n")
         (insert ":END:\n\n")
-        
+
         ;; First entry
         (insert (format "* %s\n" time-now))
-        
+
         (save-buffer)
         (message "Created new journal")))))
 
@@ -165,14 +165,14 @@
          (keywords (if (string-empty-p keywords-string)
                        nil
                      (split-string keywords-string " " t)))
-         (silo (completing-read "Save in: " 
-                               '("pks" "docu" "journal") 
+         (silo (completing-read "Save in: "
+                               '("pks" "docu" "journal")
                                nil t "pks"))
          (target-dir (cond
                       ((string= silo "journal") my-notes-journal)
                       ((string= silo "docu") my-notes-docu)
                       (t my-notes-pks))))
-    
+
     ;; Temporarily set denote-directory to target silo
     (let ((denote-directory target-dir))
       (if (string-empty-p title)
@@ -192,9 +192,9 @@
          (project-tag (read-string "Project tag: "))
          (tags (list "esej" "project" project-tag))
          (denote-directory my-notes-pks))  ; Essays in pks silo
-    
+
     (denote title tags)
-    
+
     ;; Add essay template
     (save-excursion
       (goto-char (point-max))
@@ -210,7 +210,7 @@
       (insert "* Bibliography\n\n")
       (insert "* Working Notes\n\n")
       (save-buffer))
-    
+
     ;; Position cursor at Subject field
     (goto-char (point-min))
     (re-search-forward "^- Subject: " nil t)))
@@ -283,7 +283,6 @@
         (list my-notes-journal
               my-notes-pks
               my-notes-docu
-              my-fleeting-file
               my-journal-captures)))
 
 ;; ============================================================
