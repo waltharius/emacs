@@ -48,18 +48,47 @@
 ;; ============================================================
 ;; DESKTOP-SAVE-MODE: Session persistence
 ;; ============================================================
-;; Saves all open files and cursor positions between sessions.
+;; Saves open files and cursor positions between sessions.
 ;;
-;; LAZY RESTORE STRATEGY
-;; ---------------------
-;; With 400+ buffers, restoring everything synchronously blocks the UI
-;; for several seconds.  `desktop-restore-eager' controls how many
-;; buffers are restored synchronously before Emacs shows the first
-;; frame.  The remaining buffers are restored lazily in background
-;; idle time — Emacs is fully responsive while this happens.
-;;
-;; Value of 10 means: restore 10 buffers synchronously (fast), then
-;; show UI, then restore the rest in the background.
+;; 3-LAYER STRATEGY
+;; ----------------
+;; 1. TRIM (before save)  : keep only 100 most-recently-modified file
+;;                          buffers in the desktop file.  Prevents the
+;;                          list from growing indefinitely.
+;; 2. EAGER (on restore)  : restore 10 buffers synchronously so the UI
+;;                          appears in ~2s regardless of list size.
+;; 3. LAZY (background)   : restore remaining buffers during idle time.
+
+(defconst my/desktop-max-buffers 100
+  "Maximum number of file buffers to persist in the desktop file.")
+
+(defun my/desktop-trim-buffers ()
+  "Before saving desktop, kill buffers beyond `my/desktop-max-buffers'.
+Keeps the N most recently modified file-visiting buffers; kills the rest
+so they are not written into the desktop file."
+  (let* ((file-bufs
+          ;; Collect only file-visiting buffers that desktop would save
+          (seq-filter
+           (lambda (buf)
+             (and (buffer-file-name buf)
+                  (not (memq (buffer-local-value 'major-mode buf)
+                             desktop-modes-not-to-save))
+                  (not (string-match-p desktop-files-not-to-save
+                                       (buffer-file-name buf)))))
+           (buffer-list)))
+         (sorted
+          ;; Sort newest-modified first using file mtime
+          (sort file-bufs
+                (lambda (a b)
+                  (let ((ta (nth 5 (file-attributes (buffer-file-name a))))
+                        (tb (nth 5 (file-attributes (buffer-file-name b)))))
+                    (time-less-p tb ta)))))
+         (to-kill (nthcdr my/desktop-max-buffers sorted)))
+    (when to-kill
+      (message "desktop trim: killing %d old buffers before save"
+               (length to-kill))
+      (dolist (buf to-kill)
+        (kill-buffer buf)))))
 
 (use-package desktop
   :ensure nil
@@ -70,7 +99,7 @@
         desktop-path               (list desktop-dirname)
         desktop-save               t
         desktop-load-locked-desktop t
-        ;; Lazy restore: only 10 buffers block startup, rest load in background
+        ;; Layer 2: only 10 buffers block startup, rest load in background
         desktop-restore-eager      10)
   :config
   (unless (file-exists-p desktop-dirname)
@@ -78,6 +107,8 @@
   (add-to-list 'desktop-modes-not-to-save 'pdf-view-mode)
   ;; nov.el (epub reader) buffers trigger 'Version not specified' on restore
   (add-to-list 'desktop-modes-not-to-save 'nov-mode)
+  ;; Layer 1: trim buffer list before every save
+  (add-hook 'desktop-save-hook #'my/desktop-trim-buffers)
   (desktop-save-mode 1))
 
 ;; Don't save temporary/auxiliary files
