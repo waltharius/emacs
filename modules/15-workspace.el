@@ -82,9 +82,9 @@
 (defun my/denote-org-files-in-by-id (directory)
   "Return .org files in DIRECTORY sorted newest-created first (by identifier)."
   (when (file-directory-p directory)
-    (let* ((all    (directory-files directory t "\\.org$" t))
+    (let* ((all     (directory-files directory t "\\.org$" t))
            (dated   (seq-filter  #'my/denote-file-identifier all))
-           (undated (seq-remove   #'my/denote-file-identifier all)))
+           (undated (seq-remove  #'my/denote-file-identifier all)))
       (append
        (sort dated (lambda (a b) (my/denote-identifier< b a)))
        undated))))
@@ -134,31 +134,31 @@
                       'face '(:weight bold :underline t)))
   (insert "\n"))
 
-(defun my/dashboard-insert-file-link (file)
-  "Insert a clickable line showing modification date + org title for FILE."
-  (let* ((title   (my/denote-file-title file))
-         (mtime   (format-time-string "%Y-%m-%d" (nth 5 (file-attributes file))))
-         (display (format "  %s  %s" mtime title))
-         (start   (point)))
-    (insert display)
-    (make-text-button start (point)
-                      'action (let ((f file))
-                                (lambda (_b) (my/dashboard-open-in-new-tab f)))
-                      'follow-link t
-                      'help-echo file
-                      'mouse-face 'highlight
-                      'face '(:foreground "#2aa198"))
-    (insert "\n")))
+(defun my/dashboard-insert-file-link (file &optional date-source)
+  "Insert a clickable line for FILE with date and org title.
 
-(defun my/dashboard-insert-file-link-with-id-date (file)
-  "Insert a clickable line showing creation date (from identifier) + org title."
+DATE-SOURCE controls which date is shown:
+  \='mtime (default) — file modification time; used for Recently Modified,
+                       PKS, and Docu sections where \"what changed last\"
+                       is the relevant signal.
+  \='id             — creation date parsed from the Denote identifier
+                       (YYYYMMDDTHHMMSS prefix); used for Journal and tag
+                       popups where chronological creation order matters.
+                       Falls back to mtime when the file has no identifier
+                       (e.g. captures.org)."
   (let* ((title   (my/denote-file-title file))
-         (id      (my/denote-file-identifier file))
-         (date    (if id
-                      (concat (substring id 0 4) "-"
-                              (substring id 4 6) "-"
-                              (substring id 6 8))
-                    (format-time-string "%Y-%m-%d" (nth 5 (file-attributes file)))))
+         (date    (pcase date-source
+                    ('id
+                     (let ((id (my/denote-file-identifier file)))
+                       (if id
+                           (concat (substring id 0 4) "-"
+                                   (substring id 4 6) "-"
+                                   (substring id 6 8))
+                         (format-time-string "%Y-%m-%d"
+                                             (nth 5 (file-attributes file))))))
+                    (_
+                     (format-time-string "%Y-%m-%d"
+                                         (nth 5 (file-attributes file))))))
          (display (format "  %s  %s" date title))
          (start   (point)))
     (insert display)
@@ -202,7 +202,7 @@
                          tag (length files))
                  'face '(:weight bold)))
         (dolist (f sorted)
-          (my/dashboard-insert-file-link-with-id-date f))
+          (my/dashboard-insert-file-link f 'id))
         (insert "\n")
         (insert (propertize "  q = close" 'face '(:foreground "#888888")))
         (read-only-mode 1)
@@ -233,7 +233,7 @@
         (my/dashboard-insert-section-header
          (format "Journal  [%s]" (abbreviate-file-name my-notes-journal)))
         (dolist (f (seq-take (my/denote-org-files-in-by-id my-notes-journal) 10))
-          (my/dashboard-insert-file-link-with-id-date f))
+          (my/dashboard-insert-file-link f 'id))
         (my/dashboard-insert-section-header
          (format "PKS -- Personal Knowledge  [%s]" (abbreviate-file-name my-notes-pks)))
         (dolist (f (seq-take (my/denote-org-files-in my-notes-pks) 20))
