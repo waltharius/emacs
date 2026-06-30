@@ -195,7 +195,11 @@ DATE-SOURCE controls which date is shown:
     (insert "\n")))
 
 (defun my/dashboard-show-tag-notes (tag files)
-  "Pop up a clickable list of FILES tagged TAG, sorted by creation date."
+  "Pop up a clickable list of FILES tagged TAG, sorted by creation date.
+
+The popup buffer uses `special-mode' as its base, which provides
+read-only protection and the standard \='q\=' (quit-window) keybinding
+without any manual setup."
   (let* ((dated   (seq-filter #'my/denote-file-identifier files))
          (undated (seq-remove #'my/denote-file-identifier files))
          (sorted  (append
@@ -205,6 +209,7 @@ DATE-SOURCE controls which date is shown:
     (with-current-buffer buf
       (let ((inhibit-read-only t))
         (erase-buffer)
+        (special-mode)
         (insert (propertize
                  (format "Notes tagged :%s: (%d)  --  sorted by creation date\n\n"
                          tag (length files))
@@ -212,9 +217,7 @@ DATE-SOURCE controls which date is shown:
         (dolist (f sorted)
           (my/dashboard-insert-file-link f 'id))
         (insert "\n")
-        (insert (propertize "  q = close" 'face '(:foreground "#888888")))
-        (read-only-mode 1)
-        (local-set-key (kbd "q") #'kill-buffer-and-window)))
+        (insert (propertize "  q = close" 'face '(:foreground "#888888")))))
     (display-buffer buf '(display-buffer-below-selected (window-height . 0.4)))))
 
 ;; ============================================================
