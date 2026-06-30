@@ -44,19 +44,22 @@
 ;; ============================================================
 ;; DEFERRED HUNSPELL SETUP
 ;; ============================================================
+;; On NixOS, hunspellDicts.pl_PL ships ISO8859-2 only.
+;; A UTF-8 copy is maintained at ~/.local/share/hunspell/ by
+;; home.activation.hunspellUtf8 (users/marcin/base/packages.nix).
+;; DICPATH ensures Hunspell finds that copy before the system profile.
 
 (with-eval-after-load 'ispell
-  (let* ((login     (user-login-name))
+  (let* ((user-dict (expand-file-name "~/.local/share/hunspell"))
+         (login     (user-login-name))
          (nix-path  (format "/etc/profiles/per-user/%s/share/hunspell" login))
-         (fallback  "/usr/share/hunspell")
-         (dict-path (if (file-directory-p nix-path) nix-path fallback)))
-    (setq ispell-hunspell-dict-paths-alist
-          (list
-           (list "pl_PL" (expand-file-name "pl_PL.aff" dict-path))
-           (list "en_GB" (expand-file-name "en_GB.aff" dict-path)))))
+         (dict-path (cond
+                     ((file-directory-p user-dict) user-dict)
+                     ((file-directory-p nix-path)  nix-path)
+                     (t "/usr/share/hunspell"))))
+    (setenv "DICPATH" dict-path))
   (ispell-set-spellchecker-params)
   (ispell-hunspell-add-multi-dic "pl_PL,en_GB"))
-
 ;; ============================================================
 ;; E6 — SUPPRESS "Save .hunspell_personal?" ON QUIT
 ;; ============================================================
