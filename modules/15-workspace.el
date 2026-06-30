@@ -112,7 +112,7 @@
           (dolist (tag (my/denote-file-tags f))
             (puthash tag (cons f (gethash tag tag-map '())) tag-map)))))
     (let ((pairs '()))
-      (maphash (lambda (tag files) (push (cons tag files) pairs)) tag-map)
+      (mafhash (lambda (tag files) (push (cons tag files) pairs)) tag-map)
       (sort pairs (lambda (a b) (> (length (cdr a)) (length (cdr b))))))))
 
 ;; ============================================================
@@ -273,45 +273,47 @@ DATE-SOURCE controls which date is shown:
     (switch-to-buffer (my/render-notes-dashboard))))
 
 ;; ============================================================
-;; STARTUP: Unblock Hunspell after desktop restore, then open Dashboard
+;; STARTUP: Open Dashboard after init
 ;; ============================================================
-;; `desktop-after-read-hook' fires after all buffers have been restored.
-;; We use it to:
-;;   1. Clear the flyspell desktop-restore guard (allows Hunspell to start).
-;;   2. Re-run flyspell-mode-on on all restored buffers so errors show up.
-;;   3. Open the Dashboard tab.
+;; Two paths to startup, both guarded by the same "Dashboard tab
+;; already exists?" check so only one ever fires:
 ;;
-;; The two actions are separated by a small timer so the dashboard
-;; does not block the flyspell recheck loop.
+;;   Normal launch (desktop restored):
+;;     desktop-after-read-hook -> my/after-desktop-restore
+;;     Also unblocks Hunspell (flyspell recheck on all restored buffers).
+;;
+;;   First launch or --no-desktop (no desktop file yet):
+;;     emacs-startup-hook -> my/open-notes-dashboard directly.
+;;     desktop-after-read-hook never fires when there is no desktop,
+;;     so this hook is the only path.
+;;
+;; Both timers use 0.5 s delay to let the rest of startup settle first.
 
 (defun my/after-desktop-restore ()
   "Run once after desktop-restore: unblock Hunspell and open Dashboard."
-  ;; Step 1: allow Hunspell to start and check all restored buffers.
-  ;; This fires Hunspell exactly once for the first buffer that needs it.
   (when (fboundp 'my/flyspell--recheck-all-buffers)
     (run-with-timer 0.1 nil #'my/flyspell--recheck-all-buffers))
-  ;; Step 2: open the Dashboard tab after flyspell has settled.
   (run-with-timer
    0.5 nil
    (lambda ()
-     (unless (seq-find (lambda (tab)
-                         (equal (alist-get 'name tab) "Dashboard"))
+     (unless (seq-find (lambda (tab) (equal (alist-get 'name tab) "Dashboard"))
                        (tab-bar-tabs))
        (my/open-notes-dashboard)))))
 
 (add-hook 'desktop-after-read-hook #'my/after-desktop-restore)
-;; Keep emacs-startup-hook as fallback for first launch (no desktop yet).
-(add-hook 'emacs-startup-hook      #'my/startup-open-dashboard)
 
-(defun my/startup-open-dashboard ()
-  "Open Dashboard tab at startup (fallback for first launch without desktop)."
-  (run-with-timer
-   0.5 nil
-   (lambda ()
-     (unless (seq-find (lambda (tab)
-                         (equal (alist-get 'name tab) "Dashboard"))
-                       (tab-bar-tabs))
-       (my/open-notes-dashboard)))))
+;; Fallback: fires on first launch when there is no desktop to restore.
+;; On subsequent launches desktop-after-read-hook fires instead, so the
+;; Dashboard tab will already exist by the time this timer runs and the
+;; (unless ...) guard below ensures we do nothing.
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (run-with-timer
+             0.5 nil
+             (lambda ()
+               (unless (seq-find (lambda (tab) (equal (alist-get 'name tab) "Dashboard"))
+                                 (tab-bar-tabs))
+                 (my/open-notes-dashboard))))))
 
 ;; ============================================================
 ;; BACKLINKS: Right side-window
