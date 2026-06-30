@@ -62,5 +62,11 @@
 (when (file-exists-p custom-file)
   (load custom-file))
 
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (message "TOTAL startup: %.3f seconds"
+                     (float-time (time-subtract (current-time)
+                                                before-init-time)))))
+
 (provide 'init)
 ;;; init.el ends here
