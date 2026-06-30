@@ -160,8 +160,12 @@ NO BOUNDARY LINES - clean margins!"
 ;; Left mouse click follows links
 (setq org-mouse-1-follows-link t)
 
-;; Don't ask for confirmation when executing elisp links
-(setq org-confirm-elisp-link-function nil)
+;; Require y-or-n confirmation before executing elisp links.
+;; Rationale: notes imported from Readwise or synced via Syncthing are
+;; external input. A malicious [[elisp:...]] link in an .org file would
+;; execute silently if this were nil.  y-or-n-p costs one keypress and
+;; keeps the protection without being disruptive for own notes.
+(setq org-confirm-elisp-link-function #'y-or-n-p)
 
 (provide '04-denote)
 ;;; 04-denote.el ends here
