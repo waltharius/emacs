@@ -43,19 +43,16 @@
 (defvar my-notes-docu (expand-file-name "~/notes/docu/")
   "Documentation and technical notes.")
 
-;; Capture files
-(defvar my-fleeting-file (expand-file-name "~/notes/fleeting.org")
-  "Quick capture file for fleeting thoughts.")
-
+;; Capture file
 (defvar my-journal-captures (expand-file-name "~/notes/journal/captures.org")
-  "Journal captures - ideas worth developing later.")
+  "Ideas capture file - thoughts and ideas worth developing later.
+Use C-c n c to add entries, C-c n m to promote to full Denote note.")
 
-;; Agenda scans all three silos + capture files
+;; Agenda scans all three silos + captures file
 (defvar my-tasks-agenda-dirs
   (list my-notes-journal
         my-notes-pks
         my-notes-docu
-        my-fleeting-file
         my-journal-captures)
   "All locations org-agenda should scan for TODO items.")
 
@@ -82,19 +79,19 @@ Documentation notes (:docu: tag) use 100 instead.")
 (defvar my-denote-keywords
   '("journal" "docu" "wellbeing" "esej" "philosophy"
     "zettel" "osoba" "projekt" "lektura" "filozof"
-    "fleeting" "skroty")
+    "skroty")
   "Base keyword list for Denote.
 With denote-infer-keywords enabled, Denote will automatically
 add any new keywords found in existing notes.")
 
 ;; Create all directories if they don't exist
-(dolist (dir (list my-notes-dir 
-                   my-notes-journal 
-                   my-notes-pks 
+(dolist (dir (list my-notes-dir
+                   my-notes-journal
+                   my-notes-pks
                    my-notes-docu
-                   my-notes-backups 
+                   my-notes-backups
                    my-notes-autosaves
-                   my-emacs-backups 
+                   my-emacs-backups
                    my-emacs-autosaves))
   (unless (file-exists-p dir)
     (make-directory dir t)))
