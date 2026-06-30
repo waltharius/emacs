@@ -33,17 +33,19 @@
     (when (file-directory-p (concat notes-dir ".git"))
       (let ((default-directory notes-dir))
         (when (> (length (shell-command-to-string "git status --porcelain")) 0)
-          (let* ((changed-files-raw (shell-command-to-string 
+          (let* ((changed-files-raw (shell-command-to-string
                                      "git diff --name-only HEAD | head -5"))
-                 (changed-files (mapconcat 
+                 (changed-files (mapconcat
                                  (lambda (f) (file-name-nondirectory f))
                                  (split-string changed-files-raw "\n" t)
                                  "\n"))
                  (commit-msg (format "Auto-commit: %s\n\nChanged:\n%s"
                                      (format-time-string "%Y-%m-%d %H:%M")
                                      changed-files)))
-            (shell-command "git add -A 2>&1")
-            (shell-command (format "git commit -m '%s' 2>&1 || true" commit-msg))
+            ;; call-process bypasses the shell — safe against filenames
+            ;; with apostrophes, semicolons, or other special characters.
+            (call-process "git" nil nil nil "add" "-A")
+            (call-process "git" nil nil nil "commit" "-m" commit-msg)
             (message "✅ Notes committed: %s" changed-files)))))))
 
 ;; ============================================================
@@ -55,17 +57,19 @@
   (interactive)
   (let ((default-directory user-emacs-directory))
     (when (> (length (shell-command-to-string "git status --porcelain")) 0)
-      (let* ((changed-files-raw (shell-command-to-string 
+      (let* ((changed-files-raw (shell-command-to-string
                                  "git diff --name-only HEAD | head -5"))
-             (changed-files (mapconcat 
+             (changed-files (mapconcat
                              (lambda (f) (file-name-nondirectory f))
                              (split-string changed-files-raw "\n" t)
                              "\n"))
              (commit-msg (format "Auto-commit config: %s\n\nChanged:\n%s"
                                  (format-time-string "%Y-%m-%d %H:%M")
                                  changed-files)))
-        (shell-command "git add -A 2>&1")
-        (shell-command (format "git commit -m '%s' 2>&1 || true" commit-msg))
+        ;; call-process bypasses the shell — safe against filenames
+        ;; with apostrophes, semicolons, or other special characters.
+        (call-process "git" nil nil nil "add" "-A")
+        (call-process "git" nil nil nil "commit" "-m" commit-msg)
         (message "✅ Config committed: %s" changed-files)))))
 
 ;; ============================================================
