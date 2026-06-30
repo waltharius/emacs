@@ -4,7 +4,7 @@
 ;; Built from scratch, tested incrementally
 
 ;;; Code:
-
+(setq use-package-compute-statistics t)
 ;; ============================================================
 ;; PERFORMANCE: Startup optimization
 ;; ============================================================
