@@ -9,6 +9,14 @@
 ;;
 ;; NOTE: Font settings (variable-pitch) moved to 03b-fonts.el
 ;;       to enable selective font control (journals vs other notes)
+;;
+;; NOTE: Face colours/sizes (org-level-*, org-link, org-scheduled,
+;;       org-deadline-announce, org-special-keyword) are defined
+;;       exclusively in custom.el (the Customize authoritative source).
+;;       This file only handles *behaviour* (inheritance, monospace
+;;       enforcement) via set-face-attribute.  Do not add custom-set-faces
+;;       calls here — they will silently conflict with custom.el after
+;;       every load-theme call.
 
 ;;; Code:
 
@@ -20,52 +28,20 @@
 (setq org-hide-emphasis-markers t)
 
 ;; ============================================================
-;; BEAUTIFUL HEADINGS (Larger, Colorful)
-;; ============================================================
-
-(with-eval-after-load 'org
-  (custom-set-faces
-   ;; Level 1 - Largest, most prominent
-   '(org-level-1 ((t (:height 1.3 :weight bold))))
-   
-   ;; Level 2 - Medium large
-   '(org-level-2 ((t (:height 1.2 :weight bold))))
-   
-   ;; Level 3 - Slightly larger
-   '(org-level-3 ((t (:height 1.1 :weight bold))))
-   
-   ;; Level 4+ - Normal size
-   '(org-level-4 ((t (:height 1.0 :weight bold))))
-   '(org-level-5 ((t (:height 1.0))))
-   '(org-level-6 ((t (:height 1.0))))
-   '(org-level-7 ((t (:height 1.0))))
-   '(org-level-8 ((t (:height 1.0))))
-
-   '(org-link ((t (:height 1.0 :foreground "#555555" :underline nil :weight normal))))
-
-      ;; SCHEDULED line: small, grey, unobtrusive
-   '(org-scheduled ((t (:height 0.8 :foreground "#777777"))))
-   ;; DEADLINE line: small, slightly warm red so it's visible but not loud
-   '(org-deadline-announce ((t (:height 0.8 :foreground "#aa5555"))))
-   ;; The actual timestamp text inside <...>
-   ;;'(org-date ((t (:height 0.8 :foreground "#888888" :underline nil))))
-   ;; The keyword words "SCHEDULED:" and "DEADLINE:" themselves
-   '(org-special-keyword ((t (:height 0.75 :foreground "#666666" :inherit fixed-pitch))))))
-
-;; ============================================================
 ;; MONOSPACE FOR CODE/TABLES (even when variable-pitch enabled)
 ;; ============================================================
 
-;; These faces stay monospace even in journal notes with handwriting font
+;; These faces stay monospace even in journal notes with handwriting font.
+;; Only :inherit is set here; all colour/size attributes are left as
+;; 'unspecified so they inherit from the face hierarchy (or custom.el).
 (with-eval-after-load 'org
-  (set-face-attribute 'org-table nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-code nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-block nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-verbatim nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-special-keyword nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-meta-line nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch))
-  ;;(set-face-attribute 'org-link nil :inherit 'fixed-pitch))
+  (set-face-attribute 'org-table          nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
+  (set-face-attribute 'org-code           nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
+  (set-face-attribute 'org-block          nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
+  (set-face-attribute 'org-verbatim       nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
+  (set-face-attribute 'org-special-keyword nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
+  (set-face-attribute 'org-meta-line      nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
+  (set-face-attribute 'org-checkbox       nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified))
 
 ;; ============================================================
 ;; VISUAL IMPROVEMENTS
@@ -152,15 +128,12 @@ Toggle: C-c n E  (in notes transient menu)"
 ;; Before: *bold* /italic/ _underline_
 ;; After:  bold   italic   underline   (markers hidden!)
 ;;
-;; Headings are bigger and bolder:
-;; # Heading 1  <- 1.3x size
-;; ## Heading 2 <- 1.2x size
-;; ### Heading 3 <- 1.1x size
+;; Heading sizes/colours: defined in custom.el (org-level-1..8)
 ;;
 ;; Font control (variable-pitch) handled by 03b-fonts.el:
 ;; - Journal notes: Playpen Sans Hebrew (handwriting)
 ;; - Other notes: JetBrains Mono (monospace)
-;; - Code/tables: Always monospace
+;; - Code/tables: Always monospace (enforced above via :inherit fixed-pitch)
 ;; Pretty bullets: ● ○ ● ○
 ;;
 ;; INDENTATION:

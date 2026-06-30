@@ -41,7 +41,7 @@
  '(org-level-6 ((t (:height 1.0))))
  '(org-level-7 ((t (:height 1.0))))
  '(org-level-8 ((t (:height 1.0))))
- '(org-link ((t (:foreground "#555555" :underline nil :weight normal))))
+ '(org-link ((t (:height 1.0 :foreground "#555555" :underline nil :weight normal))))
  '(org-property-value ((t (:inherit modus-themes-fixed-pitch :foreground "dark violet"))))
  '(org-quote ((t (:background "#f9f9f9" :slant italic :foreground "#555555"))))
  '(org-scheduled ((t (:height 0.8 :foreground "#777777"))))
