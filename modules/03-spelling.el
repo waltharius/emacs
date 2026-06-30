@@ -2,17 +2,15 @@
 ;;
 ;; Description: Hunspell (pl_PL + en_GB UTF-8) for spelling
 ;;              Flyspell for highlighting errors AS YOU TYPE
-;;              SMART automatic checking based on buffer size
 ;;
 ;; STARTUP BEHAVIOUR
 ;; -----------------
-;; ispell variables are set immediately at load time (flyspell needs
-;; them before any hook fires).  However, the Hunspell subprocess is
-;; NOT started during Emacs init or desktop-restore.  It starts on the
-;; first keystroke that flyspell wants to check — typically 3 seconds
-;; after you start typing in any org/text buffer.  This avoids the
-;; ~18-second hang caused by Hunspell starting N times while
-;; desktop-restore opens all saved .org buffers.
+;; ispell variables are set immediately at load time.
+;; The Hunspell subprocess is blocked during desktop-restore via
+;; `my/flyspell-desktop-restoring' flag.  After desktop-restore
+;; completes, `desktop-after-read-hook' (in 15-workspace.el) clears
+;; the flag and re-activates flyspell-mode-on for all open buffers.
+;; Hunspell then starts once, on demand, for the first buffer checked.
 ;;
 ;;; Code:
 
@@ -27,10 +25,6 @@
 (setenv  "HUNSPELL_PERSONAL" ispell-personal-dictionary)
 (setenv  "LANG"   "pl_PL.UTF-8")
 (setenv  "LC_ALL" "pl_PL.UTF-8")
-
-;; Save personal dictionary silently (no "Save buffer?" prompt for
-;; ispell's internal save calls).  The remaining quit-prompt fix is
-;; in E6 below.
 (setq ispell-silently-savep t)
 
 (setq ispell-hunspell-dictionary-alist
@@ -48,12 +42,8 @@
     (write-file ispell-personal-dictionary)))
 
 ;; ============================================================
-;; DEFERRED HUNSPELL SETUP  (runs after ispell.el is loaded,
-;;                            NOT during Emacs startup)
+;; DEFERRED HUNSPELL SETUP
 ;; ============================================================
-;; ispell.el is loaded lazily — only when flyspell actually needs it
-;; (first word checked after first keystroke).  Everything below runs
-;; at that point, not during desktop-restore.
 
 (with-eval-after-load 'ispell
   (let* ((login     (user-login-name))
@@ -70,34 +60,73 @@
 ;; ============================================================
 ;; E6 — SUPPRESS "Save .hunspell_personal?" ON QUIT
 ;; ============================================================
-;; ispell-pdict-save can leave the personal dictionary file open as
-;; an Emacs buffer.  When Emacs quits, save-some-buffers sees the
-;; modified buffer and prompts.  We suppress the prompt by telling
-;; save-some-buffers to skip that specific file path.
 
 (defun my/spell--personal-dict-buffer-p ()
-  "Return t if the current buffer is the hunspell personal dictionary.
-Used by `save-some-buffers-default-predicate' to skip the prompt."
+  "Return t if current buffer is the hunspell personal dictionary."
   (when (buffer-file-name)
     (string= (file-truename (buffer-file-name))
              (file-truename ispell-personal-dictionary))))
 
-;; Add to the list of buffers save-some-buffers should NOT ask about.
-;; The predicate returns non-nil → buffer is skipped (not saved interactively).
-;; ispell-pdict-save already wrote the file to disk, so skipping here
-;; is safe — no data is lost.
 (add-to-list 'save-some-buffers-action-alist
              (list #'my/spell--personal-dict-buffer-p
                    (lambda (_buf) (ignore))
                    "skip hunspell personal dictionary"))
 
 ;; ============================================================
-;; SAFE HELPER: Check if process is alive (read-only, no side effects)
+;; DESKTOP-RESTORE GUARD
+;; ============================================================
+;; During desktop-restore Emacs opens all saved .org buffers.
+;; Each fires org-mode-hook -> flyspell-mode -> flyspell-mode-on
+;; -> Hunspell starts N times -> 17-second hang.
+;;
+;; Solution: while this flag is t, the flyspell-mode advice below
+;; enables the mode variable but skips flyspell-mode-on (which is
+;; the function that actually starts the subprocess).  After
+;; desktop-restore completes, 15-workspace.el clears the flag and
+;; calls flyspell-mode-on on all open buffers.
+
+(defvar my/flyspell-desktop-restoring t
+  "Non-nil during desktop-restore to prevent Hunspell from starting.
+Set to nil by `my/flyspell--recheck-all-buffers' after restore.")
+
+(defun my/flyspell--block-during-restore (orig-fun arg)
+  "Advice around `flyspell-mode'.
+When `my/flyspell-desktop-restoring' is non-nil and ARG enables
+the mode (arg >= 0 or nil), enable the mode variable but skip
+`flyspell-mode-on' to prevent Hunspell from starting during
+desktop-restore.  Pass through normally in all other cases."
+  (if (and my/flyspell-desktop-restoring
+           (or (null arg) (> arg 0)))
+      ;; Enable mode flag silently, skip the subprocess start.
+      (setq flyspell-mode t)
+    ;; Normal path: call the real flyspell-mode.
+    (funcall orig-fun arg)))
+
+(advice-add 'flyspell-mode :around #'my/flyspell--block-during-restore)
+
+(defun my/flyspell--recheck-all-buffers ()
+  "Clear the desktop-restore guard and activate flyspell on all live buffers.
+Called from `desktop-after-read-hook' in 15-workspace.el.
+This is the first moment Hunspell is allowed to start."
+  (setq my/flyspell-desktop-restoring nil)
+  ;; Remove the blocking advice — no longer needed after first restore.
+  (advice-remove 'flyspell-mode #'my/flyspell--block-during-restore)
+  ;; Re-run flyspell-mode-on for every buffer that had flyspell enabled
+  ;; during restore (mode var is t but subprocess never started).
+  (dolist (buf (buffer-list))
+    (when (buffer-live-p buf)
+      (with-current-buffer buf
+        (when (and flyspell-mode
+                   (derived-mode-p 'text-mode 'org-mode))
+          ;; flyspell-mode-on starts the process and checks the buffer.
+          (flyspell-mode-on))))))
+
+;; ============================================================
+;; SAFE HELPER: Check if process is alive
 ;; ============================================================
 
 (defun my/spell-check-can-run-p ()
-  "Return t if flyspell-mode is on AND the Hunspell process is already running.
-This function ONLY checks — it never starts the process."
+  "Return t if flyspell-mode is on AND Hunspell process is running."
   (and flyspell-mode
        (boundp 'ispell-process)
        (process-live-p ispell-process)))
@@ -107,9 +136,7 @@ This function ONLY checks — it never starts the process."
 ;; ============================================================
 
 (defun my/spell-ensure-process ()
-  "Ensure the Hunspell process is running and has finished its startup handshake.
-If the process is not alive, start it and wait briefly for the NixOS
-wrapper iconv probe to flush through.  This is a no-op in steady state.
+  "Ensure Hunspell is running.  No-op in steady state.
 Returns t if process is ready, nil if it could not be started."
   (unless (and (boundp 'ispell-process) (process-live-p ispell-process))
     (message "Starting Hunspell…")
@@ -139,11 +166,11 @@ Returns t if process is ready, nil if it could not be started."
       found)))
 
 ;; ============================================================
-;; SPELL CORRECTION (with menu!) - Returns to start position
+;; SPELL CORRECTION - Returns to start position
 ;; ============================================================
 
 (defun my/spell-correct-previous ()
-  "Jump to previous spelling error, show correction menu, then return to start."
+  "Jump to previous spelling error, show correction menu, return to start."
   (interactive)
   (let ((start-pos (point)))
     (condition-case err
@@ -166,7 +193,7 @@ Returns t if process is ready, nil if it could not be started."
 ;; ============================================================
 
 (defun my/spell-add-previous-to-dict ()
-  "Add previous misspelled word to personal dictionary, then return to start."
+  "Add previous misspelled word to personal dictionary, return to start."
   (interactive)
   (let ((start-pos (point)))
     (condition-case err
@@ -249,11 +276,8 @@ Returns t if process is ready, nil if it could not be started."
   (setq flyspell-consider-dash-as-word-delimiter-flag t))
 
 ;; ============================================================
-;; ENSURE FLYSPELL STAYS ON (run AFTER other hooks, priority 100)
+;; ENSURE FLYSPELL STAYS ON (priority 100 — runs last)
 ;; ============================================================
-;; These hooks guarantee flyspell-mode is active even if another hook
-;; accidentally disabled it.  They do NOT start the Hunspell process —
-;; that only happens on the first word flyspell actually needs to check.
 
 (add-hook 'org-mode-hook
           (lambda () (unless flyspell-mode (flyspell-mode 1))) 100)

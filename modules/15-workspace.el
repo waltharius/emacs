@@ -57,17 +57,13 @@
     (error nil)))
 
 (defun my/denote-file-identifier (file)
-  "Return the Denote identifier string from FILE basename, or nil.
-Denote identifiers have the form YYYYMMDDTHHMMSS at the start of
-the filename. Returns the 15-character string e.g. \"20240312T143022\".
-Files without an identifier (e.g. captures.org) return nil."
+  "Return the Denote identifier string from FILE basename, or nil."
   (let ((base (file-name-base file)))
     (when (string-match "^\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)" base)
       (match-string 1 base))))
 
 (defun my/denote-identifier< (file-a file-b)
-  "Return t if FILE-A was created before FILE-B by Denote identifier.
-Files without an identifier sort last."
+  "Return t if FILE-A was created before FILE-B by Denote identifier."
   (let ((id-a (my/denote-file-identifier file-a))
         (id-b (my/denote-file-identifier file-b)))
     (cond
@@ -84,14 +80,13 @@ Files without an identifier sort last."
                          (nth 5 (file-attributes a)))))))
 
 (defun my/denote-org-files-in-by-id (directory)
-  "Return .org files in DIRECTORY sorted newest-created first (by identifier).
-Files without a Denote identifier sort last."
+  "Return .org files in DIRECTORY sorted newest-created first (by identifier)."
   (when (file-directory-p directory)
     (let* ((all    (directory-files directory t "\\.org$" t))
            (dated   (seq-filter  #'my/denote-file-identifier all))
            (undated (seq-remove   #'my/denote-file-identifier all)))
       (append
-       (sort dated (lambda (a b) (my/denote-identifier< b a))) ; newest first
+       (sort dated (lambda (a b) (my/denote-identifier< b a)))
        undated))))
 
 (defun my/denote-recently-modified (days)
@@ -127,7 +122,7 @@ Files without a Denote identifier sort last."
 (defconst my/dashboard-buffer-name "*Notes Dashboard*")
 
 (defun my/dashboard-open-in-new-tab (file)
-  "Open FILE in a new named tab (browser middle-click behaviour)."
+  "Open FILE in a new named tab."
   (tab-bar-new-tab)
   (find-file file)
   (tab-bar-rename-tab (my/denote-file-title file)))
@@ -156,8 +151,7 @@ Files without a Denote identifier sort last."
     (insert "\n")))
 
 (defun my/dashboard-insert-file-link-with-id-date (file)
-  "Insert a clickable line showing creation date (from identifier) + org title.
-Falls back to mtime for files without a Denote identifier."
+  "Insert a clickable line showing creation date (from identifier) + org title."
   (let* ((title   (my/denote-file-title file))
          (id      (my/denote-file-identifier file))
          (date    (if id
@@ -193,8 +187,7 @@ Falls back to mtime for files without a Denote identifier."
     (insert "\n")))
 
 (defun my/dashboard-show-tag-notes (tag files)
-  "Pop up a clickable list of FILES tagged TAG, sorted by creation date newest first.
-Files without a Denote identifier (e.g. captures.org) appear last."
+  "Pop up a clickable list of FILES tagged TAG, sorted by creation date."
   (let* ((dated   (seq-filter #'my/denote-file-identifier files))
          (undated (seq-remove #'my/denote-file-identifier files))
          (sorted  (append
@@ -221,56 +214,41 @@ Files without a Denote identifier (e.g. captures.org) appear last."
 ;; ============================================================
 
 (defun my/render-notes-dashboard ()
-  "Render the notes dashboard into `my/dashboard-buffer-name'. Returns buffer."
+  "Render the notes dashboard into `my/dashboard-buffer-name'."
   (let ((buf (get-buffer-create my/dashboard-buffer-name)))
     (with-current-buffer buf
       (let ((inhibit-read-only t))
         (erase-buffer)
-
-        ;; Header
         (insert "\n")
         (insert (propertize "  Notes Dashboard\n"
                             'face '(:weight bold :height 1.3)))
         (insert (propertize (format "  %s\n"
                                    (format-time-string "Refreshed: %Y-%m-%d %H:%M"))
                             'face '(:foreground "#888888")))
-
-        ;; Section: Recently Modified (mtime, all silos)
         (my/dashboard-insert-section-header "Recently Modified  (last 10 days)")
         (let ((recent (my/denote-recently-modified 10)))
           (if recent
               (dolist (f recent) (my/dashboard-insert-file-link f))
             (insert "  (no files modified in the last 10 days)\n")))
-
-        ;; Section: Journal (creation date from identifier, last 10)
         (my/dashboard-insert-section-header
          (format "Journal  [%s]" (abbreviate-file-name my-notes-journal)))
         (dolist (f (seq-take (my/denote-org-files-in-by-id my-notes-journal) 10))
           (my/dashboard-insert-file-link-with-id-date f))
-
-        ;; Section: PKS (mtime)
         (my/dashboard-insert-section-header
          (format "PKS -- Personal Knowledge  [%s]" (abbreviate-file-name my-notes-pks)))
         (dolist (f (seq-take (my/denote-org-files-in my-notes-pks) 20))
           (my/dashboard-insert-file-link f))
-
-        ;; Section: Documentation (mtime)
         (my/dashboard-insert-section-header
          (format "Documentation  [%s]" (abbreviate-file-name my-notes-docu)))
         (dolist (f (seq-take (my/denote-org-files-in my-notes-docu) 20))
           (my/dashboard-insert-file-link f))
-
-        ;; Section: Tags
         (my/dashboard-insert-section-header "Tags  (click to list notes)")
         (dolist (pair (seq-take (my/denote-all-tags) 30))
           (my/dashboard-insert-tag-line (car pair) (cdr pair)))
-
-        ;; Footer
         (insert "\n")
         (insert (propertize
                  "  g = refresh  |  C-c d b = backlinks  |  C-c w r = random note  |  q = bury\n"
                  'face '(:foreground "#888888")))
-
         (read-only-mode 1)
         (local-set-key (kbd "g") #'my/open-notes-dashboard)
         (local-set-key (kbd "q") #'bury-buffer)
@@ -295,11 +273,24 @@ Files without a Denote identifier (e.g. captures.org) appear last."
     (switch-to-buffer (my/render-notes-dashboard))))
 
 ;; ============================================================
-;; STARTUP: Open Dashboard tab after desktop restore
+;; STARTUP: Unblock Hunspell after desktop restore, then open Dashboard
 ;; ============================================================
+;; `desktop-after-read-hook' fires after all buffers have been restored.
+;; We use it to:
+;;   1. Clear the flyspell desktop-restore guard (allows Hunspell to start).
+;;   2. Re-run flyspell-mode-on on all restored buffers so errors show up.
+;;   3. Open the Dashboard tab.
+;;
+;; The two actions are separated by a small timer so the dashboard
+;; does not block the flyspell recheck loop.
 
-(defun my/startup-open-dashboard ()
-  "Open Dashboard tab at startup, after desktop restore settles."
+(defun my/after-desktop-restore ()
+  "Run once after desktop-restore: unblock Hunspell and open Dashboard."
+  ;; Step 1: allow Hunspell to start and check all restored buffers.
+  ;; This fires Hunspell exactly once for the first buffer that needs it.
+  (when (fboundp 'my/flyspell--recheck-all-buffers)
+    (run-with-timer 0.1 nil #'my/flyspell--recheck-all-buffers))
+  ;; Step 2: open the Dashboard tab after flyspell has settled.
   (run-with-timer
    0.5 nil
    (lambda ()
@@ -308,7 +299,19 @@ Files without a Denote identifier (e.g. captures.org) appear last."
                        (tab-bar-tabs))
        (my/open-notes-dashboard)))))
 
-(add-hook 'emacs-startup-hook #'my/startup-open-dashboard)
+(add-hook 'desktop-after-read-hook #'my/after-desktop-restore)
+;; Keep emacs-startup-hook as fallback for first launch (no desktop yet).
+(add-hook 'emacs-startup-hook      #'my/startup-open-dashboard)
+
+(defun my/startup-open-dashboard ()
+  "Open Dashboard tab at startup (fallback for first launch without desktop)."
+  (run-with-timer
+   0.5 nil
+   (lambda ()
+     (unless (seq-find (lambda (tab)
+                         (equal (alist-get 'name tab) "Dashboard"))
+                       (tab-bar-tabs))
+       (my/open-notes-dashboard)))))
 
 ;; ============================================================
 ;; BACKLINKS: Right side-window
