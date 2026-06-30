@@ -26,11 +26,11 @@
   (load custom-file))
 
 ;; ============================================================
-;; WINDOW TITLE: Identify this is refactor branch
+;; WINDOW TITLE: Identify this is window
 ;; ============================================================
 
 (setq frame-title-format
-      '("Emacs [REFACTOR-CLEAN] - "
+      '("Emacs [My note system] - "
         (:eval (if (buffer-file-name)
                    (file-name-nondirectory (buffer-file-name))
                  "%b"))))
