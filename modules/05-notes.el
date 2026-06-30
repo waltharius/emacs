@@ -265,12 +265,13 @@
     (if (not file)
         (message "This is not a file!")
       (when (yes-or-no-p (format "Delete note: %s? " name))
-        ;; Check if in Git repo
+        ;; Check if in Git repo — call-process is safe against filenames
+        ;; with apostrophes or other special characters (no shell involved).
         (if (and (executable-find "git")
                  (= 0 (call-process "git" nil nil nil
                                    "ls-files" "--error-unmatch" file)))
             (progn
-              (shell-command (format "git rm -f '%s'" file))
+              (call-process "git" nil nil nil "rm" "-f" file)
               (message "Deleted from Git: %s" name))
           (progn
             (delete-file file)
