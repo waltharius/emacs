@@ -45,6 +45,17 @@
 #+year:        %^{year}
 #+language:    %^{langid}
 
+* Problem, na który odpowiada tekst
+
+* Teza / główny ruch autora
+
+* Werdykt (udało się?) + standardowa krytyka
+
+* Nowe problemy, które otwiera
+
+* Powiązania
+# denote-link: pojęcia / problemy / myśliciele
+
 ")))
 
 ;; ============================================================
