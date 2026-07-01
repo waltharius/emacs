@@ -36,12 +36,12 @@
 ;; ============================================================
 
 (defvar my/philosophy-type-keywords
-  '("literatura" "pojecie" "mysliciel" "problem" "mapa")
+  '("literatura" "pojęcie" "myęliciel" "problem" "mapa")
   "Denote *type* keywords for the five philosophy note types.
 One of these is added automatically by each creation command.")
 
 (defvar my/philosophy-epoch-keywords
-  '("starozytnosc" "sredniowiecze" "nowozytnosc" "wspolczesnosc"
+  '("starozytność" "średniowiecze" "nowożytnosc" "współczesność"
     "analityczna" "kontynentalna")
   "Denote *epoch/tradition* keywords offered as completion for the
 second keyword of a philosophy note.  Edit this list freely; it is only
