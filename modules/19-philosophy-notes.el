@@ -36,7 +36,7 @@
 ;; ============================================================
 
 (defvar my/philosophy-type-keywords
-  '("literatura" "pojęcie" "myęliciel" "problem" "mapa")
+  '("literatura" "pojęcie" "myśliciel" "problem" "mapa")
   "Denote *type* keywords for the five philosophy note types.
 One of these is added automatically by each creation command.")
 
