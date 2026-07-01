@@ -5,13 +5,13 @@
 ;;
 ;; Five note types, each identified by a Denote *type* keyword:
 ;;   literatura  - one note per source text (scaffolding: what it says, links)
-;;   pojecie     - one atomic concept per note (definition, tensions, links)
-;;   mysliciel   - one philosopher per note (central project, interlocutors)
+;;   pojęcie     - one atomic concept per note (definition, tensions, links)
+;;   myśliciel   - one philosopher per note (central project, interlocutors)
 ;;   problem     - one problem per note (genesis, solutions, criticism)
 ;;   mapa        - one map-of-content per phase (index linking period notes)
 ;;
-;; Each note additionally gets an *epoch/tradition* keyword (starozytnosc,
-;; nowozytnosc, ...) prompted with completion, matching the plan's
+;; Each note additionally gets an *epoch/tradition* keyword (starożytność,
+;; nowowżytność, ...) prompted with completion, matching the plan's
 ;; "double keyword" scheme: type + epoch.
 ;;
 ;; Every note is created in the pks silo (`my-notes-pks').
@@ -22,7 +22,7 @@
 ;; entry to `my/notes-menu'). Add to init.el:
 ;;   (load (concat modules-dir "19-philosophy-notes.el"))
 ;;
-;; Keyword strings are given in ASCII (pojecie, mysliciel) on purpose:
+;; Keyword strings are given in ASCII (pojęcie, myśliciel) on purpose:
 ;; Denote sluggifies keywords to ASCII anyway, so passing them pre-sluggified
 ;; keeps the filename and #+filetags deterministic.
 
@@ -41,7 +41,7 @@
 One of these is added automatically by each creation command.")
 
 (defvar my/philosophy-epoch-keywords
-  '("starozytność" "średniowiecze" "nowożytnosc" "współczesność"
+  '("starożytność" "średniowiecze" "nowożytność" "współczesność"
     "analityczna" "kontynentalna")
   "Denote *epoch/tradition* keywords offered as completion for the
 second keyword of a philosophy note.  Edit this list freely; it is only
@@ -98,32 +98,46 @@ the new note as a minimal Org scaffold."
    "\n* Streszczenie (moimi słowami)\n\n* Linki\n"))
 
 (defun my/philosophy-note-pojecie ()
-  "Create a concept note (keyword: pojecie) in the pks silo."
+  "Create a concept note (keyword: pojęcie) in the pks silo."
   (interactive)
   (my/philosophy--create-note
-   "pojecie"
-   "\n* Definicja (moimi słowami)\n\n* Napięcia i krytyka\n"))
+   "pojęcie"
+   "\n* Definicja (moimi słowami)\n
+   \n* Skąd się wzięło / jak ewoluowało\n
+   \n* Napięcia i krytyka\n
+   \n* Powiązania\n# denote-link: pojęcia / problemy / myśliciele | hooki: nauka, egzystencja, polityka, moje projekty\n"))
 
 (defun my/philosophy-note-mysliciel ()
-  "Create a thinker note (keyword: mysliciel) in the pks silo."
+  "Create a thinker note (keyword: myśliciel) in the pks silo."
   (interactive)
   (my/philosophy--create-note
-   "mysliciel"
-   "\n* Centralny projekt\n\n* Komu odpowiada / kto odpowiada jemu\n"))
+   "myśliciel"
+   "\n* Centralny projekt\n
+   \n* Problem, na który odpowiada\n
+   \n* Kluczowe ruchy i pojęcia\n
+   \n* Komu odpowiada / kto odpowiada jemu\n
+   \n* Powiązania\n"))
 
 (defun my/philosophy-note-problem ()
   "Create a problem note (keyword: problem) in the pks silo."
   (interactive)
   (my/philosophy--create-note
    "problem"
-   "\n* Geneza\n\n* Rozwiązania i krytyka\n"))
+   "\n* Geneza\n
+   \n* Proponowane rozwiązania\n
+   \n* Krytyka\n
+   \n* Pytania otwarte\n
+   \n* Powiązania\n"))
 
 (defun my/philosophy-note-mapa ()
   "Create a map-of-content note (keyword: mapa) in the pks silo."
   (interactive)
   (my/philosophy--create-note
    "mapa"
-   "\n* Notatki z okresu\n"))
+   "\n* Wielkie pytania okresu\n
+   \n* Postacie\n
+   \n* Pojęcia i problemy do rozwinięcia\n
+   \n* Linki\n"))
 
 ;; ============================================================
 ;; SUBMENU (C-c n l)
