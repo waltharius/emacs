@@ -150,14 +150,14 @@
 (transient-define-prefix my/notes-menu ()
   "Unified menu for all note operations."
   [["Notes"
-    ("c" "Create →"       my/notes-create-menu)
-    ("f" "Find →"         my/notes-find-menu)
-    ("i" "Insert →"       my/notes-insert-menu)
-    ("d" "Document →"     my/notes-doc-menu)
-    ("x" "Export →"       my/notes-export-menu)]
+    ("c" "Create → new/journal/essay/capture"       my/notes-create-menu)
+    ("f" "Find → file/grep/backlinks/random"         my/notes-find-menu)
+    ("i" "Insert → transclusion/link/time/date"       my/notes-insert-menu)
+    ("d" "Document → rename/keywords/delete"     my/notes-doc-menu)
+    ("x" "Export → pdf/batch-any/batch-all"       my/notes-export-menu)]
    ["Settings & Tools"
-    ("v" "View →"         my/notes-view-menu)
-    ("t" "Tools →"        my/notes-tools-menu)
+    ("v" "View → center/writing/indent/emphasis"         my/notes-view-menu)
+    ("t" "Tools → zotero/spelling"        my/notes-tools-menu)
     ;; "l" is reserved: 19-philosophy-notes.el appends it dynamically
     ;; Quick correct access as this is most used functions for me
     ("s" "Correct previous"  my/spell-correct-previous  :transient t)
