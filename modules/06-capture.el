@@ -230,8 +230,6 @@ if not needed."
 ;; ============================================================
 
 (global-set-key (kbd "C-c c")   'org-capture)
-(global-set-key (kbd "C-c n c") 'my/capture-idea)
-(global-set-key (kbd "C-c n m") 'my/capture-promote-to-note)
 
 (provide '06-capture)
 ;;; 06-capture.el ends here
