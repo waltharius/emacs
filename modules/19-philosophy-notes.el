@@ -165,7 +165,7 @@ the new note as a minimal Org scaffold."
   ;; Idempotent: drop any previous "l" entry before re-adding it, so that
   ;; re-evaluating this file does not create duplicate menu items.
   (ignore-errors (transient-remove-suffix 'my/notes-menu "l"))
-  (transient-append-suffix 'my/notes-menu "e"
+  (transient-append-suffix 'my/notes-menu "t"
     '("l" "Philosophy →" my/philosophy-notes-menu)))
 
 (provide '19-philosophy-notes)

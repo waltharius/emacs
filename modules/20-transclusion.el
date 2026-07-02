@@ -179,7 +179,11 @@ link type."
     ("r" "Remove at point"  org-transclusion-remove)
     ("T" "Toggle mode"      org-transclusion-mode)]
    ["Advanced"
-    ("m" "Full org-transclusion menu" org-transclusion-transient-menu)]
+    ("o" "Open source at point"   org-transclusion-open-source)
+    ("O" "Move to source"         org-transclusion-move-to-source)
+    ("e" "Live-sync edit"         org-transclusion-live-sync-start)
+    ("P" "Promote subtree"        org-transclusion-promote-subtree)
+    ("D" "Demote subtree"         org-transclusion-demote-subtree)]
    [("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================
