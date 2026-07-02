@@ -1,0 +1,470 @@
+#+title: Function Helper
+#+subtitle: Personal reference for custom Emacs functions and transient menus
+#+startup: overview
+#+options: toc:2 num:nil
+#+property: header-args :eval never-export
+
+* Notes Menus (C-c n)
+:PROPERTIES:
+:CUSTOM_ID: menu-notes-main
+:END:
+
+Main entry point for all note operations. Hierarchical structure:
+=c= Create, =f= Find, =i= Insert, =d= Document, =x= Export, =v= View,
+=t= Tools, =l= Philosophy (dynamic), =h= Function Help.
+
+Module: =modules/12-transient.el=
+
+** C-c n c — Create / Capture
+:PROPERTIES:
+:CUSTOM_ID: menu-notes-create
+:END:
+
+Create notes and manage captures. Note types in the first column,
+capture commands in the second.
+
+*** n — New note
+:PROPERTIES:
+:CUSTOM_ID: fn-my-denote-base
+:END:
+
+Creates a plain Denote note. Prompts for title, tags (space-separated),
+and silo (=pks= / =docu= / =journal=).
+
+Function: =my/denote-base= | Module: =modules/05-notes.el=
+
+*** j — Journal today
+:PROPERTIES:
+:CUSTOM_ID: fn-my-denote-journal
+:END:
+
+Opens today's journal. If it exists, appends a new timestamped heading
+(=* HH:MM=) at the bottom. If not, creates a new file in =~/notes/journal/=
+with front matter and =:well-being:= property.
+
+Function: =my/denote-journal= | Module: =modules/05-notes.el=
+
+*** J — Journal date
+:PROPERTIES:
+:CUSTOM_ID: fn-my-denote-journal-date
+:END:
+
+Creates or opens a journal for an arbitrary date (backdating). Uses
+=org-read-date=. Existing journal gets a =* Uzupełnienie= heading with
+=:ADDED_AT:= / =:EVENT_DATE:= properties. New backdated files use
+=T000000= identifier.
+
+Function: =my/denote-journal-date= | Module: =modules/05-notes.el=
+
+*** e — Essay
+:PROPERTIES:
+:CUSTOM_ID: fn-my-denote-essay
+:END:
+
+Creates note prefixed =ESEJ:= with tags =esej=, =project=, plus a
+user-provided project tag. Inserts scaffold: Metadata, Essay Plan,
+Bibliography, Working Notes. Always saved in =pks= silo.
+
+Function: =my/denote-essay= | Module: =modules/05-notes.el=
+
+*** L — Linked note
+:PROPERTIES:
+:CUSTOM_ID: fn-my-denote-linked-note
+:END:
+
+Creates a new note linked bidirectionally to the current buffer.
+Requires =#+identifier:= in source note. Source gets a forward link,
+new note gets a =:BACKLINK:= property. Layout: source left, new note
+right in split window.
+
+*Warning:* only works from a Denote =.org= file with =#+identifier:=.
+
+Function: =my/denote-linked-note= | Module: =modules/05-notes.el=
+
+*** i — Ideas capture
+:PROPERTIES:
+:CUSTOM_ID: fn-my-capture-idea
+:END:
+
+Fires capture template =j= directly, no menu. Opens capture buffer to
+the right of current window. Records =:SOURCE:= property automatically.
+
+Function: =my/capture-idea= | Module: =modules/06-capture.el=
+
+*** c — Capture menu
+:PROPERTIES:
+:CUSTOM_ID: fn-org-capture
+:END:
+
+Standard =org-capture= menu with all templates. Also global =C-c c=.
+
+Function: =org-capture= (built-in)
+
+*** m — Promote to note
+:PROPERTIES:
+:CUSTOM_ID: fn-my-capture-promote-to-note
+:END:
+
+Promotes heading at point in captures file to a new Denote note.
+Preserves =:SOURCE:= as =Source:= line. Removes original heading after
+success.
+
+*Warning:* destructive — deletes the original heading, no automatic undo.
+Commit captures.org before running on important entries.
+
+Function: =my/capture-promote-to-note= | Module: =modules/06-capture.el=
+
+** C-c n f — Find / Search
+:PROPERTIES:
+:CUSTOM_ID: menu-notes-find
+:END:
+
+Module: =modules/12-transient.el=
+
+*** f — Find file
+:PROPERTIES:
+:CUSTOM_ID: fn-denote-open-or-create
+:END:
+
+Opens existing note by completion, or creates new one if no match.
+
+Function: =denote-open-or-create= (Denote package)
+
+*** g — Grep notes
+:PROPERTIES:
+:CUSTOM_ID: fn-consult-denote-grep
+:END:
+
+Full-text search across notes with live preview.
+
+Function: =consult-denote-grep= | Module: =modules/04-denote.el=
+
+*** b — Backlinks
+:PROPERTIES:
+:CUSTOM_ID: fn-denote-backlinks
+:END:
+
+Shows all notes linking to the current note.
+
+Function: =denote-backlinks= (Denote package)
+
+*** d — Dashboard
+:PROPERTIES:
+:CUSTOM_ID: fn-my-open-notes-dashboard
+:END:
+
+Opens the notes overview dashboard.
+
+Function: =my/open-notes-dashboard= | Module: =modules/15-workspace.el=
+
+*** t — Tag stats
+:PROPERTIES:
+:CUSTOM_ID: fn-my-notes-explore
+:END:
+
+Tag usage statistics across the notes collection.
+
+Function: =my/notes-explore= | Module: =modules/15-workspace.el=
+
+*** r — Random note
+:PROPERTIES:
+:CUSTOM_ID: fn-denote-explore-random-note
+:END:
+
+Opens a random note from the collection. Useful for serendipitous
+review and rediscovery.
+
+Function: =denote-explore-random-note= (denote-explore package)
+
+** C-c n i — Insert
+:PROPERTIES:
+:CUSTOM_ID: menu-notes-insert
+:END:
+
+Insert links, timestamps, and other content at point.
+Module: =modules/12-transient.el=
+
+*** l — Insert link
+:PROPERTIES:
+:CUSTOM_ID: fn-denote-link
+:END:
+
+Inserts a =[[denote:ID][Title]]= link to an existing note, with
+completion over all notes.
+
+Function: =denote-link= (Denote package)
+
+*** h — Time (HH:MM)
+:PROPERTIES:
+:CUSTOM_ID: fn-insert-current-time
+:END:
+
+Inserts current time in =HH:MM= format at point.
+
+Function: =insert-current-time= | Module: =modules/05-notes.el=
+
+*** d — Date (YYYY-MM-DD)
+:PROPERTIES:
+:CUSTOM_ID: fn-insert-current-date
+:END:
+
+Inserts current date in =YYYY-MM-DD= format at point.
+
+Function: =insert-current-date= | Module: =modules/05-notes.el=
+
+*** w — Well-being
+:PROPERTIES:
+:CUSTOM_ID: fn-my-denote-set-wellbeing
+:END:
+
+Sets the =:well-being:= property (1–10) in the current journal note.
+Only works if the buffer's file path contains ="journal"=.
+
+Function: =my/denote-set-wellbeing= | Module: =modules/05-notes.el=
+
+** C-c n d — Document / File management
+:PROPERTIES:
+:CUSTOM_ID: menu-notes-doc
+:END:
+
+Rename, retag, and delete notes.
+Module: =modules/12-transient.el=
+
+*** r — Rename file
+:PROPERTIES:
+:CUSTOM_ID: fn-denote-rename-file
+:END:
+
+Renames the current Denote file, updating front matter to match
+(title, keywords, date in filename and =#+= headers).
+
+Function: =denote-rename-file= (Denote package)
+
+*** k — Add keywords
+:PROPERTIES:
+:CUSTOM_ID: fn-denote-rename-file-keywords
+:END:
+
+Adds or changes keywords in the current Denote filename and front matter.
+
+Function: =denote-rename-file-keywords= (Denote package)
+
+*** d — Delete note
+:PROPERTIES:
+:CUSTOM_ID: fn-my-denote-delete-note
+:END:
+
+Deletes current note file and kills its buffer. If tracked by Git, uses
+=git rm -f=; otherwise plain =delete-file=. Prompts for confirmation.
+
+*Warning:* =git rm -f= bypasses staging — deletion is immediate in the
+working tree. Commit or stash important changes first.
+
+Function: =my/denote-delete-note= | Module: =modules/05-notes.el=
+
+** C-c n x — Export
+:PROPERTIES:
+:CUSTOM_ID: menu-notes-export
+:END:
+
+Export notes to PDF using LuaLaTeX. Output mirrors silo structure in
+=~/notes/pdf/=. Single-file export also available as global =C-c p=.
+Module: =modules/16-org-export.el=
+
+*** p — Export to PDF
+:PROPERTIES:
+:CUSTOM_ID: fn-my-org-export-to-pdf
+:END:
+
+Exports current buffer to PDF. Language auto-detected from
+=#+filetags:=: =:en:= → English, default → Polish. Journal files
+(=:journal:=) use Playpen Sans Hebrew font. Filename from =#+title:=.
+Prompts on overwrite: =o= overwrite, =r= rename with index, =q= cancel.
+Build files isolated in =/tmp=, deleted after export.
+
+Function: =my/org-export-to-pdf= | Module: =modules/16-org-export.el=
+
+*** P — Batch PDF — ANY keyword
+:PROPERTIES:
+:CUSTOM_ID: fn-my-org-export-pdf-by-keyword
+:END:
+
+Exports all notes whose filenames match *any* of the given keywords.
+Keyword input via =completing-read-multiple= with TAB completion over
+all Denote tags in use. Results shown in =*PDF Export Results*= buffer.
+
+Function: =my/org-export-pdf-by-keyword= | Module: =modules/16-org-export.el=
+
+*** Q — Batch PDF — ALL keywords
+:PROPERTIES:
+:CUSTOM_ID: fn-my-org-export-pdf-by-all-keywords
+:END:
+
+Exports all notes whose filenames match *all* given keywords
+simultaneously. More selective than =P=; useful for scoped sets
+(e.g. =esej= + =project=).
+
+Function: =my/org-export-pdf-by-all-keywords= | Module: =modules/16-org-export.el=
+
+** C-c n v — View
+:PROPERTIES:
+:CUSTOM_ID: menu-notes-view
+:END:
+
+Toggle visual appearance settings for comfortable writing.
+Module: =modules/12-transient.el= / =modules/13-centered-writing.el=
+
+*** c — Center text
+:PROPERTIES:
+:CUSTOM_ID: fn-my-toggle-visual-fill-column-center
+:END:
+
+Toggles centered text layout (=visual-fill-column= + centering).
+
+Function: =my/toggle-visual-fill-column-center= | Module: =modules/13-centered-writing.el=
+
+*** w — Writing mode
+:PROPERTIES:
+:CUSTOM_ID: fn-my-toggle-writeroom
+:END:
+
+Toggles full-screen distraction-free writing mode (=writeroom-mode=).
+
+Function: =my/toggle-writeroom= | Module: =modules/13-centered-writing.el=
+
+*** i — Indent headings
+:PROPERTIES:
+:CUSTOM_ID: fn-my-toggle-org-indent
+:END:
+
+Toggles =org-indent-mode=, visually indenting body text under headings.
+
+Function: =my/toggle-org-indent= | Module: =modules/11-org-appearance.el=
+
+*** e — Emphasis markers
+:PROPERTIES:
+:CUSTOM_ID: fn-my-toggle-emphasis-markers
+:END:
+
+Toggles visibility of Org emphasis markers (=*bold*=, =/italic/=, etc.).
+
+Function: =my/toggle-emphasis-markers= | Module: =modules/11-org-appearance.el=
+
+** C-c n t — Tools
+:PROPERTIES:
+:CUSTOM_ID: menu-notes-tools
+:END:
+
+External tool integrations and spelling. New external integrations
+should be added here rather than at top level.
+Module: =modules/12-transient.el=
+
+*** z — Zotero / Bib
+:PROPERTIES:
+:CUSTOM_ID: menu-zotero
+:END:
+
+Opens bibliography/Zotero submenu. Also available directly as =C-c x=.
+See [[#menu-zotero-detail][Zotero menu detail]] below.
+
+Function: =my/zotero-menu= | Module: =modules/18-zotero-transient.el=
+
+*** Spelling commands
+:PROPERTIES:
+:CUSTOM_ID: menu-spelling
+:END:
+
+| Key | Function                        | Description                      |
+|-----+----------------------------------+-----------------------------------|
+| s   | =my/spell-correct-previous=     | Correct previous misspelled word |
+| a   | =my/spell-add-previous-to-dict= | Add previous word to dictionary  |
+| S   | =my/spell-check-visible=        | Check visible portion of buffer  |
+| b   | =my/spell-check-buffer-full=    | Check entire buffer              |
+| T   | =my/toggle-flyspell=            | Toggle flyspell mode             |
+
+Module: =modules/03-spelling.el=
+
+** C-c n l — Philosophy
+:PROPERTIES:
+:CUSTOM_ID: menu-notes-philosophy
+:END:
+
+Dynamically appended by =19-philosophy-notes.el= after =12-transient.el=
+loads (via =transient-append-suffix=). Five note types, each saved in
+=pks= silo with a type keyword plus optional epoch/tradition keyword.
+
+Module: =modules/19-philosophy-notes.el=
+
+| Key | Note type  | Denote keyword | Scaffold headings                                            |
+|-----+------------+-----------------+---------------------------------------------------------------|
+| l   | Literature | =literatura=    | Streszczenie, Linki                                            |
+| p   | Concept    | =pojęcie=       | Definicja, Skąd się wzięło, Napięcia i krytyka, Powiązania    |
+| m   | Thinker    | =myśliciel=     | Centralny projekt, Problem, Kluczowe ruchy, Komu odpowiada    |
+| b   | Problem    | =problem=       | Geneza, Proponowane rozwiązania, Krytyka, Pytania otwarte     |
+| i   | Map / MOC  | =mapa=          | Wielkie pytania, Postacie, Pojęcia i problemy, Linki          |
+
+Epoch/tradition keywords offered at creation: =starożytność=,
+=średniowiecze=, =nowożytność=, =współczesność=, =analityczna=,
+=kontynentalna= (open completion list, not a fixed set).
+
+** C-c n h — Function Help
+:PROPERTIES:
+:CUSTOM_ID: fn-open-function-helper
+:END:
+
+Opens this file in a new tab. Uses =tab-bar-new-tab= + =find-file= +
+=org-overview= (collapses all headings on open).
+
+Function: =my/open-function-helper= | Module: =modules/12-transient.el=
+
+* Zotero / Bibliography (C-c x)
+:PROPERTIES:
+:CUSTOM_ID: menu-zotero-detail
+:END:
+
+Also accessible from =C-c n t z=. The =C-c x= binding remains active
+for direct access without going through the notes menu.
+Module: =modules/18-zotero-transient.el=
+
+| Key | Function                    | Description                              |
+|-----+------------------------------+-------------------------------------------|
+| n   | =citar-create-note=         | New note from a Zotero reference         |
+| o   | =citar-denote-open-note=    | Open existing bibliographic note         |
+| f   | =my/open-bib-pdf-right=     | Open PDF for current note (right split)  |
+| e   | =citar-open-entry=          | Open BibTeX entry in refs.bib            |
+| u   | =citar-open-links=          | Open URL or DOI in browser               |
+| i   | =citar-insert-citation=     | Insert in-text citation [cite:@key]      |
+| R   | =my/insert-full-reference=  | Insert full bibliography at point        |
+| S   | =my/insert-short-reference= | Insert short reference (Author, Title)   |
+
+* Capture System
+:PROPERTIES:
+:CUSTOM_ID: capture-system
+:END:
+
+Captures land in the file defined by =my-journal-captures= (variable
+in =00-core.el=). Template =j= creates an entry under =* Ideas= with a
+=:SOURCE:= property linking back to the originating note.
+
+The right-side window behaviour is implemented via
+=org-capture-mode-hook= calling =my/capture--show-right=, which splits
+the origin window and places the capture buffer on the right. This
+only fires when capture is started via =my/capture-idea=; generic
+=org-capture= is unaffected.
+
+Module: =modules/06-capture.el=
+
+* Global Keybindings
+:PROPERTIES:
+:CUSTOM_ID: global-keybindings
+:END:
+
+Bindings set outside the transient menu itself:
+
+| Binding | Function                | Set in module            |
+|---------+--------------------------+---------------------------|
+| C-c n   | =my/notes-menu=          | =12-transient.el=        |
+| C-c c   | =org-capture=            | =06-capture.el=          |
+| C-c x   | =my/zotero-menu=         | =18-zotero-transient.el= |
+| C-c p   | =my/org-export-to-pdf=   | =16-org-export.el=       |
+
