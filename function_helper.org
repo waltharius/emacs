@@ -21,9 +21,7 @@ Module: =modules/12-transient.el=
 :END:
 
 Create notes and manage captures. Note types in the first column,
-capture commands in the second.
-
-*** n — New note
+capture commands in the second. <<p-1>>*** n — New note
 :PROPERTIES:
 :CUSTOM_ID: fn-my-denote-base
 :END:

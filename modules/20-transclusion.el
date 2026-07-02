@@ -129,12 +129,19 @@ parser — tables, lists, and source blocks may be grouped imprecisely."
                 (push (cons text end) paragraphs))))))))
     (nreverse paragraphs)))
 
+(defun my/--random-alnum-string (length)
+  "Generate a random alphanumeric string of LENGTH characters."
+  (let ((chars "abcdefghijklmnopqrstuvwxyz0123456789"))
+    (apply #'string
+           (cl-loop repeat length
+                    collect (aref chars (random (length chars)))))))
+
 (defun my/--unique-paragraph-target (existing-targets)
-  "Generate a paragraph target id not present in EXISTING-TARGETS."
-  (let ((n 1))
-    (while (member (format "p-%d" n) existing-targets)
-      (cl-incf n))
-    (format "p-%d" n)))
+  "Generate a random paragraph target id not present in EXISTING-TARGETS."
+  (let (candidate)
+    (while (or (null candidate) (member candidate existing-targets))
+      (setq candidate (my/--random-alnum-string 7)))
+    candidate))
 
 (defun my/--existing-targets-in-file (file)
   "Return a list of all <<target>> names already present in FILE."
@@ -303,6 +310,7 @@ Commit your notes before heavy first use."
     ("o" "Open source at point" org-transclusion-open-source)
     ("O" "Move to source"       org-transclusion-move-to-source)
     ("e" "Live-sync edit"       org-transclusion-live-sync-start)
+    ("E" "Exit live-sync"       org-transclusion-live-sync-exit)
     ("P" "Promote subtree"      org-transclusion-promote-subtree)
     ("D" "Demote subtree"       org-transclusion-demote-subtree)]
    [("q" "Quit" transient-quit-one)]])
