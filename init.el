@@ -62,6 +62,7 @@
   (load (concat modules-dir "17-bibliography.el"))  ; Citar + org-noter + pdf-tools
   (load (concat modules-dir "18-zotero-transient.el")) ; Zotero transient menu
   (load (concat modules-dir "19-philosophy-notes.el")) ; Philosophy note types (C-c n l)
+  (load (concat modules-dir "20-transclusion.el")) ;; transclusion for note linking inside other notes
   )
 
 (add-hook 'emacs-startup-hook

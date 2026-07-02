@@ -184,6 +184,83 @@ Function: =denote-explore-random-note= (denote-explore package)
 Insert links, timestamps, and other content at point.
 Module: =modules/12-transient.el=
 
+*** t — Transclusion submenu
+:PROPERTIES:
+:CUSTOM_ID: menu-notes-transclusion
+:END:
+
+Obsidian-style transclusion for Denote notes: pick a note by title
+search, then pick whole note or a heading. Generates/reuses CUSTOM_ID
+for headings automatically.
+
+Module: =modules/20-transclusion.el=
+
+**** a — Add transclusion (wizard)
+:PROPERTIES:
+:CUSTOM_ID: fn-my-denote-transclude-insert
+:END:
+
+Prompts for a note (Denote completion), then whole note or heading.
+Generates CUSTOM_ID from heading title (spaces → hyphens) if missing,
+saves it into the SOURCE file. Inserts a =#+transclude:= /
+=#+INCLUDE:= pair at point and renders it immediately.
+
+*Warning:* writes to the source file's PROPERTIES drawer if the
+heading had no CUSTOM_ID yet. Commit before heavy first use.
+
+Function: =my/denote-transclude-insert=
+
+**** A — Add all in buffer
+:PROPERTIES:
+:CUSTOM_ID: fn-org-transclusion-add-all
+:END:
+
+Activates every =#+transclude:= keyword in the current buffer at once.
+
+Function: =org-transclusion-add-all= (org-transclusion package)
+
+**** g — Refresh at point
+:PROPERTIES:
+:CUSTOM_ID: fn-org-transclusion-refresh
+:END:
+
+Re-reads the source and updates the transcluded copy at point after
+the source has changed.
+
+Function: =org-transclusion-refresh= (org-transclusion package)
+
+**** r — Remove at point
+:PROPERTIES:
+:CUSTOM_ID: fn-org-transclusion-remove
+:END:
+
+Removes the transcluded content at point, restoring the plain
+=#+transclude:= keyword line. Non-destructive to the source file.
+
+Function: =org-transclusion-remove= (org-transclusion package)
+
+**** T — Toggle mode
+:PROPERTIES:
+:CUSTOM_ID: fn-org-transclusion-mode
+:END:
+
+Toggles =org-transclusion-mode= for the buffer. With
+=org-transclusion-add-all-on-activate= set to =nil= (our config), it
+does NOT auto-transclude everything on activation.
+
+Function: =org-transclusion-mode= (org-transclusion package)
+
+**** m — Full org-transclusion menu
+:PROPERTIES:
+:CUSTOM_ID: fn-org-transclusion-transient-menu
+:END:
+
+Opens the package's own built-in transient menu with all context-
+sensitive options (levels, filters, live-sync, etc.) not covered by
+our wrapper commands above.
+
+Function: =org-transclusion-transient-menu= (org-transclusion package)
+
 *** l — Insert link
 :PROPERTIES:
 :CUSTOM_ID: fn-denote-link
