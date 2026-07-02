@@ -211,8 +211,8 @@ the user cancelled."
 (defun my/--transclusion-insert-whole (file title)
   "Insert transclude + include pair for the WHOLE FILE with TITLE."
   (let ((line-start (point)))
-    (insert (format "#+transclude: [[file:%s][%s]] :only-contents\n" file title))
-    (insert (format "#+INCLUDE: \"%s\" :only-contents t\n" file))
+    (insert (format "#+transclude: [[file:%s][%s]] \n" file title))
+    (insert (format "#+INCLUDE: \"%s\"  t\n" file))
     (goto-char line-start)
     (org-transclusion-add)
     (goto-char (point-max))))
@@ -221,9 +221,9 @@ the user cancelled."
   "Insert transclude + include pair for a HEADING (by CUSTOM-ID) in FILE."
   (let ((line-start (point))
         (link-desc (format "%s — %s" title heading-title)))
-    (insert (format "#+transclude: [[file:%s::#%s][%s]] :only-contents\n"
+    (insert (format "#+transclude: [[file:%s::#%s][%s]] \n"
                     file custom-id link-desc))
-    (insert (format "#+INCLUDE: \"%s::#%s\" :only-contents t\n" file custom-id))
+    (insert (format "#+INCLUDE: \"%s::#%s\"  t\n" file custom-id))
     (goto-char line-start)
     (org-transclusion-add)
     (goto-char (point-max))))
@@ -232,9 +232,9 @@ the user cancelled."
   "Insert transclude + include pair for a PARAGRAPH (by TARGET-ID) in FILE."
   (let ((line-start (point))
         (link-desc (format "%s — paragraph" title)))
-    (insert (format "#+transclude: [[file:%s::%s][%s]] :only-contents\n"
+    (insert (format "#+transclude: [[file:%s::%s][%s]] \n"
                     file target-id link-desc))
-    (insert (format "#+INCLUDE: \"%s::%s\" :only-contents t\n" file target-id))
+    (insert (format "#+INCLUDE: \"%s::%s\"  t\n" file target-id))
     (goto-char line-start)
     (org-transclusion-add)
     (goto-char (point-max))))
