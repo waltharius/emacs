@@ -1,8 +1,9 @@
 ;;; 20-transclusion.el --- Obsidian-style transclusion for Denote notes -*- lexical-binding: t; -*-
 ;;; Commentary:
-;; Wizard-style transclusion: pick a note (Denote completion), pick whole
-;; note or a heading, generate/reuse a CUSTOM_ID for the heading, and
-;; insert both:
+;; Wizard-style transclusion: pick a note (Denote completion, or any file
+;; on disk), pick whole note / heading / paragraph, generate a stable
+;; anchor (CUSTOM_ID for headings, <<target>> for paragraphs), and insert
+;; both:
 ;;   #+transclude: ...  -> live, editable in-buffer transclusion (org-transclusion)
 ;;   #+INCLUDE: ...      -> static pair used only at export time (PDF/HTML/etc.)
 ;;
@@ -18,6 +19,7 @@
 (require 'org)
 (require 'denote)
 (require 'transient)
+(require 'cl-lib)
 
 (use-package org-transclusion
   :ensure t
@@ -98,6 +100,104 @@ this is a write side-effect on a file you did not directly open."
             new-id))))))
 
 ;; ============================================================
+;; PARAGRAPH MODE: extract, browse, and anchor a single paragraph
+;; ============================================================
+
+(defun my/--extract-paragraphs (file)
+  "Return a list of (TEXT . END-POSITION) for all paragraphs in FILE.
+Skips heading lines, property drawers, keyword lines (#+...), and
+blank lines. This is a simple line-based heuristic, not a full Org
+parser — tables, lists, and source blocks may be grouped imprecisely."
+  (let (paragraphs)
+    (with-temp-buffer
+      (insert-file-contents file)
+      (org-mode)
+      (goto-char (point-min))
+      (while (not (eobp))
+        (cond
+         ((or (looking-at "^\\*+[ \t]")
+              (looking-at "^[ \t]*:\\(PROPERTIES\\|END\\):")
+              (looking-at "^[ \t]*$")
+              (looking-at "^#\\+"))
+          (forward-line 1))
+         (t
+          (let ((beg (point)))
+            (forward-paragraph)
+            (let* ((end (point))
+                   (text (string-trim (buffer-substring-no-properties beg end))))
+              (unless (string-empty-p text)
+                (push (cons text end) paragraphs))))))))
+    (nreverse paragraphs)))
+
+(defun my/--unique-paragraph-target (existing-targets)
+  "Generate a paragraph target id not present in EXISTING-TARGETS."
+  (let ((n 1))
+    (while (member (format "p-%d" n) existing-targets)
+      (cl-incf n))
+    (format "p-%d" n)))
+
+(defun my/--existing-targets-in-file (file)
+  "Return a list of all <<target>> names already present in FILE."
+  (let (targets)
+    (with-temp-buffer
+      (insert-file-contents file)
+      (goto-char (point-min))
+      (while (re-search-forward "<<\\([^>]+\\)>>" nil t)
+        (push (match-string 1) targets)))
+    targets))
+
+(defun my/--pick-paragraph-in-file (file)
+  "Browse paragraphs of FILE one at a time in a preview window.
+n/p cycle through paragraphs, RET confirms the one shown, q/C-g cancels.
+Returns the target id string (existing or newly created), or nil if
+the user cancelled."
+  (let* ((paragraphs (my/--extract-paragraphs file))
+         (total (length paragraphs)))
+    (unless paragraphs
+      (user-error "No paragraphs found in %s" file))
+    (let* ((idx 0)
+           (preview-buf (get-buffer-create "*Transclusion Paragraph Preview*"))
+           (preview-win (display-buffer preview-buf
+                                         '(display-buffer-at-bottom
+                                           (window-height . 0.35))))
+           (confirmed nil)
+           (done nil))
+      (unwind-protect
+          (progn
+            (while (not done)
+              (with-current-buffer preview-buf
+                (erase-buffer)
+                (insert (format "Paragraph %d/%d — n=next p=prev RET=select q=cancel\n"
+                                (1+ idx) total))
+                (insert (make-string 60 ?-) "\n\n")
+                (insert (car (nth idx paragraphs))))
+              (with-selected-window preview-win
+                (goto-char (point-min)))
+              (let ((key (read-key)))
+                (cond
+                 ((eq key ?n) (setq idx (mod (1+ idx) total)))
+                 ((eq key ?p) (setq idx (mod (1- idx) total)))
+                 ((memq key '(13 return)) (setq done t confirmed t))
+                 ((memq key (list ?q 7)) (setq done t confirmed nil)))))
+            (when confirmed
+              (let* ((chosen (nth idx paragraphs))
+                     (end-pos (cdr chosen)))
+                (with-current-buffer (find-file-noselect file)
+                  (save-excursion
+                    (goto-char end-pos)
+                    (skip-chars-backward " \t\n")
+                    (if (looking-back "<<\\([^>]+\\)>>" (line-beginning-position))
+                        (match-string 1)
+                      (let ((new-id (my/--unique-paragraph-target
+                                     (my/--existing-targets-in-file file))))
+                        (insert (format " <<%s>>" new-id))
+                        (save-buffer)
+                        new-id)))))))
+        (when (window-live-p preview-win)
+          (delete-window preview-win))
+        (kill-buffer preview-buf)))))
+
+;; ============================================================
 ;; INSERT HELPERS: build the transclude + include pair
 ;; ============================================================
 
@@ -121,48 +221,69 @@ this is a write side-effect on a file you did not directly open."
     (org-transclusion-add)
     (goto-char (point-max))))
 
+(defun my/--transclusion-insert-paragraph (file title target-id)
+  "Insert transclude + include pair for a PARAGRAPH (by TARGET-ID) in FILE."
+  (let ((line-start (point))
+        (link-desc (format "%s — paragraph" title)))
+    (insert (format "#+transclude: [[file:%s::%s][%s]] :only-contents\n"
+                    file target-id link-desc))
+    (insert (format "#+INCLUDE: \"%s::%s\" :only-contents t\n" file target-id))
+    (goto-char line-start)
+    (org-transclusion-add)
+    (goto-char (point-max))))
+
 ;; ============================================================
-;; MAIN WIZARD: pick note -> pick target -> insert transclude pair
+;; MAIN WIZARD: pick source -> pick target -> insert transclude pair
 ;; Docs: ~/.emacs.d/function_helper.org::#fn-my-denote-transclude-insert
 ;; ============================================================
 
 (defun my/denote-transclude-insert ()
-  "Obsidian-style transclusion wizard for Denote notes.
+  "Obsidian-style transclusion wizard.
 
 Steps:
-1. Prompt for a note via Denote's completion (title search).
-2. Prompt for whole note or a specific heading.
-3. If a heading is chosen and has no CUSTOM_ID, generate one from the
-   heading title (spaces -> hyphens, non-alnum stripped) and save it
-   into the SOURCE file's PROPERTIES drawer.
-4. Insert two lines at point in the CURRENT buffer:
+1. Choose source: a Denote note (title search) or any file on disk.
+2. Choose target: whole note, a heading, or a specific paragraph.
+   - Heading: CUSTOM_ID is generated from the title if missing, and
+     saved into the SOURCE file's PROPERTIES drawer.
+   - Paragraph: browse paragraphs one at a time (n/p/RET/q), a
+     <<target>> anchor is generated and saved if missing.
+3. Insert two lines at point in the CURRENT buffer:
    - `#+transclude:' -> live in-buffer transclusion (org-transclusion)
    - `#+INCLUDE:'    -> static pair used only at export time
-5. Immediately call `org-transclusion-add' so content is visible
-   right away, without a separate keystroke.
+4. Immediately call `org-transclusion-add' so content is visible
+   right away.
 
-Requires the target to be a saved .org file reachable via an absolute
-`file:' link. Denote's own `denote:' link type is intentionally NOT
-used here because `#+INCLUDE:' needs a real file path, not a custom
-link type."
+Warning: heading and paragraph modes WRITE to the source file on disk
+(adding CUSTOM_ID or <<target>>) if the anchor does not already exist.
+Commit your notes before heavy first use."
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Not in an org-mode buffer"))
-  (let* ((file (denote-file-prompt nil "Transclude which note: ")))
+  (let* ((source-kind (completing-read "Source: " '("Denote note" "Any file on disk") nil t))
+         (file (if (string= source-kind "Denote note")
+                   (denote-file-prompt nil "Transclude which note: ")
+                 (read-file-name "Transclude which file: " nil nil t))))
     (unless file
-      (user-error "No note selected"))
+      (user-error "No file selected"))
     (let* ((file     (expand-file-name file))
            (title    (my/--org-title-of file))
            (headings (my/--org-file-headings file))
-           (choices  (cons "Whole note" (mapcar #'car headings)))
+           (choices  (append '("Whole note" "Paragraph") (mapcar #'car headings)))
            (choice   (completing-read "Transclude: " choices nil t)))
-      (if (string= choice "Whole note")
-          (my/--transclusion-insert-whole file title)
+      (cond
+       ((string= choice "Whole note")
+        (my/--transclusion-insert-whole file title))
+       ((string= choice "Paragraph")
+        (let ((target-id (my/--pick-paragraph-in-file file)))
+          (if target-id
+              (my/--transclusion-insert-paragraph file title target-id)
+            (message "Paragraph selection cancelled"))))
+       (t
         (let* ((pos (cdr (assoc choice headings)))
                (heading-title (string-trim
                                 (replace-regexp-in-string "^\\*+[ \t]+" "" choice)))
                (custom-id (my/--ensure-custom-id file pos heading-title)))
-          (my/--transclusion-insert-heading file title custom-id heading-title))))))
+          (my/--transclusion-insert-heading file title custom-id heading-title)))))))
 
 ;; ============================================================
 ;; SUB-MENU: Transclusion  (C-c n i t)
@@ -170,7 +291,7 @@ link type."
 ;; ============================================================
 
 (transient-define-prefix my/transclusion-menu ()
-  "Obsidian-style transclusion for Denote notes."
+  "Obsidian-style transclusion for Denote notes and arbitrary files."
   [["Insert"
     ("a" "Add transclusion (wizard)" my/denote-transclude-insert)
     ("A" "Add all in buffer"         org-transclusion-add-all)]
@@ -179,11 +300,11 @@ link type."
     ("r" "Remove at point"  org-transclusion-remove)
     ("T" "Toggle mode"      org-transclusion-mode)]
    ["Advanced"
-    ("o" "Open source at point"   org-transclusion-open-source)
-    ("O" "Move to source"         org-transclusion-move-to-source)
-    ("e" "Live-sync edit"         org-transclusion-live-sync-start)
-    ("P" "Promote subtree"        org-transclusion-promote-subtree)
-    ("D" "Demote subtree"         org-transclusion-demote-subtree)]
+    ("o" "Open source at point" org-transclusion-open-source)
+    ("O" "Move to source"       org-transclusion-move-to-source)
+    ("e" "Live-sync edit"       org-transclusion-live-sync-start)
+    ("P" "Promote subtree"      org-transclusion-promote-subtree)
+    ("D" "Demote subtree"       org-transclusion-demote-subtree)]
    [("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================
