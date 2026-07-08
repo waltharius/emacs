@@ -2,17 +2,17 @@
 ;;; Commentary:
 ;; Quick capture system for ideas and fleeting thoughts.
 ;;
-;; C-c n c  — Ideas capture (opens to the RIGHT of the current window)
-;; C-c c    — Standard org-capture menu
+;; C-c n c    — Ideas capture (opens to the RIGHT of the current window)
+;; C-c c      — Standard org-capture menu
 ;;
 ;; Processing captures:
-;; C-c n m  — Promote heading to new Denote note (preserves SOURCE)
-;; C-c C-w  — Refile heading to existing note (standard org-refile)
+;; C-c n m    — Promote heading to Denote note (create or append)
+;; C-c C-w    — Refile heading to existing note (standard org-refile)
 ;;
 ;; HOW THE RIGHT-SIDE WINDOW WORKS
 ;; --------------------------------
 ;; org-capture-mode-hook fires after the capture buffer is created
-;; and displayed.  At that point we:
+;; and displayed. At that point we:
 ;;   1. Remember which window was selected when capture was invoked
 ;;      (stored in my/capture--origin-window before org-capture runs).
 ;;   2. In the hook, delete all windows except the origin, then split
@@ -27,7 +27,7 @@
 ;; ============================================================
 
 (defvar my/capture--origin-window nil
-  "Window that was selected when my/capture-idea was invoked.
+  "Window that was selected when `my/capture-idea' was invoked.
 Used by `my/capture--show-right' to place the capture buffer
 to the right of the originating note window.")
 
@@ -39,13 +39,10 @@ started via `my/capture-idea', not the generic org-capture menu)."
   (when (and my/capture--origin-window
              (window-live-p my/capture--origin-window))
     (let ((cap-buf (current-buffer)))
-      ;; Return to a predictable state: show only the origin window.
       (delete-other-windows my/capture--origin-window)
-      ;; Split vertically (side by side) and put capture on the right.
       (let ((right-win (split-window my/capture--origin-window nil 'right)))
         (set-window-buffer right-win cap-buf)
         (select-window right-win))
-      ;; Clear so generic org-capture calls are unaffected.
       (setq my/capture--origin-window nil))))
 
 (add-hook 'org-capture-mode-hook #'my/capture--show-right)
@@ -120,7 +117,6 @@ started via `my/capture-idea', not the generic org-capture menu)."
 Opens capture buffer to the RIGHT of the current window.
 Records SOURCE link to the originating note automatically."
   (interactive)
-  ;; Store the origin window BEFORE org-capture changes window layout.
   (setq my/capture--origin-window (selected-window))
   (org-capture nil "j"))
 
@@ -132,7 +128,7 @@ Records SOURCE link to the originating note automatically."
   "Extract the raw value of :SOURCE: property from TEXT string.
 Returns the value string or nil if not found."
   (when (string-match ":SOURCE:[ \t]+\\(.+\\)" text)
-    (string-trim (match-string 1 text))))
+    (string-trim (match-string 1))))
 
 ;; ============================================================
 ;; HELPER: Strip PROPERTIES block from TEXT string
@@ -145,7 +141,7 @@ Uses a safe multiline regex."
    "\\(:PROPERTIES:\\(?:.\\|\n\\)*?:END:\\)\n?" "" text nil nil 1))
 
 ;; ============================================================
-;; HELPER: Read #+title from file front matter
+;; HELPERS: Note lookup across silos
 ;; ============================================================
 
 (defun my/--note-get-title (file)
@@ -156,26 +152,26 @@ Uses a safe multiline regex."
     (when (re-search-forward "^#\\+title:[ \t]+\\(.+\\)$" nil t)
       (string-trim (match-string 1)))))
 
-;; ============================================================
-;; HELPER: Find existing Denote note by #+title in DIR
-;; ============================================================
+(defun my/--all-note-silos ()
+  "Return list of note silo directories to search."
+  (delq nil
+        (mapcar (lambda (dir)
+                  (when (and dir (file-directory-p dir))
+                    (expand-file-name dir)))
+                (list my-notes-journal my-notes-pks my-notes-docu))))
 
-(defun my/--find-note-by-title (title dir)
-  "Return first Denote file in DIR whose #+title matches TITLE.
-Comparison is case-insensitive and ignores surrounding whitespace.
-Returns nil if no match is found."
-  (let* ((wanted (downcase (string-trim title)))
-         (files  (denote-directory-files dir)))
-    (seq-find
-     (lambda (file)
-       (let ((file-title (my/--note-get-title file)))
-         (and file-title
-              (string= (downcase file-title) wanted))))
-     files)))
-
-;; ============================================================
-;; HELPER: Get last visible Source: line from note body
-;; ============================================================
+(defun my/--find-notes-by-title-global (title)
+  "Return a list of files whose #+title matches TITLE across all silos.
+Comparison is case-insensitive and ignores surrounding whitespace."
+  (let ((wanted (downcase (string-trim title)))
+        matches)
+    (dolist (dir (my/--all-note-silos))
+      (dolist (file (denote-directory-files dir))
+        (let ((file-title (my/--note-get-title file)))
+          (when (and file-title
+                     (string= (downcase file-title) wanted))
+            (push file matches)))))
+    (nreverse matches)))
 
 (defun my/--note-last-source (file)
   "Return the last 'Source: ...' line found in FILE, or nil."
@@ -187,6 +183,41 @@ Returns nil if no match is found."
         (setq last-source (string-trim (match-string 1))))
       last-source)))
 
+(defun my/--append-to-note (file body source-value)
+  "Append BODY to FILE.
+Insert SOURCE-VALUE first only when it differs from the last
+existing 'Source: ...' line in FILE."
+  (let ((last-source (my/--note-last-source file)))
+    (with-current-buffer (find-file-noselect file)
+      (goto-char (point-max))
+      (unless (bolp)
+        (insert "\n"))
+      (unless (looking-back "\n\n" nil)
+        (insert "\n"))
+      (when (and source-value
+                 (not (string= (string-trim source-value)
+                               (string-trim (or last-source "")))))
+        (insert (format "Source: %s\n\n" source-value)))
+      (unless (string-empty-p body)
+        (insert body)
+        (unless (bolp)
+          (insert "\n")))
+      (save-buffer))))
+
+(defun my/--move-note-to-silo (file target-dir)
+  "Move FILE to TARGET-DIR and return the new absolute path.
+If FILE is visited by a buffer, update that buffer too."
+  (let* ((target-dir (file-name-as-directory (expand-file-name target-dir)))
+         (old-path   (expand-file-name file))
+         (new-path   (expand-file-name (file-name-nondirectory old-path) target-dir))
+         (buf        (find-buffer-visiting old-path)))
+    (unless (file-equal-p (file-name-directory old-path) target-dir)
+      (rename-file old-path new-path 1)
+      (when (buffer-live-p buf)
+        (with-current-buffer buf
+          (set-visited-file-name new-path t t))))
+    new-path))
+
 ;; ============================================================
 ;; PROMOTE CAPTURE HEADING TO DENOTE NOTE (create or append)
 ;; ============================================================
@@ -194,14 +225,18 @@ Returns nil if no match is found."
 (defun my/capture-promote-to-note ()
   "Promote capture heading to a Denote note.
 
-If a note with the same #+title already exists in the selected silo,
-append the capture body to the end of that note.
+Behavior:
+- Ask for title, tags, and preferred silo.
+- Search all silos for an existing note with the same #+title.
+- If none exists, create a new note in the chosen silo.
+- If exactly one exists in the same silo, append to it.
+- If exactly one exists in another silo, ask whether to move it to the
+  chosen silo before appending.
+- If multiple notes with the same title exist, abort with a warning.
 
-If SOURCE differs from the last Source: line already present in the
-target note, insert a new Source: line before the appended fragment.
-
-The capture's PROPERTIES drawer is never copied to the target note.
-Only the body plus contextual Source: marker are preserved."
+Only the capture body is copied. The PROPERTIES drawer is stripped.
+A 'Source: ...' line is inserted before the appended fragment only if it
+differs from the last Source: line already present in the target note."
   (interactive)
   (unless (eq major-mode 'org-mode)
     (user-error "Not in org-mode"))
@@ -214,8 +249,11 @@ Only the body plus contextual Source: marker are preserved."
          (tags-input    (read-string "Tags (space-separated): "))
          (keywords      (unless (string-empty-p tags-input)
                           (split-string tags-input " " t)))
-         (silo          (completing-read "Save in: " '("pks" "docu") nil t "pks"))
-         (target-dir    (if (string= silo "docu") my-notes-docu my-notes-pks))
+         (silo          (completing-read "Save in: " '("journal" "pks" "docu") nil t "pks"))
+         (target-dir    (pcase silo
+                          ("journal" my-notes-journal)
+                          ("docu"    my-notes-docu)
+                          (_         my-notes-pks)))
          (subtree-raw
           (save-excursion
             (org-back-to-heading t)
@@ -235,27 +273,39 @@ Only the body plus contextual Source: marker are preserved."
                           (org-end-of-subtree t)
                           (forward-line 1)
                           (point)))
-         (existing-file (my/--find-note-by-title title target-dir)))
+         (matches       (my/--find-notes-by-title-global title)))
 
-    (if existing-file
-        (let ((last-source (my/--note-last-source existing-file)))
-          (with-current-buffer (find-file-noselect existing-file)
-            (goto-char (point-max))
-            (unless (bolp)
-              (insert "\n"))
-            (unless (looking-back "\n\n" nil)
-              (insert "\n"))
-            (when (and source-value
-                       (not (string= (string-trim source-value)
-                                     (string-trim (or last-source "")))))
-              (insert (format "Source: %s\n\n" source-value)))
-            (unless (string-empty-p body)
-              (insert body)
-              (unless (bolp)
-                (insert "\n")))
-            (save-buffer))
-          (message "✓ Appended to existing note: \"%s\" → %s/"
-                   title silo))
+    (cond
+     ((> (length matches) 1)
+      (user-error
+       "Found %d notes with title \"%s\". Resolve duplicates first."
+       (length matches) title))
+
+     ((= (length matches) 1)
+      (let* ((existing-file (car matches))
+             (existing-dir  (file-name-directory existing-file))
+             (same-silo
+              (file-equal-p
+               (file-name-as-directory (expand-file-name existing-dir))
+               (file-name-as-directory (expand-file-name target-dir))))
+             (final-file
+              (if same-silo
+                  existing-file
+                (if (y-or-n-p
+                     (format
+                      "Note exists in %s, not %s. Move it to %s and append? "
+                      (abbreviate-file-name existing-dir)
+                      silo
+                      silo))
+                    (my/--move-note-to-silo existing-file target-dir)
+                  existing-file))))
+        (my/--append-to-note final-file body source-value)
+        (with-current-buffer captures-buf
+          (delete-region heading-beg heading-end)
+          (save-buffer))
+        (message "✓ Appended to existing note: \"%s\"" title)))
+
+     (t
       (let ((denote-directory target-dir))
         (denote title keywords))
       (goto-char (point-max))
@@ -270,17 +320,16 @@ Only the body plus contextual Source: marker are preserved."
         (unless (bolp)
           (insert "\n")))
       (save-buffer)
-      (message "✓ Note created: \"%s\" → %s/" title silo))
-
-    (with-current-buffer captures-buf
-      (delete-region heading-beg heading-end)
-      (save-buffer))))
+      (with-current-buffer captures-buf
+        (delete-region heading-beg heading-end)
+        (save-buffer))
+      (message "✓ Note created: \"%s\" → %s/" title silo)))))
 
 ;; ============================================================
 ;; KEYBINDINGS
 ;; ============================================================
 
-(global-set-key (kbd "C-c c")   'org-capture)
+(global-set-key (kbd "C-c c") 'org-capture)
 
 (provide '06-capture)
 ;;; 06-capture.el ends here
