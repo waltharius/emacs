@@ -145,85 +145,136 @@ Uses a safe multiline regex."
    "\\(:PROPERTIES:\\(?:.\\|\n\\)*?:END:\\)\n?" "" text nil nil 1))
 
 ;; ============================================================
-;; PROMOTE CAPTURE HEADING TO NEW DENOTE NOTE
+;; HELPER: Read #+title from file front matter
+;; ============================================================
+
+(defun my/--note-get-title (file)
+  "Return #+title from FILE, or nil."
+  (with-temp-buffer
+    (insert-file-contents file nil 0 4096)
+    (goto-char (point-min))
+    (when (re-search-forward "^#\\+title:[ \t]+\\(.+\\)$" nil t)
+      (string-trim (match-string 1)))))
+
+;; ============================================================
+;; HELPER: Find existing Denote note by #+title in DIR
+;; ============================================================
+
+(defun my/--find-note-by-title (title dir)
+  "Return first Denote file in DIR whose #+title matches TITLE.
+Comparison is case-insensitive and ignores surrounding whitespace.
+Returns nil if no match is found."
+  (let* ((wanted (downcase (string-trim title)))
+         (files  (denote-directory-files dir)))
+    (seq-find
+     (lambda (file)
+       (let ((file-title (my/--note-get-title file)))
+         (and file-title
+              (string= (downcase file-title) wanted))))
+     files)))
+
+;; ============================================================
+;; HELPER: Get last visible Source: line from note body
+;; ============================================================
+
+(defun my/--note-last-source (file)
+  "Return the last 'Source: ...' line found in FILE, or nil."
+  (with-temp-buffer
+    (insert-file-contents file)
+    (goto-char (point-min))
+    (let (last-source)
+      (while (re-search-forward "^Source:[ \t]+\\(.+\\)$" nil t)
+        (setq last-source (string-trim (match-string 1))))
+      last-source)))
+
+;; ============================================================
+;; PROMOTE CAPTURE HEADING TO DENOTE NOTE (create or append)
 ;; ============================================================
 
 (defun my/capture-promote-to-note ()
-  "Create a new Denote note from the heading at point in captures.org.
+  "Promote capture heading to a Denote note.
 
-What this does:
-- Uses heading text as proposed title (editable)
-- Asks for tags and silo — identical prompts to my/denote-base
-- Calls (denote title keywords) for consistent front matter
-- Adds #+source: to front matter if SOURCE property exists
-- Copies subtree body (H3/H4 included, stops before next H2)
-- Removes the original heading from captures.org after success
+If a note with the same #+title already exists in the selected silo,
+append the capture body to the end of that note.
 
-The SOURCE link (reference to the originating note) is preserved
-as #+source: in the new note's front matter. Remove it manually
-if not needed."
+If SOURCE differs from the last Source: line already present in the
+target note, insert a new Source: line before the appended fragment.
+
+The capture's PROPERTIES drawer is never copied to the target note.
+Only the body plus contextual Source: marker are preserved."
   (interactive)
   (unless (eq major-mode 'org-mode)
     (user-error "Not in org-mode"))
-  ;; Validate we are on or inside a heading
   (save-excursion
     (condition-case nil
         (org-back-to-heading t)
       (error (user-error "Not inside an org heading"))))
-  (let* (;; -- Collect heading data --
-         (heading-title (org-get-heading t t t t))
+  (let* ((heading-title (org-get-heading t t t t))
          (title         (read-string "Note title: " heading-title))
          (tags-input    (read-string "Tags (space-separated): "))
          (keywords      (unless (string-empty-p tags-input)
                           (split-string tags-input " " t)))
          (silo          (completing-read "Save in: " '("pks" "docu") nil t "pks"))
          (target-dir    (if (string= silo "docu") my-notes-docu my-notes-pks))
-         ;; -- Extract subtree body (everything under the heading) --
          (subtree-raw
           (save-excursion
             (org-back-to-heading t)
-            (forward-line 1)                      ; skip heading line itself
+            (forward-line 1)
             (let ((beg (point))
                   (end (save-excursion
-                         (org-end-of-subtree t)   ; stops before next same-level heading
+                         (org-end-of-subtree t)
                          (point))))
               (buffer-substring-no-properties beg end))))
-         ;; -- Extract SOURCE before stripping PROPERTIES --
          (source-value  (my/--capture-extract-source subtree-raw))
-         ;; -- Clean body: strip PROPERTIES block, trim whitespace --
          (body          (string-trim (my/--capture-strip-properties subtree-raw)))
-         ;; -- Remember captures buffer and region for cleanup --
          (captures-buf  (current-buffer))
-         (heading-beg   (save-excursion (org-back-to-heading t) (point)))
+         (heading-beg   (save-excursion
+                          (org-back-to-heading t)
+                          (point)))
          (heading-end   (save-excursion
                           (org-end-of-subtree t)
                           (forward-line 1)
-                          (point))))
+                          (point)))
+         (existing-file (my/--find-note-by-title title target-dir)))
 
-    ;; -- Create Denote note: identical mechanism to my/denote-base --
-    (let ((denote-directory target-dir))
-      (denote title keywords))
-
-    ;; -- Insert body content with optional source link at top --
-    (goto-char (point-max))
-    (if source-value
-        ;; Source exists: link as first visible line, then body
-        (progn
-          (insert (format "Source: %s\n" source-value))
-          (unless (string-empty-p body)
-            (insert "\n" body "\n")))
-      ;; No source: just body
+    (if existing-file
+        (let ((last-source (my/--note-last-source existing-file)))
+          (with-current-buffer (find-file-noselect existing-file)
+            (goto-char (point-max))
+            (unless (bolp)
+              (insert "\n"))
+            (unless (looking-back "\n\n" nil)
+              (insert "\n"))
+            (when (and source-value
+                       (not (string= (string-trim source-value)
+                                     (string-trim (or last-source "")))))
+              (insert (format "Source: %s\n\n" source-value)))
+            (unless (string-empty-p body)
+              (insert body)
+              (unless (bolp)
+                (insert "\n")))
+            (save-buffer))
+          (message "✓ Appended to existing note: \"%s\" → %s/"
+                   title silo))
+      (let ((denote-directory target-dir))
+        (denote title keywords))
+      (goto-char (point-max))
+      (unless (bolp)
+        (insert "\n"))
+      (unless (looking-back "\n\n" nil)
+        (insert "\n"))
+      (when source-value
+        (insert (format "Source: %s\n\n" source-value)))
       (unless (string-empty-p body)
-        (insert "\n\n" body "\n")))
+        (insert body)
+        (unless (bolp)
+          (insert "\n")))
+      (save-buffer)
+      (message "✓ Note created: \"%s\" → %s/" title silo))
 
-    (save-buffer)
-
-    ;; -- Remove original heading from captures.org --
     (with-current-buffer captures-buf
       (delete-region heading-beg heading-end)
-      (save-buffer))
-
-    (message "✓ Note created: \"%s\" → %s/" title silo)))
+      (save-buffer))))
 
 ;; ============================================================
 ;; KEYBINDINGS
