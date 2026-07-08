@@ -161,15 +161,15 @@ Uses a safe multiline regex."
                 (list my-notes-journal my-notes-pks my-notes-docu))))
 
 (defun my/--find-notes-by-title-global (title)
-  "Return a list of files whose #+title matches TITLE across all silos.
+  "Return a list of .org files whose #+title matches TITLE across all silos.
 Comparison is case-insensitive and ignores surrounding whitespace."
   (let ((wanted (downcase (string-trim title)))
         matches)
     (dolist (dir (my/--all-note-silos))
-      (dolist (file (denote-directory-files dir))
+      (dolist (file (directory-files-recursively dir "\\.org\\'"))
         (let ((file-title (my/--note-get-title file)))
           (when (and file-title
-                     (string= (downcase file-title) wanted))
+                     (string= (downcase (string-trim file-title)) wanted))
             (push file matches)))))
     (nreverse matches)))
 
