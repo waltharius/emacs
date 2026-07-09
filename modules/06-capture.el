@@ -240,23 +240,27 @@ If FILE is visited by a buffer, update that buffer too."
     new-path))
 
 (defun my/--insert-note-body-at-top (body source-value)
-  "Insert SOURCE-VALUE and BODY into current Denote note after front matter."
-  (goto-char (point-min))
-  (cond
-   ((re-search-forward "^#\\+filetags:.*$" nil t)
-    (forward-line 1))
-   ((re-search-forward "^#\\+title:.*$" nil t)
-    (forward-line 1)))
-  (while (looking-at-p "^[[:space:]]*$")
-    (forward-line 1))
-  (beginning-of-line)
-  (insert "\n")
-  (when source-value
-    (insert (format "Source: %s\n\n" source-value)))
-  (when (and body (not (string-empty-p body)))
-    (insert body)
-    (unless (bolp)
-      (insert "\n"))))
+  "Insert SOURCE-VALUE and BODY into current Denote note after full front matter."
+  (save-excursion
+    (goto-char (point-min))
+    ;; Skip optional blank lines at top.
+    (while (looking-at-p "^[[:space:]]*$")
+      (forward-line 1))
+    ;; Move across every consecutive front matter line: #+title:, #+date:,
+    ;; #+filetags:, #+identifier:, etc.
+    (while (looking-at-p "^#\\+[[:alnum:]_-]+:")
+      (forward-line 1))
+    ;; Skip exactly one blank block after front matter.
+    (while (looking-at-p "^[[:space:]]*$")
+      (forward-line 1))
+    (beginning-of-line)
+    (insert "\n")
+    (when (and source-value (not (string-empty-p source-value)))
+      (insert (format "Source: %s\n\n" source-value)))
+    (when (and body (not (string-empty-p body)))
+      (insert body)
+      (unless (bolp)
+        (insert "\n")))))
 
 (defun my/--capture-promote-target-point ()
   "Return buffer position of heading that should be promoted.
