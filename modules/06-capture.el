@@ -22,6 +22,12 @@
 
 ;;; Code:
 
+(require 'org)
+(require 'org-capture)
+(require 'org-element)
+(require 'subr-x)
+(require 'seq)
+
 ;; ============================================================
 ;; CAPTURE WINDOW: track origin window before capture fires
 ;; ============================================================
@@ -94,7 +100,6 @@ started via `my/capture-idea', not the generic org-capture menu)."
   :ensure nil
   :config
 
-  ;; Create captures file if it doesn't exist
   (unless (file-exists-p my-journal-captures)
     (with-temp-file my-journal-captures
       (insert "#+title: Ideas\n")
@@ -120,30 +125,39 @@ Records SOURCE link to the originating note automatically."
   (setq my/capture--origin-window (selected-window))
   (org-capture nil "j"))
 
+;; ============================================================
+;; HELPER: Extract SOURCE property from current heading
+;; ============================================================
+
 (defun my/--capture-current-source ()
   "Return SOURCE property of current Org heading, or nil."
   (save-excursion
     (org-back-to-heading t)
     (org-entry-get (point) "SOURCE")))
 
+;; ============================================================
+;; HELPER: Get subtree body without headline and properties
+;; ============================================================
+
 (defun my/--capture-subtree-body ()
   "Return current Org subtree contents without headline and properties drawer.
-Preserve paragraphs and subheadings exactly as visible in the subtree body."
+Preserve paragraphs and subheadings from the subtree body."
   (save-excursion
     (org-back-to-heading t)
     (let* ((element (org-element-at-point))
            (contents-begin (org-element-property :contents-begin element))
            (contents-end   (org-element-property :contents-end element)))
       (if (and contents-begin contents-end)
-          (with-temp-buffer
-            (insert (buffer-substring-no-properties contents-begin contents-end))
-            (goto-char (point-min))
-            (when (looking-at-p ":PROPERTIES:")
-              (let ((drawer-beg (point)))
-                (when (re-search-forward "^:END:\n?" nil t)
-                  (delete-region drawer-beg (point)))))
-            (string-trim (buffer-string)))
-        "")))
+          (let ((text (buffer-substring-no-properties contents-begin contents-end)))
+            (with-temp-buffer
+              (insert text)
+              (goto-char (point-min))
+              (when (looking-at-p ":PROPERTIES:")
+                (let ((drawer-beg (point)))
+                  (when (re-search-forward "^:END:[ \t]*\n?" nil t)
+                    (delete-region drawer-beg (point)))))
+              (string-trim (buffer-string))))
+        ""))))
 
 ;; ============================================================
 ;; HELPERS: Note lookup across silos
@@ -161,9 +175,11 @@ Preserve paragraphs and subheadings exactly as visible in the subtree body."
   "Return list of note silo directories to search."
   (delq nil
         (mapcar (lambda (dir)
-                  (when (and dir (file-directory-p dir))
-                    (expand-file-name dir)))
-                (list my-notes-journal my-notes-pks my-notes-docu))))
+                  (when (and (boundp dir)
+                             (symbol-value dir)
+                             (file-directory-p (symbol-value dir)))
+                    (expand-file-name (symbol-value dir))))
+                '(my-notes-journal my-notes-pks my-notes-docu))))
 
 (defun my/--find-notes-by-title-global (title)
   "Return a list of .org files whose #+title matches TITLE across all silos.
@@ -223,6 +239,82 @@ If FILE is visited by a buffer, update that buffer too."
           (set-visited-file-name new-path t t))))
     new-path))
 
+(defun my/--insert-note-body-at-top (body source-value)
+  "Insert SOURCE-VALUE and BODY into current Denote note after front matter."
+  (goto-char (point-min))
+  (cond
+   ((re-search-forward "^#\\+filetags:.*$" nil t)
+    (forward-line 1))
+   ((re-search-forward "^#\\+title:.*$" nil t)
+    (forward-line 1)))
+  (while (looking-at-p "^[[:space:]]*$")
+    (forward-line 1))
+  (beginning-of-line)
+  (insert "\n")
+  (when source-value
+    (insert (format "Source: %s\n\n" source-value)))
+  (when (and body (not (string-empty-p body)))
+    (insert body)
+    (unless (bolp)
+      (insert "\n"))))
+
+(defun my/--capture-promote-target-point ()
+  "Return buffer position of heading that should be promoted.
+If point is on a subheading, ask whether to use current heading or parent.
+Top-level capture headings are used directly."
+  (save-excursion
+    (org-back-to-heading t)
+    (let ((current-point (point))
+          (current-level (org-outline-level)))
+      (if (<= current-level 2)
+          current-point
+        (let ((choice
+               (completing-read
+                "Promote: "
+                '("current heading" "parent heading")
+                nil t nil nil "parent heading")))
+          (cond
+           ((string= choice "current heading")
+            current-point)
+           ((save-excursion
+              (org-up-heading-safe)
+              (point)))
+           (t current-point)))))))
+
+(defun my/--capture-heading-data-at (pos)
+  "Return plist with heading data for subtree at POS.
+Result contains :title :source :body :beg :end."
+  (save-excursion
+    (goto-char pos)
+    (org-back-to-heading t)
+    (let* ((title (org-get-heading t t t t))
+           (source (org-entry-get (point) "SOURCE"))
+           (beg (point))
+           (end (save-excursion
+                  (org-end-of-subtree t)
+                  (forward-line 1)
+                  (point)))
+           (element (org-element-at-point))
+           (contents-begin (org-element-property :contents-begin element))
+           (contents-end   (org-element-property :contents-end element))
+           (body
+            (if (and contents-begin contents-end)
+                (let ((text (buffer-substring-no-properties contents-begin contents-end)))
+                  (with-temp-buffer
+                    (insert text)
+                    (goto-char (point-min))
+                    (when (looking-at-p ":PROPERTIES:")
+                      (let ((drawer-beg (point)))
+                        (when (re-search-forward "^:END:[ \t]*\n?" nil t)
+                          (delete-region drawer-beg (point)))))
+                    (string-trim (buffer-string))))
+              "")))
+      (list :title title
+            :source source
+            :body body
+            :beg beg
+            :end end))))
+
 ;; ============================================================
 ;; PROMOTE CAPTURE HEADING TO DENOTE NOTE (create or append)
 ;; ============================================================
@@ -249,7 +341,9 @@ differs from the last Source: line already present in the target note."
     (condition-case nil
         (org-back-to-heading t)
       (error (user-error "Not inside an org heading"))))
-  (let* ((heading-title (org-get-heading t t t t))
+  (let* ((target-pos    (my/--capture-promote-target-point))
+         (target-data   (my/--capture-heading-data-at target-pos))
+         (heading-title (plist-get target-data :title))
          (title         (read-string "Note title: " heading-title))
          (tags-input    (read-string "Tags (space-separated): "))
          (keywords      (unless (string-empty-p tags-input)
@@ -259,18 +353,12 @@ differs from the last Source: line already present in the target note."
                           ("journal" my-notes-journal)
                           ("docu"    my-notes-docu)
                           (_         my-notes-pks)))
-         (source-value  (my/--capture-current-source))
-         (body          (my/--capture-subtree-body))
+         (source-value  (plist-get target-data :source))
+         (body          (plist-get target-data :body))
          (captures-buf  (current-buffer))
-         (heading-beg   (save-excursion
-                          (org-back-to-heading t)
-                          (point)))
-         (heading-end   (save-excursion
-                          (org-end-of-subtree t)
-                          (forward-line 1)
-                          (point)))
+         (heading-beg   (plist-get target-data :beg))
+         (heading-end   (plist-get target-data :end))
          (matches       (my/--find-notes-by-title-global title)))
-
     (cond
      ((> (length matches) 1)
       (user-error
@@ -301,27 +389,15 @@ differs from the last Source: line already present in the target note."
           (save-buffer))
         (message "✓ Appended to existing note: \"%s\"" title)))
 
-    (t
+     (t
       (let ((denote-directory target-dir))
         (denote title keywords))
-      (goto-char (point-min))
-      (when (re-search-forward "^#\\+filetags:.*$" nil t)
-        (forward-line 1))
-      (while (looking-at-p "^[[:space:]]*$")
-        (forward-line 1))
-      (beginning-of-line)
-      (insert "\n")
-      (when source-value
-        (insert (format "Source: %s\n\n" source-value)))
-      (when (and body (not (string-empty-p body)))
-        (insert body)
-        (unless (bolp)
-          (insert "\n")))
+      (my/--insert-note-body-at-top body source-value)
       (save-buffer)
       (with-current-buffer captures-buf
         (delete-region heading-beg heading-end)
         (save-buffer))
-      (message "✓ Note created: \"%s\" → %s/" title silo)))
+      (message "✓ Note created: \"%s\" → %s/" title silo)))))
 
 ;; ============================================================
 ;; KEYBINDINGS
