@@ -120,25 +120,30 @@ Records SOURCE link to the originating note automatically."
   (setq my/capture--origin-window (selected-window))
   (org-capture nil "j"))
 
-;; ============================================================
-;; HELPER: Extract SOURCE value from PROPERTIES block
-;; ============================================================
+(defun my/--capture-current-source ()
+  "Return SOURCE property of current Org heading, or nil."
+  (save-excursion
+    (org-back-to-heading t)
+    (org-entry-get (point) "SOURCE")))
 
-(defun my/--capture-extract-source (text)
-  "Extract the raw value of :SOURCE: property from TEXT string.
-Returns the value string or nil if not found."
-  (when (string-match ":SOURCE:[ \t]+\\(.+\\)" text)
-    (string-trim (match-string 1))))
-
-;; ============================================================
-;; HELPER: Strip PROPERTIES block from TEXT string
-;; ============================================================
-
-(defun my/--capture-strip-properties (text)
-  "Remove :PROPERTIES:...:END: block from TEXT string.
-Uses a safe multiline regex."
-  (replace-regexp-in-string
-   "\\(:PROPERTIES:\\(?:.\\|\n\\)*?:END:\\)\n?" "" text nil nil 1))
+(defun my/--capture-subtree-body ()
+  "Return current Org subtree contents without headline and properties drawer.
+Preserve paragraphs and subheadings exactly as visible in the subtree body."
+  (save-excursion
+    (org-back-to-heading t)
+    (let* ((element (org-element-at-point))
+           (contents-begin (org-element-property :contents-begin element))
+           (contents-end   (org-element-property :contents-end element)))
+      (if (and contents-begin contents-end)
+          (with-temp-buffer
+            (insert (buffer-substring-no-properties contents-begin contents-end))
+            (goto-char (point-min))
+            (when (looking-at-p ":PROPERTIES:")
+              (let ((drawer-beg (point)))
+                (when (re-search-forward "^:END:\n?" nil t)
+                  (delete-region drawer-beg (point)))))
+            (string-trim (buffer-string)))
+        "")))
 
 ;; ============================================================
 ;; HELPERS: Note lookup across silos
@@ -198,7 +203,7 @@ existing 'Source: ...' line in FILE."
                  (not (string= (string-trim source-value)
                                (string-trim (or last-source "")))))
         (insert (format "Source: %s\n\n" source-value)))
-      (unless (string-empty-p body)
+      (when (and body (not (string-empty-p body)))
         (insert body)
         (unless (bolp)
           (insert "\n")))
@@ -254,17 +259,8 @@ differs from the last Source: line already present in the target note."
                           ("journal" my-notes-journal)
                           ("docu"    my-notes-docu)
                           (_         my-notes-pks)))
-         (subtree-raw
-          (save-excursion
-            (org-back-to-heading t)
-            (forward-line 1)
-            (let ((beg (point))
-                  (end (save-excursion
-                         (org-end-of-subtree t)
-                         (point))))
-              (buffer-substring-no-properties beg end))))
-         (source-value  (my/--capture-extract-source subtree-raw))
-         (body          (string-trim (my/--capture-strip-properties subtree-raw)))
+         (source-value  (my/--capture-current-source))
+         (body          (my/--capture-subtree-body))
          (captures-buf  (current-buffer))
          (heading-beg   (save-excursion
                           (org-back-to-heading t)
@@ -305,17 +301,19 @@ differs from the last Source: line already present in the target note."
           (save-buffer))
         (message "✓ Appended to existing note: \"%s\"" title)))
 
-     (t
+    (t
       (let ((denote-directory target-dir))
         (denote title keywords))
-      (goto-char (point-max))
-      (unless (bolp)
-        (insert "\n"))
-      (unless (looking-back "\n\n" nil)
-        (insert "\n"))
+      (goto-char (point-min))
+      (when (re-search-forward "^#\\+filetags:.*$" nil t)
+        (forward-line 1))
+      (while (looking-at-p "^[[:space:]]*$")
+        (forward-line 1))
+      (beginning-of-line)
+      (insert "\n")
       (when source-value
         (insert (format "Source: %s\n\n" source-value)))
-      (unless (string-empty-p body)
+      (when (and body (not (string-empty-p body)))
         (insert body)
         (unless (bolp)
           (insert "\n")))
@@ -323,7 +321,7 @@ differs from the last Source: line already present in the target note."
       (with-current-buffer captures-buf
         (delete-region heading-beg heading-end)
         (save-buffer))
-      (message "✓ Note created: \"%s\" → %s/" title silo)))))
+      (message "✓ Note created: \"%s\" → %s/" title silo)))
 
 ;; ============================================================
 ;; KEYBINDINGS
