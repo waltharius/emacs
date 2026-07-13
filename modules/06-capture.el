@@ -352,7 +352,13 @@ differs from the last Source: line already present in the target note."
          (tags-input    (read-string "Tags (space-separated): "))
          (keywords      (unless (string-empty-p tags-input)
                           (split-string tags-input " " t)))
-         (silo          (completing-read "Save in: " '("journal" "pks" "docu") nil t "pks"))
+         (silo-key      (read-char-choice
+                         "Save in: [j]ournal [p]ks [d]ocu: "
+                         '(?j ?p ?d)))
+         (silo          (pcase silo-key
+                          (?j "journal")
+                          (?d "docu")
+                          (_  "pks")))
          (target-dir    (pcase silo
                           ("journal" my-notes-journal)
                           ("docu"    my-notes-docu)
