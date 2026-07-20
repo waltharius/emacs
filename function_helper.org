@@ -600,6 +600,61 @@ only fires when capture is started via =my/capture-idea=; generic
 
 Module: =modules/06-capture.el=
 
+* Session Management (desktop)
+:PROPERTIES:
+:CUSTOM_ID: session-management
+:END:
+
+Session persistence via built-in =desktop-save-mode=. Open files and
+cursor positions survive restarts. Desktop file lives in
+=~/.emacs.d/desktop/=.
+
+Three-layer strategy:
+
+| Layer    | When       | What happens                                       |
+|----------+------------+----------------------------------------------------|
+| 1. Trim  | on exit    | keep only the 10 most-recently-used file buffers   |
+| 2. Eager | on startup | restore up to 10 buffers synchronously             |
+| 3. Lazy  | idle time  | restore the rest in the background                 |
+
+The trim limit is =my/desktop-max-buffers= (currently *10*); the eager
+limit is =desktop-restore-eager= (currently *10*). To keep more
+buffers between sessions, change only =my/desktop-max-buffers= — with
+the trim limit equal to the eager limit, the lazy layer is dormant,
+and raising the trim limit re-activates it automatically.
+
+** Trim: what counts as "old"
+:PROPERTIES:
+:CUSTOM_ID: fn-my-desktop-trim-buffers
+:END:
+
+=my/desktop-trim-buffers= runs from =desktop-save-hook= before every
+save and kills file buffers beyond the limit. Recency is *most
+recently used* (the order of =buffer-list=, where selecting a buffer
+moves it to the front) — not file modification time on disk. This was
+changed deliberately: mtime ordering killed buffers that were being
+read but not edited, while keeping files an external process happened
+to touch.
+
+Buffers whose major mode is in =desktop-modes-not-to-save=
+(=pdf-view-mode=, =nov-mode=, =fundamental-mode=) or whose file
+matches =desktop-files-not-to-save= (=.aux=, =.log=, =.out=, =.toc=,
+=.tex=, =.epub=) are skipped entirely: they are never persisted, never
+counted toward the limit, and never killed by the trim.
+
+Function: =my/desktop-trim-buffers= | Module: =modules/01-ui.el=
+
+** C-c d s — Save session now
+:PROPERTIES:
+:CUSTOM_ID: fn-my-desktop-save-now
+:END:
+
+Saves the desktop immediately without waiting for exit. Note: the
+trim (and its buffer killing) also runs here, because it hangs on
+=desktop-save-hook=.
+
+Function: =my/desktop-save-now= | Module: =modules/01-ui.el=
+
 * Global Keybindings
 :PROPERTIES:
 :CUSTOM_ID: global-keybindings
@@ -613,4 +668,4 @@ Bindings set outside the transient menu itself:
 | C-c c   | =org-capture=            | =06-capture.el=          |
 | C-c x   | =my/zotero-menu=         | =18-zotero-transient.el= |
 | C-c p   | =my/org-export-to-pdf=   | =16-org-export.el=       |
-
+| C-c d s | =my/desktop-save-now=    | =01-ui.el=               |

@@ -52,20 +52,46 @@
 ;;
 ;; 3-LAYER STRATEGY
 ;; ----------------
-;; 1. TRIM (before save)  : keep only 100 most-recently-modified file
-;;                          buffers in the desktop file.  Prevents the
-;;                          list from growing indefinitely.
-;; 2. EAGER (on restore)  : restore 10 buffers synchronously so the UI
-;;                          appears in ~2s regardless of list size.
+;; 1. TRIM (before save)  : keep only the `my/desktop-max-buffers' (10)
+;;                          most-recently-USED file buffers in the
+;;                          desktop file.  Prevents the list from
+;;                          growing indefinitely.
+;;                          "Used" means Emacs's own recency: the order
+;;                          of `buffer-list', where a buffer moves to
+;;                          the front every time it is selected.  This
+;;                          deliberately replaced the earlier sort by
+;;                          file modification time on disk, which would
+;;                          kill buffers you had been reading (but not
+;;                          editing) all day, while keeping files that
+;;                          some external process happened to touch.
+;; 2. EAGER (on restore)  : restore up to `desktop-restore-eager' (10)
+;;                          buffers synchronously so the UI appears
+;;                          fast regardless of list size.
 ;; 3. LAZY (background)   : restore remaining buffers during idle time.
+;;                          NOTE: with the trim limit (10) now equal to
+;;                          the eager limit (10), everything restores
+;;                          eagerly and this layer is effectively
+;;                          dormant.  It is kept so that raising
+;;                          `my/desktop-max-buffers' later re-activates
+;;                          lazy loading with no other changes.
 
-(defconst my/desktop-max-buffers 100
-  "Maximum number of file buffers to persist in the desktop file.")
+(defconst my/desktop-max-buffers 10
+  "Maximum number of file buffers to persist in the desktop file.
+Buffers beyond this count (in most-recently-used order) are killed
+by `my/desktop-trim-buffers' just before the desktop is saved.")
 
 (defun my/desktop-trim-buffers ()
   "Before saving desktop, kill buffers beyond `my/desktop-max-buffers'.
-Keeps the N most recently modified file-visiting buffers; kills the rest
-so they are not written into the desktop file."
+Keeps the N most recently USED file-visiting buffers and kills the
+rest, so they are not written into the desktop file.
+
+Recency comes for free from `buffer-list', which returns buffers in
+most-recently-selected order (`seq-filter' preserves that order), so
+no explicit sorting is needed.  Buffers whose major mode is listed in
+`desktop-modes-not-to-save' or whose file matches
+`desktop-files-not-to-save' are ignored entirely: desktop would not
+persist them anyway, so they neither count toward the limit nor get
+killed here."
   (let* ((file-bufs
           (seq-filter
            (lambda (buf)
@@ -74,14 +100,9 @@ so they are not written into the desktop file."
                              desktop-modes-not-to-save))
                   (not (string-match-p desktop-files-not-to-save
                                        (buffer-file-name buf)))))
+           ;; Already sorted: most recently used first.
            (buffer-list)))
-         (sorted
-          (sort file-bufs
-                (lambda (a b)
-                  (let ((ta (nth 5 (file-attributes (buffer-file-name a))))
-                        (tb (nth 5 (file-attributes (buffer-file-name b)))))
-                    (time-less-p tb ta)))))
-         (to-kill (nthcdr my/desktop-max-buffers sorted)))
+         (to-kill (nthcdr my/desktop-max-buffers file-bufs)))
     (when to-kill
       (message "desktop trim: killing %d old buffers before save"
                (length to-kill))
