@@ -54,7 +54,12 @@
 ;; DENOTE CONVENIENCE SETTINGS
 ;; ============================================================
 
-(add-hook 'denote-after-new-note-hook 'denote-rename-buffer-mode)
+;; Enable buffer renaming for Denote notes once, at startup.
+;; NOTE: previously this was added to `denote-after-new-note-hook',
+;; which meant the (global) mode only became active after the first
+;; note created in a session, and the hook re-ran the mode function on
+;; every subsequent note.  Enabling it here is the intended usage.
+(denote-rename-buffer-mode 1)
 (setq denote-link-button-action 'find-file)
 
 ;; ============================================================
