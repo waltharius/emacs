@@ -1,9 +1,9 @@
 ;;; 21-dashboards.el --- Historical note dashboards -*- lexical-binding: t; -*-
 ;;; Commentary:
-;; Adds "This Day in History" and "Same Day Last Month" dashboards.
+;; Adds "This Day in History" and "This Day, Every Month" dashboards.
 ;; These views scan Denote identifiers (date-based file names) and
-;; find notes matching today's month/day across previous years, or
-;; the same day one month ago.
+;; find notes matching today's day-of-month across previous years,
+;; or across every month where a note happens to exist on that day.
 ;;
 ;; Journal notes are distinguished by the :well-being: property in
 ;; the file's property drawer (this is the only marker that differs
@@ -98,19 +98,9 @@ This is the only marker distinguishing journal notes from the rest."
   (let ((now (decode-time (current-time))))
     (list (nth 4 now) (nth 3 now))))
 
-(defun my/dashboards--previous-month-same-day ()
-  "Return (YEAR MONTH DAY) for the same day one month ago.
-Return nil when that day does not exist in the previous month
-\(e.g. running this on March 31st, since February has no 31st\)."
-  (let* ((now (decode-time (current-time)))
-         (day (nth 3 now))
-         (month (nth 4 now))
-         (year (nth 5 now))
-         (target-month (if (= month 1) 12 (1- month)))
-         (target-year (if (= month 1) (1- year) year))
-         (last-day (calendar-last-day-of-month target-month target-year)))
-    (when (<= day last-day)
-      (list target-year target-month day))))
+;; ============================================================
+;; FILTERS
+;; ============================================================
 
 (defun my/dashboards--collect-this-day-history (&optional journals-only)
   "Return notes from today's month/day in previous years, newest first.
@@ -129,23 +119,29 @@ When JOURNALS-ONLY is non-nil, keep only journal notes."
       entries)
      (lambda (a b) (> (plist-get a :year) (plist-get b :year))))))
 
-(defun my/dashboards--collect-one-month-ago (&optional journals-only)
-  "Return notes created exactly one month ago on the same day.
-When JOURNALS-ONLY is non-nil, keep only journal notes.
-Signals a user-error when the previous month has no matching day."
-  (let ((target (my/dashboards--previous-month-same-day)))
-    (unless target
-      (user-error "This day of the month did not exist last month"))
-    (pcase-let* ((`(,year ,month ,day) target)
-                 (entries (delq nil (mapcar #'my/dashboards--entry
-                                             (my/dashboards--all-note-files)))))
-      (seq-filter
-       (lambda (e)
-         (and (= (plist-get e :year) year)
-              (= (plist-get e :month) month)
-              (= (plist-get e :day) day)
-              (or (not journals-only) (plist-get e :journal))))
-       entries))))
+(defun my/dashboards--collect-same-day-every-month (&optional journals-only)
+  "Return notes whose day-of-month matches today, across every month
+and year, excluding today's own date. When JOURNALS-ONLY is non-nil,
+keep only journal notes. Sorted newest year first, then newest
+month first."
+  (let* ((today (decode-time (current-time)))
+         (target-day (nth 3 today))
+         (current-month (nth 4 today))
+         (current-year (nth 5 today))
+         (entries (delq nil (mapcar #'my/dashboards--entry
+                                     (my/dashboards--all-note-files)))))
+    (sort
+     (seq-filter
+      (lambda (e)
+        (and (= (plist-get e :day) target-day)
+             (not (and (= (plist-get e :month) current-month)
+                       (= (plist-get e :year) current-year)))
+             (or (not journals-only) (plist-get e :journal))))
+      entries)
+     (lambda (a b)
+       (or (> (plist-get a :year) (plist-get b :year))
+           (and (= (plist-get a :year) (plist-get b :year))
+                (> (plist-get a :month) (plist-get b :month))))))))
 
 ;; ============================================================
 ;; NAVIGATION BUFFER
@@ -203,19 +199,21 @@ Signals a user-error when the previous month has no matching day."
    (my/dashboards--collect-this-day-history t)
    "This Day in History — journals"))
 
-(defun my/dashboards-open-one-month-ago ()
-  "Open notes created exactly one month ago on the same day."
+(defun my/dashboards-open-same-day-every-month ()
+  "Open the most recent note whose day-of-month matches today,
+across every month and year."
   (interactive)
   (my/dashboards--open-first-and-show-nav
-   (my/dashboards--collect-one-month-ago nil)
-   "Same Day Last Month — all notes"))
+   (my/dashboards--collect-same-day-every-month nil)
+   "This Day, Every Month — all notes"))
 
-(defun my/dashboards-open-one-month-ago-journals ()
-  "Open journal notes created exactly one month ago on the same day."
+(defun my/dashboards-open-same-day-every-month-journals ()
+  "Open the most recent journal note whose day-of-month matches
+today, across every month and year."
   (interactive)
   (my/dashboards--open-first-and-show-nav
-   (my/dashboards--collect-one-month-ago t)
-   "Same Day Last Month — journals"))
+   (my/dashboards--collect-same-day-every-month t)
+   "This Day, Every Month — journals"))
 
 ;; ============================================================
 ;; SUB-MENU: History  (C-c n f h)
@@ -223,13 +221,13 @@ Signals a user-error when the previous month has no matching day."
 ;; ============================================================
 
 (transient-define-prefix my/dashboards-history-menu ()
-  "Historical dashboards: same day, previous years or previous month."
-  [["This Day in History"
+  "Historical dashboards: same day across years or across months."
+  [["This Day in History (years)"
     ("t" "All silos"       my/dashboards-open-this-day-history)
     ("j" "Journals only"   my/dashboards-open-this-day-history-journals)]
-   ["Same Day Last Month"
-    ("m" "All silos"       my/dashboards-open-one-month-ago)
-    ("M" "Journals only"   my/dashboards-open-one-month-ago-journals)]
+   ["This Day, Every Month"
+    ("m" "All silos"       my/dashboards-open-same-day-every-month)
+    ("M" "Journals only"   my/dashboards-open-same-day-every-month-journals)]
    [("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================
