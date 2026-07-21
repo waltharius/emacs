@@ -63,6 +63,7 @@
   (load (concat modules-dir "18-zotero-transient.el")) ; Zotero transient menu
   (load (concat modules-dir "19-philosophy-notes.el")) ; Philosophy note types (C-c n l)
   (load (concat modules-dir "20-transclusion.el")) ;; transclusion for note linking inside other notes
+  (load (concat modules-dir "21-dashboards.el"))   ; Historical dashboards (C-c n f H)
   )
 
 (add-hook 'emacs-startup-hook
