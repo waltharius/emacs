@@ -119,6 +119,10 @@ Function: =my/capture-promote-to-note= | Module: =modules/06-capture.el=
 :CUSTOM_ID: menu-notes-find
 :END:
 
+Search, navigate, and review notes. =f/g/b= locate specific notes;
+=d/t/r= give overview/serendipity views; =h= opens historical
+dashboards (dynamic submenu).
+
 Module: =modules/12-transient.el=
 
 *** f — Find file
@@ -175,6 +179,52 @@ Opens a random note from the collection. Useful for serendipitous
 review and rediscovery.
 
 Function: =denote-explore-random-note= (denote-explore package)
+*** h — History →
+:PROPERTIES:
+:CUSTOM_ID: menu-notes-history
+:END:
+
+Dynamically appended by =21-dashboards.el= after =12-transient.el=
+loads (via =transient-append-suffix=), the same mechanism used by
+Philosophy (see [[#menu-notes-philosophy][Philosophy]] below). If the
+module is removed from =init.el=, this entry disappears automatically
+without editing =12-transient.el=.
+
+Both dashboards read the Denote =#+identifier:= (=YYYYMMDDTHHMMSS=)
+from front matter, not the file name directly, and scan across all
+three silos. Journal notes are distinguished by the presence of the
+=:well-being:= property in the property drawer — this is the only
+marker separating journal notes from the rest.
+
+Opening either dashboard opens the newest matching note directly and
+shows a =*Note History*= buffer listing every match as a clickable
+button, sorted newest first.
+
+Module: =modules/21-dashboards.el=
+
+**** This Day in History (years)
+
+| Key | Function                                     | Description                                    |
+|-----+----------------------------------------------+------------------------------------------------|
+| t   | =my/dashboards-open-this-day-history=          | All silos: same month/day, previous years only |
+| j   | =my/dashboards-open-this-day-history-journals= | Same, journals only                            |
+
+**** This Day, Every Month
+
+| Key | Function                                         | Description                                       |
+|-----+--------------------------------------------------+---------------------------------------------------|
+| m   | =my/dashboards-open-same-day-every-month=          | All silos: same day-of-month, any month, any year |
+| M   | =my/dashboards-open-same-day-every-month-journals= | Same, journals only                               |
+
+*Note:* "Every Month" excludes today's own date and does not require
+notes to exist for a specific month — it collects whatever day-21
+(or current day) notes exist across any month/year combination.
+
+Functions: =my/dashboards-open-this-day-history=,
+=my/dashboards-open-this-day-history-journals=,
+=my/dashboards-open-same-day-every-month=,
+=my/dashboards-open-same-day-every-month-journals=
+Module: =modules/21-dashboards.el=
 
 ** C-c n i — Insert
 :PROPERTIES:
