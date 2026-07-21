@@ -244,7 +244,7 @@ Signals a user-error when the previous month has no matching day."
     (transient-remove-suffix 'my/notes-find-menu "h"))
   (transient-append-suffix
    'my/notes-find-menu "r"
-   '("H" "History →" my/dashboards-history-menu)))
+   '("h" "History →" my/dashboards-history-menu)))
 
 (provide '21-dashboards)
 ;;; 21-dashboards.el ends here
