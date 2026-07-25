@@ -39,8 +39,7 @@ kill list and the recency count:
 
 1. **Tab-open buffers** (`my/desktop--tab-buffers`): for the active
    tab, whatever's actually shown in a window right now; for every
-   *other* tab, only the front `my/desktop-tab-protect-depth` (default
-   3) entries of that tab's own MRU buffer list (`wc-bl`, restored by
+   _other_ tab, only the front `my/desktop-tab-protect-depth` (default 3) entries of that tab's own MRU buffer list (`wc-bl`, restored by
    `tab-bar` on tab switch — see `tab-bar--tab` in `tab-bar.el`).
 2. **Manually pinned buffers**: new buffer-local
    `my/desktop-keep-buffer`, toggled with `C-c d k`, shown as a 📌 in
@@ -49,7 +48,7 @@ kill list and the recency count:
 
 #### Why — and a design correction mid-session
 
-The first implementation protected a tab's *entire* `wc-bl`/`wc-bbl`
+The first implementation protected a tab's _entire_ `wc-bl`/`wc-bbl`
 history. This was wrong: `wc-bl` is Emacs's own most-recently-used
 buffer list for that tab, and it only ever grows for as long as the
 tab lives — it never forgets a buffer just because you moved on to
@@ -62,7 +61,7 @@ whole list. This keeps the protected set bounded to roughly
 `(number of tabs) × N`, independent of tab age, while still covering
 the buffer(s) actually being used in that tab. Also dropped `wc-bbl`
 (buried-buffer list) from protection — a buffer the user explicitly
-buried is a signal it's *not* important, so it should stay eligible
+buried is a signal it's _not_ important, so it should stay eligible
 for trimming.
 
 Closing a tab does not itself kill any buffers — it only removes that
@@ -97,7 +96,7 @@ Found and fixed:
   `C-c x` (Zotero), `C-c w d/x/r` (dashboards), `C-c a k/s/t/T`
   (typing analytics), and the rebound Emacs defaults
   (`C-a`/`C-f`/`C-s`/`C-z`/`C-x C-b`/`M-Q`).
-- No documentation anywhere of the transient menu *contents*
+- No documentation anywhere of the transient menu _contents_
   (submenu keys), only their existence.
 
 The help buffer now includes the full `C-c n` and `C-c x` menu trees.
@@ -116,30 +115,40 @@ exactly how it drifted.
 
 ---
 
-### C — `custom.el` — Org markup colors for `~verbatim~` and `=code=`
+### C — `custom.el` — Org markup styling for `~verbatim~` and `=code=`
 
 #### What changed
 
 Added two `custom-set-faces` entries:
 
 ```elisp
-'(org-code ((t (:foreground "peru"))))
-'(org-verbatim ((t (:foreground "dark green"))))
+'(org-code ((t (:inherit modus-themes-fixed-pitch :foreground "dark green" :weight bold))))
+'(org-verbatim ((t (:inherit modus-themes-fixed-pitch :foreground "saddle brown" :weight bold)))))
 ```
 
 `=code=` markup maps to the `org-code` face; `~verbatim~` maps to
-`org-verbatim`.
+`org-verbatim`. Final styling is bold + colored text, no background
+(background-box and bold-only were the two alternatives considered).
 
 #### Why
 
 Per the existing architecture (documented in `11-org-appearance.el`),
-all org-mode face *colors* live exclusively in `custom.el` — it's the
+all org-mode face _colors_ live exclusively in `custom.el` — it's the
 Customize-authoritative source and always takes precedence over
 theme-applied faces (the `'user` pseudo-theme is kept at the front of
 `custom-enabled-themes` by Emacs regardless of `load-theme` order).
 `11-org-appearance.el` already left `:foreground` as `'unspecified`
 for both faces via `set-face-attribute`, specifically so a `custom.el`
 color could pass through untouched — no changes were needed there.
+
+`M-x customize-face` was tried first for adding a background color and
+did not behave as expected (the UI reported setting `:background` but
+the visible change looked like a foreground/text-color change instead
+— not independently confirmed against a live Emacs session in this
+environment). Editing `custom.el` directly avoided the UI entirely and
+is the same one-entry-per-face pattern already used throughout this
+file (see `org-block`, `org-quote`, etc.) — no more "serious coding"
+than the earlier foreground-only version.
 
 ---
 
@@ -605,7 +614,7 @@ always passed through and `nil` is rejected.
 ### L12 — Bound any set derived from an ever-growing history
 
 When protecting or excluding items based on "recently used in X",
-never take X's *full* history as the criterion. Emacs's own tracking
+never take X's _full_ history as the criterion. Emacs's own tracking
 structures (`buffer-list`, a tab's `wc-bl`, etc.) tend to only grow for
 as long as X exists — they don't forget entries just because something
 newer came along. If a derived set (e.g. "buffers to protect") is built
