@@ -4,6 +4,9 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(column-number-mode t)
+ '(custom-safe-themes
+   '("138ed99a323c1b93c52f4b3726caf2bc634b79a76fa63a3d3aff76394db5f28f"
+     default))
  '(package-selected-packages
    '(all-the-icons citar-denote consult-denote dashboard denote-explore
                    dired-sidebar flycheck-package flyspell-correct-ivy
@@ -31,6 +34,7 @@
  '(org-block ((t (:background "#fef8e0" :extend t :family "Georgia"))))
  '(org-block-begin-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9))))
  '(org-block-end-line ((t (:background "#e0e0e0" :foreground "#999999" :height 0.9))))
+ '(org-code ((t (:inherit modus-themes-fixed-pitch :foreground "dark green"))))
  '(org-date ((t (:inherit modus-themes-fixed-pitch :foreground "firebrick" :underline nil :height 1.0))))
  '(org-deadline-announce ((t (:height 0.8 :foreground "#aa5555"))))
  '(org-level-1 ((t (:height 1.3 :weight bold))))
@@ -45,4 +49,5 @@
  '(org-property-value ((t (:inherit modus-themes-fixed-pitch :foreground "dark violet"))))
  '(org-quote ((t (:background "#f9f9f9" :slant italic :foreground "#555555"))))
  '(org-scheduled ((t (:height 0.8 :foreground "#777777"))))
- '(org-special-keyword ((t (:height 0.75 :foreground "#666666" :inherit fixed-pitch)))))
+ '(org-special-keyword ((t (:height 0.75 :foreground "#666666" :inherit fixed-pitch))))
+ '(org-verbatim ((t (:inherit modus-themes-fixed-pitch :foreground "saddle brown")))))
