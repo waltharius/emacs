@@ -75,15 +75,106 @@
 ;;                          `my/desktop-max-buffers' later re-activates
 ;;                          lazy loading with no other changes.
 
+(defgroup my/desktop nil
+  "Custom desktop-save buffer trimming."
+  :group 'convenience)
+
 (defconst my/desktop-max-buffers 10
   "Maximum number of file buffers to persist in the desktop file.
 Buffers beyond this count (in most-recently-used order) are killed
-by `my/desktop-trim-buffers' just before the desktop is saved.")
+by `my/desktop-trim-buffers' just before the desktop is saved.
+Buffers protected by `my/desktop--protected-buffers' (open in a
+tab, or manually pinned) do not count toward this limit at all.")
+
+(defvar-local my/desktop-keep-buffer nil
+  "Non-nil means this buffer is exempt from `my/desktop-trim-buffers'.
+Toggle interactively with `my/desktop-toggle-keep-buffer', or set it
+permanently for a file via a file-local variable, e.g.:
+
+;; Local Variables:
+;; my/desktop-keep-buffer: t
+;; End:
+
+A pin (📌) appears in the mode line for any buffer where this is set.")
+(put 'my/desktop-keep-buffer 'safe-local-variable #'booleanp)
+
+(defun my/desktop-toggle-keep-buffer ()
+  "Toggle whether the current buffer is pinned against desktop trimming.
+Pinned buffers are never killed by `my/desktop-trim-buffers', regardless
+of how long ago they were last used."
+  (interactive)
+  (setq my/desktop-keep-buffer (not my/desktop-keep-buffer))
+  (force-mode-line-update)
+  (message "Buffer %s %s"
+           (buffer-name)
+           (if my/desktop-keep-buffer
+               "pinned (protected from desktop trim)"
+             "unpinned (subject to desktop trim again)")))
+
+(defvar my/desktop-keep-buffer-mode-line
+  '(:eval (when my/desktop-keep-buffer
+            (propertize " 📌" 'face 'warning
+                        'help-echo "Pinned: protected from desktop-trim")))
+  "Mode-line construct showing a pin for `my/desktop-keep-buffer' buffers.")
+(put 'my/desktop-keep-buffer-mode-line 'risky-local-variable t)
+(unless (memq 'my/desktop-keep-buffer-mode-line mode-line-misc-info)
+  (add-to-list 'mode-line-misc-info 'my/desktop-keep-buffer-mode-line))
+
+(defcustom my/desktop-tab-protect-depth 3
+  "How many of each tab's most-recently-used buffers stay protected.
+Applies per tab: a buffer only needs to be among this many recently
+used buffers in *some* tab to be exempt from `my/desktop-trim-buffers'.
+
+This is deliberately small and per-tab, not \"every buffer ever opened
+in that tab\": `frame-parameter's buffer-list' (aka a tab's `wc-bl') is
+Emacs's own most-recently-used list, and it only grows over a tab's
+lifetime -- it never forgets a buffer just because you moved on to
+something else in that tab.  Protecting the full list would mean a
+tab you've had open for a month protects hundreds of stale buffers.
+Taking only the front N keeps the protected set bounded no matter how
+old the tab is, while still covering what you're actually looking at
+in it (the front of an MRU list is always the most recent buffer)."
+  :type 'integer
+  :group 'my/desktop)
+
+(defun my/desktop--tab-buffers ()
+  "Return the small set of buffers considered \"open\" in tab-bar tabs.
+For the current tab: buffers actually shown in a window right now,
+plus the front of its buffer-list for the same MRU-depth reason as
+below.  For every other tab: the `my/desktop-tab-protect-depth' most
+recently used buffers in that tab, taken from the front of its own
+`wc-bl' (which `tab-bar' restores into `buffer-list' whenever you
+switch to that tab -- see `tab-bar--tab' in tab-bar.el).  Deliberately
+does NOT use the full `wc-bl'/`wc-bbl' history or the buried-buffer
+list: those grow without bound over a tab's lifetime and would
+eventually protect buffers you haven't looked at in months."
+  (let (bufs)
+    (dolist (win (window-list nil 'no-minibuf))
+      (push (window-buffer win) bufs))
+    (setq bufs (append bufs
+                        (seq-take (frame-parameter nil 'buffer-list)
+                                  my/desktop-tab-protect-depth)))
+    (when (bound-and-true-p tab-bar-mode)
+      (dolist (tab (funcall tab-bar-tabs-function))
+        (unless (eq (car tab) 'current-tab)
+          (setq bufs (append bufs
+                              (seq-take (cdr (assq 'wc-bl tab))
+                                        my/desktop-tab-protect-depth))))))
+    (seq-filter #'buffer-live-p (delete-dups bufs))))
+
+(defun my/desktop--protected-buffers ()
+  "Buffers `my/desktop-trim-buffers' must never kill."
+  (append (my/desktop--tab-buffers)
+          (seq-filter (lambda (buf) (buffer-local-value 'my/desktop-keep-buffer buf))
+                      (buffer-list))))
 
 (defun my/desktop-trim-buffers ()
   "Before saving desktop, kill buffers beyond `my/desktop-max-buffers'.
 Keeps the N most recently USED file-visiting buffers and kills the
-rest, so they are not written into the desktop file.
+rest, so they are not written into the desktop file.  Buffers that are
+open in any tab, or manually pinned via `my/desktop-keep-buffer', are
+excluded from consideration entirely: they are never killed here and
+never count toward the N-buffer limit.
 
 Recency comes for free from `buffer-list', which returns buffers in
 most-recently-selected order (`seq-filter' preserves that order), so
@@ -92,10 +183,12 @@ no explicit sorting is needed.  Buffers whose major mode is listed in
 `desktop-files-not-to-save' are ignored entirely: desktop would not
 persist them anyway, so they neither count toward the limit nor get
 killed here."
-  (let* ((file-bufs
+  (let* ((protected (my/desktop--protected-buffers))
+         (file-bufs
           (seq-filter
            (lambda (buf)
              (and (buffer-file-name buf)
+                  (not (memq buf protected))
                   (not (memq (buffer-local-value 'major-mode buf)
                              desktop-modes-not-to-save))
                   (not (string-match-p desktop-files-not-to-save
@@ -104,8 +197,8 @@ killed here."
            (buffer-list)))
          (to-kill (nthcdr my/desktop-max-buffers file-bufs)))
     (when to-kill
-      (message "desktop trim: killing %d old buffers before save"
-               (length to-kill))
+      (message "desktop trim: killing %d old buffers before save (%d protected)"
+               (length to-kill) (length protected))
       (dolist (buf to-kill)
         (kill-buffer buf)))))
 
@@ -143,6 +236,7 @@ killed here."
   (message "Desktop saved!"))
 
 (global-set-key (kbd "C-c d s") 'my/desktop-save-now)
+(global-set-key (kbd "C-c d k") 'my/desktop-toggle-keep-buffer)
 
 ;; ============================================================
 ;; SAVE-PLACE-MODE: Remember cursor position
