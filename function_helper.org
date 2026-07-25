@@ -11,7 +11,10 @@
 
 Main entry point for all note operations. Hierarchical structure:
 =c= Create, =f= Find, =i= Insert, =d= Document, =x= Export, =v= View,
-=t= Tools, =l= Philosophy (dynamic), =h= Function Help.
+=t= Tools, =l= Philosophy (dynamic), =h= Function Help. Also carries
+two top-level shortcuts duplicated from Tools → Spelling for the two
+most-used spelling commands: =s= Correct previous, =a= Add to dict
+(both =:transient t=, so the menu stays open after use).
 
 Module: =modules/12-transient.el=
 
@@ -692,7 +695,49 @@ matches =desktop-files-not-to-save= (=.aux=, =.log=, =.out=, =.toc=,
 =.tex=, =.epub=) are skipped entirely: they are never persisted, never
 counted toward the limit, and never killed by the trim.
 
-Function: =my/desktop-trim-buffers= | Module: =modules/01-ui.el=
+*Protected buffers* (added this session) are excluded from
+consideration entirely — never killed, never counted toward the
+10-buffer limit:
+
+- Buffers open in a tab-bar tab. For the current tab this means
+  whatever's actually shown in a window right now. For every *other*
+  tab, only the =my/desktop-tab-protect-depth= (default *3*)
+  most-recently-used buffers in that tab count — not that tab's full
+  history. A tab's own buffer-list (=wc-bl=, what =tab-bar= restores
+  when you switch to it) only ever grows for as long as the tab
+  lives, so protecting all of it would eventually shield hundreds of
+  stale buffers from a month-old tab. Taking just the front of that
+  MRU list keeps the protected set to roughly
+  =(number of tabs) × my/desktop-tab-protect-depth=, regardless of
+  tab age. Closing a tab does not itself kill any buffers — it only
+  removes that tab's protection, so its buffers become ordinary trim
+  candidates again on the next save.
+- Buffers manually pinned via =my/desktop-keep-buffer= (see below).
+
+Functions: =my/desktop-trim-buffers=, =my/desktop--protected-buffers=,
+=my/desktop--tab-buffers= | Variable: =my/desktop-tab-protect-depth=
+(customize group =my/desktop=) | Module: =modules/01-ui.el=
+
+** C-c d k — Pin/unpin buffer against trim
+:PROPERTIES:
+:CUSTOM_ID: fn-my-desktop-toggle-keep-buffer
+:END:
+
+Toggles the buffer-local variable =my/desktop-keep-buffer= for the
+current buffer. A pinned buffer is *never* killed by
+=my/desktop-trim-buffers=, no matter how long ago it was last used —
+independent of whether it's in a tab at all. A 📌 appears in the mode
+line (=mode-line-misc-info=) for any pinned buffer, with a tooltip on
+hover.
+
+Can also be set permanently per-file via a file-local variable:
+#+begin_example
+;; Local Variables:
+;; my/desktop-keep-buffer: t
+;; End:
+#+end_example
+
+Function: =my/desktop-toggle-keep-buffer= | Module: =modules/01-ui.el=
 
 ** C-c d s — Save session now
 :PROPERTIES:
@@ -710,12 +755,65 @@ Function: =my/desktop-save-now= | Module: =modules/01-ui.el=
 :CUSTOM_ID: global-keybindings
 :END:
 
-Bindings set outside the transient menu itself:
+Bindings set outside the transient menu itself. Audited against every
+=global-set-key=/=define-key=/=:bind= in the repo as of this revision —
+=modules/08-keybindings.el= carries a hand-maintained copy of this
+table (=my/show-keybindings-help=, =C-c h k=), including the transient
+menu contents; re-audit both together if bindings change, rather than
+hand-editing either from memory.
 
-| Binding | Function                | Set in module            |
-|---------+--------------------------+---------------------------|
-| C-c n   | =my/notes-menu=          | =12-transient.el=        |
-| C-c c   | =org-capture=            | =06-capture.el=          |
-| C-c x   | =my/zotero-menu=         | =18-zotero-transient.el= |
-| C-c p   | =my/org-export-to-pdf=   | =16-org-export.el=       |
-| C-c d s | =my/desktop-save-now=    | =01-ui.el=               |
+| Binding  | Function                     | Set in module                |
+|----------+-------------------------------+-------------------------------|
+| C-c n    | =my/notes-menu=               | =12-transient.el=            |
+| C-c c    | =org-capture=                 | =06-capture.el=              |
+| C-c x    | =my/zotero-menu=              | =18-zotero-transient.el=     |
+| C-c p    | =my/org-export-to-pdf=        | =16-org-export.el=           |
+| C-c d f  | =denote-open-or-create=       | =08-keybindings.el=          |
+| C-c d l  | =denote-link=                 | =08-keybindings.el=          |
+| C-c d b  | =denote-backlinks=            | =08-keybindings.el=          |
+| C-c d r  | =denote-rename-file=          | =08-keybindings.el=          |
+| C-c d t  | =denote-rename-file-keywords= | =08-keybindings.el=          |
+| C-c d s  | =my/desktop-save-now=         | =01-ui.el=                   |
+| C-c d k  | =my/desktop-toggle-keep-buffer= | =01-ui.el=                 |
+| C-c t n  | =tab-bar-new-tab=             | =01-ui.el=                   |
+| C-c t c  | =tab-bar-close-tab=           | =01-ui.el=                   |
+| C-c t o  | =tab-bar-switch-to-tab=       | =01-ui.el=                   |
+| C-c t r  | =tab-bar-rename-tab=          | =01-ui.el=                   |
+| C-c w d  | =my/open-notes-dashboard=     | =15-workspace.el=            |
+| C-c w x  | =my/notes-explore=            | =15-workspace.el=            |
+| C-c w r  | =denote-explore-random-note=  | =15-workspace.el=            |
+| C-c a k  | =keyfreq-show=                | =14-typing-analytics.el=     |
+| C-c a s  | =keylog-status=               | =14-typing-analytics.el=     |
+| C-c a t  | =keylog-disable=              | =14-typing-analytics.el=     |
+| C-c a T  | =keylog-enable=               | =14-typing-analytics.el=     |
+| C-x g    | =magit-status=                | =07-git.el=                  |
+| C-x M-g  | =magit-dispatch=              | =07-git.el=                  |
+| C-c g s  | =magit-status=                | =07-git.el=                  |
+| C-c g l  | =magit-log-current=           | =07-git.el=                  |
+| C-c g b  | =magit-blame=                 | =07-git.el=                  |
+| C-c v s  | =my/notes-git-status=         | =07-git.el=                  |
+| C-c v c  | =my/commit-notes-now=         | =07-git.el=                  |
+| C-c v S  | =my/config-git-status=        | =07-git.el=                  |
+| C-c v C  | =my/commit-config-now=        | =07-git.el=                  |
+| C-c v d  | =magit-diff-buffer-file=      | =07-git.el=                  |
+| C-c v h  | =magit-log-buffer-file=       | =07-git.el=                  |
+| C-;      | =flyspell-correct-wrapper=    | =03-spelling.el= (flyspell-mode-map) |
+| C-c f b  | =my/spell-check-visible=      | =03-spelling.el=             |
+| C-a      | =mark-whole-buffer=           | =02-editing.el= (rebind)     |
+| C-f      | =isearch-forward=             | =02-editing.el= (rebind)     |
+| C-s      | =save-buffer=                 | =02-editing.el= (rebind)     |
+| C-z      | =undo=                        | =02-editing.el= (rebind)     |
+| C-x C-b  | =ibuffer=                     | =02-editing.el=              |
+| M-Q      | =my/unfill-region=            | =02-editing.el=              |
+| C-c o i  | =open-init-el-bottom-split=   | =08-keybindings.el=          |
+| C-c e b  | =eval-buffer=                 | =08-keybindings.el=          |
+| C-c e r  | =eval-region=                 | =08-keybindings.el=          |
+| C-c h k  | =my/show-keybindings-help=    | =08-keybindings.el=          |
+
+*Note:* there is no =C-c F ...= spelling prefix — an earlier revision
+of this table and of =08-keybindings.el= documented one that was never
+actually bound anywhere. The real spelling commands beyond =C-;= and
+=C-c f b= (correct-previous, add-to-dict, check-full-buffer, toggle)
+only exist inside the transient menu — see [[#menu-spelling][Tools →
+Spelling]] above, or =C-c n s= / =C-c n a= for the two most-used ones
+as top-level shortcuts.

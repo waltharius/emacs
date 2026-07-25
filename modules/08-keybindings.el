@@ -1,15 +1,36 @@
-;;; 08-keybindings.el --- Keybindings -*- lexical-binding: t; -*-
+;;; 08-keybindings.el --- Keybindings reference -*- lexical-binding: t; -*-
 ;;; Commentary:
-;; All custom keybindings in one place
+;; This file does NOT define most keybindings itself — they live next to
+;; the commands they trigger, scattered across modules (that's normal
+;; Emacs config style: 07-git.el binds its own magit keys, 01-ui.el binds
+;; its own tab-bar/desktop keys, 12-transient.el binds C-c n, etc.).
+;;
+;; What THIS file provides is `my/show-keybindings-help' (C-c h k): a
+;; single accurate reference to every custom binding, including the
+;; contents of the transient menus, so you don't have to go hunting
+;; through modules to remember a key.
+;;
+;; TIP: you don't have to memorize any of this. `which-key' is enabled
+;; (02-editing.el) — press C-c and wait ~0.3s, and a popup lists every
+;; key that can follow. Same inside any transient menu: press C-c n and
+;; wait, or press a prefix key and wait, to see the next level.
+;;
+;; AUDIT NOTE (this revision): the previous version of this file/help
+;; text had drifted from the actual bindings — most notably an entire
+;; fictional "C-c F ..." spelling section that was never bound anywhere,
+;; several Magit and C-c w/C-c a/C-c x bindings missing entirely, and no
+;; mention of the transient submenu contents. This revision was built by
+;; grepping every module for `global-set-key'/`define-key'/`:bind'/
+;; `transient-define-prefix' rather than by memory — if you add or
+;; change a binding, re-run that audit (or ask for it) rather than
+;; hand-editing this text out of memory, since that's exactly how it
+;; drifted last time.
 ;;
 ;; Keybinding philosophy:
 ;; - C-c letter = user commands (your personal functions)
 ;; - C-c C-letter = mode-specific (org-mode, etc.)
 ;; - Keep frequently used commands short
 ;; - Group related commands with same prefix
-;;
-;; NOTE: C-c n opens transient menu (12-transient.el)
-;; NOTE: C-c d provides quick access to common Denote functions
 
 ;;; Code:
 
@@ -18,7 +39,8 @@
 ;; ============================================================
 ;;
 ;; C-c n - Opens full notes menu with all functions
-;; See modules/12-transient.el for menu structure
+;; See modules/12-transient.el for menu structure, and the help buffer
+;; below (or function_helper.org) for the full submenu contents.
 
 ;; ============================================================
 ;; DENOTE QUICK ACCESS (C-c d ...)
@@ -45,19 +67,25 @@
 ;; C-c c = org-capture menu
 
 ;; ============================================================
-;; GIT OPERATIONS (already defined in 07-git.el)
+;; GIT / MAGIT (already defined in 07-git.el)
 ;; ============================================================
-;; C-c v s = notes git status
-;; C-c v c = commit notes now
-;; C-c v S = config git status
-;; C-c v C = commit config now
-;; C-c v d = diff current file
-;; C-c v h = history current file
+;; C-x g   = magit-status (global Magit default)
+;; C-x M-g = magit-dispatch (global Magit default)
+;; C-c g s = magit-status
+;; C-c g l = magit-log-current
+;; C-c g b = magit-blame
+;; C-c v s = notes git status (my/notes-git-status)
+;; C-c v c = commit notes now (my/commit-notes-now)
+;; C-c v S = config git status (my/config-git-status)
+;; C-c v C = commit config now (my/commit-config-now)
+;; C-c v d = diff current file (magit-diff-buffer-file)
+;; C-c v h = history current file (magit-log-buffer-file)
 
 ;; ============================================================
 ;; DESKTOP/SESSION (already defined in 01-ui.el)
 ;; ============================================================
 ;; C-c d s = save desktop now
+;; C-c d k = pin/unpin current buffer against desktop trim (📌 in mode line)
 
 ;; ============================================================
 ;; TAB-BAR (already defined in 01-ui.el)
@@ -68,14 +96,45 @@
 ;; C-c t r = rename tab
 
 ;; ============================================================
-;; SPELLCHECK (already defined in 03-spelling.el)
+;; WORKSPACE / DASHBOARDS (already defined in 15-workspace.el)
 ;; ============================================================
-;; C-c F m = Polish dictionary
-;; C-c F e = English dictionary
-;; C-c F n = next error
-;; C-c F c = correct word
-;; C-c F b = check buffer
-;; C-c F a = add to dictionary
+;; C-c w d = open notes dashboard
+;; C-c w x = notes explore (tag stats)
+;; C-c w r = random note
+;; Inside the *Notes Dashboard* buffer only: g = refresh, q = bury
+
+;; ============================================================
+;; TYPING ANALYTICS (already defined in 14-typing-analytics.el)
+;; ============================================================
+;; C-c a k = keyfreq-show (command frequency stats)
+;; C-c a s = keylog-status
+;; C-c a t = keylog-disable (temporarily)
+;; C-c a T = keylog-enable
+
+;; ============================================================
+;; ZOTERO / BIBLIOGRAPHY (already defined in 18-zotero-transient.el)
+;; ============================================================
+;; C-c x = my/zotero-menu (transient) — also reachable via C-c n t z
+
+;; ============================================================
+;; SPELLING (already defined in 02-editing.el / 03-spelling.el)
+;; ============================================================
+;; C-; (in a buffer with flyspell on) = flyspell-correct-wrapper
+;; C-c f b = my/spell-check-visible (check visible portion of buffer)
+;; Everything else (correct previous, add to dict, check full buffer,
+;; toggle) lives in the transient menu only: C-c n t (Tools) or the
+;; quick top-level C-c n s / C-c n a — there is no "C-c F ..." prefix,
+;; despite what an earlier version of this file claimed.
+
+;; ============================================================
+;; REBOUND DEFAULT KEYS (already defined in 02-editing.el)
+;; ============================================================
+;; C-a = mark-whole-buffer (NOT move-beginning-of-line!)
+;; C-f = isearch-forward   (NOT forward-char!)
+;; C-s = save-buffer       (matches most other editors)
+;; C-z = undo              (NOT suspend-frame!)
+;; C-x C-b = ibuffer (instead of plain list-buffers)
+;; M-Q = my/unfill-region (join a paragraph back into one line)
 
 ;; ============================================================
 ;; HELPER KEYBINDINGS
@@ -93,61 +152,142 @@
 ;; ============================================================
 
 (defun my/show-keybindings-help ()
-  "Show summary of custom keybindings."
+  "Show a summary of every custom keybinding, including transient menus."
   (interactive)
   (let ((help-text
          "Keybindings Summary
-
 ===================
+(Tip: press C-c and wait ~0.3s -- which-key shows this live, always
+up to date. This buffer is a hand-maintained snapshot, see AUDIT NOTE
+in 08-keybindings.el for how it's kept in sync.)
 
-Notes Menu (C-c n):
-  C-c n   - Open notes transient menu
-            (All note operations in one place!)
+GLOBAL, OUTSIDE ANY MENU
+-------------------------
 
-Denote Quick Access (C-c d):
+Notes Menu:
+  C-c n   - Open notes transient menu (see tree below)
+
+Denote Quick Access:
   C-c d f - Find/create note
   C-c d l - Insert link
   C-c d b - Show backlinks
   C-c d r - Rename file
   C-c d t - Modify keywords
   C-c d s - Save desktop
+  C-c d k - Pin/unpin buffer against desktop trim (pin shows in mode line)
 
 PDF Export:
   C-c p   - Export current Org file to PDF -> ~/notes/pdf/
 
-Capture (C-c c):
+Capture:
   C-c c   - Org-capture menu
 
-Git (C-c v):
-  C-c v s - Notes status
-  C-c v c - Commit notes
-  C-c v S - Config status
-  C-c v C - Commit config
-  C-c v d - Diff file
-  C-c v h - File history
+Git / Magit:
+  C-x g   - Magit status
+  C-x M-g - Magit dispatch
+  C-c g s - Magit status
+  C-c g l - Magit log (current file)
+  C-c g b - Magit blame
+  C-c v s - Notes repo status
+  C-c v c - Commit notes now
+  C-c v S - Config repo status
+  C-c v C - Commit config now
+  C-c v d - Diff current file
+  C-c v h - History of current file
 
-Tabs (C-c t):
+Tabs:
   C-c t n - New tab
   C-c t c - Close tab
   C-c t o - Switch tab
   C-c t r - Rename tab
 
-Spelling (C-c F):
-  C-c F m - Polish
-  C-c F e - English
-  C-c F n - Next error
-  C-c F c - Correct
-  C-c F b - Check buffer
-  C-c F a - Add to dictionary
+Workspace / Dashboards:
+  C-c w d - Open notes dashboard
+  C-c w x - Tag stats (notes explore)
+  C-c w r - Random note
+  (inside *Notes Dashboard*: g = refresh, q = bury)
 
-Magit:
-  C-x g   - Magit status
+Typing Analytics:
+  C-c a k - Command frequency stats (keyfreq)
+  C-c a s - Keylog status
+  C-c a t - Disable keylog temporarily
+  C-c a T - Re-enable keylog
+
+Bibliography:
+  C-c x   - Zotero/bib menu (same as C-c n t z)
+
+Spelling:
+  C-;     - Correct word at point (needs flyspell on)
+  C-c f b - Check visible portion of buffer
+  (correct-previous / add-to-dict / check-full-buffer / toggle: only
+   via the C-c n menu, see below -- there is no C-c F prefix)
+
+Rebound defaults (not the usual Emacs bindings!):
+  C-a     - Select all      (mark-whole-buffer)
+  C-f     - isearch-forward (NOT move-forward-char)
+  C-s     - save-buffer
+  C-z     - undo
+  C-x C-b - ibuffer
+  M-Q     - Unfill (join) region
 
 Other:
   C-c o i - Open init.el
   C-c e b - Eval buffer
   C-c e r - Eval region
   C-c h k - Show this help
+
+C-c n -- NOTES TRANSIENT MENU TREE
+-----------------------------------
+  c  Create ->
+       n  New note        j  Journal today     J  Journal (date)
+       e  Essay            L  Linked note
+       i  Ideas capture    c  Capture menu      m  Promote to note
+  f  Find ->
+       f  Find file        g  Grep notes        b  Backlinks
+       d  Dashboard         t  Tag stats         r  Random note
+       h  History ->  (t/j = this-day-in-history, m/M = same-day-every-month)
+  i  Insert ->
+       l  Insert link       L  Linked note
+       h  Time (HH:MM)      d  Date (YYYY-MM-DD)
+       w  Well-being
+       t  Transclusion ->
+            a  Add (wizard)    A  Add all in buffer
+            g  Refresh         r  Remove          T  Toggle mode
+            o  Open source     O  Move to source
+            e  Live-sync edit  E  Exit live-sync
+            P  Promote subtree D  Demote subtree
+  d  Document ->
+       r  Rename file       k  Add keywords      d  Delete note
+  x  Export ->
+       p  Export to PDF
+       P  Batch PDF - ANY keyword
+       Q  Batch PDF - ALL keywords
+  v  View ->
+       c  Center text       w  Writing mode
+       i  Indent headings   e  Emphasis markers
+  t  Tools ->
+       z  Zotero/Bib ->  (same submenu as C-c x, see below)
+       s  Correct previous (transient: stays open)
+       a  Add to dict       (transient: stays open)
+       S  Check visible     b  Check full buffer   T  Toggle spellcheck
+  l  Philosophy ->
+       l  Literature        p  Concept            m  Thinker
+       b  Problem           i  Map / MOC
+  s  Correct previous  (top-level shortcut, same as t s)
+  a  Add to dict        (top-level shortcut, same as t a)
+  h  Function Help (opens function_helper.org in a new tab)
+  q  Quit
+
+C-c x -- ZOTERO / BIBLIOGRAPHY MENU  (same as C-c n t z)
+---------------------------------------------------------
+  n  New note from reference     o  Open existing bib note
+  f  Open PDF for this note      e  Open BibTeX entry
+  u  Open URL / DOI              i  Insert citation [cite:@key]
+  R  Insert full bibliography    S  Insert short reference
+  q  Quit
+
+Full descriptions of every command: C-c n h, or
+~/.emacs.d/function_helper.org
 "))
     (with-output-to-temp-buffer "*Keybindings Help*"
       (princ help-text))))
