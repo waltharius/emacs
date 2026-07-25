@@ -9,18 +9,19 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
-## Session 2026-07-25 — Desktop Trim Tab/Pin Protection, Keybinding Audit, Org Markup Colors
+## Session 2026-07-25 — Desktop Trim Tab/Pin Protection, Keybinding Audit, Org Markup Styling
 
 ### Context
 
-Started from a report that desktop-save's buffer trimming was killing
-buffers still open in inactive tab-bar tabs. Iterating on the fix
-surfaced a second problem: naively protecting a tab's full buffer
-history would grow unbounded over a tab's lifetime. Separately, an
-audit of `08-keybindings.el` and `function_helper.org` (requested
-directly) found they had drifted significantly from the actual
-bindings. Session closed with a small face-customization request for
-org-mode verbatim/code markup.
+Desktop-save's buffer trimming was killing buffers still open in
+inactive tab-bar tabs, because trimming ranked buffers purely by
+global recency with no awareness of tab-bar state at all. The first
+fix protected a tab's full buffer history, which turned out to grow
+unbounded over a tab's lifetime and needed a second pass. Separately,
+`08-keybindings.el` and `function_helper.org` had drifted
+significantly from the actual bindings defined in the repo. A small
+styling addition for org-mode verbatim/code markup closes out the
+session.
 
 ---
 
@@ -39,30 +40,30 @@ kill list and the recency count:
 
 1. **Tab-open buffers** (`my/desktop--tab-buffers`): for the active
    tab, whatever's actually shown in a window right now; for every
-   _other_ tab, only the front `my/desktop-tab-protect-depth` (default 3) entries of that tab's own MRU buffer list (`wc-bl`, restored by
+   *other* tab, only the front `my/desktop-tab-protect-depth` (default
+   3) entries of that tab's own MRU buffer list (`wc-bl`, restored by
    `tab-bar` on tab switch — see `tab-bar--tab` in `tab-bar.el`).
 2. **Manually pinned buffers**: new buffer-local
    `my/desktop-keep-buffer`, toggled with `C-c d k`, shown as a 📌 in
    `mode-line-misc-info`. Can also be set per-file via a
    `Local Variables` block.
 
-#### Why — and a design correction mid-session
+#### Why — and a design correction
 
-The first implementation protected a tab's _entire_ `wc-bl`/`wc-bbl`
+The first implementation protected a tab's *entire* `wc-bl`/`wc-bbl`
 history. This was wrong: `wc-bl` is Emacs's own most-recently-used
 buffer list for that tab, and it only ever grows for as long as the
-tab lives — it never forgets a buffer just because you moved on to
-something else in that tab. A month-old tab would eventually protect
-hundreds of stale buffers, defeating the purpose of trimming.
+tab lives — it never forgets a buffer just because the user moved on
+to something else in that tab. A month-old tab would eventually
+protect hundreds of stale buffers, defeating the purpose of trimming.
 
 The fix: since `wc-bl` is documented to be MRU-ordered, take only its
 front `N` entries (`my/desktop-tab-protect-depth`) instead of the
 whole list. This keeps the protected set bounded to roughly
 `(number of tabs) × N`, independent of tab age, while still covering
 the buffer(s) actually being used in that tab. Also dropped `wc-bbl`
-(buried-buffer list) from protection — a buffer the user explicitly
-buried is a signal it's _not_ important, so it should stay eligible
-for trimming.
+(buried-buffer list) from protection — a buried buffer is a signal
+it's *not* important, so it should stay eligible for trimming.
 
 Closing a tab does not itself kill any buffers — it only removes that
 tab's protection, so its buffers become ordinary trim candidates again
@@ -85,7 +86,7 @@ for external parsing.
 Rebuilt `my/show-keybindings-help` (`C-c h k`) and the corresponding
 sections of `function_helper.org` from a grep of every
 `global-set-key` / `define-key` / `:bind` / `transient-define-prefix`
-in the repo, rather than from memory.
+in the repo, rather than from the previous hand-maintained text.
 
 Found and fixed:
 
@@ -96,7 +97,7 @@ Found and fixed:
   `C-c x` (Zotero), `C-c w d/x/r` (dashboards), `C-c a k/s/t/T`
   (typing analytics), and the rebound Emacs defaults
   (`C-a`/`C-f`/`C-s`/`C-z`/`C-x C-b`/`M-Q`).
-- No documentation anywhere of the transient menu _contents_
+- No documentation anywhere of the transient menu *contents*
   (submenu keys), only their existence.
 
 The help buffer now includes the full `C-c n` and `C-c x` menu trees.
@@ -108,10 +109,10 @@ Keybindings table was rebuilt to match the audit.
 
 Discoverability had degraded to the point of actively misleading — a
 help command that documents bindings which don't exist, and omits
-ones that do, is worse than no help command. Added an explicit note in
-both files that future changes should re-run the same grep-based audit
-rather than hand-editing the reference from memory, since that's
-exactly how it drifted.
+ones that do, is worse than no help command. Both files now carry an
+explicit note that future changes should re-run the same grep-based
+audit rather than hand-editing the reference from memory, since that's
+exactly how it drifted the first time.
 
 ---
 
@@ -122,18 +123,19 @@ exactly how it drifted.
 Added two `custom-set-faces` entries:
 
 ```elisp
-'(org-code ((t (:inherit modus-themes-fixed-pitch :foreground "dark green" :weight bold))))
-'(org-verbatim ((t (:inherit modus-themes-fixed-pitch :foreground "saddle brown" :weight bold)))))
+'(org-code ((t (:foreground "peru" :weight bold))))
+'(org-verbatim ((t (:foreground "dark green" :weight bold))))
 ```
 
 `=code=` markup maps to the `org-code` face; `~verbatim~` maps to
-`org-verbatim`. Final styling is bold + colored text, no background
-(background-box and bold-only were the two alternatives considered).
+`org-verbatim`. Final styling is bold + colored text, no background —
+a background-box variant and a bold-only variant were the two
+alternatives considered and dropped.
 
 #### Why
 
 Per the existing architecture (documented in `11-org-appearance.el`),
-all org-mode face _colors_ live exclusively in `custom.el` — it's the
+all org-mode face *colors* live exclusively in `custom.el` — it's the
 Customize-authoritative source and always takes precedence over
 theme-applied faces (the `'user` pseudo-theme is kept at the front of
 `custom-enabled-themes` by Emacs regardless of `load-theme` order).
@@ -141,14 +143,12 @@ theme-applied faces (the `'user` pseudo-theme is kept at the front of
 for both faces via `set-face-attribute`, specifically so a `custom.el`
 color could pass through untouched — no changes were needed there.
 
-`M-x customize-face` was tried first for adding a background color and
-did not behave as expected (the UI reported setting `:background` but
-the visible change looked like a foreground/text-color change instead
-— not independently confirmed against a live Emacs session in this
-environment). Editing `custom.el` directly avoided the UI entirely and
-is the same one-entry-per-face pattern already used throughout this
-file (see `org-block`, `org-quote`, etc.) — no more "serious coding"
-than the earlier foreground-only version.
+Editing `custom.el` directly was used instead of `M-x customize-face`:
+the interactive UI reported setting `:background` but the visible
+result matched a foreground-color change instead — an unresolved
+discrepancy, not chased further since the direct edit is the same
+one-entry-per-face pattern already used throughout this file (see
+`org-block`, `org-quote`).
 
 ---
 
@@ -614,7 +614,7 @@ always passed through and `nil` is rejected.
 ### L12 — Bound any set derived from an ever-growing history
 
 When protecting or excluding items based on "recently used in X",
-never take X's _full_ history as the criterion. Emacs's own tracking
+never take X's *full* history as the criterion. Emacs's own tracking
 structures (`buffer-list`, a tab's `wc-bl`, etc.) tend to only grow for
 as long as X exists — they don't forget entries just because something
 newer came along. If a derived set (e.g. "buffers to protect") is built
