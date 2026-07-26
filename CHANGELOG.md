@@ -317,6 +317,19 @@ New `my/denote-file-metadata` returns `(TITLE . TAGS)` from a single
 800-byte read, and the renderer uses it. The two single-purpose
 helpers are untouched for callers that need only one value.
 
+#### Bug fixed on first run: `%-*s` is not Emacs `format`
+
+The first version padded the signature with `(format "  %s  %-*s%s" date
+width sig title)`, which fails at runtime with `Invalid format
+operation %*` and prevented the dashboard from rendering at all.
+Emacs's `format` has no dynamic field width — `%-*s` is C `printf`
+syntax, not Elisp. Only literal widths such as `%-5s` are accepted.
+
+The padding is now built explicitly with `make-string`, using
+`(max 1 (- width (length sig)))` so that a signature longer than the
+column keeps one separating space and pushes its own line right rather
+than colliding with the title.
+
 #### Known scaling limit
 
 The dashboard is static text rebuilt in full on every `g`, reading the

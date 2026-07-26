@@ -178,8 +178,9 @@ Entries that are files rather than directories are skipped."
   "Column width reserved for the Denote signature in dashboard lines.
 Notes without a signature get blank padding, so titles stay aligned
 whether or not a section mixes sequence notes with plain ones.
-Signatures longer than this push their own line right rather than
-widening every line; 5 covers everything up to `1zzzv' comfortably.")
+Signatures longer than this keep a single separating space and push
+their own line right rather than widening every line; 5 covers
+everything up to `1zzzv' comfortably.")
 
 (defvar my/dashboard-show-tags t
   "Whether dashboard lines end with the note's tags.")
@@ -218,7 +219,15 @@ face instead of inheriting the button's."
          (title   (car meta))
          (tags    (seq-remove (lambda (tag) (member tag my/dashboard-hidden-tags))
                               (cdr meta)))
-         (sig     (or (my/denote-file-signature file) ""))
+         ;; Pad by hand: Emacs `format' has no dynamic field width, so
+         ;; "%-*s" is not valid (that is C printf syntax).  At least one
+         ;; space is always kept, so an over-long signature pushes its
+         ;; own line right instead of running into the title.
+         (sig     (let ((s (or (my/denote-file-signature file) "")))
+                    (concat s (make-string
+                               (max 1 (- my/dashboard-signature-width
+                                         (length s)))
+                               ?\s))))
          (date    (pcase date-source
                     ('id
                      (let ((id (my/denote-file-identifier file)))
@@ -231,8 +240,7 @@ face instead of inheriting the button's."
                     (_
                      (format-time-string "%Y-%m-%d"
                                          (nth 5 (file-attributes file))))))
-         (display (format "  %s  %-*s%s"
-                          date my/dashboard-signature-width sig title))
+         (display (format "  %s  %s%s" date sig title))
          (start   (point)))
     (insert display)
     (make-text-button start (point)
