@@ -64,6 +64,7 @@
   (load (concat modules-dir "19-philosophy-notes.el")) ; Philosophy note types (C-c n l)
   (load (concat modules-dir "20-transclusion.el")) ;; transclusion for note linking inside other notes
   (load (concat modules-dir "21-dashboards.el"))   ; Historical dashboards (C-c n f h)
+  (load (concat modules-dir "22-zettelkasten.el")) ; Folgezettel sequences (C-c n z)
   )
 
 (add-hook 'emacs-startup-hook
