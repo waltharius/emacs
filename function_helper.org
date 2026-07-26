@@ -166,9 +166,62 @@ Function: =denote-backlinks= (Denote package)
 :CUSTOM_ID: fn-my-open-notes-dashboard
 :END:
 
-Opens the notes overview dashboard.
+Opens the notes overview dashboard in its own tab-bar tab named
+"Dashboard", creating the tab if it does not exist. Sections: Recently
+Modified (last 10 days), Journal, PKS, Documentation, and a clickable
+Tags list.
 
-Function: =my/open-notes-dashboard= | Module: =modules/15-workspace.el=
+**** Line format
+
+: <date>  <signature>  <title>                    :tag:tag:
+
+- *Date* is modification time for Recently Modified, PKS and Docu; for
+  Journal and tag popups it is the creation date parsed from the
+  Denote identifier, since chronological order is what matters there.
+- *Signature* is the Folgezettel component of the file name (see
+  [[#menu-zettelkasten][Zettelkasten]]), padded to
+  =my/dashboard-signature-width= so that titles line up in sections
+  mixing sequence notes with plain ones. Notes without a signature
+  leave it blank.
+- *Title* comes from =#+title:= in the front matter.
+- *Tags* come from =#+filetags:=, shown from column
+  =my/dashboard-tag-column= onwards.
+
+Date, signature and title form the clickable region; tags sit outside
+it so they can keep their own dimmed face rather than inheriting the
+button's.
+
+**** Tuning
+
+| Variable                       | Default              | Effect                             |
+|--------------------------------+----------------------+------------------------------------|
+| =my/dashboard-signature-width= | 5                    | Width reserved for the signature   |
+| =my/dashboard-show-tags=       | =t=                  | Whether tags are shown at all      |
+| =my/dashboard-tag-column=      | 92                   | Column where the tag list starts   |
+| =my/dashboard-hidden-tags=     | =("journal" "docu")= | Tags suppressed as uninformative   |
+
+=my/dashboard-hidden-tags= exists because the Journal and Documentation
+sections are already labelled: repeating =:journal:= on every line of
+the Journal section adds nothing and pushes the informative tags
+further right.
+
+=my/dashboard-tag-column= is a fixed column rather than a
+window-relative one because the buffer is rendered before it is
+displayed, so window width is not reliably known at render time. A
+title running past that column gets two spaces before its tags instead
+— the tags stay readable, they just stop lining up.
+
+**** Performance note
+
+Each dashboard line needs both the title and the tags of a file.
+=my/denote-file-title= and =my/denote-file-tags= each open the file
+separately, so the renderer uses =my/denote-file-metadata= instead,
+which extracts both from a single 800-byte read. The two single-purpose
+helpers remain for callers that need only one of the values.
+
+Functions: =my/open-notes-dashboard=, =my/render-notes-dashboard=,
+=my/dashboard-insert-file-link=, =my/denote-file-metadata=,
+=my/denote-file-signature= | Module: =modules/15-workspace.el=
 
 *** t — Tag stats
 :PROPERTIES:

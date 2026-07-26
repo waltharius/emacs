@@ -56,6 +56,38 @@
           nil))
     (error nil)))
 
+(defun my/denote-file-signature (file)
+  "Return the Denote SIGNATURE of FILE, or nil when it has none.
+The signature is the file name component between == and the -- that
+begins the title.  Files created without a signature simply have no
+== segment."
+  (let ((name (file-name-nondirectory file)))
+    (when (string-match "==\\([^=]+?\\)\\(?:--\\|__\\|\\.\\)" name)
+      (match-string 1 name))))
+
+(defun my/denote-file-metadata (file)
+  "Return a cons of (TITLE . TAGS) for FILE, reading it only once.
+
+`my/denote-file-title' and `my/denote-file-tags' each open the file
+separately, which is fine when only one of them is needed.  The
+dashboard needs both for every line, so this reads the front matter in
+a single pass instead of hitting each file twice.
+
+TITLE falls back to the file base name, TAGS to nil, on any error."
+  (condition-case nil
+      (with-temp-buffer
+        (insert-file-contents file nil 0 800)
+        (goto-char (point-min))
+        (let ((title (if (re-search-forward "^#\\+title:\\s-*\\(.+\\)$" nil t)
+                         (string-trim (match-string 1))
+                       (file-name-base file)))
+              (tags (progn
+                      (goto-char (point-min))
+                      (when (re-search-forward "^#\\+filetags:\\s-*\\(.+\\)$" nil t)
+                        (split-string (match-string 1) ":" t " ")))))
+          (cons title tags)))
+    (error (cons (file-name-base file) nil))))
+
 (defun my/denote-file-identifier (file)
   "Return the Denote identifier string from FILE basename, or nil."
   (let ((base (file-name-base file)))
@@ -142,8 +174,32 @@ Entries that are files rather than directories are skipped."
                       'face '(:weight bold :underline t)))
   (insert "\n"))
 
+(defvar my/dashboard-signature-width 5
+  "Column width reserved for the Denote signature in dashboard lines.
+Notes without a signature get blank padding, so titles stay aligned
+whether or not a section mixes sequence notes with plain ones.
+Signatures longer than this push their own line right rather than
+widening every line; 5 covers everything up to `1zzzv' comfortably.")
+
+(defvar my/dashboard-show-tags t
+  "Whether dashboard lines end with the note's tags.")
+
+(defvar my/dashboard-tag-column 92
+  "Column at which the dashboard tag list starts.
+A fixed column rather than a window-relative one, because the buffer
+is rendered before it is displayed, so window width is not reliably
+known at render time.  Lines whose title runs past this column get two
+spaces before their tags instead, which is the honest degradation:
+the tags stay readable, they just stop lining up.")
+
+(defvar my/dashboard-hidden-tags '("journal" "docu")
+  "Tags never shown in dashboard lines.
+The Journal and Documentation sections are already labelled as such,
+so repeating the silo tag on every line of them is noise that only
+pushes the informative tags further right.")
+
 (defun my/dashboard-insert-file-link (file &optional date-source)
-  "Insert a clickable line for FILE with date and org title.
+  "Insert a clickable line for FILE: date, signature, title, tags.
 
 DATE-SOURCE controls which date is shown:
   \='mtime (default) — file modification time; used for Recently Modified,
@@ -153,8 +209,16 @@ DATE-SOURCE controls which date is shown:
                        (YYYYMMDDTHHMMSS prefix); used for Journal and tag
                        popups where chronological creation order matters.
                        Falls back to mtime when the file has no identifier
-                       (e.g. captures.org)."
-  (let* ((title   (my/denote-file-title file))
+                       (e.g. captures.org).
+
+The clickable region covers date, signature and title.  Tags are
+appended outside it as plain dimmed text, so they can keep their own
+face instead of inheriting the button's."
+  (let* ((meta    (my/denote-file-metadata file))
+         (title   (car meta))
+         (tags    (seq-remove (lambda (tag) (member tag my/dashboard-hidden-tags))
+                              (cdr meta)))
+         (sig     (or (my/denote-file-signature file) ""))
          (date    (pcase date-source
                     ('id
                      (let ((id (my/denote-file-identifier file)))
@@ -167,7 +231,8 @@ DATE-SOURCE controls which date is shown:
                     (_
                      (format-time-string "%Y-%m-%d"
                                          (nth 5 (file-attributes file))))))
-         (display (format "  %s  %s" date title))
+         (display (format "  %s  %-*s%s"
+                          date my/dashboard-signature-width sig title))
          (start   (point)))
     (insert display)
     (make-text-button start (point)
@@ -177,6 +242,11 @@ DATE-SOURCE controls which date is shown:
                       'help-echo file
                       'mouse-face 'highlight
                       'face '(:foreground "#2aa198"))
+    (when (and my/dashboard-show-tags tags)
+      (let ((pad (max 2 (- my/dashboard-tag-column (current-column)))))
+        (insert (propertize (concat (make-string pad ?\s)
+                                    ":" (string-join tags ":") ":")
+                            'face '(:foreground "#888888")))))
     (insert "\n")))
 
 (defun my/dashboard-insert-tag-line (tag files)

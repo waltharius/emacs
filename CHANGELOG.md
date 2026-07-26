@@ -271,6 +271,63 @@ anyway: they cost nothing, and Denote itself still supports 28.1.
 
 ---
 
+### E — `modules/15-workspace.el` — Signature and tag columns in the dashboard
+
+#### What changed
+
+Dashboard lines went from `<date>  <title>` to
+
+```
+<date>  <signature>  <title>                    :tag:tag:
+```
+
+`my/denote-file-signature` extracts the Folgezettel component from the
+file name (the segment between `==` and the `--` that starts the
+title), returning nil for notes that have none. The column is padded
+to `my/dashboard-signature-width` so titles stay aligned in sections
+that mix sequence notes with plain ones.
+
+Tags come from `#+filetags:` and start at `my/dashboard-tag-column`.
+Four new variables tune the result: `my/dashboard-signature-width`,
+`my/dashboard-show-tags`, `my/dashboard-tag-column`,
+`my/dashboard-hidden-tags`.
+
+#### Why a fixed tag column
+
+The buffer is rendered before it is displayed — `my/open-notes-dashboard`
+passes `(my/render-notes-dashboard)` to `switch-to-buffer` — so window
+width is not reliably known at render time, which rules out
+right-aligning to the window edge. A title running past the column
+gets two spaces before its tags instead: the tags stay readable, they
+just stop lining up for that line.
+
+#### Why `my/dashboard-hidden-tags`
+
+The Journal and Documentation sections are already labelled as such,
+so `:journal:` on every line of the Journal section carries no
+information while pushing the informative tags further right. The
+default suppresses exactly those two silo tags.
+
+#### Performance: one read instead of two
+
+Every line now needs both title and tags, and
+`my/denote-file-title` and `my/denote-file-tags` each open the file
+separately — so naively adding tags would have doubled dashboard I/O.
+New `my/denote-file-metadata` returns `(TITLE . TAGS)` from a single
+800-byte read, and the renderer uses it. The two single-purpose
+helpers are untouched for callers that need only one value.
+
+#### Known scaling limit
+
+The dashboard is static text rebuilt in full on every `g`, reading the
+head of every file in three silos each time. At the current collection
+size this is imperceptible. If it ever becomes slow, the structural
+answer is `tabulated-list-mode`, which would also provide column
+sorting and alignment for free instead of the manual padding used
+here — noted as a future option, not a current need.
+
+---
+
 ## Session 2026-07-25 — Desktop Trim Tab/Pin Protection, Keybinding Audit, Org Markup Styling
 
 ### Context
