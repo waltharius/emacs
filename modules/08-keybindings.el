@@ -112,6 +112,14 @@
 ;; C-c a T = keylog-enable
 
 ;; ============================================================
+;; ZETTELKASTEN / FOLGEZETTEL (already defined in 22-zettelkasten.el)
+;; ============================================================
+;; C-c n z = my/zettelkasten-menu (transient), appended to the main
+;; notes menu the same way 19-philosophy-notes.el appends C-c n l.
+;; All commands are silo-scoped to ~/notes/pks/ — sequences never
+;; land on journal or docu notes.  See the menu tree below.
+
+;; ============================================================
 ;; ZOTERO / BIBLIOGRAPHY (already defined in 18-zotero-transient.el)
 ;; ============================================================
 ;; C-c x = my/zotero-menu (transient) — also reachable via C-c n t z
@@ -273,6 +281,13 @@ C-c n -- NOTES TRANSIENT MENU TREE
   l  Philosophy ->
        l  Literature        p  Concept            m  Thinker
        b  Problem           i  Map / MOC
+  z  Zettelkasten ->  (Folgezettel sequences, pks silo only)
+       n  New thread (parent)     c  Child of current
+       C  Child of chosen...      s  Sibling of current
+       f  Find relative...        j/k  Next/previous sibling
+       d  Dired in Folgezettel order
+       l  Link to sequence note   r  Reparent current
+       a  Adopt plain note into ZK
   s  Correct previous  (top-level shortcut, same as t s)
   a  Add to dict        (top-level shortcut, same as t a)
   h  Function Help (opens function_helper.org in a new tab)

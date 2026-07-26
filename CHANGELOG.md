@@ -7,6 +7,79 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-07-26 — Zettelkasten / Folgezettel Layer
+
+### Context
+
+The note collection had no mechanism for expressing that one note
+continues or branches from another — only keywords and free-form
+links. Denote reserves an optional `SIGNATURE` file name component for
+exactly this, and the official `denote-sequence` extension (GNU ELPA,
+stable 0.3.0, released 2026-05-20) automates the bookkeeping. This
+session adds a Folgezettel layer on top of the existing note system
+without disturbing plain notes.
+
+---
+
+### A — `modules/22-zettelkasten.el` (new) — Folgezettel sequences
+
+#### What changed
+
+New module wrapping `denote-sequence` with a transient submenu at
+`C-c n z`, appended to `my/notes-menu` via `transient-append-suffix`
+— the same mechanism `19-philosophy-notes.el` uses for `C-c n l`. The
+append is guarded by `transient-get-suffix` inside `ignore-errors`, so
+re-loading the module does not create a duplicate entry.
+
+Eleven commands, each a thin `my/zettel-*` wrapper: new
+parent/child/child-of-current/sibling-of-current, find relative,
+next/previous sibling, Folgezettel-ordered Dired, sequence-only
+linking, reparent, and adopt (promote a plain note to a parent).
+`j`/`k` (sibling paging) are `:transient t` so the menu stays open
+while navigating.
+
+`modules/08-keybindings.el` and `function_helper.org` updated to
+document the new menu tree, the signature semantics, and the workflow.
+`init.el` loads the module after `21-dashboards.el`.
+
+#### Why — silo scoping
+
+Every command is wrapped by the `my/zettel--in-pks` macro, which binds
+`denote-directory` to `my-notes-pks` for the duration of the call.
+This mirrors the silo-switching pattern already used by
+`my/denote-base` in `05-notes.el`.
+
+The effect is that signatures can only ever land on notes in
+`~/notes/pks/`, and sequence lookups never offer journal or docu files
+as parents. The rationale is structural: a journal is time-ordered and
+low-friction, a Zettelkasten is idea-ordered and effortful; letting
+sequences span both would make the hierarchy meaningless (a journal
+entry is not a continuation of a philosophical argument) and would
+pollute journal file names with signatures.
+
+#### Why — alphanumeric scheme
+
+`denote-sequence-scheme` is set to `alphanumeric` (`1`, `1a`, `1a1`)
+rather than the package default `numeric` (`1`, `1=1`, `1=1=2`).
+Signatures appear in file names, in Dired, and in minibuffer
+completion, so compactness directly affects daily readability. The
+tradeoff, per the upstream manual, is that large numbers become hard
+to reason about (`1zzzv2zx` is the alphanumeric form of `1=100=2=50`).
+
+This is not an irreversible decision: `denote-sequence-convert`
+rewrites a whole collection from one scheme to another. Note its
+documented limitation — it converts notation only, and does **not**
+reparent or check the results for duplicates.
+
+#### Design note — signatures stay optional
+
+Plain Denote notes and sequence notes coexist in the same silo. A
+signature is added only when a thought explicitly continues or
+branches from another. The upstream manual is explicit that the
+extension "is not necessary for such a workflow" — it only streamlines
+signature bookkeeping — so no migration or bulk renaming of existing
+notes was performed, and none is planned.
+
 ---
 
 ## Session 2026-07-25 — Desktop Trim Tab/Pin Protection, Keybinding Audit, Org Markup Styling
@@ -621,6 +694,21 @@ newer came along. If a derived set (e.g. "buffers to protect") is built
 from one of these, cap it explicitly — for an MRU-ordered list, take
 only the front `N` entries — so the derived set stays bounded
 regardless of how long X has been alive. See Session 2026-07-25, A.
+
+### L13 — Extending a transient from another module creates a load-order dependency
+
+`transient-append-suffix` lets a feature module add its own entry to a
+central menu (`19-philosophy-notes.el` adds `C-c n l`,
+`22-zettelkasten.el` adds `C-c n z`) instead of the central menu
+having to know about every feature. The cost is a hard ordering
+constraint: the appending module must load *after* the module defining
+the prefix, or the append targets a prefix that does not exist yet.
+
+Two habits keep this safe: keep the appending modules numbered above
+the prefix's module in `init.el`, and guard the append with
+`transient-get-suffix` wrapped in `ignore-errors` (it signals when the
+key is absent) so re-evaluating a module during development does not
+stack duplicate entries. See Session 2026-07-26, A.
 
 ---
 

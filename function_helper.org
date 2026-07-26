@@ -11,10 +11,16 @@
 
 Main entry point for all note operations. Hierarchical structure:
 =c= Create, =f= Find, =i= Insert, =d= Document, =x= Export, =v= View,
-=t= Tools, =l= Philosophy (dynamic), =h= Function Help. Also carries
+=t= Tools, =l= Philosophy (dynamic), =z= Zettelkasten (dynamic),
+=h= Function Help. Also carries
 two top-level shortcuts duplicated from Tools → Spelling for the two
 most-used spelling commands: =s= Correct previous, =a= Add to dict
 (both =:transient t=, so the menu stays open after use).
+
+=l= and =z= are not defined in =12-transient.el= itself: they are
+appended at load time with =transient-append-suffix= by
+=19-philosophy-notes.el= and =22-zettelkasten.el= respectively, which
+is why both modules must load *after* =12-transient.el=.
 
 Module: =modules/12-transient.el=
 
@@ -616,6 +622,134 @@ Opens this file in a new tab. Uses =tab-bar-new-tab= + =find-file= +
 
 Function: =my/open-function-helper= | Module: =modules/12-transient.el=
 
+* Zettelkasten / Folgezettel (C-c n z)
+:PROPERTIES:
+:CUSTOM_ID: menu-zettelkasten
+:END:
+
+Luhmann-style sequence notes built on the official =denote-sequence=
+package (GNU ELPA, stable 0.3.0 released 2026-05-20). Adds hierarchical
+relationships on top of ordinary Denote notes by filling in the
+optional =SIGNATURE= file name component.
+
+** Scope and design decisions
+:PROPERTIES:
+:CUSTOM_ID: zettelkasten-scope
+:END:
+
+- *pks silo only.* Every command in this menu is wrapped by
+  =my/zettel--in-pks=, a macro binding =denote-directory= to
+  =my-notes-pks=. Journal and docu notes therefore never receive a
+  signature, and sequence lookups never offer them. This mirrors the
+  silo-switching pattern of =my/denote-base= in =05-notes.el=. The
+  rationale is that a journal is time-structured while a Zettelkasten
+  is idea-structured; mixing them makes both harder to navigate.
+- *Alphanumeric scheme* (=denote-sequence-scheme= is ='alphanumeric=):
+  signatures read =1=, =1a=, =1a1=, =1b=, =2=. The Denote default is
+  ='numeric= (=1=, =1=1=, =1=1=2=), which is easier to reason about for
+  large numbers but far longer inside file names. Not an irreversible
+  choice: =denote-sequence-convert= converts a whole collection between
+  schemes in one command (it does *not* reparent or check for
+  duplicates, it only rewrites the notation).
+- *Signatures are optional.* Plain Denote notes and sequence notes
+  coexist in the same silo. A signature is added only when a thought
+  explicitly continues or branches from another one. Per the
+  denote-sequence manual, the extension "is not necessary for such a
+  workflow" — it only streamlines signature bookkeeping.
+
+** Reading a signature
+:PROPERTIES:
+:CUSTOM_ID: zettelkasten-signature-semantics
+:END:
+
+In the alphanumeric scheme, depth is communicated by alternating
+between digits and letters, so =1a2= is three levels deep.
+
+| Signature | Relationship                                          |
+|-----------+-------------------------------------------------------|
+| =1=       | A top-level thread, unrelated to =2=                  |
+| =1a=      | First child of =1= — elaborates one concept from it   |
+| =1a1=     | First child of =1a= — drills deeper still             |
+| =1b=      | Second child of =1= — a different branch off =1=      |
+| =2=       | A separate top-level thread                           |
+
+Branch (create a *child*) to develop one specific concept out of a
+note without interrupting its main line. Continue (create a *sibling*)
+when the train of thought runs on at the same level. Numbering is
+handled automatically: creating a child of =1a= when =1a1= exists
+yields =1a2=.
+
+** Commands
+:PROPERTIES:
+:CUSTOM_ID: zettelkasten-commands
+:END:
+
+| Key | Command                       | Wraps                                    |
+|-----+-------------------------------+------------------------------------------|
+| n   | =my/zettel-new-parent=        | =denote-sequence-new-parent=             |
+| c   | =my/zettel-new-child-of-current= | =denote-sequence-new-child-of-current= |
+| C   | =my/zettel-new-child=         | =denote-sequence-new-child=              |
+| s   | =my/zettel-new-sibling-of-current= | =denote-sequence-new-sibling-of-current= |
+| f   | =my/zettel-find=              | =denote-sequence-find=                   |
+| j   | =my/zettel-next-sibling=      | =denote-sequence-find-next-sibling=      |
+| k   | =my/zettel-previous-sibling=  | =denote-sequence-find-previous-sibling=  |
+| d   | =my/zettel-dired=             | =denote-sequence-dired=                  |
+| l   | =my/zettel-link=              | =denote-sequence-link=                   |
+| r   | =my/zettel-reparent=          | =denote-sequence-reparent=               |
+| a   | =my/zettel-adopt=             | =denote-sequence-rename-as-parent=       |
+
+=j= and =k= are marked =:transient t= so the menu stays open while
+paging through siblings.
+
+=d= (Dired) accepts prefix arguments passed through to
+=denote-sequence-dired=: =C-u= prompts for a signature prefix to
+filter by (e.g. show only =1a= and its descendants), =C-u C-u= also
+prompts for a depth limit.
+
+=l= differs from the ordinary =C-c d l= (=denote-link=) only in
+narrowing minibuffer completion to files that *have* a signature.
+Regular link commands still work on sequence notes.
+
+=a= promotes an existing plain pks note into the Zettelkasten by
+making it a new parent; follow with =r= to place it under an existing
+thread.
+
+** Workflow
+:PROPERTIES:
+:CUSTOM_ID: zettelkasten-workflow
+:END:
+
+1. *Start a thread* — =C-c n z n=, then the usual Denote title/keyword
+   prompts. Write the note atomically and in your own words: one idea,
+   self-contained enough to be read years later without context.
+2. *Branch* — while inside that note, =C-c n z c= creates a child for a
+   concept that deserves its own note. Link to it from the parent
+   (=C-c n z l=).
+3. *Continue* — =C-c n z s= from a note creates its sibling, extending
+   the same line of thought rather than descending into it.
+4. *Navigate* — =C-c n z f= visits a parent/sibling/child of the
+   current note; =j=/=k= page between siblings; =C-c n z d= shows the
+   whole tree in Folgezettel order (regular Dired sorts by =ls= flags
+   instead, which scrambles sequences).
+5. *Refactor* — =C-c n z r= moves a note (and its position in the
+   hierarchy) under a different parent when its real home turns out to
+   be elsewhere.
+
+Structure notes (maps of content) remain the primary navigation aid;
+sequences complement rather than replace them. A dynamic block scoped
+to one branch gives a self-updating table of contents for that thread:
+
+#+begin_example
+,#+BEGIN: denote-links :regexp "==3.*_cognition" :sort-by-component signature
+,#+END:
+#+end_example
+
+Refresh with =C-c C-x C-u= on the =#+BEGIN= line.
+
+Functions: =my/zettel-*=, =my/zettelkasten-menu=, =my/zettel--in-pks=
+| Module: =modules/22-zettelkasten.el= | Upstream manual:
+https://protesilaos.com/emacs/denote-sequence
+
 * Zotero / Bibliography (C-c x)
 :PROPERTIES:
 :CUSTOM_ID: menu-zotero-detail
@@ -765,6 +899,7 @@ hand-editing either from memory.
 | Binding  | Function                     | Set in module                |
 |----------+-------------------------------+-------------------------------|
 | C-c n    | =my/notes-menu=               | =12-transient.el=            |
+| C-c n z  | =my/zettelkasten-menu=        | =22-zettelkasten.el= (appended) |
 | C-c c    | =org-capture=                 | =06-capture.el=              |
 | C-c x    | =my/zotero-menu=              | =18-zotero-transient.el=     |
 | C-c p    | =my/org-export-to-pdf=        | =16-org-export.el=           |
