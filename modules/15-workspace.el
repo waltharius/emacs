@@ -34,15 +34,54 @@
 ;; HELPERS: Read org frontmatter from Denote files
 ;; ============================================================
 
+;; Front matter regexps, shared by every reader below so they cannot
+;; drift apart.
+;;
+;; The horizontal-whitespace class [ \t] is deliberate and load-bearing:
+;; `\s-' is the *syntax* class for whitespace, and in a temp buffer
+;; (fundamental mode, standard syntax table) a newline has whitespace
+;; syntax.  So "^#\\+filetags:\\s-*\\(.+\\)$" against an empty
+;;
+;;     #+filetags:
+;;     #+identifier: 20260726T150901
+;;
+;; consumes the newline as part of `\s-*' and captures the *next* line,
+;; reporting the identifier line as the file's tags.  Matching only
+;; spaces and tabs keeps the search on its own line.
+;;
+;; The capture group is `.*' rather than `.+' for the same reason: an
+;; empty value must produce an empty match on this line instead of
+;; failing and letting a later line satisfy the search.
+
+(defconst my/denote-title-regexp "^#\\+title:[ \t]*\\(.*\\)$"
+  "Match the `#+title:' front matter line, capturing its value.")
+
+(defconst my/denote-filetags-regexp "^#\\+filetags:[ \t]*\\(.*\\)$"
+  "Match the `#+filetags:' front matter line, capturing its value.")
+
+(defun my/denote--parse-title (file)
+  "Return the trimmed `#+title:' value in the current buffer.
+Falls back to the base name of FILE when absent or empty."
+  (goto-char (point-min))
+  (let ((value (when (re-search-forward my/denote-title-regexp nil t)
+                 (string-trim (match-string 1)))))
+    (if (or (null value) (string-empty-p value))
+        (file-name-base file)
+      value)))
+
+(defun my/denote--parse-tags ()
+  "Return the `#+filetags:' value in the current buffer as a list.
+An absent or empty line yields nil."
+  (goto-char (point-min))
+  (when (re-search-forward my/denote-filetags-regexp nil t)
+    (split-string (match-string 1) ":" t "[ \t]+")))
+
 (defun my/denote-file-title (file)
   "Return #+title from FILE (first 800 bytes only, for speed)."
   (condition-case nil
       (with-temp-buffer
         (insert-file-contents file nil 0 800)
-        (goto-char (point-min))
-        (if (re-search-forward "^#\\+title:\\s-*\\(.+\\)$" nil t)
-            (string-trim (match-string 1))
-          (file-name-base file)))
+        (my/denote--parse-title file))
     (error (file-name-base file))))
 
 (defun my/denote-file-tags (file)
@@ -50,10 +89,7 @@
   (condition-case nil
       (with-temp-buffer
         (insert-file-contents file nil 0 800)
-        (goto-char (point-min))
-        (if (re-search-forward "^#\\+filetags:\\s-*\\(.+\\)$" nil t)
-            (split-string (match-string 1) ":" t " ")
-          nil))
+        (my/denote--parse-tags))
     (error nil)))
 
 (defun my/denote-file-signature (file)
@@ -77,15 +113,8 @@ TITLE falls back to the file base name, TAGS to nil, on any error."
   (condition-case nil
       (with-temp-buffer
         (insert-file-contents file nil 0 800)
-        (goto-char (point-min))
-        (let ((title (if (re-search-forward "^#\\+title:\\s-*\\(.+\\)$" nil t)
-                         (string-trim (match-string 1))
-                       (file-name-base file)))
-              (tags (progn
-                      (goto-char (point-min))
-                      (when (re-search-forward "^#\\+filetags:\\s-*\\(.+\\)$" nil t)
-                        (split-string (match-string 1) ":" t " ")))))
-          (cons title tags)))
+        (cons (my/denote--parse-title file)
+              (my/denote--parse-tags)))
     (error (cons (file-name-base file) nil))))
 
 (defun my/denote-file-identifier (file)

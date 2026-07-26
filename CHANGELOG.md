@@ -330,6 +330,36 @@ The padding is now built explicitly with `make-string`, using
 column keeps one separating space and pushes its own line right rather
 than colliding with the title.
 
+#### Second bug: front matter regexps crossed line boundaries
+
+With tags now displayed, a note showed `:#+identifier:20260726T150901:`
+where its tags should be. The note in question had an empty
+`#+filetags:` line.
+
+Cause: the existing readers used `"^#\\+filetags:\\s-*\\(.+\\)$"`.
+`\s-` is the whitespace *syntax* class, and in a temp buffer
+(fundamental mode, standard syntax table) a newline has whitespace
+syntax — so `\s-*` consumed the end of the empty line and `\(.+\)`
+captured the *following* line. `[ \t]` would not have done this.
+
+The bug predates this session; it was latent because tags were never
+displayed and only became visible now. It also affected
+`my/denote-all-tags`, and therefore the dashboard's Tags section,
+which was collecting `#+identifier` and raw identifier strings as if
+they were tags — for every note with an empty `#+filetags:`.
+
+Fix: both patterns moved into shared constants,
+`my/denote-title-regexp` and `my/denote-filetags-regexp`, matching
+`[ \t]*` instead of `\s-*` and capturing `.*` instead of `.+`. The
+`.+`-to-`.*` change matters for the same reason: with `.+`, an empty
+value makes the match fail on its own line and lets a later line
+satisfy the search instead.
+
+Parsing also moved into `my/denote--parse-title` and
+`my/denote--parse-tags`, so the three readers (`my/denote-file-title`,
+`my/denote-file-tags`, `my/denote-file-metadata`) share one
+implementation and cannot drift apart again.
+
 #### Known scaling limit
 
 The dashboard is static text rebuilt in full on every `g`, reading the
@@ -970,6 +1000,26 @@ key is absent) so re-evaluating a module during development does not
 stack duplicate entries. See Session 2026-07-26, A.
 
 ---
+
+### L14 — `\s-` matches newline; use `[ \t]` for same-line matching
+
+`\s-` in an Emacs regexp is the whitespace *syntax* class, and under
+the standard syntax table — which is what a temp buffer gets — newline
+has whitespace syntax. A pattern like
+
+```elisp
+"^#\\+field:\\s-*\\(.+\\)$"
+```
+
+therefore does not stay on its own line: when the field is empty,
+`\s-*` eats the line ending and the capture group matches the next
+line's content instead. Line-oriented front matter parsing wants
+`[ \t]*`, which cannot cross a line.
+
+The companion mistake is using `.+` for a value that may legitimately
+be empty. `.+` makes the match fail on the correct line, so the search
+succeeds further down the buffer on some unrelated line. Use `.*` and
+treat an empty capture as absent. See Session 2026-07-26, E.
 
 ## File Ownership Map (current)
 
