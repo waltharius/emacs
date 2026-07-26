@@ -258,9 +258,63 @@ three silos. Journal notes are distinguished by the presence of the
 =:well-being:= property in the property drawer — this is the only
 marker separating journal notes from the rest.
 
-Opening either dashboard opens the newest matching note directly and
-shows a =*Note History*= buffer listing every match as a clickable
-button, sorted newest first.
+**** Layout: own tab, list left, note right
+
+Invoking any of the four commands switches to a tab-bar tab named
+=my/dashboards-tab-name= ("History"), creating it beside the current
+tab if absent (no positional argument is passed to =tab-bar-new-tab=,
+and =tab-bar-new-tab-to= defaults to ='right=). The tab is reduced to
+a single window holding =*Note History*=, so the layout is predictable
+whatever the tab contained before.
+
+Selecting an entry splits the window and shows the note on the right,
+with the list keeping =my/dashboards-nav-width= columns on the left.
+Every subsequent selection reuses that same window, so clicking
+through the list replaces the note rather than accumulating windows.
+Point stays in the list.
+
+The preview window is remembered in the buffer-local
+=my/dashboards--preview-window= and validated with =window-live-p=
+before each use, so closing it (=C-x 1=, switching tabs) is harmless:
+the next selection simply splits a new one.
+
+***** Keyboard navigation
+
+Inside =*Note History*= (major mode =my/dashboards-nav-mode=, derived
+from =special-mode=):
+
+| Key   | Effect                          |
+|-------+---------------------------------|
+| =n=   | Next entry, preview it          |
+| =p=   | Previous entry, preview it      |
+| =RET= | Preview entry on current line   |
+| =o=   | Same as =RET=                   |
+| =q=   | Bury the buffer (=special-mode=) |
+
+=hl-line-mode= is on so the current entry is visible while paging.
+
+***** Why =switch-to-buffer= rather than =set-window-buffer=
+
+=my/dashboards--visit= wraps =switch-to-buffer= in
+=with-selected-window= instead of calling =set-window-buffer=
+directly. Only the former records the outgoing buffer in that
+window's history, which is what makes =C-x <left>= (=previous-buffer=)
+and =C-x <right>= (=next-buffer=) step back through previously
+previewed notes.
+
+Note that those two commands act on the *selected* window. Since
+point stays in the list after a selection, move into the note window
+first (=C-x o= or a click) for them to cycle notes. They also walk
+that window's entire buffer history, not only notes reached from this
+list.
+
+***** Limitation: the preview window is not dedicated
+
+Nothing marks the preview window as reserved, so an unrelated
+=display-buffer= call may reuse it. Marking it dedicated would prevent
+that but would also stop =find-file= from working inside it, which is
+the more common need — reading a note usually leads to following a
+link out of it.
 
 Module: =modules/21-dashboards.el=
 

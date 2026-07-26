@@ -147,6 +147,25 @@ month first."
 ;; NAVIGATION BUFFER
 ;; ============================================================
 
+(defcustom my/dashboards-tab-name "History"
+  "Name of the tab-bar tab holding the note history navigation buffer."
+  :type 'string
+  :group 'my-dashboards)
+
+(defcustom my/dashboards-nav-width 52
+  "Width in columns of the navigation window when the tab is split.
+This is the width given to the LEFT window; the note fills the rest."
+  :type 'integer
+  :group 'my-dashboards)
+
+(defvar-local my/dashboards--preview-window nil
+  "Window in which notes picked from the navigation buffer are shown.
+Buffer-local to the navigation buffer, since that is where the button
+actions run.  Nil means no preview window exists yet, in which case the
+next visit splits one off.  Always validated with `window-live-p'
+before use: the window may have been closed by `delete-other-windows'
+or by switching tabs, and a stale window object must not be reused.")
+
 (defun my/dashboards--insert-button-line (entry)
   "Insert a clickable line for ENTRY into the current buffer."
   (let* ((file (plist-get entry :file))
@@ -158,28 +177,114 @@ month first."
     (insert-text-button
      label
      'follow-link t
-     'action (lambda (_button) (find-file file)))
+     'help-echo file
+     ;; Stored on the button so keyboard navigation can find the file
+     ;; without re-parsing the line.
+     'my-file file
+     'action (lambda (button)
+               (my/dashboards--visit (button-get button 'my-file))))
     (insert "\n")))
 
+(defun my/dashboards--visit (file)
+  "Show FILE in the navigation buffer's preview window.
+
+Reuses the same window for every visit, so clicking through the list
+replaces the note on the right rather than piling up windows.  Point
+stays in the navigation buffer.
+
+`switch-to-buffer' inside `with-selected-window' is used rather than
+the shorter `set-window-buffer' because only the former records the
+outgoing buffer in that window's history, which is what makes
+\\[previous-buffer] and \\[next-buffer] step back through previously
+previewed notes."
+  (let ((window (if (window-live-p my/dashboards--preview-window)
+                    my/dashboards--preview-window
+                  (setq my/dashboards--preview-window
+                        (split-window-right my/dashboards-nav-width)))))
+    (with-selected-window window
+      (switch-to-buffer (find-file-noselect file)))))
+
+(defun my/dashboards--file-at-point ()
+  "Return the note file of the button on the current line, or nil."
+  (let ((button (or (button-at (point))
+                    (save-excursion
+                      (forward-line 0)
+                      (button-at (point))))))
+    (when button (button-get button 'my-file))))
+
+(defun my/dashboards-visit-at-point ()
+  "Preview the note on the current line."
+  (interactive)
+  (if-let* ((file (my/dashboards--file-at-point)))
+      (my/dashboards--visit file)
+    (message "No note on this line")))
+
+(defun my/dashboards-next-and-visit ()
+  "Move to the next entry and preview it."
+  (interactive)
+  (forward-line 1)
+  (my/dashboards-visit-at-point))
+
+(defun my/dashboards-previous-and-visit ()
+  "Move to the previous entry and preview it."
+  (interactive)
+  (forward-line -1)
+  (my/dashboards-visit-at-point))
+
+(defvar my/dashboards-nav-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "n")   #'my/dashboards-next-and-visit)
+    (define-key map (kbd "p")   #'my/dashboards-previous-and-visit)
+    (define-key map (kbd "o")   #'my/dashboards-visit-at-point)
+    (define-key map (kbd "RET") #'my/dashboards-visit-at-point)
+    map)
+  "Keymap for `my/dashboards-nav-mode'.")
+
+(define-derived-mode my/dashboards-nav-mode special-mode "Note History"
+  "Major mode for the note history navigation buffer.
+\\{my/dashboards-nav-mode-map}"
+  (hl-line-mode 1))
+
+(defun my/dashboards--goto-tab ()
+  "Switch to the history tab, creating it beside the current one if absent."
+  (if (seq-find (lambda (tab)
+                  (equal (alist-get 'name tab) my/dashboards-tab-name))
+                (tab-bar-tabs))
+      (tab-bar-switch-to-tab my/dashboards-tab-name)
+    ;; No positional argument: `tab-bar-new-tab-to' defaults to \='right,
+    ;; so the tab lands next to the one the command was invoked from.
+    (tab-bar-new-tab)
+    (tab-bar-rename-tab my/dashboards-tab-name)))
+
 (defun my/dashboards--show-navigation (entries title)
-  "Display ENTRIES as clickable lines in a dedicated buffer titled TITLE."
+  "Display ENTRIES as clickable lines in the history tab, titled TITLE."
   (let ((buffer (get-buffer-create my/dashboards-nav-buffer-name)))
     (with-current-buffer buffer
       (let ((inhibit-read-only t))
         (erase-buffer)
-        (special-mode)
+        (my/dashboards-nav-mode)
+        ;; A window recorded by an earlier invocation is meaningless
+        ;; now: the layout is about to be reset below.
+        (setq my/dashboards--preview-window nil)
         (insert title "\n\n")
         (if entries
             (dolist (entry entries) (my/dashboards--insert-button-line entry))
-          (insert "No matching notes.\n"))))
-    (display-buffer buffer)))
+          (insert "No matching notes.\n"))
+        (goto-char (point-min))
+        (forward-line 2)))
+    (my/dashboards--goto-tab)
+    (switch-to-buffer buffer)
+    ;; Start from a single window so the first visit produces exactly
+    ;; the intended two-pane layout regardless of what the tab held.
+    (delete-other-windows)
+    buffer))
 
 (defun my/dashboards--open-first-and-show-nav (entries title)
-  "Open the newest file from ENTRIES and list all matches under TITLE."
+  "List ENTRIES under TITLE in the history tab and preview the newest."
   (if (null entries)
       (message "No matching notes for: %s" title)
-    (find-file (plist-get (car entries) :file))
-    (my/dashboards--show-navigation entries title)))
+    (my/dashboards--show-navigation entries title)
+    (my/dashboards-visit-at-point)))
 
 ;; ============================================================
 ;; INTERACTIVE COMMANDS

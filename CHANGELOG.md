@@ -371,6 +371,66 @@ here — noted as a future option, not a current need.
 
 ---
 
+### F — `modules/21-dashboards.el` — History dashboards get their own tab and a reused preview window
+
+#### What changed
+
+The four history commands (`C-c n f h` `t`/`j`/`m`/`M`) previously
+called `find-file` on the newest match, dropping the note into
+whatever window was current, then showed `*Note History*` via a bare
+`display-buffer` — so where either ended up depended on the layout at
+the time.
+
+Now they switch to a tab named `my/dashboards-tab-name` ("History"),
+creating it beside the current tab when absent, reduce it to a single
+window holding the list, and show the selected note in a window split
+off to the right. Every subsequent selection reuses that window, so
+clicking through the list replaces the note instead of accumulating
+windows. Point stays in the list.
+
+`*Note History*` gained a real major mode, `my/dashboards-nav-mode`
+(derived from `special-mode`), with `n`/`p` to page through entries
+previewing as they go, `RET`/`o` to preview the current line, and
+`hl-line-mode` so the current entry is visible.
+
+#### Why `switch-to-buffer` inside `with-selected-window`
+
+`my/dashboards--visit` could have used `set-window-buffer`, which is
+shorter. It uses `switch-to-buffer` wrapped in `with-selected-window`
+because only that path records the outgoing buffer in the window's
+history — which is what makes `C-x <left>` and `C-x <right>`
+(`previous-buffer`, `next-buffer`) step back through previously
+previewed notes, one of the stated goals.
+
+#### Why the window is stored rather than declared
+
+The alternative is a `display-buffer-alist` rule matching note files
+and routing them to a side window. That is the idiomatic declarative
+approach and is what a general solution would use. It was not chosen
+here because the rule would apply to *every* way a note gets
+displayed, not just selections from this list, which is a much larger
+behavioural change than the feature warrants. Since the button action
+is our own code, addressing the window directly is both simpler and
+narrower in effect.
+
+The window is kept in the buffer-local `my/dashboards--preview-window`
+and validated with `window-live-p` before every use, so `C-x 1`,
+tab switching, or anything else that closes it is harmless — the next
+selection splits a new one. It is reset to nil whenever the list is
+rebuilt, since the layout is torn down at that point anyway.
+
+#### Known limitations
+
+- The preview window is not dedicated, so an unrelated
+  `display-buffer` may reuse it. Dedicating it would also stop
+  `find-file` from working inside it, which is the more common need:
+  reading a note usually leads to following a link out of it.
+- `previous-buffer` and `next-buffer` act on the selected window, so
+  they require moving into the note window first, and they walk that
+  window's whole history rather than only notes from the list.
+
+---
+
 ## Session 2026-07-25 — Desktop Trim Tab/Pin Protection, Keybinding Audit, Org Markup Styling
 
 ### Context
