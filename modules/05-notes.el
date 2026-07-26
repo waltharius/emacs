@@ -278,6 +278,185 @@
             (message "Deleted: %s" name)))
         (kill-buffer (current-buffer))))))
 
+;; ============================================================
+;; MOVE NOTE BETWEEN SILOS
+;; ============================================================
+
+(defvar my/denote-silo-alist
+  `(("journal" . ,my-notes-journal)
+    ("pks"     . ,my-notes-pks)
+    ("docu"    . ,my-notes-docu))
+  "Alist of (NAME . DIRECTORY) for every Denote silo.
+Used by `my/denote-move-to-silo' to build its completion list.
+Add an entry here when a new silo is added to 00-core.el.")
+
+(defconst my/denote--identifier-regexp "\\`\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)"
+  "Match a Denote identifier at the start of a bare file name.")
+
+(defun my/denote--file-title (file)
+  "Return the `#+title:' value of FILE, or nil if absent.
+Reads only the beginning of FILE: Denote front matter is always at
+the top, so there is no reason to load a whole note from disk."
+  (with-temp-buffer
+    (ignore-errors
+      (insert-file-contents file nil 0 4000))
+    (goto-char (point-min))
+    (when (re-search-forward "^#\\+title:[ \t]+\\(.*?\\)[ \t]*$" nil t)
+      (match-string-no-properties 1))))
+
+(defun my/denote--file-identifier (file)
+  "Return the Denote identifier of FILE, taken from its file name."
+  (let ((name (file-name-nondirectory file)))
+    (when (string-match my/denote--identifier-regexp name)
+      (match-string 1 name))))
+
+(defun my/denote--silo-files (dir)
+  "Return the Denote files directly inside DIR.
+Non-recursive on purpose: the silos in this configuration are flat."
+  (when (file-directory-p dir)
+    (directory-files dir t "\\`[0-9]\\{8\\}T[0-9]\\{6\\}")))
+
+(defun my/denote--current-silo (file)
+  "Return the silo name FILE currently lives in, or nil if none matches."
+  (car (seq-find (lambda (cell)
+                   (file-in-directory-p file (cdr cell)))
+                 my/denote-silo-alist)))
+
+(defun my/denote--titles-equal-p (a b)
+  "Compare titles A and B, ignoring case and surrounding whitespace.
+Uses `downcase' rather than `string-equal-ignore-case', which only
+exists from Emacs 29 onwards while Denote itself supports 28.1."
+  (and a b (string= (downcase (string-trim a))
+                    (downcase (string-trim b)))))
+
+(defun my/denote--relocate (source target)
+  "Move SOURCE to TARGET, using \"git mv\" when SOURCE is tracked.
+Mirrors the git handling of `my/denote-delete-note' so that history
+is preserved instead of showing an unrelated delete plus add."
+  (let ((default-directory (file-name-directory source)))
+    (if (and (executable-find "git")
+             (= 0 (call-process "git" nil nil nil
+                                "ls-files" "--error-unmatch" source)))
+        (unless (= 0 (call-process "git" nil nil nil "mv" source target))
+          ;; git mv can refuse (e.g. target outside the repo); fall back.
+          (rename-file source target t))
+      (rename-file source target t))))
+
+(defun my/denote--remove (file)
+  "Delete FILE, using \"git rm\" when it is tracked."
+  (let ((default-directory (file-name-directory file)))
+    (if (and (executable-find "git")
+             (= 0 (call-process "git" nil nil nil
+                                "ls-files" "--error-unmatch" file)))
+        (call-process "git" nil nil nil "rm" "-f" file)
+      (delete-file file))))
+
+(defun my/denote-move-to-silo ()
+  "Move the current Denote note to another silo.
+
+Prompts for the destination silo, then checks the destination for
+conflicts before moving anything:
+
+- No note with the same `#+title:' there: move straight away.
+- A note with the same title exists: ask whether to overwrite it or
+  to keep both.  Two notes may share a title as long as their
+  identifiers differ, which is the normal Denote situation.
+- Keeping both is impossible when the identifiers are also equal,
+  because the resulting file names would be identical.  In that case
+  ask for a new title (applied via `denote-rename-file-using-front-matter')
+  or cancel.
+
+Note that a new title does NOT resolve the underlying identifier
+clash: two notes sharing an identifier make `denote:' links to that
+identifier ambiguous.  The retitling path exists to unblock the move;
+the duplicate identifier still needs sorting out afterwards."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (unless file
+      (user-error "This buffer is not visiting a file"))
+    (unless (my/denote--file-identifier file)
+      (user-error "Not a Denote file (no identifier in the file name)"))
+    (when (buffer-modified-p)
+      (if (y-or-n-p "Buffer has unsaved changes.  Save before moving? ")
+          (save-buffer)
+        (user-error "Aborted: save the buffer first")))
+
+    (let* ((current-silo (my/denote--current-silo file))
+           (candidates (seq-remove (lambda (cell)
+                                     (equal (car cell) current-silo))
+                                   my/denote-silo-alist))
+           (choice (completing-read
+                    (format "Move to silo (currently: %s): "
+                            (or current-silo "outside any silo"))
+                    (mapcar #'car candidates) nil t))
+           (target-dir (cdr (assoc choice my/denote-silo-alist)))
+           (title (my/denote--file-title file))
+           (identifier (my/denote--file-identifier file)))
+
+      (unless (file-directory-p target-dir)
+        (user-error "Target silo does not exist: %s" target-dir))
+
+      (let* ((target-files (my/denote--silo-files target-dir))
+             (title-matches
+              (seq-filter (lambda (f)
+                            (my/denote--titles-equal-p title
+                                                       (my/denote--file-title f)))
+                          target-files))
+             (proceed t))
+
+        (when title-matches
+          (pcase (completing-read
+                  (format "%d note(s) titled \"%s\" already in %s.  Action: "
+                          (length title-matches) (or title "?") choice)
+                  '("keep both" "overwrite" "cancel") nil t "keep both")
+            ("cancel"
+             (setq proceed nil))
+
+            ("overwrite"
+             (let ((victim (if (= (length title-matches) 1)
+                               (car title-matches)
+                             (completing-read "Overwrite which note? "
+                                              title-matches nil t))))
+               (if (yes-or-no-p (format "Permanently delete %s? "
+                                        (file-name-nondirectory victim)))
+                   (my/denote--remove victim)
+                 (setq proceed nil))))
+
+            ("keep both"
+             ;; Two notes can share a title only if their identifiers
+             ;; differ; otherwise both file names would be identical.
+             (when (seq-find (lambda (f)
+                               (equal identifier (my/denote--file-identifier f)))
+                             title-matches)
+               (let ((new-title
+                      (read-string
+                       "Same title AND identifier there.  New title (empty = cancel): ")))
+                 (if (string-empty-p (string-trim new-title))
+                     (setq proceed nil)
+                   ;; Update front matter, then let Denote derive the new
+                   ;; file name from it.  Doing it this way avoids calling
+                   ;; Denote's sluggify internals directly.
+                   (save-excursion
+                     (goto-char (point-min))
+                     (if (re-search-forward "^#\\+title:[ \t]+.*$" nil t)
+                         (replace-match (concat "#+title:      " new-title) t t)
+                       (setq proceed nil)))
+                   (when proceed
+                     (save-buffer)
+                     (call-interactively #'denote-rename-file-using-front-matter)
+                     (setq file (buffer-file-name)))))))))
+
+        (when proceed
+          (let ((target (expand-file-name (file-name-nondirectory file)
+                                          target-dir)))
+            (if (file-exists-p target)
+                (user-error "Target file already exists: %s" target)
+              (my/denote--relocate file target)
+              (set-visited-file-name target nil t)
+              (set-buffer-modified-p nil)
+              (message "Moved to %s: %s"
+                       choice (file-name-nondirectory target)))))))))
+
 (with-eval-after-load 'org
   (setq org-agenda-files
         (list my-notes-journal

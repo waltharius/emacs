@@ -7,7 +7,7 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
-## Session 2026-07-26 — Zettelkasten / Folgezettel Layer
+## Session 2026-07-26 — Zettelkasten / Folgezettel Layer, Silo Moving
 
 ### Context
 
@@ -18,6 +18,10 @@ exactly this, and the official `denote-sequence` extension (GNU ELPA,
 stable 0.3.0, released 2026-05-20) automates the bookkeeping. This
 session adds a Folgezettel layer on top of the existing note system
 without disturbing plain notes.
+
+Separately, notes could be created into a chosen silo but never moved
+between silos afterwards, so a note filed in the wrong place had to be
+relocated by hand outside Emacs.
 
 ---
 
@@ -79,6 +83,68 @@ branches from another. The upstream manual is explicit that the
 extension "is not necessary for such a workflow" — it only streamlines
 signature bookkeeping — so no migration or bulk renaming of existing
 notes was performed, and none is planned.
+
+---
+
+### B — `modules/05-notes.el` — Move notes between silos (`C-c n d c`)
+
+#### What changed
+
+New command `my/denote-move-to-silo`, added to the Document transient
+submenu as `c`. It prompts for a destination silo (the silo the note
+already lives in is excluded from the list) and relocates the current
+note there.
+
+Supporting helpers, all private: `my/denote--file-title`,
+`my/denote--file-identifier`, `my/denote--silo-files`,
+`my/denote--current-silo`, `my/denote--titles-equal-p`,
+`my/denote--relocate`, `my/denote--remove`. Silo membership comes from
+the new `my/denote-silo-alist`, built from the `my-notes-*` variables
+in `00-core.el` — a new silo needs one entry there.
+
+#### Conflict handling
+
+Before moving anything, the destination is scanned for notes whose
+`#+title:` matches (case- and whitespace-insensitive):
+
+- no match: move proceeds;
+- same title, different identifier: prompt offering keep both /
+  overwrite / cancel, defaulting to keep both, since two notes sharing
+  a title is a legitimate Denote situation as long as the identifiers
+  differ;
+- same title *and* identifier: keeping both is impossible because the
+  file names would be identical, so prompt for a new title or cancel.
+
+A new title is applied by rewriting the `#+title:` line and then
+calling `denote-rename-file-using-front-matter`, which lets Denote
+derive the file name itself. This deliberately avoids calling Denote's
+sluggifying internals, whose arity has changed across versions.
+
+**Documented limitation:** retitling unblocks the move but does not
+resolve the identifier clash it worked around. `denote:` links resolve
+by identifier, so two notes sharing one make those links ambiguous.
+The duplicate still needs resolving afterwards; the prompt exists to
+get unstuck, not to fix the data.
+
+#### Implementation notes
+
+- `git mv` is used when the file is tracked, so history follows the
+  file rather than appearing as an unrelated delete plus add; falls
+  back to `rename-file` when git refuses or the file is untracked.
+  Overwriting uses `git rm` on the same basis, mirroring the git
+  handling already present in `my/denote-delete-note`.
+- Front matter is parsed with a regexp rather than through Denote's
+  retrieval API, matching the approach already used by
+  `my/denote-linked-note`, and reading only the first 4000 bytes of
+  each candidate file since front matter is always at the top.
+- `string-equal-ignore-case` was avoided: it is Emacs 29+, while
+  Denote supports 28.1 and this configuration sets no version floor.
+- The visiting buffer is repointed with `set-visited-file-name`, so
+  the note does not have to be reopened after the move.
+- Silo scanning is non-recursive, matching the flat silo layout.
+
+Moving never breaks links: Denote links resolve by identifier, not by
+path or file name.
 
 ---
 

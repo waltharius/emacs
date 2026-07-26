@@ -266,6 +266,7 @@ C-c n -- NOTES TRANSIENT MENU TREE
             P  Promote subtree D  Demote subtree
   d  Document ->
        r  Rename file       k  Add keywords      d  Delete note
+       c  Change silo (move note between journal/pks/docu)
   x  Export ->
        p  Export to PDF
        P  Batch PDF - ANY keyword
