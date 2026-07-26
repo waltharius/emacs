@@ -148,6 +148,75 @@ path or file name.
 
 ---
 
+### C — Zettelkasten fixes found in first practical use
+
+Three problems surfaced while working through the tutorial exercises.
+
+#### C1 — `C-u` never reached `denote-sequence-dired`
+
+`denote-sequence-dired` is documented to prompt for a sequence prefix
+under `C-u` and for prefix plus depth under `C-u C-u`. Through the
+transient menu it never did: the Dired buffer was always built with
+prefix `ALL` and depth `ALL`.
+
+Cause: a transient prefix consumes the universal argument for its own
+purposes, so a `C-u` typed before `C-c n z` is gone by the time the
+suffix command runs. The original `my/zettel-dired` just called
+`denote-sequence-dired` via `call-interactively` and relied on
+`current-prefix-arg` surviving, which it does not.
+
+Fix: `my/zettel-dired` now takes an explicit optional argument and
+let-binds `current-prefix-arg` around the inner call, and two new
+commands `my/zettel-dired-prefix` and `my/zettel-dired-prefix-depth`
+pass `(4)` and `(16)` respectively. The menu binds them as `d`, `p`,
+`P`. Invoked directly with `M-x`, `my/zettel-dired` still honours
+`C-u` in the normal way.
+
+The tutorial note and `function_helper.org` previously documented the
+`C-u` route as working; both corrected.
+
+#### C2 — Dired shows file names rather than titles
+
+Not a bug: Dired lists a directory, so it shows file names. Two
+mitigations enabled globally in `04-denote.el`: `denote-dired-mode`
+(font-locks identifier, signature, title and keywords in separate
+faces) and `dired-hide-details-mode` (drops the permission, owner,
+size and date columns). For a genuine title view, a `denote-sequence`
+dynamic block renders Org links with titles.
+
+Also worth recording: the Folgezettel ordering was working correctly
+all along. The `Dired by name` indicator in the mode line refers to
+the underlying `ls` switches, not to the order in which
+`denote-sequence-dired` assembled the listing. With short signatures
+the two orders coincide, so the difference only becomes visible once
+sequences reach two-digit numbers (`1a10` sorts before `1a2`
+alphabetically but after it in Folgezettel order).
+
+#### C3 — Renamed titles kept appearing in the title prompt
+
+After renaming a note, the old title stayed on the completion list at
+the new-note title prompt, which looked like a duplicate note.
+
+Cause: `denote-history-completion-in-prompts` makes Denote offer past
+minibuffer inputs as completion candidates for every prompt listed in
+`denote-prompts-with-history-as-completion`. The list is session
+minibuffer history, not an index of existing notes, so it keeps every
+title ever typed regardless of what happened to the file afterwards.
+Nothing was duplicated on disk, and file listings were never affected.
+
+Fix: `denote-title-prompt` is removed from
+`denote-prompts-with-history-as-completion` in `04-denote.el`. The
+other prompts keep their history, because reusing an existing keyword
+is exactly what the keyword prompt is for, whereas reusing a title
+verbatim almost never is.
+
+Note that `savehist-mode` is not enabled in this configuration, so
+these histories were already session-local — restarting Emacs cleared
+them. Enabling `savehist` later would make the same class of staleness
+persist across sessions for whichever prompts remain on the list.
+
+---
+
 ## Session 2026-07-25 — Desktop Trim Tab/Pin Protection, Keybinding Audit, Org Markup Styling
 
 ### Context

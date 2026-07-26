@@ -95,5 +95,44 @@
 (setq org-clock-persist nil)
 (setq org-clock-persist-file nil)
 
+;; ============================================================
+;; TITLE PROMPT: do not offer past titles as completion candidates
+;; ============================================================
+;; `denote-history-completion-in-prompts' makes Denote offer previous
+;; minibuffer inputs as completion candidates for every prompt listed
+;; in `denote-prompts-with-history-as-completion'.
+;;
+;; For KEYWORDS that is exactly right: reusing an existing keyword is
+;; the whole point, and it keeps the vocabulary consistent.
+;;
+;; For TITLES it is actively misleading.  Every title ever typed stays
+;; on the suggestion list for the rest of the session, including titles
+;; that were later renamed away.  The list then advertises notes that
+;; no longer exist under that name, which looks like duplicate notes
+;; even though nothing is duplicated on disk.  Titles are also rarely
+;; worth reusing verbatim, so the completion buys nothing in exchange.
+;;
+;; Only the title prompt is removed; the rest keep their history.
+
+(with-eval-after-load 'denote
+  (when (boundp 'denote-prompts-with-history-as-completion)
+    (setq denote-prompts-with-history-as-completion
+          (remq 'denote-title-prompt
+                denote-prompts-with-history-as-completion))))
+
+;; ============================================================
+;; DIRED: highlight the parts of Denote file names
+;; ============================================================
+;; `denote-dired-mode' font-locks the components of a Denote file name
+;; (identifier, signature, title, keywords) in different faces, which
+;; makes long file names far easier to scan.  Harmless in directories
+;; without Denote files: names that do not match are left alone.
+;;
+;; `dired-hide-details-mode' removes the permissions/owner/size/date
+;; columns, leaving the file names themselves as the only content.
+
+(add-hook 'dired-mode-hook #'denote-dired-mode)
+(add-hook 'dired-mode-hook #'dired-hide-details-mode)
+
 (provide '04-denote)
 ;;; 04-denote.el ends here

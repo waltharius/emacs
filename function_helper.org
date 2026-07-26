@@ -758,6 +758,8 @@ yields =1a2=.
 | j   | =my/zettel-next-sibling=      | =denote-sequence-find-next-sibling=      |
 | k   | =my/zettel-previous-sibling=  | =denote-sequence-find-previous-sibling=  |
 | d   | =my/zettel-dired=             | =denote-sequence-dired=                  |
+| p   | =my/zettel-dired-prefix=      | =denote-sequence-dired= with =C-u=       |
+| P   | =my/zettel-dired-prefix-depth= | =denote-sequence-dired= with =C-u C-u=  |
 | l   | =my/zettel-link=              | =denote-sequence-link=                   |
 | r   | =my/zettel-reparent=          | =denote-sequence-reparent=               |
 | a   | =my/zettel-adopt=             | =denote-sequence-rename-as-parent=       |
@@ -765,10 +767,46 @@ yields =1a2=.
 =j= and =k= are marked =:transient t= so the menu stays open while
 paging through siblings.
 
-=d= (Dired) accepts prefix arguments passed through to
-=denote-sequence-dired=: =C-u= prompts for a signature prefix to
-filter by (e.g. show only =1a= and its descendants), =C-u C-u= also
-prompts for a depth limit.
+**** Why =p= and =P= exist instead of =C-u=
+
+=denote-sequence-dired= is documented to prompt for a sequence prefix
+under =C-u= and for prefix plus depth under =C-u C-u=. That does not
+work through a transient menu: a transient prefix consumes the
+universal argument for its own purposes, so a =C-u= typed before
+=C-c n z= never reaches the suffix command and the Dired buffer is
+always built with prefix =ALL= and depth =ALL=.
+
+The menu therefore binds three separate commands, each of which
+let-binds =current-prefix-arg= around the =call-interactively= rather
+than hoping the argument survives the menu. Called directly with
+=M-x=, =my/zettel-dired= still honours =C-u= normally.
+
+An empty string at the prefix prompt means no filtering, which is the
+documented way to reach the depth prompt without narrowing by prefix.
+
+**** Dired shows file names, not titles
+
+This is inherent to Dired, which lists a directory. Two things make
+it readable, both enabled globally in =04-denote.el=:
+=denote-dired-mode= font-locks the file name components (identifier,
+signature, title, keywords) in distinct faces, and
+=dired-hide-details-mode= strips the permission/owner/size/date
+columns.
+
+For an actual title-based view of a branch, use a =denote-sequence=
+dynamic block in a structure note, which renders Org links showing
+titles:
+
+#+begin_example
+,#+BEGIN: denote-sequence :sequence "1" :depth 2
+,#+END:
+#+end_example
+
+=:sequence= is required, =:depth= optional; an empty string or =".+"=
+collects every sequence. Refresh with =C-c C-x C-u=. Note the
+tradeoff already recorded elsewhere: =:sequence= is a hard-coded
+string, so a block pointing at a branch becomes wrong if that branch
+is later reparented.
 
 =l= differs from the ordinary =C-c d l= (=denote-link=) only in
 narrowing minibuffer completion to files that *have* a signature.

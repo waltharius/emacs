@@ -286,9 +286,11 @@ C-c n -- NOTES TRANSIENT MENU TREE
        n  New thread (parent)     c  Child of current
        C  Child of chosen...      s  Sibling of current
        f  Find relative...        j/k  Next/previous sibling
-       d  Dired in Folgezettel order
+       d  Whole tree (Dired)      p  Filter by prefix...
+       P  Prefix + depth...
        l  Link to sequence note   r  Reparent current
        a  Adopt plain note into ZK
+       (C-u does NOT work here: transient consumes it, hence p and P)
   s  Correct previous  (top-level shortcut, same as t s)
   a  Add to dict        (top-level shortcut, same as t a)
   h  Function Help (opens function_helper.org in a new tab)

@@ -98,12 +98,35 @@
   (my/zettel--in-pks
    (call-interactively #'denote-sequence-find-previous-sibling)))
 
-(defun my/zettel-dired ()
-  "Show all sequences in Folgezettel order in a Dired buffer.
-With C-u, prompt for a sequence prefix to filter (e.g. only 1a...).
-With C-u C-u, also prompt for a depth limit."
+(defun my/zettel-dired (&optional arg)
+  "Show sequences in a Dired buffer, ordered by Folgezettel.
+ARG is handed to `denote-sequence-dired' as its prefix argument: nil
+lists everything, `(4)' prompts for a sequence prefix to filter by,
+`(16)' prompts for a prefix and a depth limit.
+
+Called from a transient menu, ARG is always nil no matter what the
+user typed: a transient prefix consumes the universal argument for
+its own purposes, so a C-u pressed before C-c n z never reaches the
+suffix command.  That is why the menu binds `my/zettel-dired-prefix'
+and `my/zettel-dired-prefix-depth' as separate entries instead of
+relying on C-u."
+  (interactive "P")
+  (my/zettel--in-pks
+   (let ((current-prefix-arg arg))
+     (call-interactively #'denote-sequence-dired))))
+
+(defun my/zettel-dired-prefix ()
+  "Like `my/zettel-dired', but always prompt for a sequence prefix.
+An empty prefix at the prompt means no filtering."
   (interactive)
-  (my/zettel--in-pks (call-interactively #'denote-sequence-dired)))
+  (my/zettel-dired '(4)))
+
+(defun my/zettel-dired-prefix-depth ()
+  "Like `my/zettel-dired', but prompt for a sequence prefix and a depth.
+Depth counts levels, so a depth of 2 under prefix 1 shows 1, 1a and
+1b but not 1a1."
+  (interactive)
+  (my/zettel-dired '(16)))
 
 (defun my/zettel-link ()
   "Insert a link, completing only among sequence notes."
@@ -137,8 +160,11 @@ follow with my/zettel-reparent to place it under an existing thread."
    ["Navigate"
     ("f" "Find relative..."           my/zettel-find)
     ("j" "Next sibling"               my/zettel-next-sibling :transient t)
-    ("k" "Previous sibling"           my/zettel-previous-sibling :transient t)
-    ("d" "Dired (Folgezettel order)"  my/zettel-dired)]
+    ("k" "Previous sibling"           my/zettel-previous-sibling :transient t)]
+   ["Tree (Dired)"
+    ("d" "Whole tree"                 my/zettel-dired)
+    ("p" "Filter by prefix..."        my/zettel-dired-prefix)
+    ("P" "Prefix + depth..."          my/zettel-dired-prefix-depth)]
    ["Organize"
     ("l" "Link to sequence note"      my/zettel-link)
     ("r" "Reparent current"           my/zettel-reparent)
