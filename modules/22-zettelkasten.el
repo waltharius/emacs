@@ -98,6 +98,44 @@
   (my/zettel--in-pks
    (call-interactively #'denote-sequence-find-previous-sibling)))
 
+(defconst my/zettel--dired-buffer-regexp "prefix .*; depth "
+  "Match buffer names produced by `denote-sequence-dired'.
+That command names its buffer after the prefix and depth it was built
+with.  The quoting around those two values follows `text-quoting-style'
+(curly by default), so this regexp matches only the literal words
+around them and stays agnostic about the quote characters.")
+
+(defun my/zettel--kill-stale-dired-buffers ()
+  "Kill Dired buffers left over from earlier `denote-sequence-dired' runs.
+
+Works around a staleness problem: invoking the command a second time
+with a different prefix displays the *previous* invocation's file list.
+The buffer name updates to the new filter while the contents do not,
+so the listing is consistently one step behind, and the correct list
+only appears after asking for the same prefix twice.
+
+The cause is upstream, in how the package reuses an existing Dired
+buffer.  `denote-sequence-dired' ends in
+
+    (denote-sort-dired--prepare-buffer directory files-fn dired-name buffer-name)
+
+where DIRECTORY is the same for every invocation in one silo, and
+FILES-FN is a lambda that computes the listing.  When a Dired buffer
+for that directory already exists it gets reused and renamed rather
+than rebuilt from FILES-FN.  Killing the old buffers first leaves
+nothing to reuse, so every invocation builds its list from scratch.
+
+Note that this kills the current buffer when it is itself such a
+listing, which is the normal case when narrowing a view down step by
+step.  That is harmless here: a new Dired buffer is created and
+displayed immediately afterwards."
+  (dolist (buffer (buffer-list))
+    (when (and (buffer-live-p buffer)
+               (string-match-p my/zettel--dired-buffer-regexp
+                               (buffer-name buffer))
+               (with-current-buffer buffer (derived-mode-p 'dired-mode)))
+      (kill-buffer buffer))))
+
 (defun my/zettel-dired (&optional arg)
   "Show sequences in a Dired buffer, ordered by Folgezettel.
 ARG is handed to `denote-sequence-dired' as its prefix argument: nil
@@ -109,8 +147,12 @@ user typed: a transient prefix consumes the universal argument for
 its own purposes, so a C-u pressed before C-c n z never reaches the
 suffix command.  That is why the menu binds `my/zettel-dired-prefix'
 and `my/zettel-dired-prefix-depth' as separate entries instead of
-relying on C-u."
+relying on C-u.
+
+Previous listings are killed first, see
+`my/zettel--kill-stale-dired-buffers' for why."
   (interactive "P")
+  (my/zettel--kill-stale-dired-buffers)
   (my/zettel--in-pks
    (let ((current-prefix-arg arg))
      (call-interactively #'denote-sequence-dired))))

@@ -784,6 +784,33 @@ than hoping the argument survives the menu. Called directly with
 An empty string at the prefix prompt means no filtering, which is the
 documented way to reach the depth prompt without narrowing by prefix.
 
+**** Stale listings: previous invocations are killed first
+
+Invoking =denote-sequence-dired= a second time with a different prefix
+shows the *previous* invocation's file list. The buffer name updates
+to the new filter while the contents do not, so the listing runs one
+step behind and the correct one only appears after requesting the same
+prefix twice.
+
+The cause is upstream. =denote-sequence-dired= ends in
+
+: (denote-sort-dired--prepare-buffer directory files-fn dired-name buffer-name)
+
+where =directory= is identical for every invocation within one silo
+and =files-fn= is a lambda that computes the listing. An existing
+Dired buffer for that directory is reused and renamed rather than
+rebuilt from =files-fn=.
+
+=my/zettel-dired= therefore calls =my/zettel--kill-stale-dired-buffers=
+before every invocation, which kills any Dired buffer whose name
+matches =my/zettel--dired-buffer-regexp= (the literal =prefix ...;
+depth= wording that =denote-sequence-dired= puts in its buffer names).
+With nothing left to reuse, each invocation builds its list fresh.
+
+To confirm the diagnosis independently, run =M-x denote-sequence-dired=
+directly with =C-u=, twice with different prefixes: the bug reproduces
+without any of this configuration's wrappers involved.
+
 **** Dired shows file names, not titles
 
 This is inherent to Dired, which lists a directory. Two things make

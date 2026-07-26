@@ -217,6 +217,60 @@ persist across sessions for whichever prompts remain on the list.
 
 ---
 
+### D — `modules/22-zettelkasten.el` — Work around stale `denote-sequence-dired` listings
+
+#### Symptom
+
+After C1 made the prefix and depth prompts reachable, the prompts
+worked but the listing did not follow them. Requesting prefix `1`
+produced the unfiltered listing; then requesting prefix `3` produced
+the `1` branch; requesting `3` a second time finally produced the `3`
+branch. The buffer name always showed the prefix just entered, so name
+and contents disagreed and the listing ran exactly one invocation
+behind.
+
+#### Cause
+
+Upstream, in buffer reuse. `denote-sequence-dired` ends in
+
+```elisp
+(denote-sort-dired--prepare-buffer directory files-fn dired-name buffer-name)
+```
+
+`directory` is the same for every invocation within one silo, and
+`files-fn` is a lambda that computes the file list. When a Dired
+buffer for that directory already exists, it is reused and renamed
+instead of being rebuilt from `files-fn`.
+
+This is not caused by the wrappers in this module: the prompts fire
+correctly and the entered value reaches the buffer name. It reproduces
+with `C-u M-x denote-sequence-dired` called directly.
+
+#### Fix
+
+`my/zettel--kill-stale-dired-buffers` kills every Dired buffer whose
+name matches `my/zettel--dired-buffer-regexp` — the literal `prefix
+...; depth` wording that `denote-sequence-dired` puts in its buffer
+names — and `my/zettel-dired` calls it before each invocation. With
+nothing left to reuse, every invocation computes its listing fresh.
+
+The regexp deliberately matches only the literal words around the two
+values, not the quotes around them, because that quoting follows
+`text-quoting-style` and is curly by default.
+
+Killing the current buffer is expected here, since narrowing a view
+usually happens from inside the previous listing. A replacement Dired
+buffer is created and displayed immediately afterwards.
+
+#### Note on the earlier version-compatibility hedges
+
+This configuration targets Emacs 30.2, so the Emacs 29+ functions
+avoided earlier (`string-equal-ignore-case` in `my/denote--titles-equal-p`)
+would in fact have been available. The portable formulations are kept
+anyway: they cost nothing, and Denote itself still supports 28.1.
+
+---
+
 ## Session 2026-07-25 — Desktop Trim Tab/Pin Protection, Keybinding Audit, Org Markup Styling
 
 ### Context
