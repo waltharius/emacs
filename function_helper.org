@@ -665,13 +665,13 @@ optional =SIGNATURE= file name component.
 In the alphanumeric scheme, depth is communicated by alternating
 between digits and letters, so =1a2= is three levels deep.
 
-| Signature | Relationship                                          |
-|-----------+-------------------------------------------------------|
-| =1=       | A top-level thread, unrelated to =2=                  |
-| =1a=      | First child of =1= — elaborates one concept from it   |
-| =1a1=     | First child of =1a= — drills deeper still             |
-| =1b=      | Second child of =1= — a different branch off =1=      |
-| =2=       | A separate top-level thread                           |
+| Signature | Relationship                                      |
+|-----------+---------------------------------------------------|
+| =1=         | A top-level thread, unrelated to =2=                |
+| =1a=        | First child of =1= — elaborates one concept from it |
+| =1a1=       | First child of =1a= — drills deeper still           |
+| =1b=        | Second child of =1= — a different branch off =1=      |
+| =2=         | A separate top-level thread                       |
 
 Branch (create a *child*) to develop one specific concept out of a
 note without interrupting its main line. Continue (create a *sibling*)
@@ -684,19 +684,19 @@ yields =1a2=.
 :CUSTOM_ID: zettelkasten-commands
 :END:
 
-| Key | Command                       | Wraps                                    |
-|-----+-------------------------------+------------------------------------------|
-| n   | =my/zettel-new-parent=        | =denote-sequence-new-parent=             |
-| c   | =my/zettel-new-child-of-current= | =denote-sequence-new-child-of-current= |
-| C   | =my/zettel-new-child=         | =denote-sequence-new-child=              |
+| Key | Command                          | Wraps                                  |
+|-----+----------------------------------+----------------------------------------|
+| n   | =my/zettel-new-parent=             | =denote-sequence-new-parent=             |
+| c   | =my/zettel-new-child-of-current=   | =denote-sequence-new-child-of-current=   |
+| C   | =my/zettel-new-child=              | =denote-sequence-new-child=              |
 | s   | =my/zettel-new-sibling-of-current= | =denote-sequence-new-sibling-of-current= |
-| f   | =my/zettel-find=              | =denote-sequence-find=                   |
-| j   | =my/zettel-next-sibling=      | =denote-sequence-find-next-sibling=      |
-| k   | =my/zettel-previous-sibling=  | =denote-sequence-find-previous-sibling=  |
-| d   | =my/zettel-dired=             | =denote-sequence-dired=                  |
-| l   | =my/zettel-link=              | =denote-sequence-link=                   |
-| r   | =my/zettel-reparent=          | =denote-sequence-reparent=               |
-| a   | =my/zettel-adopt=             | =denote-sequence-rename-as-parent=       |
+| f   | =my/zettel-find=                   | =denote-sequence-find=                   |
+| j   | =my/zettel-next-sibling=           | =denote-sequence-find-next-sibling=      |
+| k   | =my/zettel-previous-sibling=       | =denote-sequence-find-previous-sibling=  |
+| d   | =my/zettel-dired=                  | =denote-sequence-dired=                  |
+| l   | =my/zettel-link=                   | =denote-sequence-link=                   |
+| r   | =my/zettel-reparent=               | =denote-sequence-reparent=               |
+| a   | =my/zettel-adopt=                  | =denote-sequence-rename-as-parent=       |
 
 =j= and =k= are marked =:transient t= so the menu stays open while
 paging through siblings.
