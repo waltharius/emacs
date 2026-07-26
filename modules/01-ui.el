@@ -162,29 +162,50 @@ eventually protect buffers you haven't looked at in months."
                                         my/desktop-tab-protect-depth))))))
     (seq-filter #'buffer-live-p (delete-dups bufs))))
 
+(defcustom my/desktop-always-keep-regexps
+  (list (regexp-quote "function_helper.org"))
+  "File name regexps whose buffers are never trimmed.
+
+The pin (`my/desktop-toggle-keep-buffer', \\[my/desktop-toggle-keep-buffer])
+protects one buffer for one session and has to be remembered.  This
+list protects files permanently and without any action: a reference
+document consulted every day but rarely edited will otherwise keep
+falling out of the most-recently-used window and being killed, which
+is the exact failure mode of a pure MRU policy.
+
+Matched against the full file name, so a whole silo can be protected
+with something like (regexp-quote my-notes-journal)."
+  :type '(repeat regexp)
+  :group 'my/desktop)
+
+(defun my/desktop--always-keep-p (buffer)
+  "Return non-nil when BUFFER's file matches `my/desktop-always-keep-regexps'."
+  (when-let* ((file (buffer-file-name buffer)))
+    (seq-some (lambda (re) (string-match-p re file))
+              my/desktop-always-keep-regexps)))
+
 (defun my/desktop--protected-buffers ()
   "Buffers `my/desktop-trim-buffers' must never kill."
-  (append (my/desktop--tab-buffers)
-          (seq-filter (lambda (buf) (buffer-local-value 'my/desktop-keep-buffer buf))
-                      (buffer-list))))
+  (delete-dups
+   (append (my/desktop--tab-buffers)
+           (seq-filter (lambda (buf)
+                         (buffer-local-value 'my/desktop-keep-buffer buf))
+                       (buffer-list))
+           (seq-filter #'my/desktop--always-keep-p (buffer-list)))))
 
-(defun my/desktop-trim-buffers ()
-  "Before saving desktop, kill buffers beyond `my/desktop-max-buffers'.
-Keeps the N most recently USED file-visiting buffers and kills the
-rest, so they are not written into the desktop file.  Buffers that are
-open in any tab, or manually pinned via `my/desktop-keep-buffer', are
-excluded from consideration entirely: they are never killed here and
-never count toward the N-buffer limit.
+(defun my/desktop--classify-buffers ()
+  "Classify file buffers by what will happen to them at the next save.
 
-Recency comes for free from `buffer-list', which returns buffers in
-most-recently-selected order (`seq-filter' preserves that order), so
-no explicit sorting is needed.  Buffers whose major mode is listed in
-`desktop-modes-not-to-save' or whose file matches
-`desktop-files-not-to-save' are ignored entirely: desktop would not
-persist them anyway, so they neither count toward the limit nor get
-killed here."
+Returns a plist with :pinned, :tabs, :always (the three protected
+groups, which may overlap), :survivors (kept because they are recent
+enough) and :doomed (to be killed).
+
+Both `my/desktop-trim-buffers' and `my/desktop-show-protected' read
+this, so what the report shows and what the trim does cannot drift
+apart -- a report that disagrees with the behaviour would be worse
+than no report at all."
   (let* ((protected (my/desktop--protected-buffers))
-         (file-bufs
+         (candidates
           (seq-filter
            (lambda (buf)
              (and (buffer-file-name buf)
@@ -194,11 +215,67 @@ killed here."
                   (not (string-match-p desktop-files-not-to-save
                                        (buffer-file-name buf)))))
            ;; Already sorted: most recently used first.
-           (buffer-list)))
-         (to-kill (nthcdr my/desktop-max-buffers file-bufs)))
+           (buffer-list))))
+    (list :pinned    (seq-filter (lambda (b)
+                                   (buffer-local-value 'my/desktop-keep-buffer b))
+                                 (buffer-list))
+          :tabs      (seq-filter #'buffer-file-name (my/desktop--tab-buffers))
+          :always    (seq-filter #'my/desktop--always-keep-p (buffer-list))
+          :survivors (seq-take candidates my/desktop-max-buffers)
+          :doomed    (nthcdr my/desktop-max-buffers candidates))))
+
+(defun my/desktop-show-protected ()
+  "Report which note buffers survive the next desktop save, and why.
+
+Answers the question the trim otherwise leaves implicit: of everything
+currently open, what comes back after a restart?  Buffers can appear
+in more than one protected group; any one of them is enough."
+  (interactive)
+  (let* ((info (my/desktop--classify-buffers))
+         (fmt (lambda (buffers)
+                (if buffers
+                    (mapconcat (lambda (b) (concat "    " (buffer-name b)))
+                               buffers "\n")
+                  "    (none)"))))
+    (with-output-to-temp-buffer "*Desktop Survival*"
+      (princ (format "Buffers surviving the next desktop save\n\
+=======================================\n\
+Trim limit: %d most recently used, protected buffers excluded.\n\n\
+PINNED  (C-c d k, shown as a pin in the mode line)\n%s\n\n\
+OPEN IN A TAB  (top %d most recent per tab)\n%s\n\n\
+ALWAYS KEPT  (my/desktop-always-keep-regexps)\n%s\n\n\
+RECENT ENOUGH  (within the trim limit)\n%s\n\n\
+WILL BE KILLED AT THE NEXT SAVE\n%s\n"
+                     my/desktop-max-buffers
+                     (funcall fmt (plist-get info :pinned))
+                     my/desktop-tab-protect-depth
+                     (funcall fmt (plist-get info :tabs))
+                     (funcall fmt (plist-get info :always))
+                     (funcall fmt (plist-get info :survivors))
+                     (funcall fmt (plist-get info :doomed)))))))
+
+(defun my/desktop-trim-buffers ()
+  "Before saving desktop, kill buffers beyond `my/desktop-max-buffers'.
+Keeps the N most recently USED file-visiting buffers and kills the
+rest, so they are not written into the desktop file.  Buffers that are
+open in any tab, manually pinned via `my/desktop-keep-buffer', or
+matching `my/desktop-always-keep-regexps' are excluded from
+consideration entirely: they are never killed here and never count
+toward the N-buffer limit.
+
+Recency comes for free from `buffer-list', which returns buffers in
+most-recently-selected order (`seq-filter' preserves that order), so
+no explicit sorting is needed.  Buffers whose major mode is listed in
+`desktop-modes-not-to-save' or whose file matches
+`desktop-files-not-to-save' are ignored entirely: desktop would not
+persist them anyway, so they neither count toward the limit nor get
+killed here.
+
+Use \\[my/desktop-show-protected] to see the outcome before it happens."
+  (let ((to-kill (plist-get (my/desktop--classify-buffers) :doomed)))
     (when to-kill
-      (message "desktop trim: killing %d old buffers before save (%d protected)"
-               (length to-kill) (length protected))
+      (message "desktop trim: killing %d old buffers before save"
+               (length to-kill))
       (dolist (buf to-kill)
         (kill-buffer buf)))))
 
@@ -237,6 +314,34 @@ killed here."
 
 (global-set-key (kbd "C-c d s") 'my/desktop-save-now)
 (global-set-key (kbd "C-c d k") 'my/desktop-toggle-keep-buffer)
+(global-set-key (kbd "C-c d p") 'my/desktop-show-protected)
+
+;; ============================================================
+;; RESTORE THE DASHBOARD AFTER A SESSION IS RESTORED
+;; ============================================================
+;; `desktop-save' only persists file-visiting buffers.  The dashboard
+;; is generated text with no file behind it, so it is never saved and
+;; never comes back -- the Dashboard tab returns from the restored
+;; frame configuration, but its window points at a buffer that no
+;; longer exists.  Rebuilding it at startup is both cheap and exact,
+;; since the content is derived from the notes on disk anyway.
+
+(defcustom my/desktop-open-dashboard-at-startup t
+  "Whether to rebuild and show the Notes Dashboard after startup.
+The dashboard is not persisted by `desktop-save' because it visits no
+file; it is regenerated instead."
+  :type 'boolean
+  :group 'my/desktop)
+
+(defun my/desktop--open-dashboard-at-startup ()
+  "Rebuild the Notes Dashboard once startup has finished.
+Guarded with `fboundp' because the dashboard lives in 15-workspace.el,
+which loads after this file."
+  (when (and my/desktop-open-dashboard-at-startup
+             (fboundp 'my/open-notes-dashboard))
+    (my/open-notes-dashboard)))
+
+(add-hook 'emacs-startup-hook #'my/desktop--open-dashboard-at-startup 90)
 
 ;; ============================================================
 ;; SAVE-PLACE-MODE: Remember cursor position

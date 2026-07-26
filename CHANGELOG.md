@@ -431,6 +431,65 @@ rebuilt, since the layout is torn down at that point anyway.
 
 ---
 
+### G — `modules/01-ui.el` — Session persistence: the three reported symptoms
+
+Three complaints, investigated together because they share one cause
+area: important buffers vanishing while throwaway ones survive, the
+dashboard needing to be reopened manually after every restart, and no
+sense of control over what is actually open.
+
+None of them turned out to be a window-management problem, which was
+the direction initially suspected.
+
+#### G1 — Important buffers lost, transient ones kept
+
+Inherent to a pure MRU policy. `my/desktop-trim-buffers` keeps the
+`my/desktop-max-buffers` most recently *used* file buffers, so a
+reference document consulted daily but rarely selected keeps falling
+out of the window, while a note opened once to check something
+survives because it was touched most recently. Recency is a poor
+proxy for importance.
+
+The pin (`C-c d k`) already addressed this, but only per session and
+only if remembered. Added `my/desktop-always-keep-regexps`: file name
+regexps that protect permanently and without any action, defaulting to
+`function_helper.org`. Matched against the full file name, so a whole
+silo can be covered with `(regexp-quote my-notes-journal)`.
+
+The simplest additional lever remains `my/desktop-max-buffers` itself,
+still at 10. Note the interaction documented in this file's own
+comments: it equals `desktop-restore-eager`, so raising it also
+re-activates the lazy restore layer.
+
+#### G2 — Dashboard gone after every restart
+
+`desktop-save` only persists file-visiting buffers. The dashboard is
+generated text with no file behind it, so it was never saved: the
+Dashboard tab came back from the restored frame configuration, but its
+window pointed at a buffer that no longer existed.
+
+Rather than teaching `desktop` to serialise it — via
+`desktop-save-buffer` plus a `desktop-buffer-mode-handlers` entry,
+which would also require giving the buffer a real major mode — it is
+rebuilt from `emacs-startup-hook` at depth 90. Regeneration is exact
+rather than approximate here, because the content is derived from the
+notes on disk anyway. `my/desktop-open-dashboard-at-startup` disables
+it.
+
+#### G3 — No sense of control over what is open
+
+Added `my/desktop-show-protected` (`C-c d p`), which opens
+`*Desktop Survival*` listing every open note buffer grouped by why it
+survives — pinned, in a tab, always-kept, recent enough — and, last,
+the ones that will be killed at the next save.
+
+The trim was refactored so that both it and the report read one
+`my/desktop--classify-buffers`. This matters more than it looks: a
+report that drifted from the actual behaviour would be worse than
+having none, since it would be trusted.
+
+---
+
 ## Session 2026-07-25 — Desktop Trim Tab/Pin Protection, Keybinding Audit, Org Markup Styling
 
 ### Context

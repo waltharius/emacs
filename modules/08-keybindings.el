@@ -86,6 +86,7 @@
 ;; ============================================================
 ;; C-c d s = save desktop now
 ;; C-c d k = pin/unpin current buffer against desktop trim (📌 in mode line)
+;; C-c d p = list what survives the next desktop save (*Desktop Survival*)
 
 ;; ============================================================
 ;; TAB-BAR (already defined in 01-ui.el)
@@ -183,6 +184,7 @@ Denote Quick Access:
   C-c d t - Modify keywords
   C-c d s - Save desktop
   C-c d k - Pin/unpin buffer against desktop trim (pin shows in mode line)
+  C-c d p - List what survives the next desktop save
 
 PDF Export:
   C-c p   - Export current Org file to PDF -> ~/notes/pdf/

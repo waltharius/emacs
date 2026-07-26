@@ -1083,6 +1083,48 @@ consideration entirely — never killed, never counted toward the
   removes that tab's protection, so its buffers become ordinary trim
   candidates again on the next save.
 - Buffers manually pinned via =my/desktop-keep-buffer= (see below).
+- Buffers whose file matches =my/desktop-always-keep-regexps=. This
+  layer exists because a pure MRU policy has a systematic blind spot:
+  a reference document consulted daily but rarely *selected* keeps
+  falling out of the recency window and being killed, while a note
+  opened once to check something survives because it was touched
+  most recently. Pinning fixes that per session and has to be
+  remembered; a regexp fixes it permanently. Matched against the full
+  file name, so a whole silo can be covered with
+  =(regexp-quote my-notes-journal)=.
+
+** C-c d p — What survives the next save
+:PROPERTIES:
+:CUSTOM_ID: fn-my-desktop-show-protected
+:END:
+
+Opens =*Desktop Survival*=, listing every open note buffer grouped by
+why it does or does not survive: pinned, open in a tab, always-kept by
+regexp, recent enough to fall within the trim limit, and — last — the
+ones that will be killed at the next save.
+
+Both this report and =my/desktop-trim-buffers= read the same
+=my/desktop--classify-buffers=, so the two cannot disagree. A report
+that contradicted the actual behaviour would be worse than no report.
+
+Function: =my/desktop-show-protected= | Module: =modules/01-ui.el=
+
+** Dashboard restoration at startup
+:PROPERTIES:
+:CUSTOM_ID: fn-desktop-dashboard-restore
+:END:
+
+=desktop-save= only persists file-visiting buffers. The Notes
+Dashboard is generated text with no file behind it, so it is never
+saved: after a restart the Dashboard tab returns from the restored
+frame configuration, but its window points at a buffer that no longer
+exists.
+
+=my/desktop--open-dashboard-at-startup= rebuilds it from
+=emacs-startup-hook= (depth 90, so it runs after the rest of startup).
+Regenerating is exact rather than approximate, since the dashboard's
+content is derived from the notes on disk anyway. Set
+=my/desktop-open-dashboard-at-startup= to nil to disable.
 
 Functions: =my/desktop-trim-buffers=, =my/desktop--protected-buffers=,
 =my/desktop--tab-buffers= | Variable: =my/desktop-tab-protect-depth=
