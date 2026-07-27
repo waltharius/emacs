@@ -247,14 +247,7 @@ previewed notes."
 
 (defun my/dashboards--goto-tab ()
   "Switch to the history tab, creating it beside the current one if absent."
-  (if (seq-find (lambda (tab)
-                  (equal (alist-get 'name tab) my/dashboards-tab-name))
-                (tab-bar-tabs))
-      (tab-bar-switch-to-tab my/dashboards-tab-name)
-    ;; No positional argument: `tab-bar-new-tab-to' defaults to \='right,
-    ;; so the tab lands next to the one the command was invoked from.
-    (tab-bar-new-tab)
-    (tab-bar-rename-tab my/dashboards-tab-name)))
+  (my/fixed-tab-goto my/dashboards-tab-name))
 
 (defun my/dashboards--show-navigation (entries title)
   "Display ENTRIES as clickable lines in the history tab, titled TITLE."

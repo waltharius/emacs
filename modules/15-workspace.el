@@ -380,15 +380,8 @@ without any manual setup."
 (defun my/open-notes-dashboard ()
   "Open or refresh the Notes Dashboard in its own named tab."
   (interactive)
-  (let* ((tabs (tab-bar-tabs))
-         (dash-tab (seq-find (lambda (tab)
-                               (equal (alist-get 'name tab) "Dashboard"))
-                             tabs)))
-    (if dash-tab
-        (tab-bar-switch-to-tab "Dashboard")
-      (tab-bar-new-tab 1)
-      (tab-bar-rename-tab "Dashboard"))
-    (switch-to-buffer (my/render-notes-dashboard))))
+  (my/fixed-tab-goto "Dashboard")
+  (switch-to-buffer (my/render-notes-dashboard)))
 
 ;; ============================================================
 ;; STARTUP: Open Dashboard after init

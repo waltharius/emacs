@@ -358,6 +358,47 @@ which loads after this file."
 ;; TAB-BAR-MODE: Workspace tabs (like browser tabs)
 ;; ============================================================
 
+;; ============================================================
+;; FIXED TABS: one named tab per recurring activity
+;; ============================================================
+;; Shared helper for commands that should always run in their own
+;; named tab (Dashboard, Journal, History, ...).  Three places used to
+;; carry their own copy of this logic; they now all call this.
+;;
+;; Note what this deliberately does NOT use.  The declarative route
+;; would be `display-buffer-alist' with the `display-buffer-in-tab'
+;; action, and for plain buffer display that is the better tool.  It
+;; does not fit here because these commands do more than display a
+;; buffer: `my/denote-journal' finds a file, moves point to the end,
+;; and inserts a timestamped heading.  Routing only the *display* would
+;; leave the editing to happen wherever point already was.  Switching
+;; tab first and then running the command puts the whole command in the
+;; right place, and needs no global change to
+;; `switch-to-buffer-obey-display-actions'.
+
+(defun my/fixed-tab-goto (name)
+  "Switch to the tab called NAME, creating it if it does not exist.
+A new tab is created immediately to the right of the current one, so
+tabs accumulate in the order activities are first opened rather than
+jumping to the front.  Returns non-nil when the tab had to be created.
+
+`tab-bar-new-tab-to' is bound explicitly rather than relying on its
+global value, so this placement holds even if that option is
+customized elsewhere."
+  (if (seq-find (lambda (tab) (equal (alist-get 'name tab) name))
+                (tab-bar-tabs))
+      (progn
+        ;; Switching to the tab that is already current is a no-op
+        ;; worth skipping: it would still push a redundant entry onto
+        ;; the tab switching history.
+        (unless (equal (alist-get 'name (tab-bar--current-tab)) name)
+          (tab-bar-switch-to-tab name))
+        nil)
+    (let ((tab-bar-new-tab-to 'right))
+      (tab-bar-new-tab))
+    (tab-bar-rename-tab name)
+    t))
+
 (use-package tab-bar
   :ensure nil
   :init
