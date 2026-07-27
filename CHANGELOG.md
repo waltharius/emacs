@@ -7,7 +7,125 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
-## Session 2026-07-26 — Zettelkasten / Folgezettel Layer, Silo Moving
+## Session 2026-07-27 — Fixed Tabs and Detachable Frames
+
+### Context
+
+Recurring activities (journal, dashboard, history) each had a natural
+home tab, but only the dashboard actually went there on its own.
+Reaching the journal meant clicking the Journal tab first, every time.
+This session generalises the dashboard's behaviour into a routing
+layer any command can opt into.
+
+The same question from the other side — how to keep something visible
+*while* working on something else — turned out to want frames rather
+than tabs, which section B covers.
+
+---
+
+### A — `modules/23-fixed-tabs.el` (new) — Route commands to named tabs
+
+#### What changed
+
+New module making registered commands switch to a named tab before
+running. `my/fixed-tab-commands` maps commands to tab names;
+`my/denote-journal` and `my/denote-journal-date` both route to
+"Journal", so `C-c n c j` and `C-c n c J` now behave like
+`C-c w d` already did: go to the tab, create it to the right of the
+current one if missing, then do the work.
+
+`my/fixed-tab-goto` was added to `01-ui.el` and three separate copies
+of "find the tab or create and rename it" — in
+`my/open-notes-dashboard`, `my/dashboards--goto-tab`, and now the
+routing layer — were collapsed onto it.
+
+#### Why advice rather than wrapper commands
+
+Advice covers every route into a command at once: keybinding, `M-x`,
+transient menu entry, and `emacsclient -n -e '(my/denote-journal)'`
+from outside Emacs — which matters given the stated intent to trigger
+these from the desktop environment eventually. Wrapper commands would
+only cover whatever was rebound to them.
+
+The advice is named `my/fixed-tab` so re-evaluating the module
+replaces it rather than stacking copies, and
+`my/fixed-tab-refresh-advice` removes routing before reinstalling, so
+commands dropped from the alist stop being routed.
+
+#### Why not `display-buffer-alist`
+
+The declarative route (`display-buffer-in-tab` with a `tab-name`
+entry) is the better tool for plain buffer display, and was
+considered first. It does not fit these commands: `my/denote-journal`
+finds a file, moves point to end of buffer and inserts a timestamped
+heading. Routing only the display would leave the editing happening
+wherever point already was.
+
+It would also require `switch-to-buffer-obey-display-actions` to be
+non-nil, since `find-file` reaches the buffer through
+`switch-to-buffer`, which ignores `display-buffer-alist` by default.
+That is a global change affecting every `find-file` in the
+configuration — Protesilaos explicitly declines it for that reason,
+while Mickey Petersen recommends it; the disagreement is itself a
+signal that it is a matter of overall style rather than a local fix.
+Switching tab first sidesteps the question entirely.
+
+#### Tab placement
+
+`my/fixed-tab-goto` binds `tab-bar-new-tab-to` to `'right` around
+`tab-bar-new-tab` rather than relying on the global default, so
+placement holds even if that option is customized later. It also skips
+the switch when the target tab is already current, which would
+otherwise push a redundant entry onto the tab switching history.
+
+#### Not addressed
+
+Two-frame separation (a "fixed" frame and a "working" frame) was
+discussed and deferred. Fixed tabs are the smaller change and cover
+the concrete complaint that prompted it; whether frames add anything
+on top is best judged after living with tabs.
+
+---
+
+### B — `modules/23-fixed-tabs.el` — Detaching to a separate frame
+
+#### What changed
+
+Two commands added to the View submenu: `C-c n v f`
+(`my/detach-buffer-to-frame`) puts the current buffer into a new frame,
+`C-c n v F` (`my/detach-tab-to-frame`) moves the whole current tab,
+splits intact, into one.
+
+#### Why this belongs next to fixed tabs
+
+They are the two halves of one distinction. A tab is a destination and
+is exclusive: while it is shown, nothing else is. A frame is a separate
+OS window, so it can sit on another monitor and be read *alongside* the
+work.
+
+So the two mechanisms suit different things. Journal and Dashboard are
+places you go to — tabs. A cheat sheet, or old entries being skimmed
+through, is wanted beside the work — a frame. This also resolves the
+"two Emacs windows" idea that prompted the previous session's
+investigation: the need was real, but it was for occasional detachable
+frames, not for a permanent second frame with its own buffer list.
+
+#### Implementation notes
+
+- `my/detach-tab-to-frame` wraps `tab-bar-detach-tab`, which exists
+  from Emacs 28 (added 2021). It is checked with `fboundp` anyway, and
+  refuses when only one tab exists, since detaching it would leave an
+  empty frame.
+- `my/detach-buffer-to-frame` moves rather than duplicates: it closes
+  the originating window afterwards, unless that was the sole window in
+  the tab — deleting that would take the tab with it.
+- Monitor placement is not settable from Emacs; it belongs to the
+  window manager. `my/detached-frame-parameters` sets a deliberately
+  modest size, since these frames are for reading beside the main one.
+
+---
+
+## Session 2026-07-26 — Zettelkasten Layer, Silo Moving, and the Fixes That Followed
 
 ### Context
 
@@ -22,6 +140,11 @@ without disturbing plain notes.
 Separately, notes could be created into a chosen silo but never moved
 between silos afterwards, so a note filed in the wrong place had to be
 relocated by hand outside Emacs.
+
+Sections C onwards came out of actually using the new Zettelkasten
+layer against the tutorial exercises: several defects surfaced, and
+following them led into the dashboard, history and session-persistence
+work as well.
 
 ---
 
@@ -145,6 +268,15 @@ get unstuck, not to fix the data.
 
 Moving never breaks links: Denote links resolve by identifier, not by
 path or file name.
+
+---
+
+### Context
+
+Continuation of the previous day's work, driven by using it: the
+Zettelkasten layer built on 2026-07-26 was exercised against the
+tutorial exercises and several defects surfaced, which in turn led to
+the dashboard, session-persistence and tab-routing work below.
 
 ---
 
