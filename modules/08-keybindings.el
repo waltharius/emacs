@@ -276,6 +276,8 @@ C-c n -- NOTES TRANSIENT MENU TREE
   v  View ->
        c  Center text       w  Writing mode
        i  Indent headings   e  Emphasis markers
+       f  Detach buffer to its own frame
+       F  Detach whole tab to its own frame
   t  Tools ->
        z  Zotero/Bib ->  (same submenu as C-c x, see below)
        s  Correct previous (transient: stays open)

@@ -111,6 +111,9 @@
     ("w" "Writing mode"     my/toggle-writeroom)
     ("i" "Indent headings"  my/toggle-org-indent)
     ("e" "Emphasis markers" my/toggle-emphasis-markers)]
+   ["Detach to own frame"
+    ("f" "This buffer"      my/detach-buffer-to-frame)
+    ("F" "This whole tab"   my/detach-tab-to-frame)]
    [("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================
