@@ -65,6 +65,7 @@
   (load (concat modules-dir "20-transclusion.el")) ;; transclusion for note linking inside other notes
   (load (concat modules-dir "21-dashboards.el"))   ; Historical dashboards (C-c n f h)
   (load (concat modules-dir "22-zettelkasten.el")) ; Folgezettel sequences (C-c n z)
+  (load (concat modules-dir "23-fixed-tabs.el"))   ; Route commands to named tabs
   )
 
 (add-hook 'emacs-startup-hook

@@ -71,5 +71,76 @@ tab forever."
 
 (my/fixed-tab-refresh-advice)
 
+;; ============================================================
+;; DETACHING TO A SEPARATE FRAME
+;; ============================================================
+;; The counterpart to fixed tabs.  A tab is a place you return to, and
+;; it is exclusive: while you look at it, you are not looking at
+;; anything else.  A frame is a separate operating-system window, so it
+;; can sit on another monitor and be read *alongside* whatever you are
+;; working on.
+;;
+;; That makes them suit different things.  Journal and Dashboard are
+;; destinations, so they get tabs.  A keybinding cheat sheet or a list
+;; of old entries you are skimming through is something you want beside
+;; the work, so it wants a frame.
+;;
+;; Emacs cannot place a frame on a particular monitor by itself -- that
+;; is the window manager's job.  These commands create the frame; where
+;; it lands is up to the WM, and moving it once is usually enough since
+;; most window managers remember placement per window.
+
+(defcustom my/detached-frame-parameters
+  '((width . 90)
+    (height . 45))
+  "Frame parameters for frames made by `my/detach-buffer-to-frame'.
+Deliberately small: these frames are meant to be read beside the main
+frame, not worked in full screen.  Monitor placement is not settable
+here; that is up to the window manager."
+  :type '(alist :key-type symbol :value-type sexp)
+  :group 'my/desktop)
+
+(defun my/detach-buffer-to-frame ()
+  "Show the current buffer in its own frame and remove it from this one.
+
+The new frame is selected, so the buffer can be read or edited
+immediately; move it to another monitor once and most window managers
+will remember the position.
+
+The window that displayed the buffer here is closed when it is not the
+only window in the tab, which is what makes this a move rather than a
+duplication.  A sole window is left alone, since deleting it would
+delete the tab along with it."
+  (interactive)
+  (let ((buffer (current-buffer))
+        (window (selected-window)))
+    (make-frame (append my/detached-frame-parameters
+                        (list (cons 'name (buffer-name buffer)))))
+    (select-frame-set-input-focus (selected-frame))
+    (switch-to-buffer buffer)
+    (when (window-live-p window)
+      (with-selected-window window
+        (unless (one-window-p)
+          (delete-window window))))))
+
+(defun my/detach-tab-to-frame ()
+  "Move the current tab, with its whole window layout, into a new frame.
+
+Uses `tab-bar-detach-tab', which has existed since Emacs 28.  Unlike
+`my/detach-buffer-to-frame' this preserves splits, so it is the right
+choice for a tab such as History whose value lies in its two-pane
+layout.
+
+Refuses when the tab is the only one, because detaching it would leave
+the frame with nothing in it."
+  (interactive)
+  (cond
+   ((not (fboundp 'tab-bar-detach-tab))
+    (user-error "This Emacs has no `tab-bar-detach-tab' (needs Emacs 28+)"))
+   ((< (length (tab-bar-tabs)) 2)
+    (user-error "Refusing to detach the only tab in this frame"))
+   (t
+    (call-interactively #'tab-bar-detach-tab))))
+
 (provide '23-fixed-tabs)
 ;;; 23-fixed-tabs.el ends here

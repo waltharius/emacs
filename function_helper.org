@@ -793,6 +793,114 @@ Opens this file in a new tab. Uses =tab-bar-new-tab= + =find-file= +
 
 Function: =my/open-function-helper= | Module: =modules/12-transient.el=
 
+* Fixed Tabs (routing commands to named tabs)
+:PROPERTIES:
+:CUSTOM_ID: fixed-tabs
+:END:
+
+Some activities recur often enough to deserve a permanent home. The
+routing layer makes the command behind such an activity always run in
+a tab of its own, so that invoking the command *is* the gesture of
+going to that tab.
+
+** The convention it maintains
+
+An Emacs tab is a named window configuration, and any buffer can be
+displayed in any tab — nothing in Emacs ties a tab to a particular
+file, the way a browser tab is tied to a page. The routing does not
+change that; it makes the browser-like convention hold automatically
+rather than by hand.
+
+** Registering a command
+
+Add a =(COMMAND . "Tab name")= pair to =my/fixed-tab-commands=, then
+run =my/fixed-tab-refresh-advice= (or restart). Currently registered:
+
+| Command                  | Tab       |
+|--------------------------+-----------|
+| =my/denote-journal=      | Journal   |
+| =my/denote-journal-date= | Journal   |
+
+Both journal commands share one tab deliberately: the tab is the place
+where journalling happens, not one entry point into it.
+
+Commands that build their own layout — =my/open-notes-dashboard=,
+=my/dashboards--goto-tab= — call =my/fixed-tab-goto= directly instead
+and are *not* registered, since routing them here as well would switch
+tabs twice.
+
+** Why advice rather than wrapper commands
+
+Advice covers every route into a command at once: the keybinding,
+=M-x=, a transient menu entry, and =emacsclient -n -e '(my/denote-journal)'=
+from outside Emacs. Wrapper commands would only cover the paths
+rebound to them.
+
+The advice carries the name =my/fixed-tab=, so re-evaluating the
+module replaces it instead of stacking a second copy.
+
+** Why not =display-buffer-alist=
+
+The declarative route would be =display-buffer-alist= with the
+=display-buffer-in-tab= action, and for plain buffer display that is
+the better tool. It does not fit here because these commands do more
+than display a buffer: =my/denote-journal= finds a file, moves point
+to the end and inserts a timestamped heading. Routing only the
+*display* would leave the editing happening wherever point already
+was. Switching tab first and running the whole command there also
+avoids having to set =switch-to-buffer-obey-display-actions= globally,
+which would change how every =find-file= in the configuration behaves.
+
+** =my/fixed-tab-goto=
+
+Switches to a named tab, creating it immediately to the right of the
+current one when absent, and returns non-nil when it had to create
+it. Binds =tab-bar-new-tab-to= explicitly rather than relying on its
+global value, and skips the switch when the target tab is already
+current (which would otherwise push a redundant entry onto the tab
+switching history).
+
+Functions: =my/fixed-tab-goto= (=01-ui.el=),
+=my/fixed-tab-refresh-advice=, =my/fixed-tab--install= |
+Variable: =my/fixed-tab-commands= | Module: =modules/23-fixed-tabs.el=
+
+** Detaching to a separate frame (C-c n v f / F)
+:PROPERTIES:
+:CUSTOM_ID: detach-to-frame
+:END:
+
+The counterpart to fixed tabs. A tab is a destination you return to,
+and it is exclusive: while you look at it, you are not looking at
+anything else. A frame is a separate operating-system window, so it can
+sit on another monitor and be read *alongside* the work.
+
+That difference decides which to use. Journal and Dashboard are places
+you go to, so they get tabs. A keybinding cheat sheet, or a list of old
+entries being skimmed, is something wanted *beside* the work, so it
+wants a frame.
+
+| Key       | Command                      | Effect                                  |
+|-----------+------------------------------+-----------------------------------------|
+| =C-c n v f= | =my/detach-buffer-to-frame=  | Current buffer into a new frame         |
+| =C-c n v F= | =my/detach-tab-to-frame=     | Current tab, layout intact, into a frame |
+
+=f= moves rather than duplicates: the window that showed the buffer is
+closed afterwards, unless it was the only window in the tab (deleting
+that would take the tab with it).
+
+=F= wraps =tab-bar-detach-tab= (Emacs 28+) and preserves splits, so it
+is the right choice for a tab whose value lies in its layout — the
+History tab with its list-and-preview panes, for instance. It refuses
+when only one tab exists, since detaching it would empty the frame.
+
+Frame size comes from =my/detached-frame-parameters=, deliberately
+modest because these frames are for reading beside the main one.
+
+*Monitor placement is not settable from Emacs* — that belongs to the
+window manager. These commands create the frame; where it appears is
+up to the WM. Moving it once by hand is usually enough, since most
+window managers remember placement per window.
+
 * Zettelkasten / Folgezettel (C-c n z)
 :PROPERTIES:
 :CUSTOM_ID: menu-zettelkasten
