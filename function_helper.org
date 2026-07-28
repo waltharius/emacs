@@ -1296,11 +1296,58 @@ as a change rather than discarding the branch, so every previous buffer
 state stays reachable. What was missing was a way to *see* it.
 
 =vundo= draws that existing tree and navigates it; it does not replace
-the undo system. Inside the vundo buffer: =f=/=b= step forward and
-back, =n=/=p= switch branch at a fork, =a=/=e= jump to the nearest fork
-or the branch tip, =l=/=r= jump between *saved* states, =m= then =d=
-diff two nodes, =q= exits keeping the current state, =C-g= exits and
-restores the state from before vundo opened.
+the undo system. Keymap, verified against =vundo-mode-map=:
+
+| Key           | Effect                                            |
+|---------------+---------------------------------------------------|
+| =f= / →       | forward (newer state)                             |
+| =b= / ←       | backward (older state)                            |
+| =n= / ↓       | *at a fork only*: sibling branch below            |
+| =p= / ↑       | *at a fork only*: sibling branch above            |
+| =a=           | back to the nearest fork                          |
+| =w=           | forward to the next fork                          |
+| =e=           | to the tip of the current branch                  |
+| =l= / =r=     | previous / next *saved* state                     |
+| =m= / =u=     | mark / unmark a node for diff                     |
+| =d=           | diff current node against marked (or its parent)  |
+| =RET=         | *confirm* — keep the buffer in the chosen state   |
+| =q= or ~C-g~  | quit and *roll back* what vundo did               |
+
+*=n= and =p= only move at a branching point.* They switch between
+branches sharing a parent, not up and down a list. On a linear stretch
+they have nowhere to go and appear to do nothing; the arrow keys are
+bound to the same commands, so they behave identically.
+
+*The connecting lines are connectors, not paths.* This is what makes
+the behaviour look broken: the drawn lines suggest a route you could
+walk, but =n=/=p= *jump* vertically between nodes in the **same
+column** — which is what siblings are, children of one fork drawn one
+row apart at equal distance from it. To drop to the node below, you
+must be standing directly above it. One step too far right and the
+node below is no longer your sibling, so nothing happens.
+
+: ──○──○──●──○──○      n works here (● is directly above)
+:      │
+:      └──○──○──○
+
+: ──○──○──○──●──○      n does nothing here
+:      │
+:      └──○──○──○      (nothing in this column below)
+
+The sequence that always works: =a= to reach the fork, =f= one step
+in, then =n= or =p=. =a= also reveals where the fork actually is,
+which is not always where the drawing suggests.
+
+*=RET= commits, =q= reverts.* Moving through the tree changes the
+buffer provisionally. =q= and ~C-g~ are bound to the *same* command
+(=vundo-quit=) — there is no difference between them, and by default
+both roll back. Set =vundo-roll-back-on-quit= to nil if you would
+rather have =q= keep the current state and stop needing =RET=.
+
+*=d= needs something to compare against.* The diff runs between the
+current node and a marked node, or its parent when nothing is marked —
+so at the root of the tree, with no mark set, there is nothing to
+diff. Mark with =m= first, then move and press =d=.
 
 This pairing was chosen over =undo-tree= specifically because
 =undo-tree= substitutes its own undo implementation. It is also

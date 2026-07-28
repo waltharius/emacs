@@ -89,6 +89,43 @@ Two points recorded there because they had caused confusion:
 
 ---
 
+### C — Correction: the vundo keymap as documented was wrong
+
+The keymap written into section B's note and into `function_helper.org`
+came from the package's ELPA summary rather than from `vundo-mode-map`,
+and got three things wrong. Corrected against the source in both
+places.
+
+- **`q` and `C-g` were described as differing.** They are bound to the
+  same command, `vundo-quit`. Both roll back by default: moving through
+  the tree is provisional, and `RET` (`vundo-confirm`) is what commits
+  it. The note claimed `q` kept the current state, which is the
+  opposite of what happens. `vundo-roll-back-on-quit` set to nil gives
+  the behaviour that was mistakenly described.
+- **`n`/`p` were described as plain branch switching.** They only move
+  at a branching point, between branches sharing a parent. On a linear
+  stretch they do nothing, which reads as the keys being broken. The
+  arrow keys are bound to the same commands and share the limitation.
+  `a` (back to nearest fork) is the missing prerequisite step.
+
+  Found while testing: the practical rule is stricter than "at a
+  fork". The connecting lines are connectors, not paths — `n`/`p` jump
+  vertically between nodes in the *same column*, since siblings are
+  drawn one row apart at equal distance from their fork. You have to
+  be standing directly above the target node; one step further right
+  and the node below is no longer a sibling, so nothing happens. The
+  drawing invites walking along the lines, which is not what the
+  commands do. Documented with diagrams in both places.
+- **`d` was described as diffing against a marked node**, omitting
+  that with nothing marked it diffs against the *parent* — so at the
+  root, with no mark, there is nothing to compare and the command
+  reports as much.
+
+Also missing entirely: `w` (forward to next fork), `u` (unmark), and
+the arrow-key bindings.
+
+---
+
 ## Session 2026-07-27 — Fixed Tabs and Detachable Frames
 
 ### Context
