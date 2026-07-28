@@ -202,6 +202,55 @@
 (setq echo-keystrokes 0.1)           ; Show keystrokes immediately
 (setq undo-limit 80000000)           ; Large undo limit
 (setq undo-strong-limit 120000000)
+(setq undo-outer-limit 960000000)    ; Ceiling for a single huge change
+
+;; ============================================================
+;; UNDO: visualise the tree, and keep it across restarts
+;; ============================================================
+;; Emacs' built-in undo is already a tree: unlike the usual undo/redo
+;; found elsewhere, it can recover *any* previous buffer state, because
+;; undoing an undo is itself recorded rather than discarding the branch
+;; you undid.  What it lacks is a way to see that tree, and any memory
+;; of it after Emacs exits.  These two packages add exactly those,
+;; without replacing the undo system itself.
+;;
+;; That is the reason for choosing this pair over `undo-tree', which
+;; substitutes its own undo implementation.  Note also that undo-tree
+;; defines its own data structures and *cannot* be used together with
+;; undo-fu-session; the leftover ~/.emacs.d/undo-tree-history directory
+;; from an earlier configuration is inert and safe to delete.
+
+(use-package vundo
+  :ensure t
+  :bind ("C-x u" . vundo)              ; replaces the plain `undo' binding
+  :config
+  ;; Box-drawing characters instead of ASCII; the tree is much easier
+  ;; to read, and this frame already renders other non-ASCII glyphs.
+  (setq vundo-glyph-alist vundo-unicode-symbols)
+  (setq vundo-compact-display t))
+
+;; Redo, without changing what C-z does.  `undo-redo' only undoes
+;; undos and does not record itself as undoable, which is what makes
+;; stepping back and forth along one branch behave predictably.
+(global-set-key (kbd "C-S-z") 'undo-redo)
+
+(use-package undo-fu-session
+  :ensure t
+  :init
+  ;; Kept inside .emacs.d rather than next to the notes: this is
+  ;; machine-local state, and syncing it between devices would produce
+  ;; conflicts over files that are meaningless on the other machine.
+  (setq undo-fu-session-directory
+        (expand-file-name "undo-fu-session/" user-emacs-directory))
+  :config
+  ;; Buffers whose content is regenerated each time and whose undo
+  ;; history would be misleading if restored.
+  (setq undo-fu-session-incompatible-files
+        '("/COMMIT_EDITMSG\\'" "/git-rebase-todo\\'"))
+  ;; Undo data accumulates one file per edited file, indefinitely,
+  ;; unless capped.  Oldest are removed first.
+  (setq undo-fu-session-file-limit 2000)
+  (undo-fu-session-global-mode 1))
 
 ;; Confirm before quit
 (setq confirm-kill-emacs 'yes-or-no-p)
