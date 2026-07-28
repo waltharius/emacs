@@ -573,11 +573,16 @@ disposable by design, so a link to it would eventually dangle."
 (defvar-local my/readwise--book nil
   "Book plist the current quote list was built from.")
 
-(defvar-local my/readwise--note-window nil
-  "Window used to display notes created from this review buffer.
-Reused across promotions so the list keeps its place instead of the
-layout changing on every note.  Always checked with `window-live-p'
-before use, since closing it is a normal thing to do.")
+(defvar my/readwise--note-window nil
+  "Window used to display notes created from the review list.
+
+Global rather than buffer-local on purpose: rebuilding the quote list
+re-runs its major mode, which would clear a buffer-local value and
+leave the next promotion splitting a third window instead of reusing
+the second.
+
+Always checked with `window-live-p' before use, since closing it is a
+perfectly normal thing to do.")
 
 (defun my/readwise--show-note (buffer)
   "Show BUFFER beside the review list and select it."
@@ -646,13 +651,22 @@ before use, since closing it is a normal thing to do.")
 ;; no-op on the already-bound variable and the bindings would vanish.
 (defvar my/readwise-books-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "RET") #'my/readwise-open-book)
-    (define-key map (kbd "o")   #'my/readwise-open-book)
+    (define-key map (kbd "RET")  #'my/readwise-open-book)
+    (define-key map (kbd "o")    #'my/readwise-open-book)
+    (define-key map [mouse-1]    #'my/readwise-open-book-mouse)
     (define-key map (kbd "/")   #'my/readwise-filter)
     (define-key map (kbd "g")   #'my/readwise-review)
     (define-key map (kbd "q")   #'quit-window)
     map)
   "Keymap for `my/readwise-books-mode'.")
+
+(defvar my/readwise--sort-key '("Left" . t)
+  "Sort column and direction remembered across visits to the book list.
+
+`tabulated-list-sort-key' is buffer-local and reset by
+`define-derived-mode', so a chosen sort would otherwise be lost every
+time the list is rebuilt -- which happens on every return from a
+book.")
 
 (define-derived-mode my/readwise-books-mode tabulated-list-mode "RW Books"
   "Major mode for the Readwise book list.
@@ -663,10 +677,21 @@ before use, since closing it is a normal thing to do.")
                 (list "Author" 28 t)
                 (list "Imported" 11 t)
                 (list "Title" 0 t)))
-  (setq tabulated-list-sort-key '("Left" . t))
+  (setq tabulated-list-sort-key my/readwise--sort-key)
   (setq tabulated-list-padding 1)
   (tabulated-list-init-header)
   (hl-line-mode 1))
+
+(defun my/readwise--remember-sort ()
+  "Copy this buffer\='s sort key into `my/readwise--sort-key'."
+  (when (derived-mode-p 'my/readwise-books-mode)
+    (setq my/readwise--sort-key tabulated-list-sort-key)))
+
+(defun my/readwise-open-book-mouse (event)
+  "Open the book clicked on by EVENT."
+  (interactive "e")
+  (mouse-set-point event)
+  (my/readwise-open-book))
 
 (defun my/readwise-review ()
   "List imported books that still have unprocessed quotes.
@@ -710,6 +735,7 @@ An empty TEXT restores the full list."
 (defun my/readwise-open-book ()
   "Open the quote list for the book at point."
   (interactive)
+  (my/readwise--remember-sort)
   (if-let* ((entry (tabulated-list-get-id)))
       (my/readwise--show-quotes (plist-get entry :book)
                                 (plist-get entry :pending)
@@ -717,6 +743,32 @@ An empty TEXT restores the full list."
     (message "No book on this line")))
 
 ;; --- Quote list ----------------------------------------------------
+
+(defun my/readwise--insert-action-buttons (anchor)
+  "Insert the four action buttons for the quote whose button starts at ANCHOR.
+
+ANCHOR is a marker rather than a record, so every button resolves back
+to the one quote button that carries the done state.  Marking that
+single button therefore disarms all five entry points at once, instead
+of each needing its own bookkeeping."
+  (insert "      ")
+  (dolist (spec '(("note" . stay)
+                  ("note+open" . open)
+                  ("zettel" . zettel)
+                  ("add to existing" . append)))
+    (insert-text-button
+     (concat "[" (car spec) "]")
+     'follow-link t
+     'my-anchor anchor
+     'my-action (cdr spec)
+     'face 'link
+     'action (lambda (b)
+               (if-let* ((quote-button (button-at (button-get b 'my-anchor))))
+                   (my/readwise--promote-button quote-button
+                                                (button-get b 'my-action))
+                 (message "Quote no longer available"))))
+    (insert " "))
+  (insert "\n"))
 
 (defun my/readwise--show-quotes (book pending promoted)
   "List PENDING quotes of BOOK.  PROMOTED classifies already-used ids."
@@ -731,13 +783,20 @@ An empty TEXT restores the full list."
                         (length pending)))
         (dolist (record pending)
           (let ((cited (eq (gethash (plist-get record :id) promoted) 'cited)))
-            (insert (format "  [%s]%s%s%s\n"
+            (insert (format "  [%s]%s"
                             (plist-get record :id)
                             (if-let* ((l (plist-get record :location)))
-                                (concat "  " l) "")
-                            (if-let* ((u (plist-get record :url)))
-                                (concat "  " u) "")
-                            (if cited "   [CYTOWANY]" "")))
+                                (concat "  " l) "")))
+            (when-let* ((u (plist-get record :url)))
+              (insert "  ")
+              (insert-text-button
+               u
+               'follow-link t
+               'help-echo "Open this highlight in Readwise"
+               'face 'link
+               'action (let ((target u)) (lambda (_b) (browse-url target)))))
+            (when cited (insert "   [CYTOWANY]"))
+            (insert "\n")
             (let ((start (point)))
               (insert "  " (or (plist-get record :quote) "") "\n")
               (fill-region start (point))
@@ -748,13 +807,27 @@ An empty TEXT restores the full list."
                                 'face (if cited 'font-lock-comment-face 'default)
                                 'mouse-face 'highlight
                                 'action (lambda (b)
-                                          (my/readwise--promote-button b 'stay))))
-            (when (plist-get record :note)
-              (insert "      > " (plist-get record :note) "\n"))
+                                          (my/readwise--promote-button b 'stay)))
+              (when (plist-get record :note)
+                (insert "      > " (plist-get record :note) "\n"))
+              (my/readwise--insert-action-buttons (copy-marker start)))
             (insert "\n")))
         (goto-char (point-min))
         (forward-line 3)))
     (switch-to-buffer buffer)))
+
+(defun my/readwise-refresh-quotes ()
+  "Rebuild the quote list for the current book from disk and pks."
+  (interactive)
+  (unless my/readwise--book
+    (user-error "Not in a Readwise quote list"))
+  (let* ((book my/readwise--book)
+         (file (plist-get book :file))
+         (promoted (my/readwise--promoted-ids))
+         (pending (seq-remove
+                   (lambda (r) (eq (gethash (plist-get r :id) promoted) 'own))
+                   (my/readwise--parse-records file))))
+    (my/readwise--show-quotes book pending promoted)))
 
 (defun my/readwise--button-at-point ()
   "Return the quote button on or just below point, or nil.
@@ -782,13 +855,28 @@ an unused one and is easy to process twice."
         (insert "   " label)))))
 
 (defun my/readwise--promote-button (button action)
-  "Run ACTION on BUTTON's quote, then mark the button."
+  "Run ACTION on BUTTON's quote, then update the list.
+
+For `stay' and `append' the button is only marked, because the point
+of those actions is to keep working down the list and a rebuild would
+lose the position.
+
+For `open' and `zettel' the list is rebuilt instead, so the consumed
+quote disappears rather than lingering as a struck-through line.  That
+is affordable precisely because attention moves to the new note
+anyway, so there is no position left to preserve."
   (if (button-get button 'my-done)
       (message "Already handled in this session")
-    (my/readwise--promote (button-get button 'my-record)
-                          my/readwise--book action)
-    (my/readwise--mark-button-done
-     button (if (eq action 'append) "[CYTOWANY]" "[GOTOWE]"))))
+    (let ((note-buffer (my/readwise--promote (button-get button 'my-record)
+                                             my/readwise--book action)))
+      (if (memq action '(open zettel))
+          (save-selected-window
+            (when-let* ((window (get-buffer-window my/readwise--quotes-buffer)))
+              (select-window window)
+              (my/readwise-refresh-quotes)))
+        (my/readwise--mark-button-done
+         button (if (eq action 'append) "[CYTOWANY]" "[GOTOWE]")))
+      note-buffer)))
 
 (defun my/readwise-promote-at-point ()
   "Create a note from the quote at point, staying in the list."
@@ -826,6 +914,7 @@ use it up."
     (define-key map (kbd "o")   #'my/readwise-promote-and-open)
     (define-key map (kbd "z")   #'my/readwise-promote-as-zettel)
     (define-key map (kbd "a")   #'my/readwise-add-to-existing)
+    (define-key map (kbd "g")   #'my/readwise-refresh-quotes)
     (define-key map (kbd "q")   #'my/readwise-review)
     map)
   "Keymap for `my/readwise-quotes-mode'.")
