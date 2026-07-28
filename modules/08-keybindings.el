@@ -121,6 +121,13 @@
 ;; land on journal or docu notes.  See the menu tree below.
 
 ;; ============================================================
+;; READWISE (already defined in 24-readwise.el)
+;; ============================================================
+;; C-c r s = sync highlights from Readwise (incremental)
+;; C-c r o = open the import folder (~/Downloads/readwise) in Dired
+;; Also under the notes menu: C-c n t r
+
+;; ============================================================
 ;; ZOTERO / BIBLIOGRAPHY (already defined in 18-zotero-transient.el)
 ;; ============================================================
 ;; C-c x = my/zotero-menu (transient) — also reachable via C-c n t z
@@ -228,6 +235,11 @@ Typing Analytics:
 Bibliography:
   C-c x   - Zotero/bib menu (same as C-c n t z)
 
+Readwise:
+  C-c r s - Sync highlights (incremental; C-u for everything)
+  C-c r o - Open import folder in Dired
+  (menu: C-c n t r)
+
 Spelling:
   C-;     - Correct word at point (needs flyspell on)
   C-c f b - Check visible portion of buffer
@@ -284,6 +296,8 @@ C-c n -- NOTES TRANSIENT MENU TREE
        F  Detach whole tab to its own frame
   t  Tools ->
        z  Zotero/Bib ->  (same submenu as C-c x, see below)
+       r  Readwise ->  s Sync (incremental)  S Sync everything
+                       o Open import folder
        s  Correct previous (transient: stays open)
        a  Add to dict       (transient: stays open)
        S  Check visible     b  Check full buffer   T  Toggle spellcheck

@@ -1094,6 +1094,156 @@ Functions: =my/zettel-*=, =my/zettelkasten-menu=, =my/zettel--in-pks=
 | Module: =modules/22-zettelkasten.el= | Upstream manual:
 https://protesilaos.com/emacs/denote-sequence
 
+* Readwise (C-c n t r)
+:PROPERTIES:
+:CUSTOM_ID: menu-readwise
+:END:
+
+Imports Readwise highlights into one Org file per book, kept in
+=my/readwise-directory= (=~/Downloads/readwise/=).
+
+| Key       | Command                     | Effect                          |
+|-----------+-----------------------------+---------------------------------|
+| =C-c r s= | =my/readwise-sync=          | Incremental sync (=C-u= = full) |
+| =C-c r r= | =my/readwise-review=        | Books with unprocessed quotes   |
+| =C-c r o= | =my/readwise-open-directory= | Import folder in Dired         |
+| =s= / =S= | in the menu                 | Incremental / full sync         |
+
+** Why the files live outside the notes tree
+
+=denote-directory= is the notes root, so anything beneath it is
+visible to every Denote command, every dashboard and every search here.
+Readwise material is raw input awaiting triage, not part of the
+collection, so it sits outside — invisible by default rather than
+visible-with-exclusions.
+
+The files are therefore disposable: nothing links to them, and personal
+commentary is stored by Readwise in the highlight's =note= field and
+returns on every sync, so a book file can always be regenerated
+exactly. Losing the directory costs only the time to re-sync.
+
+** Why sync is two-phase
+
+=updatedAfter= returns each book carrying only its *changed*
+highlights. Writing that straight to disk would replace a complete file
+with a partial one. So phase one asks which books changed, and phase
+two re-fetches those books in full and rewrites their files. Every file
+stays a complete picture of Readwise's current state.
+
+The sync timestamp is recorded *before* fetching: a highlight changed
+while the sync runs would otherwise fall between the fetch and the
+timestamp and never be seen again.
+
+File names derive from =user_book_id=, not import time, so re-import
+overwrites rather than accumulating a copy per sync.
+
+** File format
+
+#+begin_example
+,#+name: rw-710138927
+,#+rw_location: s. 57
+,#+rw_url: https://readwise.io/open/710138927
+,#+begin_quote
+The principle of GTD is to collect everything...
+,#+end_quote
+
+Personal commentary, when there is any.
+#+end_example
+
+The Readwise id sits on a =#+name:= affiliated keyword rather than in a
+heading with a property drawer. These quotes have no natural title; one
+would have to be invented at import and discarded at promotion.
+
+Personal notes go *after* the quote block. A heading at column zero
+inside =#+begin_quote= terminates the enclosing section, leaving the
+block unclosed as far as =org-element= is concerned even though it
+still renders acceptably — which is what an earlier hand-rolled import
+of this material did.
+
+** Review and promotion
+
+=C-c r r= (or =r= in the menu) lists imported books with their
+unprocessed quote counts; books with nothing left are omitted.
+Selecting a book lists its unprocessed quotes.
+
+| Key   | In the quote list                          |
+|-------+--------------------------------------------|
+| =RET= | Promote and stay in the list               |
+| =o=   | Promote and switch to the new note         |
+| =q=   | Back to the book list                      |
+
+Two levels rather than one flat list on purpose. With dozens of books
+and hundreds of highlights in some, a single list of every unprocessed
+quote is unusable — and the book is shared context for all its quotes,
+so working through one book at a time matches how the material was
+read.
+
+*** What promotion writes
+
+Prompts for a title, tags, and whether to carry over the personal
+comment (defaulting to yes, so a bare =RET= accepts it). The comment
+is optional because it is often a reaction to the passage rather than
+material for the note.
+
+The note is created in =pks= and embeds the source rather than linking
+to it:
+
+#+begin_example
+,:PROPERTIES:
+,:RW_ID: rw-710138927
+,:RW_URL: https://readwise.io/open/710138927
+,:SOURCE_AUTHOR: Sönke Ahrens
+,:SOURCE_TITLE: How to Take Smart Notes
+,:SOURCE_LOCATION: s. 20
+,:END:
+#+end_example
+
+Embedding rather than linking is required by the design: the imported
+file is disposable and may be regenerated or deleted at any time, so a
+link to it would eventually dangle.
+
+*** How "already processed" is decided
+
+=my/readwise--promoted-ids= scans =pks= once and collects every
+=rw-<id>= it finds. Since promotion writes =RW_ID= into the note, pks
+is the single source of truth — and it survives losing the whole
+import directory, which an index kept beside those disposable files
+would not.
+
+The scan is one pass over pks rather than one grep per quote: a book
+can hold hundreds of highlights, and per-quote scanning would be
+quadratic.
+
+*** Marking within a session
+
+The list is not rebuilt after each promotion, since that would lose
+the review position mid-run. Instead the promoted quote is dimmed,
+prefixed =DONE=, and disarmed, so it cannot be promoted twice by
+accident. The next =C-c r r= rebuilds from pks and drops it entirely.
+
+** Configuration
+
+| Variable                    | Purpose                                  |
+|-----------------------------+------------------------------------------|
+| =my/readwise-directory=     | Where book files are written             |
+| =my/readwise-categories=    | Which Readwise categories to keep        |
+| =my/readwise-file-keywords= | Denote keywords added to every file      |
+| =my/readwise-state-file=    | Last-sync timestamp                      |
+
+=my/readwise-categories= defaults to =("books")=; adding =articles= is
+a one-item change and needs no code edit.
+
+The state file lives *beside* the imported files rather than in
+=.emacs.d=, deliberately: losing the directory should lose the state
+too, so the next sync re-imports everything instead of skipping books
+whose files are gone.
+
+Token comes from =auth-source=:
+
+: machine readwise.io login apikey password YOUR-TOKEN
+
+Module: =modules/24-readwise.el=
+
 * Zotero / Bibliography (C-c x)
 :PROPERTIES:
 :CUSTOM_ID: menu-zotero-detail
@@ -1415,6 +1565,9 @@ hand-editing either from memory.
 | C-c n z  | =my/zettelkasten-menu=        | =22-zettelkasten.el= (appended) |
 | C-c c    | =org-capture=                 | =06-capture.el=              |
 | C-c x    | =my/zotero-menu=              | =18-zotero-transient.el=     |
+| C-c r s  | =my/readwise-sync=            | =24-readwise.el=             |
+| C-c r r  | =my/readwise-review=          | =24-readwise.el=             |
+| C-c r o  | =my/readwise-open-directory=  | =24-readwise.el=             |
 | C-c p    | =my/org-export-to-pdf=        | =16-org-export.el=           |
 | C-c d f  | =denote-open-or-create=       | =08-keybindings.el=          |
 | C-c d l  | =denote-link=                 | =08-keybindings.el=          |
