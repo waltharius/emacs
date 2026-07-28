@@ -143,6 +143,8 @@
 ;; C-s = save-buffer       (matches most other editors)
 ;; C-z = undo              (NOT suspend-frame!)
 ;; C-x C-b = ibuffer (instead of plain list-buffers)
+;; C-x u = vundo (visual undo tree), NOT the default plain undo
+;; C-S-z = undo-redo (redo that does not itself become undoable)
 ;; M-Q = my/unfill-region (join a paragraph back into one line)
 
 ;; ============================================================
@@ -238,6 +240,8 @@ Rebound defaults (not the usual Emacs bindings!):
   C-s     - save-buffer
   C-z     - undo
   C-x C-b - ibuffer
+  C-x u   - Visual undo tree (vundo)
+  C-S-z   - Redo (undo-redo)
   M-Q     - Unfill (join) region
 
 Other:

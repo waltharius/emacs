@@ -1270,6 +1270,86 @@ trim (and its buffer killing) also runs here, because it hangs on
 
 Function: =my/desktop-save-now= | Module: =modules/01-ui.el=
 
+* Undo and Backup History
+:PROPERTIES:
+:CUSTOM_ID: undo-history
+:END:
+
+Four independent layers, each answering a different question. Full
+walkthrough with exercises:
+=~/notes/docu/…historia-zmian-undo-i-kopie-zapasowe…org=
+
+| Layer             | Question it answers                     | Horizon        |
+|-------------------+-----------------------------------------+----------------|
+| undo              | undo what I just did                    | seconds–hours  |
+| persistent undo   | …and after restarting Emacs             | days           |
+| numbered backups  | how the file looked before this session | last ~10 sessions |
+| git               | how this note looked in March           | years          |
+
+** vundo (C-x u)
+:PROPERTIES:
+:CUSTOM_ID: fn-vundo
+:END:
+
+Emacs's built-in undo is already a tree — undoing an undo is recorded
+as a change rather than discarding the branch, so every previous buffer
+state stays reachable. What was missing was a way to *see* it.
+
+=vundo= draws that existing tree and navigates it; it does not replace
+the undo system. Inside the vundo buffer: =f=/=b= step forward and
+back, =n=/=p= switch branch at a fork, =a=/=e= jump to the nearest fork
+or the branch tip, =l=/=r= jump between *saved* states, =m= then =d=
+diff two nodes, =q= exits keeping the current state, =C-g= exits and
+restores the state from before vundo opened.
+
+This pairing was chosen over =undo-tree= specifically because
+=undo-tree= substitutes its own undo implementation. It is also
+incompatible with =undo-fu-session= — the two cannot be combined, since
+undo-tree defines its own data structures.
+
+** undo-fu-session
+:PROPERTIES:
+:CUSTOM_ID: fn-undo-fu-session
+:END:
+
+Writes undo history on save and restores it when the file is opened
+again, so the tree survives restarting Emacs. Standalone: despite the
+name it has no dependency on =undo-fu= and stores Emacs's built-in undo
+data unchanged.
+
+Data goes to =~/.emacs.d/undo-fu-session/=, capped at
+=undo-fu-session-file-limit= (2000) files, oldest removed first. Kept
+inside =.emacs.d= rather than beside the notes on purpose: it is
+machine-local state, and syncing it would create conflicts over files
+meaningless on the other device.
+
+*Restoration is conditional.* Buffer length and checksum are verified
+first; if the file changed outside Emacs — a Syncthing update from
+another device, for instance — the history is not restored, because it
+would describe different text than what is on disk.
+
+** Numbered backups
+:PROPERTIES:
+:CUSTOM_ID: numbered-backups
+:END:
+
+*A backup is written on the first save of a buffer after visiting it,
+not on every save.* This is the part that is easy to misread: with
+=kept-new-versions= at 10, the ten kept files are roughly the last ten
+*editing sessions*, not the last ten saves — usually far more history
+than the number suggests, not less.
+
+Notes go to =~/notes/.backups/=, everything else to
+=~/.emacs.d/backups/=. File names are the original's full path with
+=/= replaced by =!=, suffixed =.~N~=.
+
+=M-x diff-backup= diffs the current file against its most recent
+backup. Older versions open with =C-x C-f= like any text file.
+
+In =bash= those names trigger history expansion. Quote the *whole*
+name in single quotes (=cat '!home!…!bookmarks.~18~'=), not part of it,
+or run =set +H=. =zsh= does not have this problem.
+
 * Global Keybindings
 :PROPERTIES:
 :CUSTOM_ID: global-keybindings
@@ -1325,6 +1405,8 @@ hand-editing either from memory.
 | C-s      | =save-buffer=                 | =02-editing.el= (rebind)     |
 | C-z      | =undo=                        | =02-editing.el= (rebind)     |
 | C-x C-b  | =ibuffer=                     | =02-editing.el=              |
+| C-x u    | =vundo=                       | =02-editing.el=              |
+| C-S-z    | =undo-redo=                   | =02-editing.el=              |
 | M-Q      | =my/unfill-region=            | =02-editing.el=              |
 | C-c o i  | =open-init-el-bottom-split=   | =08-keybindings.el=          |
 | C-c e b  | =eval-buffer=                 | =08-keybindings.el=          |
