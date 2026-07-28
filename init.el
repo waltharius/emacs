@@ -66,6 +66,7 @@
   (load (concat modules-dir "21-dashboards.el"))   ; Historical dashboards (C-c n f h)
   (load (concat modules-dir "22-zettelkasten.el")) ; Folgezettel sequences (C-c n z)
   (load (concat modules-dir "23-fixed-tabs.el"))   ; Route commands to named tabs
+  (load (concat modules-dir "24-readwise.el"))     ; Readwise import (C-c r s)
   )
 
 (add-hook 'emacs-startup-hook
