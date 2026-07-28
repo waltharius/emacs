@@ -7,6 +7,88 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-07-28 — Persistent Branching Undo
+
+### Context
+
+The stated need was to recover text deleted before a save, which had
+been framed as a version-control problem. It is not: a commit made at
+save time records the state *after* the deletion. The layers that
+actually answer it are undo (within a session) and numbered backups
+(between sessions), both of which existed but neither of which was
+visible or persistent.
+
+Emacs's built-in undo is already a branching tree — undoing an undo is
+recorded as a change rather than discarding the branch, so every
+previous buffer state stays reachable. What was missing was a way to
+see that tree, and any memory of it across restarts.
+
+---
+
+### A — `modules/02-editing.el` — vundo and undo-fu-session
+
+#### What changed
+
+`vundo` bound to `C-x u`, replacing plain `undo` on that key, and
+`undo-fu-session-global-mode` enabled. `undo-redo` bound to `C-S-z`;
+`C-z` is left as plain `undo` so existing habits are unaffected.
+`undo-outer-limit` added alongside the existing undo limits.
+
+#### Why this pair rather than `undo-tree`
+
+`undo-tree` is the closer analogue to Vim and has its own persistence,
+but it *replaces* Emacs's undo implementation. `vundo` visualises the
+built-in one instead, which became practical once `undo-only` and
+`undo-redo` were added to Emacs. Less surface area, nothing to
+substitute.
+
+The choice is also forced in one direction: undo-tree defines its own
+undo data structures and is documented as incompatible with
+undo-fu-session — the two cannot be combined. The leftover
+`~/.emacs.d/undo-tree-history/` directory from an earlier
+configuration is inert; nothing in the config has referenced
+`undo-tree` for some time.
+
+`undo-fu-session` is standalone despite its name: it has no dependency
+on `undo-fu` and stores Emacs's built-in undo data unchanged.
+
+#### Storage location
+
+`undo-fu-session-directory` is set explicitly to
+`~/.emacs.d/undo-fu-session/` rather than left at its default. It is
+machine-local state, and the notes tree is synced by Syncthing —
+placing it there would produce conflicts over files that are
+meaningless on the other device.
+
+Capped at `undo-fu-session-file-limit` (2000), since one file
+accumulates per edited file indefinitely otherwise.
+
+#### Known limitation
+
+Restoration verifies buffer length and checksum first. A file changed
+outside Emacs — a Syncthing update from another device — will not have
+its history restored. This is correct behaviour rather than a defect:
+the stored history would describe different text than what is on disk.
+
+---
+
+### B — New note: undo and backup history
+
+Added `~/notes/docu/` note covering the four layers (undo, persistent
+undo, numbered backups, git), the vundo keymap, and seven exercises
+including a branch-recovery demonstration.
+
+Two points recorded there because they had caused confusion:
+
+- **A numbered backup is written on the first save of a buffer after
+  visiting it, not on every save.** With `kept-new-versions` at 10 the
+  kept files are roughly the last ten *editing sessions*. This is why
+  consecutive `bookmarks.~N~` files are days apart.
+- Backup file names contain `!`, which triggers history expansion in
+  `bash`. The whole name must be single-quoted, not part of it.
+
+---
+
 ## Session 2026-07-27 — Fixed Tabs and Detachable Frames
 
 ### Context
