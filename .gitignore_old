@@ -73,12 +73,10 @@ url/
 eshell/
 network-security.data
 
-# Undo history
-# undo-fu-session stores the ACTUAL TEXT of edited buffers, including
-# notes -- never commit it.
-undo-fu-session/
+# Undo-tree history
 undo-tree-history/
 .undo-tree-*
+undo-fu-session/
 
 # Compiled files
 *.elc
@@ -95,11 +93,6 @@ undo-tree-history/
 *.backup.*
 .backups/
 .autosaves/
-# Without the leading dot: my-emacs-backups / my-emacs-autosaves in
-# 00-core.el point here, and these hold full copies of files from
-# outside the repo (notes, ~/Documents, ...).
-backups/
-autosaves/
 
 # Version backups
 init.el_v*.txt
@@ -126,48 +119,12 @@ request/curl-cookie-jar
 curl-cookie-jar
 
 # ============================================================
-# PER-MACHINE STATE AND READING/CONNECTION HISTORY
+# KEEP ONLY CONFIGURATION FILES
 # ============================================================
+# Everything above is ignored, but these are explicitly tracked:
 
-# TRAMP connection history: remote hostnames and paths
-tramp
-
-# ELisp REPL history
-ielm-history.eld
-
-# nov.el reading positions: reveals which books are being read
-nov-places
-
-logs/
-games/
-
-# ============================================================
-# NOTE ON THE NEGATION PATTERNS THAT USED TO BE HERE
-# ============================================================
-# This file previously ended with:
-#
-#     !init.el
-#     !early-init.el
-#     !modules/
-#     ...
-#
-# under the heading "keep only configuration files". Those lines had
-# no effect. A negation pattern only re-includes a path that an
-# EARLIER pattern excluded, and nothing here excludes them -- there is
-# no catch-all "*". They therefore did not restrict tracking to config
-# files; anything not matched above was, and is, tracked.
-#
-# Switching to a deny-by-default policy would be the stricter design:
-#
-#     *
-#     !*/
-#     !init.el
-#     !early-init.el
-#     !modules/**.el
-#     !.gitignore
-#     !README.md
-#
-# That is deliberately NOT enabled here, because it would silently
-# stop tracking files that are currently committed on purpose
-# (custom.el, function_helper.org, CHANGELOG.md, templates/). Switch
-# only after auditing `git ls-files` and adding the wanted paths back.
+!init.el
+!early-init.el
+!modules/
+!.gitignore
+!README.md
