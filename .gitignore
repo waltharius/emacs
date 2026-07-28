@@ -45,12 +45,16 @@ keys
 .emacs.keyfreq
 
 # ============================================================
-# SYNCTHING CONFLICTS - Never commit these!
+# SYNCTHING - Never commit these!
 # ============================================================
 
 .stversions/
 *.sync-conflict-*
 *sync-conflict*
+
+# Per-device folder marker; carrying it in the repo confuses Syncthing
+# when the config is cloned onto another machine.
+.stfolder/
 
 # ============================================================
 # INSTALLED PACKAGES - Auto-downloaded, don't version
