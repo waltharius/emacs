@@ -626,6 +626,14 @@ perfectly normal thing to do.")
 (defvar-local my/readwise--entries nil
   "Entries backing the current book list.")
 
+(defvar my/readwise--filter ""
+  "Text currently filtering the book list.
+
+Global, like the sort key, so it survives going into a book and back.
+A filter that silently reset on every return would be worse than no
+filter, since the list would look complete when it is not -- which is
+also why the active filter is shown in the mode line.")
+
 (defun my/readwise--book-list-entries (entries)
   "Convert ENTRIES into `tabulated-list-entries' form."
   (mapcar
@@ -696,8 +704,11 @@ book.")
 (defun my/readwise-review ()
   "List imported books that still have unprocessed quotes.
 
-Sort with `S' on a column, or click its header.  `/' filters by text
-in the author or title."
+Sort with `S' on a column, or click its header; the choice is kept
+for later visits.  `/' filters by author or title, narrowing as you
+type, and `C-/' clears it.  An active filter is shown in the mode
+line, since a persistent one that were invisible would make a partial
+list look complete."
   (interactive)
   (let ((entries (my/readwise--collect)))
     (my/fixed-tab-goto my/readwise-tab-name)
@@ -705,32 +716,83 @@ in the author or title."
       (with-current-buffer buffer
         (my/readwise-books-mode)
         (setq my/readwise--entries entries)
-        (setq tabulated-list-entries (my/readwise--book-list-entries entries))
-        (tabulated-list-print t))
+        (my/readwise--render buffer my/readwise--filter))
       (switch-to-buffer buffer)
       (delete-other-windows)
-      (message "%d book(s) with unprocessed quotes" (length entries)))))
+      (message "%d book(s) with unprocessed quotes%s"
+               (length entries)
+               (if (string-empty-p my/readwise--filter) ""
+                 (format ", filtered by \"%s\"" my/readwise--filter))))))
 
-(defun my/readwise-filter (text)
-  "Show only books whose author or title contains TEXT.
-An empty TEXT restores the full list."
-  (interactive "sFilter (author or title, empty to clear): ")
+(defun my/readwise--matches-filter-p (entry needle)
+  "Return non-nil when ENTRY's author or title contains NEEDLE.
+
+Author and title are matched as one string, so a search need not know
+which field a word lives in.  That also covers the case this was asked
+for: the same author recorded as \"Emil Cioran\" in one book and
+\"Cioran Emil\" in another still matches a search for \"cioran\"."
+  (let ((book (plist-get entry :book)))
+    (string-match-p
+     (regexp-quote needle)
+     (downcase (concat (or (plist-get book :author) "") " "
+                       (or (plist-get book :title) ""))))))
+
+(defun my/readwise--render (buffer needle)
+  "Redraw BUFFER's book list, keeping only entries matching NEEDLE."
+  (when (buffer-live-p buffer)
+    (with-current-buffer buffer
+      (let* ((needle (downcase (string-trim (or needle ""))))
+             (kept (if (string-empty-p needle)
+                       my/readwise--entries
+                     (seq-filter (lambda (e)
+                                   (my/readwise--matches-filter-p e needle))
+                                 my/readwise--entries))))
+        (setq tabulated-list-entries (my/readwise--book-list-entries kept))
+        (tabulated-list-print t)
+        (setq mode-line-process
+              (unless (string-empty-p needle) (format " [/%s]" needle)))
+        (force-mode-line-update)
+        (length kept)))))
+
+(defun my/readwise-filter ()
+  "Filter the book list by author or title, live as you type.
+
+Redrawing runs from `post-command-hook' inside the minibuffer, so the
+list narrows on each keystroke rather than only on RET.  With fewer
+than a hundred books the redraw is not noticeable; if it ever were,
+the same function works unchanged from a plain prompt.
+
+RET keeps the filter, C-g restores whatever was in effect before."
+  (interactive)
   (unless (derived-mode-p 'my/readwise-books-mode)
     (user-error "Not in the Readwise book list"))
-  (let* ((needle (downcase (string-trim text)))
-         (kept (if (string-empty-p needle)
-                   my/readwise--entries
-                 (seq-filter
-                  (lambda (entry)
-                    (let ((book (plist-get entry :book)))
-                      (string-match-p
-                       (regexp-quote needle)
-                       (downcase (concat (or (plist-get book :author) "") " "
-                                         (or (plist-get book :title) ""))))))
-                  my/readwise--entries))))
-    (setq tabulated-list-entries (my/readwise--book-list-entries kept))
-    (tabulated-list-print t)
-    (message "%d of %d book(s)" (length kept) (length my/readwise--entries))))
+  (let ((buffer (current-buffer))
+        (previous my/readwise--filter))
+    (condition-case nil
+        (let ((text (minibuffer-with-setup-hook
+                        (lambda ()
+                          (add-hook 'post-command-hook
+                                    (lambda ()
+                                      (my/readwise--render
+                                       buffer (minibuffer-contents)))
+                                    nil t))
+                      (read-string "Filter (author or title): "
+                                   my/readwise--filter))))
+          (setq my/readwise--filter (string-trim text))
+          (message "%d of %d book(s)"
+                   (or (my/readwise--render buffer my/readwise--filter) 0)
+                   (length (buffer-local-value 'my/readwise--entries buffer))))
+      (quit
+       (setq my/readwise--filter previous)
+       (my/readwise--render buffer previous)
+       (message "Filter unchanged")))))
+
+(defun my/readwise-filter-clear ()
+  "Remove the book list filter."
+  (interactive)
+  (setq my/readwise--filter "")
+  (my/readwise--render (current-buffer) "")
+  (message "Filter cleared"))
 
 (defun my/readwise-open-book ()
   "Open the quote list for the book at point."
