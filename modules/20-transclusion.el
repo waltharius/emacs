@@ -56,7 +56,9 @@ DISPLAY is prefixed with stars to show heading depth."
   (let (headings)
     (with-temp-buffer
       (insert-file-contents file)
-      (org-mode)
+      ;; No `org-mode' here: the scan is purely regexp-based, and
+      ;; enabling Org in a temp buffer is expensive enough to be
+      ;; noticeable when the wizard is opened repeatedly.
       (goto-char (point-min))
       (while (re-search-forward "^\\(\\*+\\)[ \t]+\\(.*\\)$" nil t)
         (let* ((stars (match-string 1))
@@ -208,36 +210,40 @@ the user cancelled."
 ;; INSERT HELPERS: build the transclude + include pair
 ;; ============================================================
 
+(defun my/--transclusion-insert-pair (transclude-line include-line)
+  "Insert TRANSCLUDE-LINE and INCLUDE-LINE at point and expand the former.
+
+Leaves point after the inserted pair.  The previous version ended with
+`(goto-char (point-max))\=', which sent point to the end of the BUFFER
+rather than the end of what was just inserted -- so inserting a
+transclusion in the middle of a draft threw the cursor to the bottom of
+the file every time."
+  (let ((start (point)))
+    (insert transclude-line include-line)
+    (let ((end (point-marker)))
+      (goto-char start)
+      (org-transclusion-add)
+      (goto-char end))))
+
 (defun my/--transclusion-insert-whole (file title)
   "Insert transclude + include pair for the WHOLE FILE with TITLE."
-  (let ((line-start (point)))
-    (insert (format "#+transclude: [[file:%s][%s]] \n" file title))
-    (insert (format "#+INCLUDE: \"%s\" :only-contents  t\n" file))
-    (goto-char line-start)
-    (org-transclusion-add)
-    (goto-char (point-max))))
+  (my/--transclusion-insert-pair
+   (format "#+transclude: [[file:%s][%s]]\n" file title)
+   (format "#+INCLUDE: \"%s\" :only-contents t\n" file)))
 
 (defun my/--transclusion-insert-heading (file title custom-id heading-title)
   "Insert transclude + include pair for a HEADING (by CUSTOM-ID) in FILE."
-  (let ((line-start (point))
-        (link-desc (format "%s — %s" title heading-title)))
-    (insert (format "#+transclude: [[file:%s::#%s][%s]] \n"
-                    file custom-id link-desc))
-    (insert (format "#+INCLUDE: \"%s::#%s\" :only-contents  t\n" file custom-id))
-    (goto-char line-start)
-    (org-transclusion-add)
-    (goto-char (point-max))))
+  (let ((link-desc (format "%s — %s" title heading-title)))
+    (my/--transclusion-insert-pair
+     (format "#+transclude: [[file:%s::#%s][%s]]\n" file custom-id link-desc)
+     (format "#+INCLUDE: \"%s::#%s\" :only-contents t\n" file custom-id))))
 
 (defun my/--transclusion-insert-paragraph (file title target-id)
   "Insert transclude + include pair for a PARAGRAPH (by TARGET-ID) in FILE."
-  (let ((line-start (point))
-        (link-desc (format "%s — paragraph" title)))
-    (insert (format "#+transclude: [[file:%s::%s][%s]] \n"
-                    file target-id link-desc))
-    (insert (format "#+INCLUDE: \"%s::%s\" :only-contents  t\n" file target-id))
-    (goto-char line-start)
-    (org-transclusion-add)
-    (goto-char (point-max))))
+  (let ((link-desc (format "%s — paragraph" title)))
+    (my/--transclusion-insert-pair
+     (format "#+transclude: [[file:%s::%s][%s]]\n" file target-id link-desc)
+     (format "#+INCLUDE: \"%s::%s\" :only-contents t\n" file target-id))))
 
 ;; ============================================================
 ;; MAIN WIZARD: pick source -> pick target -> insert transclude pair
@@ -323,6 +329,34 @@ Commit your notes before heavy first use."
   (ignore-errors (transient-remove-suffix 'my/notes-insert-menu "t"))
   (transient-append-suffix 'my/notes-insert-menu "w"
     '("t" "Transclusion →" my/transclusion-menu)))
+
+;; ============================================================
+;; EXPORT SAFETY
+;; ============================================================
+;; Two problems make exporting a buffer with live transclusions
+;; unreliable, and both are solved by collapsing them first.
+;;
+;; 1. Duplication.  `org-transclusion-add' inserts the source text into
+;;    the buffer, and the paired `#+INCLUDE:' pulls the same text again
+;;    at export time -- so an active transclusion exports twice.
+;;
+;; 2. Read-only text.  Transcluded regions carry a read-only property,
+;;    and the Org exporter is documented as being sensitive to it; see
+;;    nobiot/org-transclusion issue #86, where export ends with a
+;;    read-only complaint and produces no file.
+;;
+;; Removing transclusions only collapses the keyword lines back to
+;; their `#+transclude:' form, so nothing is lost and the buffer can be
+;; re-expanded with `A' afterwards.
+
+(defun my/transclusion--collapse-before-export (backend)
+  "Remove live transclusions before an export run.  BACKEND is ignored."
+  (ignore backend)
+  (when (bound-and-true-p org-transclusion-mode)
+    (org-transclusion-remove-all)))
+
+(add-hook 'org-export-before-processing-functions
+          #'my/transclusion--collapse-before-export)
 
 (provide '20-transclusion)
 ;;; 20-transclusion.el ends here
