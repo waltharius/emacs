@@ -68,14 +68,19 @@ of a document's requirements, not part of the editor: which style a
 text uses is decided by the journal or publisher, and the file has to
 travel with the writing.")
 
-(defvar my/csl-default-style "chicago-note-bibliography.csl"
+(defvar my/csl-default-style "chicago-notes-bibliography.csl"
   "CSL style used when a document does not name its own.
 
 A note style, since footnote citations are the default need here.
 Override per document instead of changing this, because the style is a
 property of the text rather than of the configuration:
 
-  #+cite_export: csl apa.csl")
+  #+cite_export: csl apa.csl
+
+Note the plural in \"notes\": the CSL styles repository renamed the
+Chicago styles, and the old singular name now 404s.  Verify the
+downloaded file is around 100 kB rather than the 14 bytes of an error
+page -- `my/csl-check-setup\=' checks this.")
 
 (with-eval-after-load 'oc
   ;; The styles directory is set unconditionally and first.  Loading
@@ -103,6 +108,22 @@ citations will export through the basic processor"))
   (setq org-cite-export-processors
         `((t csl ,my/csl-default-style))))
 
+(defun my/csl--valid-file-p (file opening-tag)
+  "Return non-nil when FILE looks like real XML containing OPENING-TAG.
+
+Checking readability is not enough.  A failed download leaves a
+perfectly readable file behind: `curl -O\=' writes the server\='s error
+body, so a renamed or moved style arrives as a 14-byte file containing
+\"404: Not Found\".  Citeproc then parses an empty style, produces no
+layout parameters, and the export fails far away from the cause with
+`Wrong type argument: numberp, nil\='."
+  (and (file-readable-p file)
+       (> (or (file-attribute-size (file-attributes file)) 0) 200)
+       (with-temp-buffer
+         (insert-file-contents file nil 0 2000)
+         (goto-char (point-min))
+         (search-forward opening-tag nil t))))
+
 (defun my/csl-check-setup ()
   "Report whether CSL export is ready, and what is missing if not.
 
@@ -125,11 +146,27 @@ until the document is finished."
     (unless (file-directory-p my/csl-locales-dir)
       (push (format "no CSL locales directory: %s" my/csl-locales-dir) problems))
     (let ((locale (expand-file-name "locales-pl-PL.xml" my/csl-locales-dir)))
-      (unless (file-readable-p locale)
-        (push (format "Polish locale missing: %s" locale) problems)))
+      (cond
+       ((not (file-readable-p locale))
+        (push (format "Polish locale missing: %s" locale) problems))
+       ((not (my/csl--valid-file-p locale "<locale"))
+        (push (format "not a CSL locale (%d bytes): %s"
+                      (file-attribute-size (file-attributes locale)) locale)
+              problems))))
+    (unless (equal (expand-file-name my/csl-locales-dir)
+                   (and org-cite-csl-locales-dir
+                        (expand-file-name org-cite-csl-locales-dir)))
+      (push (format "org-cite-csl-locales-dir is %S, not %S -- the setq did not take effect"
+                    org-cite-csl-locales-dir my/csl-locales-dir)
+            problems))
     (let ((style (expand-file-name my/csl-default-style my/csl-styles-dir)))
-      (unless (file-readable-p style)
-        (push (format "default style missing: %s" style) problems)))
+      (cond
+       ((not (file-readable-p style))
+        (push (format "default style missing: %s" style) problems))
+       ((not (my/csl--valid-file-p style "<style"))
+        (push (format "not a CSL style (%d bytes): %s"
+                      (file-attribute-size (file-attributes style)) style)
+              problems))))
     (dolist (bib (if (listp org-cite-global-bibliography)
                      org-cite-global-bibliography
                    (list org-cite-global-bibliography)))
