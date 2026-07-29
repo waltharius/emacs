@@ -7,6 +7,121 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-07-29 — Org-transclusion Review
+
+### Context
+
+The org-transclusion setup had not been touched since the module was
+written, while the documentation note describing it dated from October
+2025 and described a keybinding scheme that no longer exists. Reading
+the module for that update surfaced three defects worth fixing.
+
+---
+
+### A — `modules/20-transclusion.el` — Cursor jump, export safety, temp-buffer cost
+
+#### A1 — Point was thrown to the end of the buffer on every insert
+
+All three insert helpers ended with `(goto-char (point-max))`. That is
+the end of the *buffer*, not the end of the text just inserted, so
+adding a transclusion in the middle of a draft moved the cursor to the
+bottom of the file every time.
+
+The three helpers were also near-identical, differing only in the two
+format strings. Both problems are fixed by one
+`my/--transclusion-insert-pair`, which records the end of the inserted
+region in a marker — a plain integer would be invalidated by
+`org-transclusion-add` inserting the source text ahead of it — expands
+the transclusion, and returns point to that marker.
+
+Trailing whitespace in the generated `#+transclude:` lines and the
+doubled space in `:only-contents  t` went with it.
+
+#### A2 — Export could duplicate content or fail outright
+
+The module inserts a `#+transclude:` / `#+INCLUDE:` pair: the first
+works in the editor, the second at export time. That pairing is
+sound, but nothing prevented exporting while transclusions were
+*active* — and then `org-transclusion-add` has already inserted the
+source text into the buffer, so `#+INCLUDE:` pulls the same text a
+second time.
+
+Separately, transcluded regions carry a read-only text property, and
+the Org exporter is documented as sensitive to it. Issue #86 in
+nobiot/org-transclusion reports an export ending with a read-only
+complaint and producing no file, and a comment in the package source
+states that export may require the buffer to contain no read-only
+elements.
+
+`my/transclusion--collapse-before-export` on
+`org-export-before-processing-functions` removes live transclusions
+first. This is lossless: removal collapses each block back to its
+`#+transclude:` keyword, and `A` re-expands afterwards.
+
+The previous documentation note told the user to disable
+transclusion-mode manually before exporting, which is the same fix
+performed by hand and easy to forget.
+
+#### A3 — `org-mode` enabled in a temp buffer for a regexp scan
+
+`my/--org-file-headings` enabled `org-mode` in its temp buffer and
+then searched with a plain regexp, so the mode bought nothing while
+costing a full Org initialisation on every wizard invocation.
+Removed.
+
+Deliberately kept in `my/--extract-paragraphs`, where
+`forward-paragraph` does depend on Org's paragraph definitions.
+
+#### Reviewed and left alone
+
+- `my/--ensure-custom-id` opens the source file with
+  `find-file-noselect` and never kills the buffer, so every wizard run
+  leaves one behind. This interacts with the desktop trim in
+  `01-ui.el`, where those buffers count toward the limit. Left as is
+  because an open source buffer is often wanted — the next step after
+  transcluding a heading is frequently editing it — but worth
+  revisiting if the buffer list starts filling with files never
+  deliberately opened.
+- `my/--extract-paragraphs` computes positions in a temp buffer and
+  then uses them in the buffer returned by `find-file-noselect`. The
+  two agree unless the file is already open and modified. Fragile
+  rather than wrong; a correct version would locate the paragraph in
+  the target buffer instead.
+- The module hooks its submenu on with `with-eval-after-load
+  '12-transient` plus `transient-remove-suffix`, where the later
+  modules (19, 22, 24) append directly behind a `transient-get-suffix`
+  guard. Both work; the inconsistency is noted for a future tidy-up
+  rather than churned now.
+
+---
+
+### B — Documentation note rewritten
+
+The note describing transclusion usage dated from 2025-10 and had
+drifted badly:
+
+- Every keybinding it listed (`C-c t a/A/t/m/r/R`, from
+  "06-keybindings.el") no longer exists. `C-c t` is now the tab-bar
+  prefix, and transclusion lives under `C-c n i t`.
+- The wizard, the `<<target>>` paragraph anchors and the
+  `#+transclude:` / `#+INCLUDE:` pairing — the substance of the
+  current implementation — were absent entirely.
+- A comparison table claimed export "works", which A2 shows is only
+  true with the workaround in place.
+
+Rewritten around the current commands, with the anchor side effect
+stated plainly (the wizard writes `CUSTOM_ID` and `<<target>>` into
+source files it was never asked to open), the export caveat, and
+workflow sections for philosophical and technical notes.
+
+The workflow section draws the distinction the earlier note lacked:
+signatures record where a thought came from, links record what it
+connects to, and transclusion records what you want in front of you
+while writing. Only the third is about drafting, which is why a draft
+assembled from transclusions is disposable while its sources are not.
+
+---
+
 ## Session 2026-07-28b — Readwise Import
 
 ### Context

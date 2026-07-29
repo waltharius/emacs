@@ -359,6 +359,34 @@ Obsidian-style transclusion for Denote notes and arbitrary files.
 Lets you choose a source, then a target inside that source, and inserts
 both a live =#+transclude:= directive and an export-time =#+INCLUDE:= directive.
 
+**** Why a pair, and why export needs care
+
+=#+transclude:= works in the editor; =#+INCLUDE:= is what actually
+reaches an export, because transcluded regions carry a read-only text
+property that the Org exporter is documented as sensitive to (issue
+#86 in nobiot/org-transclusion reports an export failing on it with no
+file produced).
+
+The pairing creates its own hazard: with a transclusion *expanded*,
+the source text is already in the buffer, so =#+INCLUDE:= would pull it
+in a second time and the export would contain it twice.
+=my/transclusion--collapse-before-export= on
+=org-export-before-processing-functions= therefore removes live
+transclusions before every export. Removal is lossless — the
+=#+transclude:= keyword remains and =A= re-expands afterwards.
+
+**** Side effect worth knowing
+
+Heading and paragraph targets need a stable anchor, so the wizard
+writes =:CUSTOM_ID:= or =<<target>>= into the *source* file and saves
+it. That means it modifies files you never opened. Anchoring by line
+number or heading text instead would break on the first edit of the
+source, so the write is the lesser cost — but commit before heavy
+first use.
+
+Full guide with workflow and examples:
+=~/notes/docu/…org-transclusion-przyklady…org=
+
 Module: =modules/20-transclusion.el=
 
 **** a — Add transclusion (wizard)
