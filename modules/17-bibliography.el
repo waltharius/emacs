@@ -31,6 +31,86 @@
   (setq org-cite-activate-processor 'citar))
 
 ;; ============================================================
+;; CITATION EXPORT — CSL
+;; ============================================================
+;; Citar above configures three of the four org-cite processors:
+;; insert, follow and activate.  Those all work inside the editor.
+;; The fourth, `org-cite-export-processor', decides what a citation
+;; turns into when the document is exported -- and without it Org falls
+;; back to the `basic' processor, which emits a plain-text key and no
+;; real bibliography.  Citations therefore looked fine while writing
+;; and came out wrong on export.
+;;
+;; CSL rather than biblatex, because biblatex only exists inside LaTeX
+;; and the deliverables here include ODT and EPUB as well as PDF.  One
+;; mechanism has to serve all three, and only CSL does.
+;;
+;; CSL handles note styles properly: the specification defines the
+;; `ibid', `ibid-with-locator', `subsequent' and `near-note' positions,
+;; and note styles such as chicago-note-bibliography implement them, so
+;; repeated references shorten the way a humanities text expects.
+;;
+;; Known limitation, worth remembering before a deadline rather than
+;; during one: a plain discursive footnote sitting between two
+;; citations can confuse position tracking, so an "ibid." may appear
+;; where "op. cit." belongs.  Proofread citation runs in a text with
+;; dense commentary footnotes.
+
+(use-package citeproc
+  :ensure t
+  :after oc)
+
+(defvar my/csl-styles-dir (expand-file-name "csl/" my-notes-dir)
+  "Directory holding CSL style files (.csl).
+
+Kept beside the notes rather than in .emacs.d because a style is part
+of a document's requirements, not part of the editor: which style a
+text uses is decided by the journal or publisher, and the file has to
+travel with the writing.")
+
+(defvar my/csl-default-style "chicago-note-bibliography.csl"
+  "CSL style used when a document does not name its own.
+
+A note style, since footnote citations are the default need here.
+Override per document instead of changing this, because the style is a
+property of the text rather than of the configuration:
+
+  #+cite_export: csl apa.csl")
+
+(with-eval-after-load 'oc
+  (require 'oc-csl)
+  (setq org-cite-csl-styles-dir my/csl-styles-dir)
+  (setq org-cite-export-processor
+        (list 'csl my/csl-default-style)))
+
+(defun my/csl-check-setup ()
+  "Report whether CSL export is ready, and what is missing if not.
+
+Written because every failure here is silent: a missing style
+directory or an unreadable .bib does not raise an error, it just
+produces an export with no bibliography, which is easy not to notice
+until the document is finished."
+  (interactive)
+  (let ((problems nil))
+    (unless (featurep 'citeproc)
+      (push "citeproc is not loaded (M-x package-install RET citeproc)" problems))
+    (unless (file-directory-p my/csl-styles-dir)
+      (push (format "no CSL styles directory: %s" my/csl-styles-dir) problems))
+    (let ((style (expand-file-name my/csl-default-style my/csl-styles-dir)))
+      (unless (file-readable-p style)
+        (push (format "default style missing: %s" style) problems)))
+    (dolist (bib (if (listp org-cite-global-bibliography)
+                     org-cite-global-bibliography
+                   (list org-cite-global-bibliography)))
+      (unless (file-readable-p bib)
+        (push (format "bibliography not readable: %s" bib) problems)))
+    (if problems
+        (message "CSL export NOT ready:\n- %s" (string-join (nreverse problems) "\n- "))
+      (message "CSL export ready: %s + %s"
+               my/csl-default-style
+               (string-join org-cite-global-bibliography ", ")))))
+
+;; ============================================================
 ;; DENOTE TEMPLATE: Bibliographic note front matter
 ;; ============================================================
 ;; Note: #+reference is added automatically by citar-denote — do not duplicate it here.
