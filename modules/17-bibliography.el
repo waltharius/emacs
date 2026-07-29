@@ -78,10 +78,30 @@ property of the text rather than of the configuration:
   #+cite_export: csl apa.csl")
 
 (with-eval-after-load 'oc
-  (require 'oc-csl)
+  ;; The styles directory is set unconditionally and first.  Loading
+  ;; oc-csl can fail -- most plausibly because citeproc is not
+  ;; installed yet -- and an error inside `with-eval-after-load' aborts
+  ;; the remainder of the block silently.  With the require on top, a
+  ;; missing citeproc therefore left `org-cite-export-processors'
+  ;; unset, Org fell back to its built-in `basic' processor, and export
+  ;; produced "(Author, Year)" with no bibliography and no visible
+  ;; error anywhere.
   (setq org-cite-csl-styles-dir my/csl-styles-dir)
-  (setq org-cite-export-processor
-        (list 'csl my/csl-default-style)))
+  (unless (require 'oc-csl nil t)
+    (message "org-cite: oc-csl unavailable (is citeproc installed?) -- \
+citations will export through the basic processor"))
+  ;; NOTE the plural.  `org-cite-export-processors' is the global
+  ;; setting: an alist keyed by export backend, where `t' is the
+  ;; fallback for every backend without its own entry.  The SINGULAR
+  ;; `org-cite-export-processor' is a buffer-local variable set by a
+  ;; `#+cite_export:' keyword, so assigning it globally has no effect
+  ;; -- Org then silently falls back to the `basic' processor, which
+  ;; emits a plain "(Author, Year)" and no bibliography.
+  ;;
+  ;; Each entry is (BACKEND PROCESSOR BIBLIOGRAPHY-STYLE), mirroring
+  ;; the argument order of the #+cite_export: keyword.
+  (setq org-cite-export-processors
+        `((t csl ,my/csl-default-style))))
 
 (defun my/csl-check-setup ()
   "Report whether CSL export is ready, and what is missing if not.
@@ -94,6 +114,12 @@ until the document is finished."
   (let ((problems nil))
     (unless (featurep 'citeproc)
       (push "citeproc is not loaded (M-x package-install RET citeproc)" problems))
+    (unless (featurep 'oc-csl)
+      (push "oc-csl is not loaded -- export falls back to the basic processor"
+            problems))
+    (unless (assq t org-cite-export-processors)
+      (push "org-cite-export-processors has no fallback entry -- citations will export via the basic processor"
+            problems))
     (unless (file-directory-p my/csl-styles-dir)
       (push (format "no CSL styles directory: %s" my/csl-styles-dir) problems))
     (let ((style (expand-file-name my/csl-default-style my/csl-styles-dir)))
@@ -106,8 +132,9 @@ until the document is finished."
         (push (format "bibliography not readable: %s" bib) problems)))
     (if problems
         (message "CSL export NOT ready:\n- %s" (string-join (nreverse problems) "\n- "))
-      (message "CSL export ready: %s + %s"
+      (message "CSL export ready: %s via %S + %s"
                my/csl-default-style
+               (cadr (assq t org-cite-export-processors))
                (string-join org-cite-global-bibliography ", ")))))
 
 ;; ============================================================
