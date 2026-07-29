@@ -26,19 +26,41 @@ findings shaped this design.
 
 #### What changed
 
-`my/readwise-review` (`C-c r r`) lists imported books with their
-unprocessed quote counts; selecting one lists its unprocessed quotes.
-`RET` promotes into `pks` and stays in the list, `o` promotes and
-switches to the new note, `q` goes back to the books.
+`my/readwise-review` (`C-c r r`) lists imported books that still have
+unprocessed quotes; selecting one lists that book's quotes.
 
-Two levels rather than one flat list: with 89 books and hundreds of
-highlights in some, a single list of every unprocessed quote would be
-unusable, and the book is shared context for all its quotes.
+Book list is a `tabulated-list-mode` buffer with sortable columns —
+unprocessed count, total, author, import date, title. Sorting and
+alignment come free, so this ended up shorter than the hand-drawn list
+it replaced. `mouse-1` opens a row; `S` or a header click re-sorts;
+`/` filters; `g` rebuilds.
 
-Promotion prompts for title, tags, and whether to carry over the
-personal comment — defaulting to yes so a bare RET accepts it. The
-comment is optional because it is often a reaction to the passage
-rather than material for the note.
+Quote list offers four actions, from the keyboard or from per-quote
+buttons:
+
+| Key | Effect                                       |
+|-----|----------------------------------------------|
+| RET | create a note, stay in the list              |
+| o   | create a note and show it beside the list    |
+| z   | create a note, then run the Folgezettel commands on it |
+| a   | add the quote to an EXISTING note as evidence |
+
+Quote lines show the Readwise URL as a clickable button.
+
+#### Consumed versus cited
+
+`a` needed a distinction that did not exist. A quote can be *consumed*
+— a note IS that quote, nothing left to do — or merely *cited*, where
+a note about the book quotes it as evidence. Citing must not hide the
+quote, since it remains available to become a note of its own.
+
+They are told apart by the marker written into the note:
+`:RW_ID: rw-N` for consumed, `#+name: rw-N` for cited. The pks scan
+classifies on that, and cited quotes stay listed, marked `[CYTOWANY]`.
+
+Without the distinction, quoting a passage in a book note would
+silently remove it from review — the failure mode this was designed
+around.
 
 #### Embedding rather than linking
 
@@ -49,20 +71,47 @@ link would eventually dangle.
 
 #### Processed-state detection
 
-`my/readwise--promoted-ids` scans pks once and collects every `rw-<id>`
-found. Because promotion writes `RW_ID` into the note, pks is the
-single source of truth, and it survives losing the import directory
-entirely.
+`my/readwise--promoted-ids` scans pks once and classifies every
+`rw-<id>` it finds. Because promotion writes the id into the note, pks
+is the single source of truth, and it survives losing the import
+directory entirely — which an index kept beside those disposable files
+would not.
 
 One pass over pks rather than a grep per quote: a book can hold
 hundreds of highlights, so per-quote scanning would be quadratic.
 
-#### Within-session marking
+#### When the list is marked and when it is rebuilt
 
-The list is not rebuilt after each promotion — that would lose the
-review position mid-run — so a promoted quote is dimmed, prefixed
-`DONE` and disarmed instead. Without it a promoted quote looks
-identical to an unprocessed one and is easy to promote twice.
+`RET` and `a` only mark the used quote — dimmed, labelled, disarmed —
+because both are for working down the list, where a rebuild would lose
+the position.
+
+`o` and `z` rebuild instead, so the consumed quote disappears rather
+than lingering struck through. That is affordable precisely because
+attention moves to the new note anyway, leaving no position to
+preserve.
+
+The action buttons hold a marker pointing at the quote button rather
+than their own copy of the record, so the done state lives in one
+place and marking it disarms all five entry points at once.
+
+#### Sort and filter persist
+
+Both are held in globals rather than buffer-locals.
+`tabulated-list-sort-key` is buffer-local and cleared by
+`define-derived-mode`, so a chosen sort was lost on every return from
+a book.
+
+`/` narrows the list as you type, redrawing from `post-command-hook`
+inside the minibuffer; `C-g` restores the previous filter, `C-/`
+clears it. Author and title are matched as one string, so a search
+need not know which field a word lives in — the case that prompted it
+being the same author recorded as "Emil Cioran" in one book and
+"Cioran Emil" in another.
+
+A persistent filter that were invisible would make a partial list look
+complete, so the active one appears in the mode line and is named in
+the message after a rebuild.
 
 #### Parsing
 
@@ -73,15 +122,37 @@ occur. The regexps were checked against the first real import (92 and
 239 highlights) and extracted every quote, location and URL, with note
 counts matching an independent count.
 
-#### Fixed alongside
+#### Bugs found and fixed during this work
 
-The importer wrote `#+identifier:` derived from the import time, so
-all 89 files produced by one run claimed the same identifier. The
-field has no function outside `denote-directory` and a duplicated
-identifier is worse than none — it would collide the moment a file was
-moved into the notes tree — so it is no longer written.
+- The books keymap was `defvar`-ed after `define-derived-mode`, which
+  creates `NAME-map` itself when the symbol is unbound. The later
+  `defvar` is a no-op on an already-bound variable, so every binding
+  in the book list would have been silently lost.
+- The note window was remembered buffer-locally. Rebuilding the quote
+  list re-runs its major mode, which cleared the value and made the
+  next promotion split a third window instead of reusing the second.
+  Introduced by the rebuild-on-open change and caught in the same pass.
+- The filter variable was defined below `my/readwise-review`, which
+  reads it — byte-compilation would report a free variable.
 
----
+#### Fixed in the importer alongside
+
+`#+identifier:` was derived from the import time, so all 89 files
+produced by one run claimed the same identifier. The field has no
+function outside `denote-directory`, and a duplicate is worse than
+none — it would collide the moment a file was moved into the notes
+tree — so it is no longer written.
+
+#### Multiple authors: deliberately not parsed
+
+Readwise's `author` is free display text with no separator convention;
+one book arrived as "Neil BrowneStuart M. Keeley". Splitting it
+heuristically would misfire on double-barrelled names, particles and
+initials, so the importer passes the field through unchanged and
+correction happens in Readwise. The structural answer, if it is ever
+wanted, is to record a Citar key on the promoted note and let Zotero
+be authoritative for bibliography rather than duplicating an unreliable
+string.
 
 ### A — `modules/24-readwise.el` (new) — Importer
 

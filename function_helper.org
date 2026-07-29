@@ -1105,7 +1105,7 @@ Imports Readwise highlights into one Org file per book, kept in
 | Key       | Command                     | Effect                          |
 |-----------+-----------------------------+---------------------------------|
 | =C-c r s= | =my/readwise-sync=          | Incremental sync (=C-u= = full) |
-| =C-c r r= | =my/readwise-review=        | Books with unprocessed quotes   |
+| =C-c r r= | =my/readwise-review=         | Books with unprocessed quotes  |
 | =C-c r o= | =my/readwise-open-directory= | Import folder in Dired         |
 | =s= / =S= | in the menu                 | Incremental / full sync         |
 
@@ -1162,31 +1162,84 @@ of this material did.
 
 ** Review and promotion
 
-=C-c r r= (or =r= in the menu) lists imported books with their
-unprocessed quote counts; books with nothing left are omitted.
-Selecting a book lists its unprocessed quotes.
+=C-c r r= (or =r= in the menu) lists imported books that still have
+unprocessed quotes. Selecting one lists that book's quotes.
 
-| Key   | In the quote list                          |
-|-------+--------------------------------------------|
-| =RET= | Promote and stay in the list               |
-| =o=   | Promote and switch to the new note         |
-| =q=   | Back to the book list                      |
+*** Book list
 
-Two levels rather than one flat list on purpose. With dozens of books
-and hundreds of highlights in some, a single list of every unprocessed
-quote is unusable — and the book is shared context for all its quotes,
-so working through one book at a time matches how the material was
-read.
+A =tabulated-list-mode= buffer, which supplies column sorting and
+alignment without hand-drawing either.
+
+| Key       | Effect                                    |
+|-----------+-------------------------------------------|
+| =RET=     | Open the book's quotes                    |
+| =mouse-1= | Same                                      |
+| =S=       | Sort by the column at point               |
+| =/=       | Filter by author or title (live)          |
+| =C-/=     | Clear the filter                          |
+| =g=       | Rebuild from disk and pks                 |
+| =q=       | Bury                                      |
+
+Columns: unprocessed count, total, author, import date, title.
+
+Sort choice and filter both persist across entering a book and
+returning, since both are held in globals.
+=tabulated-list-sort-key= is buffer-local and cleared by
+=define-derived-mode=, so a chosen sort would otherwise reset on every
+return.
+
+=/= narrows as you type. Author and title are matched as a single
+string, so a search need not know which field a word lives in — the
+same author recorded as "Emil Cioran" in one book and "Cioran Emil" in
+another both match =cioran=. =C-g= restores the previous filter.
+
+An active filter shows in the mode line as =[/text]= and is named in
+the message after a rebuild: a persistent filter that were invisible
+would make a partial list look complete.
+
+*** Quote list
+
+Four actions, available from the keyboard or from the per-quote
+buttons beneath each quote:
+
+| Key   | Effect                                                  |
+|-------+---------------------------------------------------------|
+| =RET= | Create a note, stay in the list                         |
+| =o=   | Create a note and show it beside the list               |
+| =z=   | Create a note, then run the Folgezettel commands on it  |
+| =a=   | Add the quote to an *existing* note as cited evidence   |
+| =g=   | Rebuild the list                                        |
+| =q=   | Back to the book list                                   |
+
+Each quote line shows its id, location and a clickable Readwise URL.
+
+The action buttons carry a marker pointing at the quote button rather
+than their own copy of the record, so the done state lives in one
+place and marking it disarms all five entry points at once.
+
+*** Consumed versus cited
+
+A quote can reach =pks= two ways, and they mean different things:
+
+| Written into the note | Meaning                    | On the list        |
+|-----------------------+----------------------------+--------------------|
+| =:RW_ID: rw-N=        | the note IS that quote     | disappears         |
+| =#+name: rw-N=        | the note QUOTES it         | stays, =[CYTOWANY]= |
+
+The second case is the book-note workflow: a note analysing a book
+cites passages as evidence, and that must not use them up — each
+remains available to become an atomic note of its own. Distinguishing
+the two costs one extra regexp and avoids the failure mode where
+citing a passage silently hides it from review.
 
 *** What promotion writes
 
 Prompts for a title, tags, and whether to carry over the personal
-comment (defaulting to yes, so a bare =RET= accepts it). The comment
-is optional because it is often a reaction to the passage rather than
-material for the note.
+comment. The comment prompt defaults to yes, so a bare =RET= accepts
+it; =y-or-n-p= has no notion of a default answer, so it reads a string
+instead and treats anything starting with =n= as a refusal.
 
-The note is created in =pks= and embeds the source rather than linking
-to it:
+The note embeds the source rather than linking to it:
 
 #+begin_example
 ,:PROPERTIES:
@@ -1198,28 +1251,42 @@ to it:
 ,:END:
 #+end_example
 
-Embedding rather than linking is required by the design: the imported
-file is disposable and may be regenerated or deleted at any time, so a
-link to it would eventually dangle.
+Embedding is required by the design: the imported file is disposable
+and may be regenerated or deleted at any time, so a link would
+eventually dangle.
 
 *** How "already processed" is decided
 
-=my/readwise--promoted-ids= scans =pks= once and collects every
-=rw-<id>= it finds. Since promotion writes =RW_ID= into the note, pks
+=my/readwise--promoted-ids= scans =pks= once and classifies every
+=rw-<id>= it finds. Since promotion writes the id into the note, pks
 is the single source of truth — and it survives losing the whole
 import directory, which an index kept beside those disposable files
 would not.
 
-The scan is one pass over pks rather than one grep per quote: a book
-can hold hundreds of highlights, and per-quote scanning would be
-quadratic.
+One pass over pks rather than one grep per quote: a book can hold
+hundreds of highlights, so per-quote scanning would be quadratic.
 
-*** Marking within a session
+*** When the list is marked and when it is rebuilt
 
-The list is not rebuilt after each promotion, since that would lose
-the review position mid-run. Instead the promoted quote is dimmed,
-prefixed =DONE=, and disarmed, so it cannot be promoted twice by
-accident. The next =C-c r r= rebuilds from pks and drops it entirely.
+=RET= and =a= only mark the used quote (dimmed, labelled, disarmed),
+because both are for working down the list and a rebuild would lose
+the position.
+
+=o= and =z= rebuild instead, so the consumed quote disappears rather
+than lingering struck through — affordable precisely because attention
+moves to the new note anyway.
+
+*** Multiple authors
+
+Readwise's =author= is free display text with no separator convention;
+one book arrived as "Neil BrowneStuart M. Keeley". The importer passes
+it through unchanged rather than splitting heuristically, which would
+misfire on double-barrelled names, particles and initials. Correction
+belongs in Readwise, where a re-sync then rewrites the file.
+
+The structural answer, if wanted later, is to record a Citar key on
+the promoted note and let Zotero be authoritative for bibliography
+instead of duplicating an unreliable string.
 
 ** Configuration
 

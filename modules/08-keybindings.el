@@ -124,6 +124,7 @@
 ;; READWISE (already defined in 24-readwise.el)
 ;; ============================================================
 ;; C-c r s = sync highlights from Readwise (incremental)
+;; C-c r r = review books with unprocessed quotes
 ;; C-c r o = open the import folder (~/Downloads/readwise) in Dired
 ;; Also under the notes menu: C-c n t r
 
@@ -237,6 +238,7 @@ Bibliography:
 
 Readwise:
   C-c r s - Sync highlights (incremental; C-u for everything)
+  C-c r r - Review books with unprocessed quotes
   C-c r o - Open import folder in Dired
   (menu: C-c n t r)
 
@@ -297,7 +299,11 @@ C-c n -- NOTES TRANSIENT MENU TREE
   t  Tools ->
        z  Zotero/Bib ->  (same submenu as C-c x, see below)
        r  Readwise ->  s Sync (incremental)  S Sync everything
-                       o Open import folder
+                       r Review books        o Open import folder
+          In *Readwise Books*: RET/mouse open, S sort, / filter,
+                               C-/ clear filter, g rebuild
+          In *Readwise Quotes*: RET note, o note+open, z zettel,
+                                a add to existing, g rebuild, q back
        s  Correct previous (transient: stays open)
        a  Add to dict       (transient: stays open)
        S  Check visible     b  Check full buffer   T  Toggle spellcheck
