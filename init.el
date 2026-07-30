@@ -67,6 +67,7 @@
   (load (concat modules-dir "22-zettelkasten.el")) ; Folgezettel sequences (C-c n z)
   (load (concat modules-dir "23-fixed-tabs.el"))   ; Route commands to named tabs
   (load (concat modules-dir "24-readwise.el"))     ; Readwise import (C-c r s)
+  (load (concat modules-dir "25-inbox-review.el"))
   )
 
 (add-hook 'emacs-startup-hook
