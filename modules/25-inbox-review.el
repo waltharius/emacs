@@ -10,8 +10,9 @@
 ;; M-x my/inbox-review opens the list.  Keys:
 ;;   RET   preview the note in a side window (view-mode, q closes)
 ;;   e     edit the note
-;;   p / d move to the pks / docu silo (also repairs [[wikilinks]]
-;;         pointing at this note from the journal silo)
+;;   p / d move to the pks / docu silo (gives the note a unique
+;;         identifier first, then repairs [[wikilinks]] pointing at it
+;;         from the journal silo)
 ;;   z     promote: move to pks, open, run `my/zettel-adopt'
 ;;   t     edit tags (denote-rename-file)
 ;;   k     reject: move to ~/notes/inbox-odrzucone/
@@ -32,6 +33,7 @@
 (require 'denote)
 (require 'seq)
 (require 'subr-x)
+(require '27-denote-identifiers)
 
 ;; ============================================================
 ;; CONFIG
@@ -273,11 +275,16 @@ Returns the number of links rewritten."
                              "\\(?:#[^]|]*\\)?\\(?:|\\([^]]*\\)\\)?\\]\\]")))
         (dolist (file (directory-files my/inbox-journal-directory
                                        t "\\.org\\'"))
-          ;; Cheap containment check before visiting the file.
-          (when (with-temp-buffer
-                  (insert-file-contents file)
-                  (goto-char (point-min))
-                  (search-forward needle nil t))
+          ;; Never point a note at itself.  Before identifiers were made
+          ;; unique this happened for real: a journal note and an
+          ;; accepted note shared YYYYMMDDT000000, so the rewrite
+          ;; resolved the journal note's own link to its own identifier.
+          (when (and (not (equal (my/denote--file-identifier file) ident))
+                     ;; Cheap containment check before visiting the file.
+                     (with-temp-buffer
+                       (insert-file-contents file)
+                       (goto-char (point-min))
+                       (search-forward needle nil t)))
             (with-current-buffer (find-file-noselect file)
               (save-excursion
                 (goto-char (point-min))
@@ -289,6 +296,33 @@ Returns the number of links rewritten."
                   (setq total (1+ total))))
               (save-buffer))))))
     total))
+
+(defun my/inbox--ensure-unique-identifier (file)
+  "Return FILE, or its new path after resolving an identifier clash.
+
+The migration gave notes of unknown creation time the identifier
+YYYYMMDDT000000, and journal notes without a time in their first
+heading got the same.  A regular note and a journal entry from the same
+day therefore share an identifier, and `denote:' links resolve through
+identifiers alone - so the clash must be settled before the note enters
+a silo, not after links start pointing at it.
+
+The inbox note is the one that moves, never the note already filed:
+existing links in the collection keep working, and only links to the
+inbox note (from other inbox notes, written during conversion) need
+rewriting, which `my/denote-change-identifier' does."
+  (let* ((id (my/denote--file-identifier file))
+         (table (and id (my/denote--identifier-table)))
+         (clashes (and id (seq-remove (lambda (f) (equal f file))
+                                      (gethash id table)))))
+    (if (null clashes)
+        file
+      (let ((new-id (my/denote--next-free-identifier id table)))
+        (message "Identifier %s already used by %s - moving this note to %s"
+                 id
+                 (file-relative-name (car clashes) my-notes-dir)
+                 new-id)
+        (my/denote-change-identifier file new-id)))))
 
 (defun my/inbox--move (file dir)
   "Move FILE into DIR, return the new path."
@@ -308,6 +342,11 @@ Returns the number of links rewritten."
          (dir (cdr (assoc silo my/inbox-silos)))
          (ident (my/inbox--identifier file)))
     (unless dir (user-error "Unknown silo: %s" silo))
+    ;; Resolve identifier clashes first: `ident' below must be the one
+    ;; the note will actually keep, or the journal links would be
+    ;; rewritten to point at the wrong note.
+    (setq file (my/inbox--ensure-unique-identifier file))
+    (setq ident (my/inbox--identifier file))
     (let ((target (my/inbox--move file dir))
           (fixed (if ident (my/inbox--fix-journal-links entry ident) 0)))
       (message "%s -> %s%s" (plist-get entry :title) silo
@@ -333,8 +372,10 @@ placement hint; follow with `my/zettel-reparent' to slot it under an
 existing thread."
   (interactive)
   (let* ((entry (my/inbox--entry))
-         (file (plist-get entry :file))
          (dir (cdr (assoc "pks" my/inbox-silos)))
+         ;; Settle any identifier clash before the note enters the silo.
+         (file (my/inbox--ensure-unique-identifier
+                (plist-get entry :file)))
          (ident (my/inbox--identifier file))
          (target (my/inbox--move file dir)))
     (when ident (my/inbox--fix-journal-links entry ident))
@@ -391,7 +432,10 @@ note records where it came from in :extracted_from:."
          (silo (completing-read "Silo: " (mapcar #'car my/inbox-silos)
                                 nil t nil nil "pks"))
          (dir (cdr (assoc silo my/inbox-silos)))
-         (ident (format-time-string "%Y%m%dT%H%M%S"))
+         ;; `format-time-string' has second resolution, so two quick
+         ;; extractions in the same second would collide.
+         (ident (my/denote--next-free-identifier
+                 (format-time-string "%Y%m%dT%H%M%S")))
          (slug (denote-sluggify-title title))
          (fname (if keywords
                     (format "%s--%s__%s.org" ident slug
@@ -474,6 +518,11 @@ note records where it came from in :extracted_from:."
    ["Files"
     ("o" "Open inbox folder"   my/inbox-open-directory)
     ("O" "Open rejects folder" my/inbox-open-reject-directory)]
+   ["Identifiers"
+    ("c" "Check duplicates"    my/denote-check-identifiers)
+    ("f" "Fix duplicates"      my/denote-fix-duplicates)
+    ("s" "Find self-links"     my/denote-find-self-links)
+    ("R" "Change identifier"   my/denote-change-identifier)]
    [("q" "Quit" transient-quit-one)]])
 
 (unless (ignore-errors (transient-get-suffix 'my/notes-tools-menu "i"))
