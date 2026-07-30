@@ -25,11 +25,21 @@
 ;;                                    identifier (the damage a collision
 ;;                                    leaves behind)
 ;;
-;; Scope: every .org file under `my-notes-dir', including the staging
-;; inbox and the reject folder, and excluding `.backups' and
-;; `.autosaves'.  Denote's own file listing is not used here because it
-;; honours `denote-excluded-directories-regexp', which hides the inbox -
-;; exactly the files that most need checking.
+;; Two different scopes, and the difference matters:
+;;
+;;   UNIQUENESS is a property of the three silos (journal, pks, docu).
+;;   Only there does a repeated identifier break anything.  A note in
+;;   the staging inbox sharing an identifier with a silo note is normal
+;;   and expected - both came from a day whose creation time was
+;;   unknown - and it is settled when the note is accepted, by moving
+;;   the INBOX note, never the filed one.
+;;
+;;   LINK REWRITING covers everything under `my-notes-dir', inbox
+;;   included, because inbox notes link to each other and to silo notes
+;;   by identifier.
+;;
+;; Denote's own file listing is not used for either, since it honours
+;; `denote-excluded-directories-regexp', which hides the inbox.
 
 ;;; Code:
 
@@ -43,6 +53,13 @@
   "Paths matching this are skipped when scanning for notes and links."
   :type 'regexp :group 'my)
 
+(defcustom my/denote-silo-directories
+  (list my-notes-journal my-notes-pks my-notes-docu)
+  "The silos in which an identifier must be unique.
+The staging inbox is deliberately absent: a note there may legitimately
+share an identifier with a filed note until it is accepted."
+  :type '(repeat directory) :group 'my)
+
 ;; ============================================================
 ;; SCANNING
 ;; ============================================================
@@ -52,6 +69,15 @@
   (seq-remove
    (lambda (f) (string-match-p my/denote-scan-exclude-regexp f))
    (directory-files-recursively my-notes-dir "\\.org\\'")))
+
+(defun my/denote--silo-files ()
+  "Return every .org file in the silos where identifiers must be unique."
+  (seq-remove
+   (lambda (f) (string-match-p my/denote-scan-exclude-regexp f))
+   (seq-mapcat (lambda (dir)
+                 (when (file-directory-p dir)
+                   (directory-files-recursively dir "\\.org\\'")))
+               my/denote-silo-directories)))
 
 (defun my/denote--file-identifier (file)
   "Return the identifier in FILE's name, or nil."
@@ -68,38 +94,54 @@
         (puthash id (cons file (gethash id table)) table)))))
 
 (defun my/denote--duplicate-groups (&optional files)
-  "Return ((identifier . files) ...) for identifiers used more than once."
+  "Return ((identifier . files) ...) for identifiers used more than once.
+FILES defaults to the silo files only - see the scope note above."
   (let (groups)
     (maphash (lambda (id files)
                (when (> (length files) 1)
                  (push (cons id (sort files #'string<)) groups)))
-             (my/denote--identifier-table files))
+             (my/denote--identifier-table (or files (my/denote--silo-files))))
     (sort groups (lambda (a b) (string< (car a) (car b))))))
 
+(defun my/denote--silo-identifier-table ()
+  "Return a hash of identifier -> silo files."
+  (my/denote--identifier-table (my/denote--silo-files)))
+
 (defun my/denote--identifier-free-p (id &optional table)
-  "Return non-nil when ID is used by no file."
-  (null (gethash id (or table (my/denote--identifier-table)))))
+  "Return non-nil when ID is used by no file in TABLE.
+TABLE defaults to the silo table, so freedom means \"free where
+uniqueness is required\"."
+  (null (gethash id (or table (my/denote--silo-identifier-table)))))
 
 (defun my/denote--next-free-identifier (id &optional table)
-  "Return the first identifier at or after ID that is free.
-Bumps by one second at a time, which keeps the note in its original day
-and near its original position in any chronological listing.  A note
-sitting at 23:59:59 with that second taken would roll into the next
-day; the prompt in `my/denote-change-identifier' shows the value before
-anything happens, so that case is visible rather than silent."
-  (let* ((table (or table (my/denote--identifier-table)))
-         (time (encode-time
-                (string-to-number (substring id 13 15))   ; seconds
-                (string-to-number (substring id 11 13))   ; minutes
-                (string-to-number (substring id 9 11))    ; hours
-                (string-to-number (substring id 6 8))     ; day
-                (string-to-number (substring id 4 6))     ; month
-                (string-to-number (substring id 0 4))))   ; year
-         (candidate id))
-    (while (not (my/denote--identifier-free-p candidate table))
-      (setq time (time-add time 1))
-      (setq candidate (format-time-string "%Y%m%dT%H%M%S" time)))
-    candidate))
+  "Return the first free identifier at or after ID, on the SAME DAY.
+
+The date part is never changed: it is the one piece of information the
+migration actually knew about the note, and it drives sorting, the
+title and the journal correspondence.  Only the time part is bumped,
+one second at a time, so the note keeps its position among that day\='s
+notes.
+
+Signals an error in the impossible case of a day with 86,400 taken
+identifiers, rather than silently moving the note to another date."
+  (let* ((table (or table (my/denote--silo-identifier-table)))
+         (day (substring id 0 8))
+         (seconds (+ (* 3600 (string-to-number (substring id 9 11)))
+                     (* 60 (string-to-number (substring id 11 13)))
+                     (string-to-number (substring id 13 15))))
+         (tried 0)
+         candidate)
+    (catch 'found
+      (while (< tried 86400)
+        (setq candidate (format "%sT%02d%02d%02d" day
+                                (/ seconds 3600)
+                                (% (/ seconds 60) 60)
+                                (% seconds 60)))
+        (when (my/denote--identifier-free-p candidate table)
+          (throw 'found candidate))
+        (setq seconds (% (1+ seconds) 86400)
+              tried (1+ tried)))
+      (user-error "No free identifier left on %s" day))))
 
 ;; ============================================================
 ;; REPORTS
@@ -107,7 +149,9 @@ anything happens, so that case is visible rather than silent."
 
 ;;;###autoload
 (defun my/denote-check-identifiers ()
-  "Report notes sharing a Denote identifier."
+  "Report notes in the silos sharing a Denote identifier.
+The staging inbox is not scanned: an inbox note may share an identifier
+with a filed note until it is accepted, and that is handled then."
   (interactive)
   (let ((groups (my/denote--duplicate-groups)))
     (if (null groups)
@@ -115,7 +159,12 @@ anything happens, so that case is visible rather than silent."
       (with-current-buffer (get-buffer-create "*Denote Identifier Check*")
         (let ((inhibit-read-only t))
           (erase-buffer)
-          (insert (format "%d duplicate identifier(s)\n\n" (length groups)))
+          (insert (format "%d duplicate identifier(s) in %s\n\n"
+                          (length groups)
+                          (mapconcat (lambda (d)
+                                       (file-name-nondirectory
+                                        (directory-file-name d)))
+                                     my/denote-silo-directories ", ")))
           (insert "Fix them with M-x my/denote-fix-duplicates, or one at\n"
                   "a time with M-x my/denote-change-identifier in the note.\n\n")
           (dolist (group groups)
@@ -130,7 +179,8 @@ anything happens, so that case is visible rather than silent."
 
 ;;;###autoload
 (defun my/denote-find-self-links ()
-  "Report notes containing a `denote:' link to their own identifier.
+  "Report notes anywhere under `my-notes-dir\=' that link to their own
+identifier.
 This is what a collision leaves behind: a link meant for another note
 resolved to the identifier this file already had."
   (interactive)
@@ -247,7 +297,7 @@ the old name, which `my/denote-check-identifiers' can still see."
                              suggestion nil suggestion))))
   (let* ((old (or (my/denote--file-identifier file)
                   (user-error "Not a Denote file name")))
-         (table (my/denote--identifier-table)))
+         (table (my/denote--silo-identifier-table)))
     (unless (string-match-p (concat "\\`" my/denote-identifier-regexp "\\'")
                             new-id)
       (user-error "Not a valid identifier: %s" new-id))
@@ -256,7 +306,7 @@ the old name, which `my/denote-check-identifiers' can still see."
     ;; Uniqueness check comes first - never create a second collision
     ;; while fixing one.
     (unless (my/denote--identifier-free-p new-id table)
-      (user-error "Identifier %s is already used by: %s" new-id
+      (user-error "Identifier %s is already used in a silo by: %s" new-id
                   (mapconcat (lambda (f) (file-relative-name f my-notes-dir))
                              (gethash new-id table) ", ")))
     (let ((files 0) (links 0))
@@ -275,10 +325,14 @@ the old name, which `my/denote-check-identifiers' can still see."
 
 ;;;###autoload
 (defun my/denote-fix-duplicates ()
-  "Walk duplicate identifier groups and give each extra file a free one.
-The first file in each group keeps the identifier; the rest are bumped.
-Journal notes sort first within a group only by path, so confirm each
-step - the prompt names both files."
+  "Walk duplicate identifier groups IN THE SILOS and free up each extra.
+The first file in each group keeps the identifier; the rest are offered
+a free time on the same day.  Group members sort by path, which is not
+a judgement about which note should keep the identifier - the prompt
+names both files, so decide per case and answer n to skip.
+
+This is for genuine duplicates inside the silos.  An inbox note that
+shares an identifier with a filed note is not one, and is not listed."
   (interactive)
   (let ((groups (my/denote--duplicate-groups))
         (fixed 0))

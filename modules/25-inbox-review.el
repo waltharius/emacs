@@ -10,9 +10,10 @@
 ;; M-x my/inbox-review opens the list.  Keys:
 ;;   RET   preview the note in a side window (view-mode, q closes)
 ;;   e     edit the note
-;;   p / d move to the pks / docu silo (gives the note a unique
-;;         identifier first, then repairs [[wikilinks]] pointing at it
-;;         from the journal silo)
+;;   p / d move to the pks / docu silo: gives the note an identifier
+;;         that is free in the silos first (bumping only the time, never
+;;         the date, and never touching notes already filed), then
+;;         rewrites [[wikilinks]] naming it into denote links
 ;;   z     promote: move to pks, open, run `my/zettel-adopt'
 ;;   t     edit tags (denote-rename-file)
 ;;   k     reject: move to ~/notes/inbox-odrzucone/
@@ -57,8 +58,19 @@ end."
   :type '(alist :key-type string :value-type directory) :group 'my)
 
 (defcustom my/inbox-journal-directory (expand-file-name "~/notes/journal/")
-  "Journal silo scanned for wikilinks to repair on accept."
+  "Journal silo.  Kept as its own variable because journal notes are the
+main source of wikilinks to migrated notes."
   :type 'directory :group 'my)
+
+(defcustom my/inbox-link-scan-directories
+  (list (expand-file-name "~/notes/journal/")
+        (expand-file-name "~/notes/pks/")
+        (expand-file-name "~/notes/docu/")
+        (expand-file-name "~/notes/inbox/"))
+  "Directories searched for [[Title]] wikilinks when a note is accepted.
+All silos, because an already-filed note may name this one; and the
+inbox, because notes still awaiting review link to each other."
+  :type '(repeat directory) :group 'my)
 
 (defvar my/inbox-tab-name "Inbox"
   "Name of the tab-bar tab holding the review buffer.")
@@ -266,15 +278,20 @@ Obsidian file name and the org title."
     (seq-uniq (seq-remove #'string-empty-p names))))
 
 (defun my/inbox--fix-journal-links (entry ident)
-  "Rewrite [[name]] wikilinks to ENTRY in the journal as denote links.
-Returns the number of links rewritten."
-  (let ((total 0))
+  "Rewrite [[name]] wikilinks to ENTRY as denote links to IDENT.
+Searches `my/inbox-link-scan-directories\=': the conversion could not
+resolve these links, because the target note did not exist in Org yet
+and might still be rejected.  Returns the number of links rewritten."
+  (let ((total 0)
+        (files (seq-mapcat (lambda (dir)
+                             (when (file-directory-p dir)
+                               (directory-files dir t "\\.org\\'")))
+                           my/inbox-link-scan-directories)))
     (dolist (name (my/inbox--link-names entry))
       (let ((needle (concat "[[" name))
             (link-re (concat "\\[\\[" (regexp-quote name)
                              "\\(?:#[^]|]*\\)?\\(?:|\\([^]]*\\)\\)?\\]\\]")))
-        (dolist (file (directory-files my/inbox-journal-directory
-                                       t "\\.org\\'"))
+        (dolist (file files)
           ;; Never point a note at itself.  Before identifiers were made
           ;; unique this happened for real: a journal note and an
           ;; accepted note shared YYYYMMDDT000000, so the rewrite
@@ -302,26 +319,23 @@ Returns the number of links rewritten."
 
 The migration gave notes of unknown creation time the identifier
 YYYYMMDDT000000, and journal notes without a time in their first
-heading got the same.  A regular note and a journal entry from the same
-day therefore share an identifier, and `denote:' links resolve through
-identifiers alone - so the clash must be settled before the note enters
-a silo, not after links start pointing at it.
+heading got the same.  A note in the inbox therefore routinely shares
+an identifier with a journal entry from the same day.  That is harmless
+while it sits in the inbox, and must be settled at the moment it enters
+a silo, because `denote:\=' links resolve through identifiers alone.
 
-The inbox note is the one that moves, never the note already filed:
-existing links in the collection keep working, and only links to the
-inbox note (from other inbox notes, written during conversion) need
-rewriting, which `my/denote-change-identifier' does."
+Only the INBOX note ever moves.  Notes already filed in journal, pks or
+docu keep their identifiers, so every existing link in the collection
+keeps working.  Only the time part changes - the date is what the
+migration actually knew about the note."
   (let* ((id (my/denote--file-identifier file))
-         (table (and id (my/denote--identifier-table)))
-         (clashes (and id (seq-remove (lambda (f) (equal f file))
-                                      (gethash id table)))))
-    (if (null clashes)
+         (table (and id (my/denote--silo-identifier-table)))
+         (clash (and id (car (gethash id table)))))
+    (if (null clash)
         file
       (let ((new-id (my/denote--next-free-identifier id table)))
-        (message "Identifier %s already used by %s - moving this note to %s"
-                 id
-                 (file-relative-name (car clashes) my-notes-dir)
-                 new-id)
+        (message "%s is taken by %s - this note becomes %s"
+                 id (file-relative-name clash my-notes-dir) new-id)
         (my/denote-change-identifier file new-id)))))
 
 (defun my/inbox--move (file dir)
@@ -351,7 +365,7 @@ rewriting, which `my/denote-change-identifier' does."
           (fixed (if ident (my/inbox--fix-journal-links entry ident) 0)))
       (message "%s -> %s%s" (plist-get entry :title) silo
                (if (> fixed 0)
-                   (format " (%d journal link(s) repaired)" fixed) ""))
+                   (format " (%d wikilink(s) repaired)" fixed) ""))
       (ignore target))
     (my/inbox-review)))
 
