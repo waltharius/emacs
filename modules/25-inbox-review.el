@@ -8,7 +8,8 @@
 ;; actions.
 ;;
 ;; M-x my/inbox-review opens the list.  Keys:
-;;   RET   preview the note in a side window (view-mode, q closes)
+;;   RET   preview the note in a side window (focus stays on the list)
+;;   o     step into the preview window (view-mode; q closes it)
 ;;   e     edit the note
 ;;   p / d move to the pks / docu silo: gives the note an identifier
 ;;         that is free in the silos first (bumping only the time, never
@@ -34,7 +35,19 @@
 (require 'denote)
 (require 'seq)
 (require 'subr-x)
-(require '27-denote-identifiers)
+
+;; 27-denote-identifiers.el supplies the identifier-uniqueness helpers.
+;; It cannot be pulled in with `require': modules in this configuration
+;; are loaded by explicit path from init.el and `modules/' is not on
+;; `load-path', so `require' would fail and abort this file halfway
+;; through.  Load it by path if init.el has not already done so.
+(unless (featurep '27-denote-identifiers)
+  (let ((sibling (expand-file-name "modules/27-denote-identifiers.el"
+                                   user-emacs-directory)))
+    (if (file-exists-p sibling)
+        (load sibling nil t)
+      (message "25-inbox-review: 27-denote-identifiers.el not found; \
+identifier clash protection is disabled"))))
 
 ;; ============================================================
 ;; CONFIG
@@ -152,6 +165,7 @@ variable in 24-readwise.el for the reasoning.")
 (defvar my/inbox-review-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "RET") #'my/inbox-preview)
+    (define-key map (kbd "o")   #'my/inbox-visit-preview)
     (define-key map (kbd "e")   #'my/inbox-edit)
     (define-key map (kbd "p")   (lambda () (interactive) (my/inbox-accept "pks")))
     (define-key map (kbd "d")   (lambda () (interactive) (my/inbox-accept "docu")))
@@ -232,23 +246,37 @@ variable in 24-readwise.el for the reasoning.")
   (my/inbox--render))
 
 (defun my/inbox--entry ()
-  "Entry at point, or an error."
-  (or (tabulated-list-get-id) (user-error "No note at point")))
+  "Entry at point, or an error naming what to do about it."
+  (or (tabulated-list-get-id)
+      (if (derived-mode-p 'my/inbox-review-mode)
+          (user-error "Point is not on a note row - move to one first")
+        (user-error "Not in the inbox list (M-x my/inbox-review)"))))
 
 (defun my/inbox-preview ()
-  "Show the note at point in a side window, in `view-mode'."
+  "Show the note at point in a side window, keeping focus on the list.
+
+Focus stays here on purpose: the action keys live in this buffer, and
+in the preview buffer `view-mode\=' binds p and n to its own search
+commands, so a preview that stole focus would silently swallow p/d/z.
+Use o to step into the preview when you want to scroll it."
   (interactive)
   (let* ((entry (my/inbox--entry))
          (buffer (find-file-noselect (plist-get entry :file)))
-         (list-window (selected-window))
          (window (if (window-live-p my/inbox--note-window)
                      my/inbox--note-window
                    (setq my/inbox--note-window (split-window-right 70)))))
     (set-window-buffer window buffer)
-    (with-current-buffer buffer (view-mode 1))
-    (select-window window)
-    (goto-char (point-min))
-    (ignore list-window)))
+    (with-current-buffer buffer
+      (view-mode 1)
+      (goto-char (point-min)))
+    (set-window-point window (point-min))))
+
+(defun my/inbox-visit-preview ()
+  "Move point into the preview window (q there returns to the list)."
+  (interactive)
+  (unless (window-live-p my/inbox--note-window)
+    (my/inbox-preview))
+  (select-window my/inbox--note-window))
 
 (defun my/inbox-edit ()
   "Open the note at point for editing."
@@ -328,6 +356,9 @@ Only the INBOX note ever moves.  Notes already filed in journal, pks or
 docu keep their identifiers, so every existing link in the collection
 keeps working.  Only the time part changes - the date is what the
 migration actually knew about the note."
+  (unless (fboundp 'my/denote--silo-identifier-table)
+    (user-error "27-denote-identifiers.el is not loaded - \
+cannot check identifier uniqueness"))
   (let* ((id (my/denote--file-identifier file))
          (table (and id (my/denote--silo-identifier-table)))
          (clash (and id (car (gethash id table)))))
