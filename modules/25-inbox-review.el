@@ -19,7 +19,7 @@
 ;;   g     refresh, S/click sorts, q quits
 ;;
 ;; In a note buffer (opened from the list or any org buffer):
-;;   M-x my/inbox-extract (C-c x in inbox notes) - carve out the
+;;   M-x my/inbox-extract (C-c X in inbox notes) - carve out the
 ;;   region / subtree / paragraph into a NEW denote note in a chosen
 ;;   silo, leaving a denote link behind.
 ;;
@@ -420,10 +420,12 @@ note records where it came from in :extracted_from:."
     (message "Extracted to %s" (file-name-nondirectory target))))
 
 ;; Make the extract command handy in inbox notes without claiming a
-;; global key.
+;; global key.  NOT "C-c x": that is `my/zotero-menu' globally, and a
+;; minor-mode map would shadow it inside exactly the buffers where
+;; bibliography lookups are likely.  Capital X is unbound repo-wide.
 (defvar my/inbox-note-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c x") #'my/inbox-extract)
+    (define-key map (kbd "C-c X") #'my/inbox-extract)
     map)
   "Keymap for `my/inbox-note-mode'.")
 
@@ -438,6 +440,45 @@ note records where it came from in :extracted_from:."
     (my/inbox-note-mode 1)))
 
 (add-hook 'find-file-hook #'my/inbox--maybe-enable-note-mode)
+
+
+;; ============================================================
+;; TRANSIENT MENU  (C-c n t i)
+;; Docs: ~/.emacs.d/function_helper.org::#menu-inbox
+;; ============================================================
+;; Appended to the Tools submenu rather than the top level, following
+;; the rule stated in function_helper.org: new external integrations
+;; belong under `my/notes-tools-menu'.  The `unless' guard makes
+;; reloading this file idempotent, as in 24-readwise.el.
+
+(defun my/inbox-open-directory ()
+  "Open the inbox folder in Dired."
+  (interactive)
+  (if (file-directory-p my/inbox-directory)
+      (dired my/inbox-directory)
+    (user-error "No inbox directory: %s" my/inbox-directory)))
+
+(defun my/inbox-open-reject-directory ()
+  "Open the reject folder in Dired."
+  (interactive)
+  (if (file-directory-p my/inbox-reject-directory)
+      (dired my/inbox-reject-directory)
+    (user-error "Nothing rejected yet: %s" my/inbox-reject-directory)))
+
+(transient-define-prefix my/inbox-menu ()
+  "Review notes migrated from Obsidian."
+  [["Review"
+    ("r" "Review inbox"        my/inbox-review)]
+   ["In a note"
+    ("x" "Extract to new note" my/inbox-extract)]
+   ["Files"
+    ("o" "Open inbox folder"   my/inbox-open-directory)
+    ("O" "Open rejects folder" my/inbox-open-reject-directory)]
+   [("q" "Quit" transient-quit-one)]])
+
+(unless (ignore-errors (transient-get-suffix 'my/notes-tools-menu "i"))
+  (transient-append-suffix 'my/notes-tools-menu "r"
+    '("i" "Inbox \u2192" my/inbox-menu)))
 
 (provide '25-inbox-review)
 ;;; 25-inbox-review.el ends here
