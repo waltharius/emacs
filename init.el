@@ -69,6 +69,7 @@
   (load (concat modules-dir "24-readwise.el"))     ; Readwise import (C-c r s)
   (load (concat modules-dir "27-denote-identifiers.el")) ; Identifier integrity for checking after md files moved to org format
   (load (concat modules-dir "25-inbox-review.el")) ; Inbox review for old notes from Obsidian
+  (load (concat modules-dir "26-performance.el")) ; Fixing some performance issue after adding 3,5k files to the silos.
   )
 
 (add-hook 'emacs-startup-hook
