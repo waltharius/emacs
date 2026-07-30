@@ -242,6 +242,11 @@ Readwise:
   C-c r o - Open import folder in Dired
   (menu: C-c n t r)
 
+Inbox (notes migrated from Obsidian):
+  C-c X   - Extract region/subtree/paragraph to a new note
+            (only in ~/notes/inbox files; C-c x stays Zotero)
+  (menu: C-c n t i -- review list, extract, open folders)
+
 Spelling:
   C-;     - Correct word at point (needs flyspell on)
   C-c f b - Check visible portion of buffer

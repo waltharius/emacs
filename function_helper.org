@@ -773,6 +773,16 @@ See [[#menu-zotero-detail][Zotero menu detail]] below.
 
 Function: =my/zotero-menu= | Module: =modules/18-zotero-transient.el=
 
+*** i — Inbox (migrated notes)
+:PROPERTIES:
+:CUSTOM_ID: menu-inbox-entry
+:END:
+
+Opens the review queue for notes migrated from Obsidian.
+See [[#menu-inbox][Inbox review detail]] below.
+
+Function: =my/inbox-menu= | Module: =modules/25-inbox-review.el=
+
 *** Spelling commands
 :PROPERTIES:
 :CUSTOM_ID: menu-spelling
@@ -1339,6 +1349,98 @@ Token comes from =auth-source=:
 
 Module: =modules/24-readwise.el=
 
+* Inbox: migrated Obsidian notes (C-c n t i)
+:PROPERTIES:
+:CUSTOM_ID: menu-inbox
+:END:
+
+Review queue for the notes converted from the Obsidian vault. Journal
+notes went straight into the =journal= silo; everything else landed in
+=my/inbox-directory= (=~/notes/inbox/=) because each one needs a
+decision — =pks=, =docu=, Zettelkasten, or nothing.
+
+| Key       | Command                | Effect                                |
+|-----------+------------------------+---------------------------------------|
+| =C-c n t i r= | =my/inbox-review=  | Open the review list                  |
+| =C-c X=   | =my/inbox-extract=     | Extract region/subtree/paragraph      |
+| =C-c n t i o= | =my/inbox-open-directory= | Inbox folder in Dired         |
+
+In the review list:
+
+| Key   | Effect                                                       |
+|-------+--------------------------------------------------------------|
+| =RET= | Preview in a side window (=view-mode=, =q= closes)           |
+| =e=   | Open for editing                                             |
+| =p=   | Accept into =pks= (repairs journal links to it)              |
+| =d=   | Accept into =docu= (same)                                    |
+| =z=   | Move to =pks=, open, run =my/zettel-adopt=                   |
+| =t=   | Edit tags (=denote-rename-file=)                             |
+| =k=   | Reject → =~/notes/inbox-odrzucone/= (confirmed)              |
+| =/=   | Filter by title, tags or source folder; =C-/= clears         |
+| =g=   | Refresh; =S= or a header click sorts; =q= quits              |
+
+** Why the inbox is not a silo
+
+=denote-directory= is the notes root, so every subdirectory beneath it
+is visible to every Denote command, dashboard and search. Half-reviewed
+imports showing up there would defeat the point of staging, so the
+module sets =denote-excluded-directories-regexp= to ="inbox"=. That
+also matches =inbox-odrzucone/= as a substring, which is intended:
+rejected notes should be less visible still.
+
+Rejection *moves* rather than deletes. Several hundred decisions taken
+over weeks will contain mistakes; the folder gets emptied once, at the
+end.
+
+** Columns that come from the migration
+
+=Status= shows the Obsidian =status:= field (117 of the notes are
+marked =draft=). =Folder= shows =:source_path:=, the note's original
+vault location — which carries real classification information:
+=00 Studia/Rok II/...= is =docu= material, =00 ZK/...= is not. Both are
+read from the front matter without visiting the file.
+
+** Accepting a note repairs journal links to it
+
+The conversion could not resolve wikilinks pointing at non-journal
+notes, because those notes did not exist in Org yet — and might end up
+rejected. So the repair happens on accept: =p=, =d= and =z= scan the
+journal silo for =[[Title]]= and =[[original-md-filename]]=, including
+=#heading= and =|alias= variants, and rewrite them to
+=[[denote:IDENTIFIER][...]]=. The number repaired is reported in the
+echo area.
+
+This runs without asking. At this volume a prompt per accept would be
+noise, and the rewrite only ever touches links naming that exact note.
+
+** Extraction (C-c X)
+
+The counterpart to promoting a whole note: many fleeting notes hold one
+paragraph worth keeping among three that are not.
+
+=my/inbox-extract= takes the region; or the whole subtree when point is
+on a heading; or the paragraph otherwise. It prompts for title (default:
+first line of the selection), keywords and target silo, writes a new
+Denote note recording =:extracted_from:=, and replaces the extracted
+text with a =denote:= link — so the source keeps its context instead of
+quietly losing a passage.
+
+Bound to =C-c X=, not =C-c x=: the latter is =my/zotero-menu= globally,
+and the inbox minor-mode map would shadow it in exactly the buffers
+where a bibliography lookup is likely. The command also works in any
+Org buffer via =M-x=.
+
+** Configuration
+
+| Variable                      | Meaning                          |
+|-------------------------------+----------------------------------|
+| =my/inbox-directory=          | Staging folder to review         |
+| =my/inbox-reject-directory=   | Where =k= moves notes            |
+| =my/inbox-silos=              | Silos =p= / =d= can accept into  |
+| =my/inbox-journal-directory=  | Silo scanned for link repair     |
+
+Module: =modules/25-inbox-review.el=
+
 * Zotero / Bibliography (C-c x)
 :PROPERTIES:
 :CUSTOM_ID: menu-zotero-detail
@@ -1663,6 +1765,7 @@ hand-editing either from memory.
 | C-c r s  | =my/readwise-sync=            | =24-readwise.el=             |
 | C-c r r  | =my/readwise-review=          | =24-readwise.el=             |
 | C-c r o  | =my/readwise-open-directory=  | =24-readwise.el=             |
+| C-c X    | =my/inbox-extract=            | =25-inbox-review.el= (inbox notes only) |
 | C-c p    | =my/org-export-to-pdf=        | =16-org-export.el=           |
 | C-c d f  | =denote-open-or-create=       | =08-keybindings.el=          |
 | C-c d l  | =denote-link=                 | =08-keybindings.el=          |

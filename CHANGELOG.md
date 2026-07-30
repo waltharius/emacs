@@ -7,6 +7,131 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-07-30 — Obsidian Migration: Inbox Review
+
+### Context
+
+Roughly 3,300 journal notes and 442 non-journal notes were converted
+from an Obsidian markdown vault to Org/Denote by external Python
+scripts. The journal notes went straight into the `journal` silo, one
+file per day, matching what `my/denote-journal` produces. The
+non-journal notes did not: they are a mixed bag of fleeting notes,
+course material, book cards and drafts, and each needs a human decision
+about whether it belongs in `pks`, in `docu`, in the Zettelkasten, or
+nowhere. They were therefore written to `~/notes/inbox/`, a staging
+folder, and this session added the module that works through it.
+
+---
+
+### A — `modules/25-inbox-review.el` — Review queue for migrated notes
+
+A `tabulated-list-mode` buffer listing every note still in the inbox,
+with columns Date / Status / Tags / Source folder / Title, and
+single-key actions on the note at point: preview, edit, accept into a
+silo, promote into the Zettelkasten, edit tags, reject.
+
+The structure follows `24-readwise.el` deliberately — same
+`tabulated-list-mode` base, same global (not buffer-local) sort key,
+filter string and preview window, for the reasons documented there:
+`define-derived-mode` resets buffer-local values, and the list is
+rebuilt after every action, so a buffer-local sort or filter would be
+silently discarded each time. The active filter is shown in
+`mode-line-process` so a narrowed list cannot be mistaken for a
+complete one.
+
+Two columns exist only because the migration produced them.
+`:source_path:` records the note's original vault folder, which carries
+real classification information (`00 Studia/Rok II/...` is `docu`
+material, `00 ZK/...` is not), and `Status` surfaces the Obsidian
+`status: draft` field that 117 of the notes carry.
+
+#### A1 — Why the inbox is not a silo
+
+`denote-directory` is the notes root, so every subdirectory under
+`~/notes/` is visible to every Denote command and dashboard. Half-
+reviewed material appearing in searches would defeat the point of
+staging, so the module sets
+
+    denote-excluded-directories-regexp = "inbox"
+
+which also covers `inbox-odrzucone/` as a substring — intentionally,
+since rejected notes should be even less visible than pending ones.
+
+#### A2 — Rejection moves, it does not delete
+
+`k` moves the note to `~/notes/inbox-odrzucone/` rather than deleting
+it. Several hundred decisions taken over weeks will include mistakes,
+and a folder that gets emptied once at the end costs nothing.
+
+#### A3 — Accepting a note repairs journal links to it
+
+The migration left 135 unresolved `[[wikilink]]` targets in the
+converted notes, and the journal silo contains its own unresolved links
+pointing at non-journal notes that did not exist in Org yet. Resolving
+those at conversion time was impossible: the note might be rejected.
+
+So it happens on accept instead. `my/inbox--fix-journal-links` scans the
+journal for `[[Title]]` and `[[original-md-filename]]` — including
+`#heading` and `|alias` variants — and rewrites them to
+`[[denote:IDENTIFIER][...]]`. A cheap `search-forward` containment test
+in a temp buffer runs before any file is visited, so the scan does not
+open 3,300 buffers per accept.
+
+This runs without confirmation. At several hundred accepts a prompt
+each time would be noise, and the rewrite is unambiguous: it only ever
+replaces a link naming this exact note.
+
+#### A4 — Extraction: carving part of a note into a new one
+
+`my/inbox-extract` (`C-c X` in inbox notes) is the counterpart to
+promoting a whole note. Many fleeting notes contain one paragraph worth
+keeping inside three that are not. The command takes the region, or the
+subtree when point is on a heading, or the paragraph otherwise; writes
+it to a new Denote note in a chosen silo with `:extracted_from:`
+recording the origin; and leaves a `denote:` link in place of the
+extracted text, so the source keeps its context instead of quietly
+losing a passage.
+
+Not bound to `C-c x`: that is `my/zotero-menu` globally, and a
+minor-mode map would shadow it in exactly the buffers where a
+bibliography lookup is most likely. `C-c X` was unbound repo-wide.
+
+#### A5 — Menu placement
+
+The submenu is appended to `my/notes-tools-menu` (`C-c n t i`), not to
+the top level, per the rule stated in `function_helper.org`: new
+integrations belong under Tools. The `unless (transient-get-suffix ...)`
+guard makes reloading the file idempotent, as in `24-readwise.el`. The
+anchor is Readwise's `r` when present and Zotero's `z` otherwise, so
+the append survives reordering or removal of that module.
+
+---
+
+### B — Conversion scripts (external, kept in the repo for provenance)
+
+Three pandoc behaviours corrupted output silently before they were
+found, all worth recording because they will recur with any future
+markdown import:
+
+1. `yaml_metadata_block` treats a `---` fenced block *anywhere* in the
+   document as YAML metadata, not just at the top. Notes using `---` as
+   a section divider therefore failed to parse, or had a section eaten.
+2. A `---` line directly under text is a setext heading underline; one
+   directly above text is a table separator. Both silently restructure
+   the document. Fix: pad standalone `---` lines with blank lines
+   before conversion.
+3. `blank_before_header` and `blank_before_blockquote` require a blank
+   line before `#` and `>`; without one, headings and callouts written
+   flush against the preceding paragraph are folded into it as plain
+   text. Obsidian renders them anyway, so the source looks fine.
+
+The reading flags are now
+`markdown-auto_identifiers-yaml_metadata_block-blank_before_header-blank_before_blockquote`.
+465 of the 3,284 journal files were affected by 2 and 3 and were
+re-converted and replaced after the fix.
+
+---
+
 ## Session 2026-07-29 — Org-transclusion Review
 
 ### Context
@@ -1757,6 +1882,13 @@ treat an empty capture as absent. See Session 2026-07-26, E.
 | Org export (PDF, HTML, LaTeX)                       | `16-org-export.el`       |
 | Bibliography (Citar, BibTeX)                        | `17-bibliography.el`     |
 | Zotero transient menu                               | `18-zotero-transient.el` |
+| Philosophy note types                               | `19-philosophy-notes.el` |
+| Org-transclusion                                    | `20-transclusion.el`     |
+| Dashboards                                          | `21-dashboards.el`       |
+| Zettelkasten / Folgezettel sequences                | `22-zettelkasten.el`     |
+| Fixed tabs (routing buffers to named tabs)          | `23-fixed-tabs.el`       |
+| Readwise import and review                          | `24-readwise.el`         |
+| **Migrated-notes inbox review, extraction**         | **`25-inbox-review.el`** |
 | **Custom file load order, startup perf**            | **`init.el`**            |
 
 **Before adding a new feature:** find the owning file in this table and
