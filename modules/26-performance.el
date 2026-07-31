@@ -60,7 +60,7 @@
 ;; the image cache.  600 px suits an 80-column centred window; raise it
 ;; if attachments look soft.  Per-image overrides still work:
 ;;   #+ATTR_ORG: :width 900
-(setq org-image-actual-width '(600))
+(setq org-image-actual-width '(800))
 
 ;; Keep scaled images in the cache long enough to survive scrolling
 ;; back and forth through a note (default is 300 seconds).
