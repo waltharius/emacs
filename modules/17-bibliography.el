@@ -68,6 +68,14 @@ of a document's requirements, not part of the editor: which style a
 text uses is decided by the journal or publisher, and the file has to
 travel with the writing.")
 
+(defvar my/csl-locales-dir (expand-file-name "csl-locales/" my-notes-dir)
+  "Directory holding CSL locale files (locales-*.xml).
+
+Separate from the styles directory because citeproc looks the two up
+independently: every style shares the same locale data for a given
+language.  Without it citeproc uses the locales bundled with Org,
+which carry only en-US, so a Polish document renders English terms.")
+
 (defvar my/csl-default-style "chicago-notes-bibliography.csl"
   "CSL style used when a document does not name its own.
 
