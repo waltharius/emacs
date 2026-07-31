@@ -326,9 +326,8 @@ Commit your notes before heavy first use."
 ;; ============================================================
 
 (with-eval-after-load '12-transient
-  (ignore-errors (transient-remove-suffix 'my/notes-insert-menu "t"))
-  (transient-append-suffix 'my/notes-insert-menu "w"
-    '("t" "Transclusion →" my/transclusion-menu)))
+  (my/transient-append 'my/notes-insert-menu "w"
+                       '("t" "Transclusion →" my/transclusion-menu)))
 
 ;; ============================================================
 ;; EXPORT SAFETY

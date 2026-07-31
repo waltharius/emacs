@@ -570,9 +570,8 @@ note records where it came from in :extracted_from:."
     ("R" "Change identifier"   my/denote-change-identifier)]
    [("q" "Quit" transient-quit-one)]])
 
-(unless (ignore-errors (transient-get-suffix 'my/notes-tools-menu "i"))
-  (transient-append-suffix 'my/notes-tools-menu "r"
-    '("i" "Inbox \u2192" my/inbox-menu)))
+(my/transient-append 'my/notes-tools-menu "z"
+                     '("i" "Inbox \u2192" my/inbox-menu))
 
 (provide '25-inbox-review)
 ;;; 25-inbox-review.el ends here

@@ -162,11 +162,8 @@ the new note as a minimal Org scaffold."
 ;; entry in the Create column of `my/notes-menu' (defined in 12-transient).
 
 (with-eval-after-load '12-transient
-  ;; Idempotent: drop any previous "l" entry before re-adding it, so that
-  ;; re-evaluating this file does not create duplicate menu items.
-  (ignore-errors (transient-remove-suffix 'my/notes-menu "l"))
-  (transient-append-suffix 'my/notes-menu "t"
-    '("l" "Philosophy →" my/philosophy-notes-menu)))
+  (my/transient-append 'my/notes-menu "t"
+                       '("l" "Philosophy →" my/philosophy-notes-menu)))
 
 (provide '19-philosophy-notes)
 ;;; 19-philosophy-notes.el ends here

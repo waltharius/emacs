@@ -217,9 +217,8 @@ follow with my/zettel-reparent to place it under an existing thread."
 ;; 19-philosophy-notes.el.  Guarded so reloading this file does not
 ;; add a duplicate entry (transient-get-suffix errors when the key is
 ;; absent, hence ignore-errors).
-(unless (ignore-errors (transient-get-suffix 'my/notes-menu "z"))
-  (transient-append-suffix 'my/notes-menu "t"
-    '("z" "Zettelkasten →" my/zettelkasten-menu)))
+(my/transient-append 'my/notes-menu "t"
+                     '("z" "Zettelkasten →" my/zettelkasten-menu))
 
 (provide '22-zettelkasten)
 ;;; 22-zettelkasten.el ends here

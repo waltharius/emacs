@@ -1011,9 +1011,8 @@ use it up."
     ("o" "Open import folder" my/readwise-open-directory)]
    [("q" "Quit" transient-quit-one)]])
 
-(unless (ignore-errors (transient-get-suffix 'my/notes-tools-menu "r"))
-  (transient-append-suffix 'my/notes-tools-menu "z"
-    '("r" "Readwise →" my/readwise-menu)))
+(my/transient-append 'my/notes-tools-menu "z"
+                     '("r" "Readwise →" my/readwise-menu))
 
 ;; ============================================================
 ;; KEYBINDINGS
