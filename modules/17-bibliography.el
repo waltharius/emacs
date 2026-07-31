@@ -92,6 +92,11 @@ page -- `my/csl-check-setup\=' checks this.")
   ;; produced "(Author, Year)" with no bibliography and no visible
   ;; error anywhere.
   (setq org-cite-csl-styles-dir my/csl-styles-dir)
+  ;; Citeproc needs locale data for terms ("ibid.", "and", date
+  ;; formats).  Left unset it falls back to the locales bundled with
+  ;; Org inside the Nix store, which carry only en-US -- so a Polish
+  ;; document silently renders English wording.
+  (setq org-cite-csl-locales-dir my/csl-locales-dir)
   (unless (require 'oc-csl nil t)
     (message "org-cite: oc-csl unavailable (is citeproc installed?) -- \
 citations will export through the basic processor"))
@@ -137,6 +142,15 @@ until the document is finished."
       (push "citeproc is not loaded (M-x package-install RET citeproc)" problems))
     (unless (featurep 'oc-csl)
       (push "oc-csl is not loaded -- export falls back to the basic processor"
+            problems))
+    (unless (and (boundp 'org-cite-csl-locales-dir)
+                 org-cite-csl-locales-dir
+                 (equal (expand-file-name org-cite-csl-locales-dir)
+                        (expand-file-name my/csl-locales-dir)))
+      (push (format "org-cite-csl-locales-dir is %S, expected %S"
+                    (and (boundp 'org-cite-csl-locales-dir)
+                         org-cite-csl-locales-dir)
+                    my/csl-locales-dir)
             problems))
     (unless (assq t org-cite-export-processors)
       (push "org-cite-export-processors has no fallback entry -- citations will export via the basic processor"
