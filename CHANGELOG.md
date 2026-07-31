@@ -7,6 +7,85 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-07-31 — Decoupling Menu Extension Between Modules
+
+### Context
+
+Asking whether the Zotero module could be used without the Readwise
+one exposed a dependency chain nobody had written down:
+
+    25-inbox-review  -> anchor "r"  -> contributed by 24-readwise
+    24-readwise      -> anchor "z"  -> owned by 12-transient
+    12-transient     -> my/zotero-menu       -> defined in 18-zotero
+    18-zotero        -> my/insert-reference  -> defined in 17-bibliography
+
+Two different kinds of coupling are tangled together here, and only
+one of them is a problem.
+
+---
+
+### A — `modules/12-transient.el` — `my/transient-append`
+
+#### The failure mode
+
+Feature modules add their entries to the shared menus with
+`transient-append-suffix`, which needs an anchor: an existing key to
+append after. Several anchored on a key contributed by *another
+optional module*.
+
+`transient-append-suffix` signals when the anchor is absent. That
+happens during module loading, so it aborts `init.el` partway and
+leaves the rest of the configuration unloaded — turning "I removed a
+module I do not use" into a broken Emacs. The error names the
+appending module rather than the missing one, so the cause is not
+apparent from the message.
+
+The worst instance: `25-inbox-review` anchored on `"r"`, a key added by
+`24-readwise`. Dropping Readwise broke inbox review.
+
+#### The fix
+
+`my/transient-append` degrades instead of signalling. A missing
+prefix, a missing anchor, or a key already bound in that prefix leaves
+the entry out and reports it — which is the right outcome, since an
+entry whose neighbour does not exist has nowhere meaningful to sit.
+
+All six call sites converted; no bare `transient-append-suffix`
+remains outside `12-transient.el`. `25-inbox-review` now anchors on
+`"z"`, which `12-transient` owns, so it no longer depends on Readwise
+being installed.
+
+The wrapper is idempotent, which removed a second piece of
+boilerplate: the paired `transient-remove-suffix` calls and `unless
+(transient-get-suffix ...)` guards that each module carried to make
+re-evaluation safe during development.
+
+#### Coupling that was left in place, deliberately
+
+`18-zotero-transient.el` is the menu for `17-bibliography.el`: every
+command in it comes from there or from citar, which that file
+configures. The dependency runs one way — 17 knows nothing about 18 —
+so the functionality works without the menu but not the reverse. That
+is ordinary layering, not a defect, and is now stated in the module
+header so it is not mistaken for one.
+
+`12-transient.el` also names `my/zotero-menu` directly. Transient
+resolves suffix commands at invocation rather than at definition, so a
+missing module 18 does not break loading; the entry simply reports an
+undefined command when pressed. Noted as a conscious exception rather
+than fixed.
+
+---
+
+### B — `modules/18-zotero-transient.el` — Maintenance group
+
+Adds `c` (check citation keys in notes), `C` (rename a citation key)
+and `?` (check CSL export setup) to the Zotero menu, so the
+bibliography maintenance commands added in the previous session are
+reachable from the menu rather than only from `C-c b c` and `M-x`.
+
+---
+
 ## Session 2026-07-30 — Obsidian Migration: Inbox Review
 
 ### Context
