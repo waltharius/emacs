@@ -1441,6 +1441,47 @@ Org buffer via =M-x=.
 
 Module: =modules/25-inbox-review.el=
 
+* Citation Key Checker (C-c b c)
+:PROPERTIES:
+:CUSTOM_ID: cite-check
+:END:
+
+=my/cite-check-keys= scans the notes tree for citation keys that no
+longer exist in the bibliography, and lists each one with clickable
+locations.
+
+** Why it is needed
+
+Better BibTeX generates keys from metadata, so correcting a year or an
+author can rewrite the key of an item already cited in finished text.
+Unchecking "Regenerate citation key when item changes" in the Better
+BibTeX preferences prevents that going forward, but says nothing about
+keys that already drifted, or about items added before the setting was
+changed. Pinning a key (a =Citation Key:= line in an item's =Extra=
+field) is stronger still, since it survives a rebuild of the BBT
+database.
+
+The failure itself is loud, not silent: a stale key exports as
+=NO_ITEM_DATA=. But it only becomes visible once the document has been
+produced, which may be long after the writing. This checks on demand
+instead.
+
+** Commands
+
+| Command                | Effect                                        |
+|------------------------+-----------------------------------------------|
+| =my/cite-check-keys=   | report unresolved keys (=C-c b c=)            |
+| =my/cite-rename-key=   | replace a key across all scanned files        |
+
+=my/cite-rename-key= exists because the usual cause is a rename in
+Zotero rather than a typo, so the same stale key tends to appear in
+several places. It rewrites keys only *inside* citations — the same
+string in ordinary prose is untouched, which matters because keys
+often look like ordinary words.
+
+=my/cite-check-directories= narrows the scan; nil means the whole
+notes tree.
+
 * Zotero / Bibliography (C-c x)
 :PROPERTIES:
 :CUSTOM_ID: menu-zotero-detail
@@ -1762,6 +1803,7 @@ hand-editing either from memory.
 | C-c n z  | =my/zettelkasten-menu=        | =22-zettelkasten.el= (appended) |
 | C-c c    | =org-capture=                 | =06-capture.el=              |
 | C-c x    | =my/zotero-menu=              | =18-zotero-transient.el=     |
+| C-c b c  | =my/cite-check-keys=          | =17-bibliography.el=         |
 | C-c r s  | =my/readwise-sync=            | =24-readwise.el=             |
 | C-c r r  | =my/readwise-review=          | =24-readwise.el=             |
 | C-c r o  | =my/readwise-open-directory=  | =24-readwise.el=             |

@@ -132,6 +132,100 @@ re-converted and replaced after the fix.
 
 ---
 
+## Session 2026-07-30 — Citation Export and Key Checking
+
+### Context
+
+Citations worked inside the editor but had never been exported. Making
+that work exposed a chain of silent failures, and one structural
+hazard worth guarding against permanently.
+
+---
+
+### A — `modules/17-bibliography.el` — CSL export
+
+Citar configured three of the four org-cite processors: insert, follow
+and activate. The fourth, which decides what a citation becomes on
+export, was absent, so Org fell back to the `basic` processor — a
+plain "(Author, Year)" in English, with no footnote and no
+bibliography.
+
+CSL rather than biblatex, because the deliverables include ODT and
+EPUB as well as PDF and biblatex exists only inside LaTeX. CSL note
+styles handle `ibid.` properly: the specification defines the `ibid`,
+`ibid-with-locator`, `subsequent` and `near-note` positions, and
+chicago-notes-bibliography implements them.
+
+#### The silent failures found on the way
+
+Every one of these produced a wrong or absent result rather than an
+error, which is why `my/csl-check-setup` exists at all:
+
+- **Wrong variable name.** `org-cite-export-processor` (singular) is
+  buffer-local and set by a `#+cite_export:` keyword; assigning it
+  globally does nothing. The global setting is
+  `org-cite-export-processors` (plural), an alist keyed by backend.
+- **A 404 saved as a style file.** `curl -O` without `--fail` wrote
+  the server's error body, leaving a readable 14-byte
+  "chicago-note-bibliography.csl". Citeproc parsed an empty style and
+  the export died far from the cause with `Wrong type argument:
+  numberp, nil`. The CSL repository had renamed the file to
+  `chicago-notes-bibliography.csl`.
+- **Locales never configured.** `org-cite-csl-locales-dir` was unset,
+  so citeproc used the en-US-only locales bundled with Org inside the
+  Nix store and rendered a Polish document with English terms.
+- **A setq without its defvar.** The locales assignment survived a
+  round of edits while its `defvar` did not, so loading the module
+  raised `Symbol's value as variable is void` and aborted `init.el`
+  partway — leaving the checker itself undefined.
+
+`my/csl-check-setup` therefore validates *content*, not just presence:
+file size and an expected opening tag catch the 404 case, and the live
+values of the locales directory and the processor alist are compared
+against the intended ones, since the two can disagree.
+
+#### Not a bug: `????` in place of a year
+
+Traced to an empty `Date` field in Zotero, with the year misfiled
+under `Original Publisher`. The same "no date" appeared in OnlyOffice
+output from the same record — both tools were reporting the data
+accurately.
+
+---
+
+### B — `modules/17-bibliography.el` — Citation key checker
+
+`my/cite-check-keys` (`C-c b c`) scans the notes tree for citation
+keys absent from the bibliography and lists each with clickable
+locations. `my/cite-rename-key` replaces one across all scanned files.
+
+#### Why
+
+Better BibTeX derives keys from metadata, so correcting a year rewrote
+`marksDziela11844` into `MarksDziela11960` — in an item already cited.
+Disabling "Regenerate citation key when item changes" prevents
+recurrence but does not repair existing drift, and pinning keys
+individually only protects the items one remembers to pin.
+
+The resulting `NO_ITEM_DATA` is visible, but only in a produced
+document. A text can therefore be finished and correct-looking while
+carrying dead references.
+
+#### Implementation notes
+
+- Keys are extracted only from within a matched `[cite:...]`, so an
+  email address or an Org macro elsewhere in the prose cannot be
+  mistaken for one. Verified against locators, prefixes, `/t` and
+  `/na` variants, multiple keys in one citation, and two citations on
+  one line.
+- The key pattern excludes delimiters rather than enumerating allowed
+  characters, because Better BibTeX keys may contain characters this
+  configuration has no reason to predict.
+- `my/cite-rename-key` rewrites only inside citations for the same
+  reason: keys frequently look like ordinary words.
+
+---
+
 ## Session 2026-07-29 — Org-transclusion Review
 
 ### Context

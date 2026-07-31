@@ -328,5 +328,160 @@ until the document is finished."
   :ensure t
   :mode ("\\.epub\\'" . nov-mode))
 
+;; ============================================================
+;; CITATION KEY CHECKER
+;; ============================================================
+;; Citation keys are generated from metadata by Better BibTeX, so
+;; correcting a year or an author can rewrite the key of an item
+;; already cited in finished text.  Turning off "regenerate citation
+;; key when item changes" prevents that going forward, but says
+;; nothing about what has already drifted, or about items added before
+;; the setting was changed.
+;;
+;; The failure is loud rather than silent -- a stale key exports as
+;; NO_ITEM_DATA -- but only at export time, which may be long after the
+;; writing.  This scans for it on demand instead.
+
+(defvar my/cite-check-directories nil
+  "Directories scanned by `my/cite-check-keys'.
+Nil means the whole notes tree.")
+
+(defconst my/cite--citation-re "\\[cite[^]]*\\]"
+  "Match a whole Org citation, from `[cite' to its closing bracket.")
+
+(defconst my/cite--key-re "@\\([^]&;, \t\n]+\\)"
+  "Match one key inside a citation, capturing the key itself.
+Deliberately permissive: Better BibTeX keys may contain characters
+this configuration has no reason to enumerate, so the pattern excludes
+the delimiters instead of listing what is allowed.")
+
+(defun my/cite--bibliography-keys ()
+  "Return a hash table of every key defined in the global bibliography."
+  (let ((table (make-hash-table :test #'equal)))
+    (dolist (bib (if (listp org-cite-global-bibliography)
+                     org-cite-global-bibliography
+                   (list org-cite-global-bibliography)))
+      (when (file-readable-p bib)
+        (with-temp-buffer
+          (insert-file-contents bib)
+          (goto-char (point-min))
+          (while (re-search-forward "^[ \t]*@[a-zA-Z]+[{(]\\([^,\n]+\\)," nil t)
+            (puthash (string-trim (match-string 1)) bib table)))))
+    table))
+
+(defun my/cite--org-files ()
+  "Return the Org files to scan."
+  (let ((dirs (or my/cite-check-directories (list my-notes-dir))))
+    (seq-mapcat (lambda (dir)
+                  (when (file-directory-p dir)
+                    (directory-files-recursively dir "\\.org\\'")))
+                dirs)))
+
+(defun my/cite--collect-uses ()
+  "Return (KEY FILE LINE) for every citation key used in the scanned files."
+  (let (uses)
+    (dolist (file (my/cite--org-files))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (while (re-search-forward my/cite--citation-re nil t)
+          (let ((citation (match-string 0))
+                (line (line-number-at-pos (match-beginning 0)))
+                (start 0))
+            ;; One citation may hold several keys: [cite:@a; @b].
+            (while (string-match my/cite--key-re citation start)
+              (push (list (match-string 1 citation) file line) uses)
+              (setq start (match-end 0)))))))
+    (nreverse uses)))
+
+(defun my/cite-check-keys ()
+  "Report citation keys used in notes that are absent from the bibliography.
+
+Run this before submitting a text, or occasionally over the whole
+collection.  A key that no longer resolves exports as NO_ITEM_DATA,
+which is visible but only once the document has been produced."
+  (interactive)
+  (let* ((defined (my/cite--bibliography-keys))
+         (uses (my/cite--collect-uses))
+         (missing (seq-remove (lambda (use) (gethash (car use) defined)) uses))
+         (grouped (make-hash-table :test #'equal)))
+    (dolist (use missing)
+      (push (cdr use) (gethash (car use) grouped)))
+    (if (null missing)
+        (message "All %d citation key use(s) resolve against %d bibliography entr(ies)"
+                 (length uses) (hash-table-count defined))
+      (with-current-buffer (get-buffer-create "*Citation Keys*")
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (special-mode)
+          (insert (format "Unresolved citation keys: %d\n"
+                          (hash-table-count grouped))
+                  (format "Checked %d use(s) against %d entr(ies) in %s\n\n"
+                          (length uses) (hash-table-count defined)
+                          (string-join org-cite-global-bibliography ", "))
+                  "RET on a location opens it.\n\n")
+          (maphash
+           (lambda (key places)
+             (insert (format "  %s\n" key))
+             (dolist (place (nreverse places))
+               (let ((file (car place)) (line (cadr place)))
+                 (insert "      ")
+                 (insert-text-button
+                  (format "%s:%d" (file-name-nondirectory file) line)
+                  'follow-link t
+                  'help-echo file
+                  'action (lambda (_b)
+                            (find-file file)
+                            (goto-char (point-min))
+                            (forward-line (1- line))))
+                 (insert "\n")))
+             (insert "\n"))
+           grouped)
+          (goto-char (point-min))))
+      (display-buffer "*Citation Keys*")
+      (message "%d unresolved key(s) -- see *Citation Keys*"
+               (hash-table-count grouped)))))
+
+(defun my/cite-rename-key (old new)
+  "Replace citation key OLD with NEW across the scanned Org files.
+
+Offered because the usual cause of an unresolved key is a rename in
+Zotero rather than a mistake in the text, and the same stale key is
+then likely to appear in several places.
+
+Only occurrences inside a citation are touched: the same string in
+ordinary prose is left alone, which matters because keys often look
+like ordinary words."
+  (interactive
+   (let ((old (read-string "Replace key: ")))
+     (list old (read-string (format "Replace %s with: " old)))))
+  (let ((changed 0)
+        (files 0))
+    (dolist (file (my/cite--org-files))
+      (let ((hits 0))
+        (with-temp-buffer
+          (insert-file-contents file)
+          (goto-char (point-min))
+          (while (re-search-forward my/cite--citation-re nil t)
+            (let* ((start (match-beginning 0))
+                   (end (match-end 0))
+                   (citation (match-string 0))
+                   (replaced (replace-regexp-in-string
+                              (concat "@" (regexp-quote old) "\\b")
+                              (concat "@" new) citation t t)))
+              (unless (equal citation replaced)
+                (delete-region start end)
+                (goto-char start)
+                (insert replaced)
+                (setq hits (1+ hits)))))
+          (when (> hits 0)
+            (write-region (point-min) (point-max) file nil 'silent)))
+        (when (> hits 0)
+          (setq changed (+ changed hits))
+          (setq files (1+ files)))))
+    (message "Replaced %d occurrence(s) of %s in %d file(s)" changed old files)))
+
+(global-set-key (kbd "C-c b c") #'my/cite-check-keys)
+
 (provide '17-bibliography)
 ;;; 17-bibliography.el ends here
