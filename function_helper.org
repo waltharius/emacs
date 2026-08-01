@@ -10,17 +10,22 @@
 :END:
 
 Main entry point for all note operations. Hierarchical structure:
-=c= Create, =f= Find, =i= Insert, =d= Document, =x= Export, =v= View,
-=t= Tools, =l= Philosophy (dynamic), =z= Zettelkasten (dynamic),
+=c= Create, =f= Find, =i= Insert, =d= Document, =x= Export,
+=p= Writing projects (dynamic), =v= View, =t= Tools,
+=l= Philosophy (dynamic), =z= Zettelkasten (dynamic),
 =h= Function Help. Also carries
 two top-level shortcuts duplicated from Tools → Spelling for the two
 most-used spelling commands: =s= Correct previous, =a= Add to dict
 (both =:transient t=, so the menu stays open after use).
 
-=l= and =z= are not defined in =12-transient.el= itself: they are
-appended at load time with =transient-append-suffix= by
-=19-philosophy-notes.el= and =22-zettelkasten.el= respectively, which
-is why both modules must load *after* =12-transient.el=.
+=l=, =z= and =p= are not defined in =12-transient.el= itself: they are
+appended at load time by =19-philosophy-notes.el=,
+=22-zettelkasten.el= and =28-writing-projects.el= respectively, which
+is why all three modules must load *after* =12-transient.el=. They go
+through =my/transient-append=, which reports and skips instead of
+signalling when the prefix, the anchor key or transient itself is
+missing — so removing any one module leaves the rest of the menu
+intact.
 
 Module: =modules/12-transient.el=
 
@@ -1440,6 +1445,164 @@ Org buffer via =M-x=.
 | =my/inbox-journal-directory=  | Silo scanned for link repair     |
 
 Module: =modules/25-inbox-review.el=
+
+* Writing Projects (C-c n p)
+:PROPERTIES:
+:CUSTOM_ID: writing-projects
+:END:
+
+The management layer for a long-form text — tasks, deadline, time
+spent, and which notes belong to it. Not a writing environment: it
+holds no prose and does no exporting.
+
+A project is a directory under =my/writing-projects-directory=
+(=~/projects/=) containing a hub file named after it, plus =email/=.
+The written text is *not* there: it stays in the Denote silos and
+carries a =#+project:= line. Notes are knowledge that outlives the
+project; the hub, its tasks and its mail are scaffolding that dies with
+the deadline.
+
+| Key | Command                              | Effect                       |
+|-----+--------------------------------------+------------------------------|
+| =n= | =my/writing-project-new=             | Create directory, hub, git   |
+| =o= | =my/writing-project-open=            | Open a hub file              |
+| =D= | =my/writing-project-dired=           | Project directory in Dired   |
+| =a= | =my/writing-project-add-note=        | Add current note to project  |
+| =m= | =my/writing-project-refresh-mentions=| Regenerate the mentions list |
+| =R= | =my/writing-project-rebuild-materials= | Rebuild membership by scan |
+| =p= | =my/writing-project-progress=        | Chars / target / days left   |
+| =i= =c= =z= =g= | =org-clock-*=            | In, out, cancel, goto        |
+| =A= =U= | =org-agenda=, update files       | Agenda over hub files        |
+
+** Belonging versus mentioning
+
+Two relations, two mechanisms, deliberately not merged:
+
+| Relation  | Mechanism                              | Where it shows |
+|-----------+----------------------------------------+----------------|
+| belongs   | =#+project: slug= + link in the hub    | Materials      |
+| mentions  | Denote keyword =slug= in the file name | Mentions       |
+
+A journal entry keyworded =licencjat= records that something about the
+thesis happened that day. It is not a chapter. Listing it as project
+material would make the material list useless, so mentions are a
+separate section and =a= is what promotes one into Materials.
+
+=a= writes *both* halves: the keyword into the note, the link into the
+hub. The hub is the fast path — one file, read instantly. The keyword
+is repair data: if the hub is lost, =R= reconstructs it by scanning the
+silos. Scanning is never on the path of opening a project.
+
+** Why a keyword and not an Org property
+
+Org properties live in a drawer under a heading, and Denote notes start
+with =#+title:= and usually have no top-level heading — a file-scope
+property would need =#+PROPERTY: PROJECT foo=. A =#+project:= keyword
+matches what Denote already writes, takes several values separated by
+spaces, and is greppable:
+
+: rg '^#\+project:.*licencjat' ~/notes
+
+** What counts towards the target
+
+Only files linked under the =Text= heading. Sources are excluded
+because they are not the deliverable.
+
+Counting runs =pandoc -f org -t plain= and measures the result, not the
+Org source: front matter, drawers, citation syntax and =:noexport:=
+subtrees can be a fifth of a file, and a publisher counts what the
+reader receives. Results are cached on each file's modification time,
+so pandoc runs once per edit rather than once per look. Set
+=my/writing-count-with-pandoc= to nil to fall back to a cruder in-Emacs
+count, then run =my/writing-clear-char-cache=.
+
+A link that resolves to no file is reported as =unresolved= rather than
+silently dropped — that means a note was deleted or its identifier
+changed.
+
+** No drafting/editing phase flag
+
+The progress line changes meaning once the target is passed:
+
+: licencjat: 7350 / 20000 chars (37%, 4 files) · 23 days · 550 chars/day
+: licencjat: 21200 / 20000 chars (106%, 9 files) · 23 days · 1200 chars over target
+
+An explicit phase flag was considered and rejected: drafting and
+editing alternate from one session to the next, so the flag would spend
+most of its life set wrongly. One comparison covers both.
+
+** Agenda is project hubs only
+
+=org-agenda-files= is the hub file of every project, rebuilt by =U= and
+on project creation. The previous setting in =05-notes.el= pointed at
+the three silos plus the capture file, so every agenda build read some
+3,700 notes to find no tasks at all — or worse, to find the =TODO=
+examples in =docu/= and present them as work.
+
+Personal tasks are not carved out as an exception. A project named
+"Life" is a project like any other.
+
+** Clocking, and what Wayland breaks
+
+Clocking is opt-in per heading: nothing is measured until =C-c C-x C-i=
+on a task, so this cannot leak into unrelated Emacs use.
+
+| Setting                          | Effect                              |
+|----------------------------------+-------------------------------------|
+| =org-clock-persist= = ='history= | A session outlives Emacs            |
+| =org-clock-idle-time=            | Prompt on return after N minutes    |
+| =org-clock-auto-clockout-timer=  | Stop by itself after N seconds      |
+| =org-time-stamp-rounding-minutes= | =S-<up>= on a CLOCK line moves 5 min |
+
+*Warning:* under Wayland none of the idle handling is fully reliable.
+Org can ask macOS and X11 how long the *user* has been idle (via
+=xprintidle=); under Wayland it can only ask Emacs, so reading in a
+browser with an Emacs frame focused is counted as work.
+
+Two fallbacks. Manual correction is the reliable one: put point on a
+timestamp inside a =CLOCK:= line and =S-<up>= / =S-<down>= moves it in
+five-minute steps, with Org recomputing the =\=> H:MM= total. =C-c C-x
+C-q= cancels a clock outright.
+
+The other is =my/writing-use-mutter-idle=, which takes idle time from
+GNOME Mutter over D-Bus. *Disabled by default and unverified.* Check it
+works before enabling:
+
+: dbus-send --print-reply --dest=org.gnome.Mutter.IdleMonitor \
+:   /org/gnome/Mutter/IdleMonitor/Core \
+:   org.gnome.Mutter.IdleMonitor.GetIdletime
+
+=04-denote.el= used to set =org-clock-persist-file= to nil. That block
+is now inert: a nil file name makes =org-clock-persistence-insinuate=
+fail on the first clock change.
+
+** Configuration
+
+| Variable                              | Meaning                        |
+|---------------------------------------+--------------------------------|
+| =my/writing-projects-directory=       | Root of project directories    |
+| =my/writing-project-subdirectories=   | Created inside a new project   |
+| =my/writing-project-silos=            | Scanned by =R= and =m=         |
+| =my/writing-count-with-pandoc=        | Exported text vs crude count   |
+| =my/writing-clock-idle-minutes=       | Ask after this much idleness   |
+| =my/writing-clock-auto-clockout-seconds= | Stop by itself; nil disables |
+| =my/writing-use-mutter-idle=          | D-Bus idle query (unverified)  |
+| =my/writing-heading-*=                | Hub heading names              |
+
+*Warning:* the =my/writing-heading-*= variables name the headings the
+commands look for. Changing one after projects exist orphans that
+section in every hub already created. Set them before the first
+project, or rename the headings in every hub at the same time.
+
+** Why projects live outside the notes tree
+
+=~/notes= is synchronised by Syncthing and =~/projects/= is not.
+Project directories are meant to be independent git repositories, and
+Syncthing replicating =.git/= across devices can corrupt it — index,
+locks and packfiles are written concurrently with no atomicity
+guarantees. =~/notes/.stignore= excludes =.git= for the same reason.
+
+Module: =modules/28-writing-projects.el=
 
 * Citation Key Checker (C-c b c)
 :PROPERTIES:

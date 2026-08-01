@@ -7,6 +7,67 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-01b — Writing Projects, corrections
+
+### A — `org-clock-persist-file` conflict removed from 04-denote.el
+
+The previous session enabled clock persistence in
+`28-writing-projects.el` but left `(setq org-clock-persist-file nil)`
+in `04-denote.el`, which loads earlier. `org-clock-persistence-insinuate`
+writes to that file on every clock change, so a nil file name would have
+failed on the first clock-in. The block is now inert and says which
+module owns the setting.
+
+### B — Module 28 moved into numeric load order in init.el
+
+It was loaded between 24 and 25. Nothing depended on the position, but
+26-performance.el asks to load last among modules touching the same
+variables; it sets none that 28 sets, so numeric order is both correct
+and honest about the dependency.
+
+### C — Interface strings translated to English
+
+Transient labels, hub template headings, echo-area messages and prompts
+were written in Polish. Everything in this repository is English,
+including strings the interface shows.
+
+Hub heading names are now `defcustom` (`my/writing-heading-*`) rather
+than constants, since hub files are read and edited by hand and may as
+well be in the language they are written in. English defaults. Changing
+one after projects exist orphans that section in every existing hub,
+which is documented at the definition and in function_helper.
+
+### D — API and correctness fixes in module 28
+
+- Day arithmetic no longer goes through `time-to-days`, which is not
+  reliably loaded; it is computed from `org-time-string-to-time` and
+  `float-time` directly. Overdue deadlines now report as such instead
+  of being clamped to zero.
+- Front matter is read from a live buffer when one exists, so a hub
+  whose target was edited and not yet saved reports its own value
+  rather than the copy on disk.
+- Link insertion is one function (`my/writing--append-link`) instead of
+  being open-coded twice with slightly different point handling.
+- `my/writing-project-rebuild-materials` adds newly found identifiers
+  to its own known-set as it goes; a note listed twice in the scan
+  results was previously inserted twice.
+- Progress reports links that resolve to no file as `unresolved`
+  instead of silently counting fewer files, which would have hidden a
+  deleted note or a changed identifier.
+- Added `my/writing-clear-char-cache`, needed after toggling
+  `my/writing-count-with-pandoc` since cache keys are modification
+  times and toggling the counter does not change any file.
+
+### E — function_helper.org
+
+New section `#writing-projects`. The main menu overview now lists `p`
+alongside `l` and `z` as dynamically appended, and names
+`my/transient-append` as what makes a missing module harmless.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-01 — Writing Projects, Phase 1
 
 ### Context

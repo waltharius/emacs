@@ -15,7 +15,7 @@
 ;; mention it, and conflating them makes the project list useless:
 ;;
 ;;   belongs   -> `#+project: slug' in the note's front matter, plus a link
-;;                in the hub's Materials section (the hub is the fast path,
+;;                in the hub's materials section (the hub is the fast path,
 ;;                the keyword is repair data)
 ;;   mentions  -> Denote keyword `slug' in the file name, nothing else
 ;;
@@ -25,7 +25,7 @@
 ;; promoted with one key.
 ;;
 ;; PROGRESS is measured against a character target, over the files linked
-;; under "Materiały -> Tekst" only.  Source notes and outlines are excluded
+;; under the "Text" section only.  Source notes and outlines are excluded
 ;; because they are not the deliverable.  The measurement runs on exported
 ;; plain text rather than the Org source: a publisher counts the characters
 ;; the reader gets, and front matter, drawers and citation syntax can be a
@@ -35,11 +35,10 @@
 ;; - Requires nothing.  Degrades if `denote' or `pandoc' are absent.
 ;; - Appends to the menus of 12-transient via `my/transient-append', so a
 ;;   missing 12-transient leaves the entry out instead of breaking init.
-;; - SUPERSEDES the `org-agenda-files' setting in 05-notes.el.  That line
-;;   must be deleted; see the Agenda section below for why.
-;; - Overrides `org-clock-persist' from 04-denote.el, whose comment claims
-;;   clocking is not part of this workflow.  That comment is now false and
-;;   should be corrected there.
+;; - Owns `org-agenda-files'.  The setting that used to live in 05-notes.el
+;;   has been removed; see the Agenda section below for why.
+;; - Requires `org-clock-persist-file' to keep its default value.  See the
+;;   Clock section: 04-denote.el used to set it to nil.
 ;;
 ;; Docs: ~/.emacs.d/function_helper.org::#writing-projects
 
@@ -78,9 +77,10 @@ index."
         (expand-file-name "~/notes/journal/"))
   "Directories scanned when rebuilding project membership from notes.
 
-Only used by the on-demand rebuild command.  Ordinary operation reads
-the hub, which is one file, because scanning several thousand notes on
-every project visit would make the project unusable."
+Only used by the on-demand rebuild and mention-refresh commands.
+Ordinary operation reads the hub, which is one file, because scanning
+several thousand notes on every project visit would make the project
+unusable."
   :type '(repeat directory)
   :group 'my/writing-projects)
 
@@ -125,11 +125,53 @@ This is off by default because it has not been tested here."
   :type 'boolean
   :group 'my/writing-projects)
 
-;; Section headings written into every new hub.  Kept in one place so the
-;; parser and the template cannot drift apart.
-(defconst my/writing--heading-text "Tekst")
-(defconst my/writing--heading-sources "Źródła")
-(defconst my/writing--heading-mentions "Wzmianki")
+;; Section headings written into every new hub, and looked for when
+;; reading one back.  Configurable because hub files are read and edited
+;; by hand and may as well be in the language they are written in, but
+;; the defaults are English like the rest of this configuration.
+;;
+;; Changing these after projects exist orphans their sections: the
+;; commands would look for headings that are not there.  Set them once,
+;; before creating the first project, or rename the headings in every
+;; existing hub at the same time.
+
+(defcustom my/writing-heading-tasks "Tasks"
+  "Hub heading holding the project's task list."
+  :type 'string
+  :group 'my/writing-projects)
+
+(defcustom my/writing-heading-time "Time"
+  "Hub heading holding the clocktable."
+  :type 'string
+  :group 'my/writing-projects)
+
+(defcustom my/writing-heading-materials "Materials"
+  "Hub heading grouping the two membership sections."
+  :type 'string
+  :group 'my/writing-projects)
+
+(defcustom my/writing-heading-text "Text"
+  "Hub heading listing the notes that make up the deliverable.
+Only files linked here count towards the character target."
+  :type 'string
+  :group 'my/writing-projects)
+
+(defcustom my/writing-heading-sources "Sources"
+  "Hub heading listing source notes, outlines and excerpts.
+Not counted towards the character target."
+  :type 'string
+  :group 'my/writing-projects)
+
+(defcustom my/writing-heading-mentions "Mentions"
+  "Hub heading listing notes that merely mention the project.
+Regenerated wholesale, so nothing may be written there by hand."
+  :type 'string
+  :group 'my/writing-projects)
+
+(defcustom my/writing-heading-mail "Mail"
+  "Hub heading for correspondence belonging to the project."
+  :type 'string
+  :group 'my/writing-projects)
 
 ;; ============================================================
 ;; FRONT MATTER
@@ -141,17 +183,31 @@ This is off by default because it has not been tested here."
 ;; keyword line matches what Denote already writes, is greppable from a
 ;; shell, and takes several values separated by spaces.
 
+(defun my/writing--keyword-in-buffer (keyword)
+  "Return the value of KEYWORD in the current buffer, or nil."
+  (save-excursion
+    (goto-char (point-min))
+    (when (re-search-forward
+           (format "^#\\+%s:[ \t]+\\(.+\\)$" (regexp-quote keyword))
+           ;; Front matter is at the top; stop early rather than scanning
+           ;; a whole chapter for a keyword that is not there.
+           (min (point-max) 2000) t)
+      (string-trim (match-string-no-properties 1)))))
+
 (defun my/writing--read-keyword (file keyword)
   "Return the value of KEYWORD from FILE front matter, or nil.
-Only the head of the file is read: front matter is always at the top and
-loading whole notes here would make membership scans needlessly slow."
-  (when (file-readable-p file)
-    (with-temp-buffer
-      (insert-file-contents file nil 0 1200)
-      (goto-char (point-min))
-      (when (re-search-forward
-             (format "^#\\+%s:[ \t]+\\(.+\\)$" (regexp-quote keyword)) nil t)
-        (string-trim (match-string 1))))))
+
+A live buffer visiting FILE wins over the copy on disk, so that a hub
+edited and not yet saved still reports its own target.  Otherwise only
+the head of the file is read: loading whole notes here would make
+membership scans needlessly slow."
+  (let ((buffer (find-buffer-visiting file)))
+    (if buffer
+        (with-current-buffer buffer (my/writing--keyword-in-buffer keyword))
+      (when (file-readable-p file)
+        (with-temp-buffer
+          (insert-file-contents file nil 0 2000)
+          (my/writing--keyword-in-buffer keyword))))))
 
 (defun my/writing--file-projects (file)
   "Return the list of project slugs FILE declares membership in."
@@ -212,7 +268,7 @@ transliteration rule applied inconsistently is worse than none."
        (directory-files my/writing-projects-directory nil nil t))))))
 
 (defun my/writing--read-project (&optional prompt)
-  "Prompt for a project slug with completion."
+  "Prompt for a project slug with completion, using PROMPT."
   (let ((slugs (my/writing-project-slugs)))
     (unless slugs
       (user-error "No writing projects yet -- create one with `my/writing-project-new'"))
@@ -236,7 +292,8 @@ whose front matter names exactly one project."
 ;; ============================================================
 
 (defun my/writing--hub-template (title slug target-chars target-date)
-  "Return the initial contents of a hub file."
+  "Return the initial contents of a hub file.
+TITLE, SLUG, TARGET-CHARS and TARGET-DATE describe the new project."
   (concat
    "#+title: " title "\n"
    "#+category: " slug "\n"
@@ -246,26 +303,26 @@ whose front matter names exactly one project."
    "#+startup: overview\n"
    "#+todo: TODO NEXT INPROGRESS WAITING | DONE CANCELLED\n"
    "#+property: Effort_ALL 0:15 0:30 1:00 2:00 4:00 8:00 16:00\n"
-   "#+columns: %48ITEM(Zadanie) %TODO %3PRIORITY %8Effort(Est){:} %8CLOCKSUM(Czas)\n"
+   "#+columns: %48ITEM(Task) %TODO %3PRIORITY %8Effort(Est){:} %8CLOCKSUM(Clocked)\n"
    "\n"
-   "* Zadania\n"
+   "* " my/writing-heading-tasks "\n"
    "\n"
-   "* Czas\n"
+   "* " my/writing-heading-time "\n"
    "#+BEGIN: clocktable :scope file :maxlevel 3 :link t :compact t\n"
    "#+END:\n"
    "\n"
-   "* Materiały\n"
-   "** " my/writing--heading-text "\n"
-   "Notatki, które składają się na oddawany tekst.  Tylko one liczą się\n"
-   "do celu znakowego.\n"
+   "* " my/writing-heading-materials "\n"
+   "** " my/writing-heading-text "\n"
+   "Notes that make up the deliverable.  Only these count towards the\n"
+   "character target.\n"
    "\n"
-   "** " my/writing--heading-sources "\n"
-   "Notatki źródłowe, konspekty, wypisy.  Nie wchodzą do licznika.\n"
+   "** " my/writing-heading-sources "\n"
+   "Source notes, outlines, excerpts.  Not counted.\n"
    "\n"
-   "* " my/writing--heading-mentions "\n"
-   "Generowane automatycznie -- ta sekcja jest nadpisywana w całości.\n"
+   "* " my/writing-heading-mentions "\n"
+   "Generated -- this section is overwritten in full.\n"
    "\n"
-   "* Poczta\n"))
+   "* " my/writing-heading-mail "\n"))
 
 ;;;###autoload
 (defun my/writing-project-new (title target-chars target-date)
@@ -318,16 +375,8 @@ which per-file version history cannot do."
 ;; HUB SECTIONS
 ;; ============================================================
 
-(defun my/writing--goto-heading (heading)
-  "Move point to the start of the body of HEADING, or return nil."
-  (goto-char (point-min))
-  (when (re-search-forward
-         (format "^\\*+ +%s[ \t]*$" (regexp-quote heading)) nil t)
-    (forward-line 1)
-    (point)))
-
 (defun my/writing--section-bounds (heading)
-  "Return (START . END) of the body of HEADING, or nil.
+  "Return (START . END) of the body of HEADING in this buffer, or nil.
 END is the next heading at the same or a shallower level."
   (save-excursion
     (goto-char (point-min))
@@ -352,6 +401,17 @@ END is the next heading at the same or a shallower level."
           (push (match-string-no-properties 1) ids))
         (nreverse ids)))))
 
+(defun my/writing--append-link (heading id title)
+  "Append a Denote link to ID titled TITLE at the end of HEADING's body.
+Returns nil when HEADING is absent or already lists ID."
+  (let ((bounds (my/writing--section-bounds heading)))
+    (when (and bounds (not (member id (my/writing--links-in-section heading))))
+      (save-excursion
+        (goto-char (cdr bounds))
+        (skip-chars-backward " \t\n")
+        (insert (format "\n- [[denote:%s][%s]]\n" id title))
+        t))))
+
 (defun my/writing--id-to-file (id)
   "Resolve Denote identifier ID to a file path, or nil."
   (when (fboundp 'denote-get-path-by-id)
@@ -372,14 +432,14 @@ lost."
   (interactive
    (list (my/writing--read-project "Add to project: ")
          (completing-read "Section: "
-                          (list my/writing--heading-text
-                                my/writing--heading-sources)
-                          nil t nil nil my/writing--heading-text)))
+                          (list my/writing-heading-text
+                                my/writing-heading-sources)
+                          nil t nil nil my/writing-heading-text)))
   (let ((file (buffer-file-name)))
     (unless file (user-error "This buffer is not visiting a file"))
     (unless (derived-mode-p 'org-mode) (user-error "Not an Org buffer"))
-    (let ((id (my/writing--read-keyword file "identifier"))
-          (title (or (my/writing--read-keyword file "title")
+    (let ((id (my/writing--keyword-in-buffer "identifier"))
+          (title (or (my/writing--keyword-in-buffer "title")
                      (file-name-base file))))
       (unless id
         (user-error "No `#+identifier:' -- this does not look like a Denote note"))
@@ -389,28 +449,22 @@ lost."
           (my/writing--set-file-projects (append current (list slug)))
           (save-buffer)))
       ;; Hub side.
-      (let ((hub (my/writing--hub-file slug)))
-        (with-current-buffer (find-file-noselect hub)
-          (save-excursion
-            (unless (my/writing--goto-heading section)
-              (user-error "Hub has no `%s' section" section))
-            (let ((bounds (my/writing--section-bounds section)))
-              (if (member id (my/writing--links-in-section section))
-                  (message "Already listed under %s" section)
-                (goto-char (cdr bounds))
-                (skip-chars-backward " \t\n")
-                (insert (format "\n- [[denote:%s][%s]]\n" id title))
-                (save-buffer)
-                (message "Added to %s / %s" slug section)))))))))
+      (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
+        (unless (my/writing--section-bounds section)
+          (user-error "Hub has no `%s' section" section))
+        (if (my/writing--append-link section id title)
+            (progn (save-buffer)
+                   (message "Added to %s / %s" slug section))
+          (message "Already listed under %s" section))))))
 
 ;;;###autoload
 (defun my/writing-project-rebuild-materials (slug)
-  "Rebuild the hub's Materials sections for SLUG by scanning the silos.
+  "Rebuild the hub's materials sections for SLUG by scanning the silos.
 
 Repair, not routine: this reads the head of every note in
 `my/writing-project-silos'.  Existing entries are kept and only missing
-ones are appended, under Źródła, because the scan cannot know whether a
-note is deliverable text or a source."
+ones are appended, under the sources heading, because the scan cannot
+know whether a note is deliverable text or a source."
   (interactive (list (my/writing--read-project "Rebuild materials of: ")))
   (let ((found '())
         (scanned 0))
@@ -420,23 +474,19 @@ note is deliverable text or a source."
           (setq scanned (1+ scanned))
           (when (member slug (my/writing--file-projects file))
             (push file found)))))
-    (let ((hub (my/writing--hub-file slug))
-          (added 0))
-      (with-current-buffer (find-file-noselect hub)
-        (let ((known (append (my/writing--links-in-section my/writing--heading-text)
-                             (my/writing--links-in-section my/writing--heading-sources))))
-          (save-excursion
-            (dolist (file (nreverse found))
-              (let ((id (my/writing--read-keyword file "identifier"))
-                    (title (or (my/writing--read-keyword file "title")
-                               (file-name-base file))))
-                (when (and id (not (member id known)))
-                  (let ((bounds (my/writing--section-bounds my/writing--heading-sources)))
-                    (goto-char (cdr bounds))
-                    (skip-chars-backward " \t\n")
-                    (insert (format "\n- [[denote:%s][%s]]\n" id title))
-                    (setq added (1+ added)))))))
-          (when (> added 0) (save-buffer))))
+    (let ((added 0))
+      (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
+        (let ((known (append (my/writing--links-in-section my/writing-heading-text)
+                             (my/writing--links-in-section my/writing-heading-sources))))
+          (dolist (file (nreverse found))
+            (let ((id (my/writing--read-keyword file "identifier"))
+                  (title (or (my/writing--read-keyword file "title")
+                             (file-name-base file))))
+              (when (and id (not (member id known)))
+                (when (my/writing--append-link my/writing-heading-sources id title)
+                  (push id known)
+                  (setq added (1+ added)))))))
+        (when (> added 0) (save-buffer)))
       (message "Scanned %d notes, %d newly added to %s" scanned added slug))))
 
 ;; ============================================================
@@ -444,7 +494,8 @@ note is deliverable text or a source."
 ;; ============================================================
 ;; Matched on the file name alone.  Denote encodes keywords after `__' in
 ;; the name, so this needs no file to be opened -- which is what makes it
-;; cheap enough to refresh on every visit, unlike the membership scan.
+;; affordable at all, though it still lists several thousand directory
+;; entries and is therefore a command, not something run on every visit.
 
 (defun my/writing--mention-files (slug)
   "Return notes whose Denote keywords include SLUG."
@@ -461,22 +512,22 @@ note is deliverable text or a source."
 
 ;;;###autoload
 (defun my/writing-project-refresh-mentions (slug)
-  "Replace the Wzmianki section of SLUG's hub with a fresh listing.
+  "Replace the mentions section of SLUG's hub with a fresh listing.
 
 The whole section is overwritten, so nothing may be written there by
-hand -- anything worth keeping belongs in Materials."
+hand -- anything worth keeping belongs under materials."
   (interactive (list (my/writing--read-project "Refresh mentions of: ")))
   (let ((files (my/writing--mention-files slug)))
     (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
-      (save-excursion
-        (let ((bounds (my/writing--section-bounds my/writing--heading-mentions)))
-          (unless bounds (user-error "Hub has no `%s' section"
-                                     my/writing--heading-mentions))
+      (let ((bounds (my/writing--section-bounds my/writing-heading-mentions)))
+        (unless bounds
+          (user-error "Hub has no `%s' section" my/writing-heading-mentions))
+        (save-excursion
           (delete-region (car bounds) (cdr bounds))
           (goto-char (car bounds))
-          (insert "Generowane automatycznie -- ta sekcja jest nadpisywana w całości.\n\n")
+          (insert "Generated -- this section is overwritten in full.\n\n")
           (if (null files)
-              (insert "Brak wzmianek.\n\n")
+              (insert "No mentions.\n\n")
             (dolist (file files)
               (let ((id (my/writing--read-keyword file "identifier"))
                     (title (or (my/writing--read-keyword file "title")
@@ -496,6 +547,15 @@ hand -- anything worth keeping belongs in Materials."
   "Cache of character counts, keyed by (FILE . MODIFICATION-TIME).
 Counting shells out to pandoc, which is far too slow to repeat for every
 file each time the progress line is drawn.")
+
+(defun my/writing-clear-char-cache ()
+  "Empty the character-count cache.
+Only needed after changing `my/writing-count-with-pandoc', since
+ordinary edits invalidate their own entries through the file's
+modification time."
+  (interactive)
+  (clrhash my/writing--char-cache)
+  (message "Character cache cleared"))
 
 (defun my/writing--count-chars-crude (file)
   "Count characters of FILE, skipping keyword lines, drawers and comments."
@@ -528,21 +588,26 @@ file each time the progress line is drawn.")
           (puthash key n my/writing--char-cache)
           n))))
 
+(defun my/writing--days-until (date)
+  "Return whole days from today until DATE, an Org date string.
+Negative once the date has passed."
+  (when date
+    (ceiling (/ (- (float-time (org-time-string-to-time date))
+                   (float-time))
+                86400.0))))
+
 (defun my/writing-project-stats (slug)
   "Return a plist of progress figures for SLUG."
   (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
     (let* ((target (string-to-number
-                    (or (my/writing--read-keyword (buffer-file-name) "target_chars")
-                        "0")))
-           (date (my/writing--read-keyword (buffer-file-name) "target_date"))
-           (ids (my/writing--links-in-section my/writing--heading-text))
+                    (or (my/writing--keyword-in-buffer "target_chars") "0")))
+           (date (my/writing--keyword-in-buffer "target_date"))
+           (ids (my/writing--links-in-section my/writing-heading-text))
            (files (delq nil (mapcar #'my/writing--id-to-file ids)))
-           (chars (apply #'+ 0 (mapcar #'my/writing--count-chars files)))
-           (days (when date
-                   (max 0 (- (time-to-days (org-time-string-to-time date))
-                             (time-to-days (current-time)))))))
-      (list :target target :chars chars :files (length files)
-            :date date :days days))))
+           (chars (apply #'+ 0 (mapcar #'my/writing--count-chars files))))
+      (list :target target :chars chars
+            :files (length files) :linked (length ids)
+            :date date :days (my/writing--days-until date)))))
 
 ;;;###autoload
 (defun my/writing-project-progress (slug)
@@ -558,31 +623,39 @@ a flag would spend most of its life set wrongly."
          (target (plist-get s :target))
          (chars (plist-get s :chars))
          (days (plist-get s :days))
+         (files (plist-get s :files))
+         (linked (plist-get s :linked))
          (pct (if (> target 0) (round (* 100.0 (/ (float chars) target))) 0))
          (remaining (- target chars)))
     (message
-     "%s: %s / %s znaków (%d%%, %d plików) · %s"
-     slug chars target pct (plist-get s :files)
+     "%s: %s / %s chars (%d%%, %d file%s%s) · %s"
+     slug chars target pct files (if (= files 1) "" "s")
+     ;; A link that resolves to nothing means a note was deleted or its
+     ;; identifier changed; silently counting fewer files would hide that.
+     (if (= files linked) "" (format ", %d unresolved" (- linked files)))
      (cond
-      ((null days) "brak terminu")
+      ((null days) "no deadline")
       ((and (> remaining 0) (> days 0))
-       (format "%d dni · %d zn./dzień" days (ceiling (/ (float remaining) days))))
-      ((> remaining 0) (format "termin dziś lub minął · brakuje %d" remaining))
-      (t (format "%d dni · nadwyżka %d do skrócenia" days (- remaining)))))))
+       (format "%d days · %d chars/day" days (ceiling (/ (float remaining) days))))
+      ((> remaining 0)
+       (format "due today or overdue · %d chars short" remaining))
+      ((> days 0)
+       (format "%d days · %d chars over target" days (- remaining)))
+      (t (format "%d chars over target" (- remaining)))))))
 
 ;; ============================================================
 ;; AGENDA
 ;; ============================================================
-;; Only hub files.  05-notes.el points `org-agenda-files' at the three
-;; silos plus the capture file, which means every agenda build reads some
-;; 3700 notes looking for TODO keywords that are not there -- the silos
-;; hold no tasks, and the TODOs in docu/ are documentation examples that
-;; should never appear as work.  Delete that setting in 05-notes.el; while
-;; it remains, which value wins depends on module load order, which is not
-;; something to leave to chance.
+;; Only hub files.  05-notes.el used to point `org-agenda-files' at the
+;; three silos plus the capture file, which meant every agenda build read
+;; some 3700 notes looking for TODO keywords that are not there -- the
+;; silos hold no tasks, and the TODOs in docu/ are documentation examples
+;; that should never appear as work.  That setting has been removed;
+;; leaving both in place would have made the result depend on module load
+;; order, which is not something to leave to chance.
 ;;
 ;; Personal tasks are not an exception to be carved out here: a project
-;; named "Życie" is a project like any other.
+;; named "Life" is a project like any other.
 
 (defun my/writing-projects-update-agenda-files ()
   "Set `org-agenda-files' to the hub file of every writing project."
@@ -602,11 +675,12 @@ a flag would spend most of its life set wrongly."
 ;; What follows only decides what happens to time that was clocked but not
 ;; worked.
 ;;
-;; `org-clock-persist' is set to nil in 04-denote.el on the grounds that
-;; clocking is not part of this workflow.  It now is.  Persistence matters
-;; here because a writing session outlives an Emacs session, and because a
-;; clock left running through a crash can be resolved on the next start
-;; using the Org file's modification time as the end of the work.
+;; Persistence matters here because a writing session outlives an Emacs
+;; session, and because a clock left running through a crash can be
+;; resolved on the next start using the Org file's modification time as
+;; the end of the work.  This needs `org-clock-persist-file' to name a
+;; real file; 04-denote.el used to set it to nil, which would make
+;; `org-clock-persistence-insinuate' fail on the first save.
 
 (with-eval-after-load 'org-clock
   (setq org-clock-persist 'history)
@@ -652,28 +726,28 @@ a flag would spend most of its life set wrongly."
 
 (transient-define-prefix my/writing-projects-menu ()
   "Writing projects."
-  [["Projekt"
-    ("n" "Nowy projekt"      my/writing-project-new)
-    ("o" "Otwórz hub"        my/writing-project-open)
-    ("D" "Katalog (dired)"   my/writing-project-dired)]
-   ["Materiały"
-    ("a" "Dodaj tę notatkę"  my/writing-project-add-note)
-    ("m" "Odśwież wzmianki"  my/writing-project-refresh-mentions)
-    ("R" "Przebuduj ze skanu" my/writing-project-rebuild-materials)]
-   ["Postęp i czas"
-    ("p" "Postęp"            my/writing-project-progress)
-    ("i" "Clock in"          org-clock-in)
-    ("c" "Clock out"         org-clock-out)
-    ("z" "Anuluj zegar"      org-clock-cancel)
-    ("g" "Skocz do zegara"   org-clock-goto)]
+  [["Project"
+    ("n" "New project"        my/writing-project-new)
+    ("o" "Open hub"           my/writing-project-open)
+    ("D" "Directory (dired)"  my/writing-project-dired)]
+   ["Materials"
+    ("a" "Add this note"      my/writing-project-add-note)
+    ("m" "Refresh mentions"   my/writing-project-refresh-mentions)
+    ("R" "Rebuild from scan"  my/writing-project-rebuild-materials)]
+   ["Progress & time"
+    ("p" "Progress"           my/writing-project-progress)
+    ("i" "Clock in"           org-clock-in)
+    ("c" "Clock out"          org-clock-out)
+    ("z" "Cancel clock"       org-clock-cancel)
+    ("g" "Goto clock"         org-clock-goto)]
    ["Agenda"
-    ("A" "Agenda"            org-agenda)
-    ("U" "Odśwież pliki agendy" my/writing-projects-update-agenda-files)]
+    ("A" "Agenda"             org-agenda)
+    ("U" "Update agenda files" my/writing-projects-update-agenda-files)]
    [("q" "Quit" transient-quit-one)]])
 
 (with-eval-after-load '12-transient
   (my/transient-append 'my/notes-menu "x"
-                       '("p" "Projekty pisarskie →" my/writing-projects-menu)))
+                       '("p" "Writing projects →" my/writing-projects-menu)))
 
 (provide '28-writing-projects)
 ;;; 28-writing-projects.el ends here

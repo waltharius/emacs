@@ -84,12 +84,17 @@
 (setq org-confirm-elisp-link-function #'y-or-n-p)
 
 ;; ============================================================
-;; E4 — DISABLE ORG-CLOCK PERSISTENCE
+;; E4 — ORG-CLOCK PERSISTENCE IS OWNED BY 28-writing-projects.el
 ;; ============================================================
-;; org-clock-persist is enabled by default in modern Emacs.
-
-(setq org-clock-persist nil)
-(setq org-clock-persist-file nil)
+;; This block used to set `org-clock-persist' and `org-clock-persist-file'
+;; to nil, on the grounds that time tracking was not part of this
+;; workflow.  It now is: writing projects clock work against tasks in
+;; their hub file, and a writing session outlives an Emacs session.
+;;
+;; Nothing is set here any more.  `org-clock-persist-file' in particular
+;; must keep its default value: `org-clock-persistence-insinuate' writes
+;; to it on every clock change, and a nil file name errors out.
+;; See the Clock section of 28-writing-projects.el.
 
 ;; ============================================================
 ;; TITLE PROMPT: do not offer past titles as completion candidates
