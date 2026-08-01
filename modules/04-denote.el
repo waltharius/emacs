@@ -87,10 +87,6 @@
 ;; E4 — DISABLE ORG-CLOCK PERSISTENCE
 ;; ============================================================
 ;; org-clock-persist is enabled by default in modern Emacs.
-;; It writes ~/.emacs.d/.org-clock.save.el on every quit and reads
-;; it on every startup, causing a noticeable delay even when you
-;; never use org-clock.  Disabled here because org-agenda and
-;; time-clocking are not part of this workflow.
 
 (setq org-clock-persist nil)
 (setq org-clock-persist-file nil)

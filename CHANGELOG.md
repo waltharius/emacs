@@ -7,6 +7,81 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-01 — Writing Projects, Phase 1
+
+### Context
+
+Managing a long-form text — tasks, deadline, time spent, which notes
+belong to it — had no home. `my/denote-essay` created a flat note with
+a static template and nothing else; `templates/project.org` described a
+module (`13-project-management.el`) that does not exist, alongside
+`my/denote-create-project` and `org-kanban`, neither of which exists
+either. That directory is dead and is dealt with separately.
+
+### A — `modules/28-writing-projects.el`
+
+A project is a directory under `~/projects/` holding one hub file named
+after it. The written text is not there: it stays in the Denote silos
+and carries a `#+project:` line. The project directory holds only the
+organisational layer, because notes are knowledge that outlives the
+project while the hub is scaffolding that dies with the deadline.
+
+Membership and mention are separate relations with separate mechanisms.
+A journal entry keyworded `licencjat` records that something about the
+thesis happened that day; it is not a chapter. Membership is a
+`#+project:` keyword plus a link in the hub, mention is the Denote
+keyword alone, and the two are listed in different sections.
+
+The hub is the fast path and the keyword is repair data. Reading one
+file is instant; scanning 3700 notes for a property is not, so the scan
+exists only as a rebuild command.
+
+`#+project:` is a front-matter keyword rather than an Org property
+because Org properties live under a heading and Denote notes usually
+have none, which would force `#+PROPERTY: PROJECT foo`. A keyword line
+matches what Denote already writes and is greppable from a shell.
+
+Progress is measured only over files linked under Materials → Tekst,
+on pandoc-exported plain text, cached by modification time. Source
+notes are excluded because they are not the deliverable, and the Org
+source is not counted because front matter and markup can be a fifth of
+a file while a publisher counts what the reader receives.
+
+There is no drafting/editing phase flag. The two alternate between
+sessions, so the flag would be wrong most of the time; instead the
+progress line changes meaning once the target is passed, reporting an
+excess to cut rather than a daily quota.
+
+### B — `org-agenda-files` narrowed to hub files
+
+05-notes.el pointed it at three silos plus the capture file. The silos
+hold no tasks, and the TODOs in `docu/` are documentation examples that
+should never appear as work — so every agenda build was reading some
+3700 files to find nothing, or worse, to find examples. Now it is the
+hub of every project. Personal tasks are not carved out as an
+exception: a project named "Życie" is a project like any other.
+
+The setting in 05-notes.el is deleted rather than left to lose on load
+order.
+
+### C — Clock configuration
+
+Clocking is opt-in per heading, so enabling it cannot leak into
+unrelated Emacs use. `org-clock-persist` becomes `'history` — a writing
+session outlives an Emacs session, and a clock left running through a
+crash can then be resolved against the file's modification time. Idle
+handling covers walking away (`org-clock-idle-time`, prompt on return)
+and falling asleep (`org-clock-auto-clockout-timer`).
+
+Under Wayland none of this is fully reliable: Org can ask macOS and X11
+how long the _user_ has been idle, but under Wayland it can only ask
+Emacs, so reading in a browser with an Emacs frame focused counts as
+work. A D-Bus query to GNOME Mutter answers the same question and is
+included, disabled by default and marked unverified.
+`org-time-stamp-rounding-minutes` is set to 5 so that correcting a
+CLOCK line by hand with S-<up> moves by a useful step — manual
+correction is the fallback whenever idle detection cannot be trusted.
+
 ## Session 2026-07-31 — Decoupling Menu Extension Between Modules
 
 ### Context
@@ -30,8 +105,8 @@ one of them is a problem.
 
 Feature modules add their entries to the shared menus with
 `transient-append-suffix`, which needs an anchor: an existing key to
-append after. Several anchored on a key contributed by *another
-optional module*.
+append after. Several anchored on a key contributed by _another
+optional module_.
 
 `transient-append-suffix` signals when the anchor is absent. That
 happens during module loading, so it aborts `init.el` partway and
@@ -192,7 +267,7 @@ Three pandoc behaviours corrupted output silently before they were
 found, all worth recording because they will recur with any future
 markdown import:
 
-1. `yaml_metadata_block` treats a `---` fenced block *anywhere* in the
+1. `yaml_metadata_block` treats a `---` fenced block _anywhere_ in the
    document as YAML metadata, not just at the top. Notes using `---` as
    a section divider therefore failed to parse, or had a section eaten.
 2. A `---` line directly under text is a setext heading underline; one
@@ -248,7 +323,7 @@ error, which is why `my/csl-check-setup` exists at all:
   the server's error body, leaving a readable 14-byte
   "chicago-note-bibliography.csl". Citeproc parsed an empty style and
   the export died far from the cause with `Wrong type argument:
-  numberp, nil`. The CSL repository had renamed the file to
+numberp, nil`. The CSL repository had renamed the file to
   `chicago-notes-bibliography.csl`.
 - **Locales never configured.** `org-cite-csl-locales-dir` was unset,
   so citeproc used the en-US-only locales bundled with Org inside the
@@ -258,7 +333,7 @@ error, which is why `my/csl-check-setup` exists at all:
   raised `Symbol's value as variable is void` and aborted `init.el`
   partway — leaving the checker itself undefined.
 
-`my/csl-check-setup` therefore validates *content*, not just presence:
+`my/csl-check-setup` therefore validates _content_, not just presence:
 file size and an expected opening tag catch the 404 case, and the live
 values of the locales directory and the processor alist are compared
 against the intended ones, since the two can disagree.
@@ -321,7 +396,7 @@ the module for that update surfaced three defects worth fixing.
 #### A1 — Point was thrown to the end of the buffer on every insert
 
 All three insert helpers ended with `(goto-char (point-max))`. That is
-the end of the *buffer*, not the end of the text just inserted, so
+the end of the _buffer_, not the end of the text just inserted, so
 adding a transclusion in the middle of a draft moved the cursor to the
 bottom of the file every time.
 
@@ -340,7 +415,7 @@ doubled space in `:only-contents  t` went with it.
 The module inserts a `#+transclude:` / `#+INCLUDE:` pair: the first
 works in the editor, the second at export time. That pairing is
 sound, but nothing prevented exporting while transclusions were
-*active* — and then `org-transclusion-add` has already inserted the
+_active_ — and then `org-transclusion-add` has already inserted the
 source text into the buffer, so `#+INCLUDE:` pulls the same text a
 second time.
 
@@ -386,7 +461,7 @@ Deliberately kept in `my/--extract-paragraphs`, where
   rather than wrong; a correct version would locate the paragraph in
   the target buffer instead.
 - The module hooks its submenu on with `with-eval-after-load
-  '12-transient` plus `transient-remove-suffix`, where the later
+'12-transient` plus `transient-remove-suffix`, where the later
   modules (19, 22, 24) append directly behind a `transient-get-suffix`
   guard. Both work; the inconsistency is noted for a future tidy-up
   rather than churned now.
@@ -451,19 +526,19 @@ it replaced. `mouse-1` opens a row; `S` or a header click re-sorts;
 Quote list offers four actions, from the keyboard or from per-quote
 buttons:
 
-| Key | Effect                                       |
-|-----|----------------------------------------------|
-| RET | create a note, stay in the list              |
-| o   | create a note and show it beside the list    |
+| Key | Effect                                                 |
+| --- | ------------------------------------------------------ |
+| RET | create a note, stay in the list                        |
+| o   | create a note and show it beside the list              |
 | z   | create a note, then run the Folgezettel commands on it |
-| a   | add the quote to an EXISTING note as evidence |
+| a   | add the quote to an EXISTING note as evidence          |
 
 Quote lines show the Readwise URL as a clickable button.
 
 #### Consumed versus cited
 
-`a` needed a distinction that did not exist. A quote can be *consumed*
-— a note IS that quote, nothing left to do — or merely *cited*, where
+`a` needed a distinction that did not exist. A quote can be _consumed_
+— a note IS that quote, nothing left to do — or merely _cited_, where
 a note about the book quotes it as evidence. Citing must not hide the
 quote, since it remains available to become a note of its own.
 
@@ -596,13 +671,13 @@ sync, so a book file can be regenerated exactly.
 
 #### Why sync is two-phase
 
-`updatedAfter` returns each book carrying only its *changed*
+`updatedAfter` returns each book carrying only its _changed_
 highlights. Writing that directly would replace a complete file with a
 partial one. Phase one therefore discovers which books moved; phase
 two re-fetches those books in full and rewrites their files. Each file
 stays a pure function of Readwise's current state.
 
-The sync timestamp is recorded *before* fetching, so a highlight
+The sync timestamp is recorded _before_ fetching, so a highlight
 changed mid-run does not fall into the gap between the fetch and the
 timestamp and vanish from future syncs.
 
@@ -621,7 +696,7 @@ re-import overwrites instead of accumulating a copy per sync.
   block is left unclosed as far as `org-element` is concerned, even
   though it still renders acceptably.
 - **No template headings.** The earlier files carried empty `Główna
-  teza` / `Kluczowe koncepty` sections, which assumed the imported
+teza` / `Kluczowe koncepty` sections, which assumed the imported
   file was where the thinking happened. That conflicts with treating
   these files as a disposable inbox: it would invite putting work into
   a file that can be regenerated away.
@@ -654,7 +729,7 @@ about a format that only one of them defines.
 
 The stated need was to recover text deleted before a save, which had
 been framed as a version-control problem. It is not: a commit made at
-save time records the state *after* the deletion. The layers that
+save time records the state _after_ the deletion. The layers that
 actually answer it are undo (within a session) and numbered backups
 (between sessions), both of which existed but neither of which was
 visible or persistent.
@@ -678,7 +753,7 @@ see that tree, and any memory of it across restarts.
 #### Why this pair rather than `undo-tree`
 
 `undo-tree` is the closer analogue to Vim and has its own persistence,
-but it *replaces* Emacs's undo implementation. `vundo` visualises the
+but it _replaces_ Emacs's undo implementation. `vundo` visualises the
 built-in one instead, which became practical once `undo-only` and
 `undo-redo` were added to Emacs. Less surface area, nothing to
 substitute.
@@ -723,7 +798,7 @@ Two points recorded there because they had caused confusion:
 
 - **A numbered backup is written on the first save of a buffer after
   visiting it, not on every save.** With `kept-new-versions` at 10 the
-  kept files are roughly the last ten *editing sessions*. This is why
+  kept files are roughly the last ten _editing sessions_. This is why
   consecutive `bookmarks.~N~` files are days apart.
 - Backup file names contain `!`, which triggers history expansion in
   `bash`. The whole name must be single-quoted, not part of it.
@@ -751,14 +826,15 @@ places.
 
   Found while testing: the practical rule is stricter than "at a
   fork". The connecting lines are connectors, not paths — `n`/`p` jump
-  vertically between nodes in the *same column*, since siblings are
+  vertically between nodes in the _same column_, since siblings are
   drawn one row apart at equal distance from their fork. You have to
   be standing directly above the target node; one step further right
   and the node below is no longer a sibling, so nothing happens. The
   drawing invites walking along the lines, which is not what the
   commands do. Documented with diagrams in both places.
+
 - **`d` was described as diffing against a marked node**, omitting
-  that with nothing marked it diffs against the *parent* — so at the
+  that with nothing marked it diffs against the _parent_ — so at the
   root, with no mark, there is nothing to compare and the command
   reports as much.
 
@@ -778,7 +854,7 @@ This session generalises the dashboard's behaviour into a routing
 layer any command can opt into.
 
 The same question from the other side — how to keep something visible
-*while* working on something else — turned out to want frames rather
+_while_ working on something else — turned out to want frames rather
 than tabs, which section B covers.
 
 ---
@@ -860,7 +936,7 @@ splits intact, into one.
 
 They are the two halves of one distinction. A tab is a destination and
 is exclusive: while it is shown, nothing else is. A frame is a separate
-OS window, so it can sit on another monitor and be read *alongside* the
+OS window, so it can sit on another monitor and be read _alongside_ the
 work.
 
 So the two mechanisms suit different things. Journal and Dashboard are
@@ -995,7 +1071,7 @@ Before moving anything, the destination is scanned for notes whose
   overwrite / cancel, defaulting to keep both, since two notes sharing
   a title is a legitimate Denote situation as long as the identifiers
   differ;
-- same title *and* identifier: keeping both is impossible because the
+- same title _and_ identifier: keeping both is impossible because the
   file names would be identical, so prompt for a new title or cancel.
 
 A new title is applied by rewriting the `#+title:` line and then
@@ -1229,10 +1305,10 @@ where its tags should be. The note in question had an empty
 `#+filetags:` line.
 
 Cause: the existing readers used `"^#\\+filetags:\\s-*\\(.+\\)$"`.
-`\s-` is the whitespace *syntax* class, and in a temp buffer
+`\s-` is the whitespace _syntax_ class, and in a temp buffer
 (fundamental mode, standard syntax table) a newline has whitespace
 syntax — so `\s-*` consumed the end of the empty line and `\(.+\)`
-captured the *following* line. `[ \t]` would not have done this.
+captured the _following_ line. `[ \t]` would not have done this.
 
 The bug predates this session; it was latent because tags were never
 displayed and only became visible now. It also affected
@@ -1299,7 +1375,7 @@ previewed notes, one of the stated goals.
 The alternative is a `display-buffer-alist` rule matching note files
 and routing them to a side window. That is the idiomatic declarative
 approach and is what a general solution would use. It was not chosen
-here because the rule would apply to *every* way a note gets
+here because the rule would apply to _every_ way a note gets
 displayed, not just selections from this list, which is a much larger
 behavioural change than the feature warrants. Since the button action
 is our own code, addressing the window directly is both simpler and
@@ -1336,7 +1412,7 @@ the direction initially suspected.
 #### G1 — Important buffers lost, transient ones kept
 
 Inherent to a pure MRU policy. `my/desktop-trim-buffers` keeps the
-`my/desktop-max-buffers` most recently *used* file buffers, so a
+`my/desktop-max-buffers` most recently _used_ file buffers, so a
 reference document consulted daily but rarely selected keeps falling
 out of the window, while a note opened once to check something
 survives because it was touched most recently. Recency is a poor
@@ -1413,8 +1489,7 @@ kill list and the recency count:
 
 1. **Tab-open buffers** (`my/desktop--tab-buffers`): for the active
    tab, whatever's actually shown in a window right now; for every
-   *other* tab, only the front `my/desktop-tab-protect-depth` (default
-   3) entries of that tab's own MRU buffer list (`wc-bl`, restored by
+   _other_ tab, only the front `my/desktop-tab-protect-depth` (default 3) entries of that tab's own MRU buffer list (`wc-bl`, restored by
    `tab-bar` on tab switch — see `tab-bar--tab` in `tab-bar.el`).
 2. **Manually pinned buffers**: new buffer-local
    `my/desktop-keep-buffer`, toggled with `C-c d k`, shown as a 📌 in
@@ -1423,7 +1498,7 @@ kill list and the recency count:
 
 #### Why — and a design correction
 
-The first implementation protected a tab's *entire* `wc-bl`/`wc-bbl`
+The first implementation protected a tab's _entire_ `wc-bl`/`wc-bbl`
 history. This was wrong: `wc-bl` is Emacs's own most-recently-used
 buffer list for that tab, and it only ever grows for as long as the
 tab lives — it never forgets a buffer just because the user moved on
@@ -1436,7 +1511,7 @@ whole list. This keeps the protected set bounded to roughly
 `(number of tabs) × N`, independent of tab age, while still covering
 the buffer(s) actually being used in that tab. Also dropped `wc-bbl`
 (buried-buffer list) from protection — a buried buffer is a signal
-it's *not* important, so it should stay eligible for trimming.
+it's _not_ important, so it should stay eligible for trimming.
 
 Closing a tab does not itself kill any buffers — it only removes that
 tab's protection, so its buffers become ordinary trim candidates again
@@ -1470,7 +1545,7 @@ Found and fixed:
   `C-c x` (Zotero), `C-c w d/x/r` (dashboards), `C-c a k/s/t/T`
   (typing analytics), and the rebound Emacs defaults
   (`C-a`/`C-f`/`C-s`/`C-z`/`C-x C-b`/`M-Q`).
-- No documentation anywhere of the transient menu *contents*
+- No documentation anywhere of the transient menu _contents_
   (submenu keys), only their existence.
 
 The help buffer now includes the full `C-c n` and `C-c x` menu trees.
@@ -1508,7 +1583,7 @@ alternatives considered and dropped.
 #### Why
 
 Per the existing architecture (documented in `11-org-appearance.el`),
-all org-mode face *colors* live exclusively in `custom.el` — it's the
+all org-mode face _colors_ live exclusively in `custom.el` — it's the
 Customize-authoritative source and always takes precedence over
 theme-applied faces (the `'user` pseudo-theme is kept at the front of
 `custom-enabled-themes` by Emacs regardless of `load-theme` order).
@@ -1987,7 +2062,7 @@ always passed through and `nil` is rejected.
 ### L12 — Bound any set derived from an ever-growing history
 
 When protecting or excluding items based on "recently used in X",
-never take X's *full* history as the criterion. Emacs's own tracking
+never take X's _full_ history as the criterion. Emacs's own tracking
 structures (`buffer-list`, a tab's `wc-bl`, etc.) tend to only grow for
 as long as X exists — they don't forget entries just because something
 newer came along. If a derived set (e.g. "buffers to protect") is built
@@ -2001,7 +2076,7 @@ regardless of how long X has been alive. See Session 2026-07-25, A.
 central menu (`19-philosophy-notes.el` adds `C-c n l`,
 `22-zettelkasten.el` adds `C-c n z`) instead of the central menu
 having to know about every feature. The cost is a hard ordering
-constraint: the appending module must load *after* the module defining
+constraint: the appending module must load _after_ the module defining
 the prefix, or the append targets a prefix that does not exist yet.
 
 Two habits keep this safe: keep the appending modules numbered above
@@ -2014,7 +2089,7 @@ stack duplicate entries. See Session 2026-07-26, A.
 
 ### L14 — `\s-` matches newline; use `[ \t]` for same-line matching
 
-`\s-` in an Emacs regexp is the whitespace *syntax* class, and under
+`\s-` in an Emacs regexp is the whitespace _syntax_ class, and under
 the standard syntax table — which is what a temp buffer gets — newline
 has whitespace syntax. A pattern like
 

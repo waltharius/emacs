@@ -457,12 +457,6 @@ the duplicate identifier still needs sorting out afterwards."
               (message "Moved to %s: %s"
                        choice (file-name-nondirectory target)))))))))
 
-(with-eval-after-load 'org
-  (setq org-agenda-files
-        (list my-notes-journal
-              my-notes-pks
-              my-notes-docu
-              my-journal-captures)))
 
 ;; ============================================================
 ;; LINKED NOTE: Create new note with backlink to source
