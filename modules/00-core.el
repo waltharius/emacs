@@ -46,7 +46,7 @@
 ;; Capture file
 (defvar my-journal-captures (expand-file-name "~/notes/journal/captures.org")
   "Ideas capture file - thoughts and ideas worth developing later.
-Use C-c n c to add entries, C-c n m to promote to full Denote note.")
+Use C-c n c i to add entries, C-c n c m to promote to full Denote note.")
 
 ;; Agenda scans all three silos + captures file
 (defvar my-tasks-agenda-dirs

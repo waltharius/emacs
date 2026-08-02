@@ -5,19 +5,20 @@
 ;; C-c n c    — Ideas capture (opens to the RIGHT of the current window)
 ;; C-c c      — Standard org-capture menu
 ;;
-;; Confirming a capture with C-c C-c asks which existing capture heading
-;; it belongs to, or offers to keep it as a new one (the default, so a
-;; plain RET behaves as before).  Choosing an existing heading appends
-;; the text under it with a source line instead of a property drawer, so
-;; a continuing thread stays one heading rather than becoming two nearly
+;; Confirming a capture with C-c C-c asks one question with three
+;; answers: TAB onto an existing capture heading files the text under it,
+;; typed text names the capture's own heading, and an empty answer leaves
+;; it untitled exactly as before.  Filing under an existing heading
+;; appends the text with a source line instead of a property drawer, so a
+;; continuing thread stays one heading rather than becoming two nearly
 ;; identical ones.
 ;;
 ;; Processing captures:
-;; C-c n m    — Promote heading to Denote note (create or append)
+;; C-c n c m  — Promote heading to Denote note (create or append)
 ;; C-c C-w    — Refile heading to existing note (standard org-refile)
 ;;
 ;; A capture heading gathered this way holds material from several
-;; origins.  C-c n m carries each across in capture order with its own
+;; origins.  C-c n c m carries each across in capture order with its own
 ;; source line, emitting one only when the origin changes.
 ;;
 ;; Keywords for a promoted note are read by `my/notes-read-keywords'
@@ -194,6 +195,11 @@ value.  Returns nil for nil."
 ;; nothing for `my/capture-promote-to-note' to mistake for a separate
 ;; subject.
 ;;
+;; The same prompt names a capture that is starting a new thread, because
+;; that is the same decision seen from the other side, and because the
+;; template leaves the headline empty: without somewhere to type a title,
+;; every new capture arrives unnamed and promotion has no default.
+;;
 ;; HOW IT WORKS, AND WHERE IT IS FRAGILE
 ;;
 ;; org-capture decides where an entry goes before the buffer is opened,
@@ -268,33 +274,83 @@ serve as a destination for another."
         (setq last (match-beginning 0)))
       last)))
 
-(defconst my/capture--keep-choice "+ Keep as a new heading"
-  "Completion candidate that leaves the capture where Org filed it.")
+(defvar vertico-preselect)
+
+(defun my/capture--read-destination (headings)
+  "Read where the capture being finalised should go.
+
+Returns one of HEADINGS to file it there, a new title to name the
+capture with, or an empty string to leave it untitled where org-capture
+put it.
+
+The prompt behaves like the keyword prompts in 05-notes.el, and for the
+same reason: with Vertico's own settings, RET submits the highlighted
+candidate rather than what was typed, so a new heading whose name begins
+like an existing one could not be entered at all.  Binding
+`my/notes-keyword-preselect' here makes RET literal and TAB the way to
+step onto an existing heading, which is the behaviour already learnt
+from tagging.  The variable is named for keywords because that is where
+it was first needed; it governs one behaviour and is deliberately not
+duplicated under a second name."
+  (let ((vertico-preselect (if (boundp 'my/notes-keyword-preselect)
+                               my/notes-keyword-preselect
+                             'prompt)))
+    (string-trim
+     (minibuffer-with-setup-hook
+         (:append (lambda ()
+                    (when (fboundp 'my/notes--keyword-minibuffer-setup)
+                      (my/notes--keyword-minibuffer-setup))))
+       (completing-read
+        "File under (TAB for existing, text for a new heading, empty for none): "
+        headings nil nil)))))
+
+(defun my/capture--buffer-captured ()
+  "Return the CAPTURED property of the capture entry in this buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (org-entry-get (point) "CAPTURED")))
+
+(defun my/capture--set-heading (title)
+  "Give the capture entry in this buffer the headline TITLE."
+  (save-excursion
+    (goto-char (point-min))
+    (when (org-at-heading-p)
+      (org-edit-headline title))))
 
 (defun my/capture--ask-target ()
-  "Ask which heading the capture being finalised should join.
+  "Ask where the capture being finalised should go.
 Runs from `org-capture-prepare-finalize-hook'.
+
+Three outcomes from one prompt:
+
+  an existing heading  the text is filed under it, with a source line
+                       and no second heading
+  anything else typed  the capture keeps its own heading, named with
+                       what was typed
+  nothing typed        the capture keeps its own heading, untitled,
+                       exactly as before
+
+Naming happens here, by editing the capture buffer while it is still
+open, rather than after filing: the headline is right there, and Org
+writes it out for us.
 
 Stays silent in three cases: an abort, a template other than the Ideas
 one, and a refile.  `C-c C-w' already chooses a destination and moves
-the entry itself; asking as well would have two mechanisms moving the
-same entry."
+the entry itself; asking as well would have two mechanisms moving one
+entry."
   (setq my/capture--attach-target nil
         my/capture--attach-stamp nil)
   (when (and (not (bound-and-true-p org-note-abort))
              (not (bound-and-true-p org-capture-is-refiling))
              (equal (org-capture-get :key) "j"))
-    (when-let* ((headings (my/capture--existing-headings)))
-      (let ((choice (completing-read
-                     "File this capture under: "
-                     (cons my/capture--keep-choice headings)
-                     nil t nil nil my/capture--keep-choice)))
-        (unless (equal choice my/capture--keep-choice)
-          (setq my/capture--attach-target choice
-                my/capture--attach-stamp
-                (save-excursion
-                  (goto-char (point-min))
-                  (org-entry-get (point) "CAPTURED"))))))))
+    (let* ((headings (my/capture--existing-headings))
+           (answer   (my/capture--read-destination headings)))
+      (cond
+       ((member answer headings)
+        (setq my/capture--attach-target answer
+              my/capture--attach-stamp  (my/capture--buffer-captured)))
+       ((not (string-empty-p answer))
+        (my/capture--set-heading answer))))))
 
 (defun my/capture--fragment-from-entry ()
   "Return the capture entry at point as a body fragment, or nil if empty.

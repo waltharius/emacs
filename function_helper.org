@@ -2454,25 +2454,35 @@ A capture usually continues something already noted. Retyping its
 heading from memory is how near-duplicates appear: =Do poprawy w moim
 systemie notowania Emacs= against the same words with one letter
 different is two headings to Org — and two separate notes once each is
-promoted, which is the failure =C-c n m= exists to prevent.
+promoted, which is the failure =C-c n c m= exists to prevent.
 
 ** The prompt
 
-=C-c C-c= in a capture buffer asks:
+=C-c C-c= in a capture buffer asks one question with three answers:
 
-: File this capture under: [+ Keep as a new heading] [existing headings…]
+: File under (TAB for existing, text for a new heading, empty for none):
 
-- =+ Keep as a new heading= is the default. Plain =RET= behaves exactly
-  as before.
-- Choosing an existing heading appends the text under it, with a
-  =Source:= line and *no second heading*.
-- The prompt does not appear when there are no named headings to offer,
-  nor on =C-c C-k= (abort), nor on =C-c C-w= (refile, which already
-  chooses a destination itself).
+| Answer | Result |
+|--------+--------|
+| =TAB= onto an existing heading, then =RET= | text is appended under it with a =Source:= line and *no second heading* |
+| type something, then =RET= | the capture keeps its own heading, named with what was typed |
+| =RET= on an empty prompt | the capture keeps its own heading, untitled — exactly as before |
 
-Only headings with text are offered. The template leaves the headline
-empty, so an unnamed capture is one that was never given a subject and
-cannot serve as a destination.
+=RET= submits *what was typed*, not the highlighted candidate, so a new
+heading beginning like an existing one can be entered. =TAB= steps onto
+the list. This is the same behaviour as the tag prompts
+([[#keyword-prompts][Keyword Prompts]]) and is driven by the same
+=my/notes-keyword-preselect=, deliberately not duplicated under a second
+name.
+
+Naming happens by editing the capture buffer while it is still open, so
+Org writes the headline out itself.
+
+The prompt does not appear on =C-c C-k= (abort) or =C-c C-w= (refile,
+which already chooses a destination itself).
+
+Only headings with text are offered as destinations — an unnamed capture
+was never given a subject and cannot serve as one.
 
 ** The source line
 

@@ -7,6 +7,68 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02h — One prompt, three answers; and a keybinding that never existed
+
+### A — `C-c n m` is not a binding
+
+`Unbound suffix: 'm'` was correct: promotion sits at `C-c n c m`
+(Create → Promote to note) and always has. Three files claimed
+`C-c n m` — `00-core.el` in the text written into a fresh captures.org,
+`06-capture.el` in its commentary, and `function_helper.org`. All three
+corrected.
+
+Nothing in the code was wrong. This is the failure mode
+`08-keybindings.el` already carries a note about: hand-written help text
+drifting from the keymap it describes.
+
+Adding `m` at the top level of `C-c n` would also resolve it and is one
+line, but the top level is a menu of categories rather than commands and
+that is the user's call, not a fix to apply while correcting a typo.
+
+### B — The finalize prompt now names a new heading too
+
+The template leaves the headline empty and puts point in the body, so
+every new capture arrived unnamed and `my/capture-promote-to-note` had
+no default title to offer. There was nowhere to type one.
+
+The prompt introduced in the previous session was already asking the
+right question; it just refused free text. It now takes three answers:
+
+| Answer | Result |
+|---|---|
+| TAB onto an existing heading, RET | filed under it, source line, no second heading |
+| type something, RET | the capture keeps its own heading, named with that text |
+| RET on an empty prompt | untitled, exactly as before |
+
+The `+ Keep as a new heading` sentinel is gone — an empty answer says
+the same thing without occupying a candidate slot.
+
+Naming is done by editing the capture buffer while it is still open,
+with `org-edit-headline`, rather than after filing. The headline is
+right there and Org writes it out itself.
+
+### C — RET must submit what was typed
+
+With Vertico's own settings, RET submits the highlighted candidate. A
+new heading beginning like an existing one could therefore not be
+entered at all — the same trap as the keyword prompts, which is where it
+was first met.
+
+The prompt binds `my/notes-keyword-preselect` and installs
+`my/notes--keyword-minibuffer-setup`, both from `05-notes.el`: RET is
+literal, TAB steps onto the list. Reused rather than reimplemented, and
+deliberately not given a second variable name — it governs one behaviour
+and one name is what keeps it consistent. That the name says *keyword*
+is a reminder of where the behaviour was first needed, not a claim about
+its scope.
+
+The prompt now appears even when no headings exist yet, since naming a
+first capture is exactly the case that needs it.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02g — Filing a capture under an existing heading
 
 ### Context
