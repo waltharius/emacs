@@ -109,6 +109,10 @@ Function: =my/denote-linked-note= | Module: =modules/05-notes.el=
 Fires capture template =j= directly, no menu. Opens capture buffer to
 the right of current window. Records =:SOURCE:= property automatically.
 
+Confirming with =C-c C-c= asks which existing capture heading the entry
+belongs to — see [[#capture-filing][Capture Filing]]. The default is to keep it as a new
+heading, so a plain =RET= at the prompt behaves as before.
+
 Function: =my/capture-idea= | Module: =modules/06-capture.el=
 
 *** c — Capture menu
@@ -126,8 +130,12 @@ Function: =org-capture= (built-in)
 :END:
 
 Promotes heading at point in captures file to a new Denote note.
-Preserves =:SOURCE:= as =Source:= line. Removes original heading after
-success.
+
+A capture heading may hold material from several origins, gathered there
+by =C-c C-c= over successive captures. Each is carried across with its
+own =Source:= line, in capture order, and a line is written only when
+the origin changes — including against the line the target note already
+ends with. See [[#capture-filing][Capture Filing]].
 
 *Warning:* destructive — deletes the original heading, no automatic undo.
 Commit captures.org before running on important entries.
@@ -2429,6 +2437,94 @@ With point on the text, =C-u C-x == names every face at that position.
 =M-x describe-face= then shows where the face got its attributes. If a
 face differs between two frames, that is the symptom described above and
 means something has started calling =set-face-attribute= again.
+
+* Capture Filing
+:PROPERTIES:
+:CUSTOM_ID: capture-filing
+:END:
+
+How a capture joins a thread that already exists, and what promotion
+makes of the result.
+
+Module: =modules/06-capture.el=
+
+** The problem
+
+A capture usually continues something already noted. Retyping its
+heading from memory is how near-duplicates appear: =Do poprawy w moim
+systemie notowania Emacs= against the same words with one letter
+different is two headings to Org — and two separate notes once each is
+promoted, which is the failure =C-c n m= exists to prevent.
+
+** The prompt
+
+=C-c C-c= in a capture buffer asks:
+
+: File this capture under: [+ Keep as a new heading] [existing headings…]
+
+- =+ Keep as a new heading= is the default. Plain =RET= behaves exactly
+  as before.
+- Choosing an existing heading appends the text under it, with a
+  =Source:= line and *no second heading*.
+- The prompt does not appear when there are no named headings to offer,
+  nor on =C-c C-k= (abort), nor on =C-c C-w= (refile, which already
+  chooses a destination itself).
+
+Only headings with text are offered. The template leaves the headline
+empty, so an unnamed capture is one that was never given a subject and
+cannot serve as a destination.
+
+** The source line
+
+One format, in captures.org and in promoted notes alike:
+
+: Source: [[denote:20260715T101500][Przewodnik po bibliografii]] — [2026-08-02 nie 18:10]
+
+A property drawer is not an option for a fragment filed under an
+existing heading: Org only recognises one directly beneath a heading.
+Body text is also what a note receives, so all three places share this.
+
+Duplicate detection compares the *bracket link*, not the whole line, so
+the same origin captured at two different times counts as one source.
+
+*Limitation:* a line of prose beginning with =Source:= is read as
+metadata. Indent it or rephrase it.
+
+** What promotion does with it
+
+=my/capture--split-into-segments= turns a capture subtree into an
+ordered list of (source, text) pairs. The heading's own =:SOURCE:= and
+=:CAPTURED:= properties describe the text before the first =Source:=
+line in the body — so an entry captured the old way parses as one
+segment and *nothing in captures.org needs migrating*.
+
+The note then receives the segments in capture order, with a =Source:=
+line emitted only when the origin changes. Nothing is reordered or
+merged.
+
+** Why the C-c C-c hook is the fragile part
+
+org-capture fixes an entry's destination before the buffer opens and
+offers no way to change it at the end. The entry is therefore filed
+normally and moved afterwards, from
+=org-capture-prepare-finalize-hook= (ask) and
+=org-capture-after-finalize-hook= (move).
+
+That depends on org-capture's internal sequence. Three guards make every
+failure harmless:
+
+1. The entry to move must be the last level-2 heading under =Ideas=;
+2. its =:CAPTURED:= property must equal the one read from the capture
+   buffer moments earlier;
+3. the destination heading must still exist, and its marker is taken
+   *before* anything is deleted.
+
+Any of these failing produces a message and leaves the capture exactly
+where org-capture put it. If the message =Capture left in place: …=
+appears, nothing was lost.
+
+Heading text, when some was typed, is kept as the first paragraph of the
+appended fragment.
 
 * Global Keybindings
 :PROPERTIES:

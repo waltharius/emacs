@@ -7,6 +7,100 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02g — Filing a capture under an existing heading
+
+### Context
+
+A capture usually continues a thread that already has a heading in
+captures.org. Retyping that heading from memory is how near-duplicates
+are born: "Do poprawy w moim systemie notowania Emacs" against the same
+words with one letter different is two headings to Org, and two separate
+notes once each is promoted — which is exactly the failure the promotion
+command exists to avoid.
+
+### A — One source format, used in both files
+
+Where a capture lives under its own heading, its origin sits in a
+property drawer. Org only recognises a property drawer directly beneath
+a heading, so a fragment filed under an existing heading cannot use one,
+and body text is what a promoted note receives anyway. All three places
+now use one line:
+
+```
+Source: [[denote:20260715T101500][Przewodnik po bibliografii]] — [2026-08-02 nie 18:10]
+```
+
+Written by `my/capture--source-value`, matched by
+`my/capture-source-line-regexp`, compared by `my/capture--source-key`.
+The capture side and the promotion side share a format, and sharing it
+through three named functions is what keeps them from drifting apart —
+the real cost of this change, and the reason it is contained in one
+file.
+
+`my/capture--source-key` compares the bracket link rather than the whole
+line, so the same origin captured at two different times counts as one
+source.
+
+### B — The question at C-c C-c
+
+`org-capture` decides where an entry goes before the buffer is opened
+and offers no way to change that at the end. The entry is therefore
+allowed to file normally and moved afterwards:
+
+- `org-capture-prepare-finalize-hook` asks, while what was written is
+  still on screen;
+- `org-capture-after-finalize-hook` moves the stored entry.
+
+The default candidate is "keep as a new heading", so a plain RET at the
+prompt behaves exactly as before and the prompt costs one keystroke. It
+is skipped entirely when there are no named headings to offer.
+
+### C — Where this is fragile, and what makes it safe anyway
+
+Reaching into finalize means depending on org-capture's own sequence.
+Three guards, all of which fail towards changing nothing:
+
+- Nothing is asked when `org-note-abort` is set, so `C-c C-k` is silent.
+- Nothing is asked during `org-capture-refile`, which already picks a
+  destination and moves the entry; two mechanisms moving one entry is
+  worse than not offering the choice.
+- The entry to move is identified twice: it is the last level-2 heading
+  under `Ideas`, **and** its CAPTURED property must equal the one read
+  from the capture buffer moments earlier. On disagreement nothing is
+  touched and a message says so.
+
+Deletion happens only after the destination marker has been found and
+the replacement text built, so every failure path leaves the capture
+where org-capture put it.
+
+Heading text, if any was typed, is kept as the first paragraph of the
+fragment. A filing decision should not quietly discard writing.
+
+### D — Promotion reads several origins
+
+`my/--capture-heading-data-at` now returns `:segments` instead of
+`:source` and `:body` — an ordered list of (SOURCE . TEXT) produced by
+`my/capture--split-into-segments`. The heading's own SOURCE and CAPTURED
+describe the text before the first source line in the body, so an entry
+captured the old way parses as exactly one segment and **nothing in
+captures.org needs migrating**.
+
+`my/--note-fragment` takes that list and emits a source line only when
+the origin differs from the one before it, counting the line the target
+note already ends with. Order is capture order; nothing is reordered or
+merged.
+
+### E — Known limitation
+
+A line of ordinary prose beginning with `Source:` is read as metadata.
+Recorded in the module commentary rather than defended against, because
+the alternatives — a marker character, a drawer — cost more readability
+in captures.org than the case is worth.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02f — Org faces, light-only theme, and 15-workspace split
 
 ### A — Why customised colours never survived a restart

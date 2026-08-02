@@ -5,9 +5,20 @@
 ;; C-c n c    — Ideas capture (opens to the RIGHT of the current window)
 ;; C-c c      — Standard org-capture menu
 ;;
+;; Confirming a capture with C-c C-c asks which existing capture heading
+;; it belongs to, or offers to keep it as a new one (the default, so a
+;; plain RET behaves as before).  Choosing an existing heading appends
+;; the text under it with a source line instead of a property drawer, so
+;; a continuing thread stays one heading rather than becoming two nearly
+;; identical ones.
+;;
 ;; Processing captures:
 ;; C-c n m    — Promote heading to Denote note (create or append)
 ;; C-c C-w    — Refile heading to existing note (standard org-refile)
+;;
+;; A capture heading gathered this way holds material from several
+;; origins.  C-c n m carries each across in capture order with its own
+;; source line, emitting one only when the origin changes.
 ;;
 ;; Keywords for a promoted note are read by `my/notes-read-keywords'
 ;; from 05-notes.el, which init.el loads first, so that every tag
@@ -125,6 +136,249 @@ started via `my/capture-idea', not the generic org-capture menu)."
 ;; DIRECT CAPTURE: C-c n c fires template "j" without menu
 ;; ============================================================
 
+
+;; ============================================================
+;; SOURCE LINES: one format, used in both files
+;; ============================================================
+;; A capture carries where it came from and when.  Under its own heading
+;; that is a property drawer, which Org only recognises directly beneath
+;; a heading.  A fragment appended into an existing heading has no
+;; heading of its own, so the same information has to be body text, and
+;; body text is also what a promoted note receives.  One format serves
+;; both:
+;;
+;;   Source: [[denote:20260715T101500][Przewodnik po bibliografii]] — [2026-08-02 nie 18:10]
+;;
+;; Both sides of this file read and write it through the three functions
+;; below, so the capture side and the promotion side cannot drift apart.
+;;
+;; CAVEAT worth knowing: a line of ordinary prose that begins with
+;; "Source:" will be read as metadata.  Indent it or rephrase it.
+
+(defconst my/capture-source-line-regexp "\\`Source:[ \t]*\\(.+\\)\\'"
+  "Match a source line, capturing everything after the label.")
+
+(defun my/capture--source-value (source captured)
+  "Combine SOURCE and CAPTURED into the value of a source line.
+Either may be nil.  Returns nil when SOURCE is missing, since a
+timestamp without an origin says nothing useful."
+  (when (and source (not (string-empty-p (string-trim source))))
+    (if (and captured (not (string-empty-p (string-trim captured))))
+        (format "%s — %s" (string-trim source) (string-trim captured))
+      (string-trim source))))
+
+(defun my/capture--source-key (value)
+  "Return the identity of source line VALUE for duplicate suppression.
+
+The bracket link when there is one, so that the same origin captured
+at two different times counts as one source; otherwise the whole
+value.  Returns nil for nil."
+  (when value
+    (if (string-match "\\[\\[.*?\\]\\]" value)
+        (match-string 0 value)
+      (string-trim value))))
+
+;; ============================================================
+;; FILING A CAPTURE UNDER AN EXISTING HEADING
+;; ============================================================
+;; A capture often continues a thread that already has a heading in
+;; captures.org.  Retyping that heading is how near-duplicates are born:
+;; "Do poprawy w moim systemie notowania Emacs" against the same words
+;; with one letter different is two headings to Org, and two notes once
+;; each is promoted.
+;;
+;; So the choice is offered at the moment of confirming, when what was
+;; written is on screen and it is clear which thread it belongs to.
+;; Choosing an existing heading appends the text under it with a source
+;; line instead of a drawer -- no second heading, nothing to retype, and
+;; nothing for `my/capture-promote-to-note' to mistake for a separate
+;; subject.
+;;
+;; HOW IT WORKS, AND WHERE IT IS FRAGILE
+;;
+;; org-capture decides where an entry goes before the buffer is opened,
+;; and nothing in its API changes that decision at the end.  The entry is
+;; therefore allowed to file normally and moved afterwards:
+;;
+;;   `org-capture-prepare-finalize-hook'  ask, while the buffer is still
+;;                                        on screen; record the answer
+;;   `org-capture-after-finalize-hook'    move the stored entry
+;;
+;; Two things make that safe rather than clever.  The hook asks nothing
+;; when `org-note-abort' is set, so `C-c C-k' stays silent.  And the
+;; entry to move is identified twice over: it is the last level-2
+;; heading under `Ideas', and its CAPTURED property must equal the one
+;; read from the capture buffer a moment earlier.  If those disagree --
+;; because the entry was refiled with `C-c C-w', or a template changed,
+;; or Org filed it somewhere unexpected -- nothing is moved and the
+;; capture is left exactly where Org put it, with a message saying so.
+;; Failing visibly and changing nothing is the whole point of the second
+;; check.
+
+(defconst my/capture-ideas-heading "Ideas"
+  "Top-level heading in `my-journal-captures' that captures are filed under.
+Must match the headline named in `org-capture-templates'.")
+
+(defvar my/capture--attach-target nil
+  "Heading chosen at finalize time, or nil to leave the capture alone.")
+
+(defvar my/capture--attach-stamp nil
+  "CAPTURED value of the entry being finalised, used to identify it.")
+
+(defun my/capture--captures-buffer ()
+  "Return a buffer visiting `my-journal-captures', or nil."
+  (when (and (boundp 'my-journal-captures)
+             (file-exists-p my-journal-captures))
+    (find-file-noselect my-journal-captures)))
+
+(defun my/capture--ideas-bounds ()
+  "Return (BEG . END) of the `Ideas' subtree in the current buffer, or nil."
+  (when-let* ((beg (org-find-exact-headline-in-buffer
+                    my/capture-ideas-heading (current-buffer) t)))
+    (save-excursion
+      (goto-char beg)
+      (cons beg (save-excursion (org-end-of-subtree t t) (point))))))
+
+(defun my/capture--existing-headings ()
+  "Return the non-empty capture headings currently under `Ideas'.
+
+Level-2 headings only: a capture is a direct child of `Ideas', and
+anything deeper belongs to a capture rather than being one.  Headings
+with no text are skipped -- the template leaves the headline empty, so
+an unnamed capture is one that was never given a subject and cannot
+serve as a destination for another."
+  (let (headings)
+    (when-let* ((buffer (my/capture--captures-buffer)))
+      (with-current-buffer buffer
+        (org-with-wide-buffer
+         (when-let* ((bounds (my/capture--ideas-bounds)))
+           (goto-char (car bounds))
+           (while (re-search-forward "^\\*\\* \\(.*\\)$" (cdr bounds) t)
+             (let ((title (string-trim (match-string-no-properties 1))))
+               (unless (string-empty-p title)
+                 (push title headings))))))))
+    (nreverse headings)))
+
+(defun my/capture--last-entry-position (bounds)
+  "Return the position of the last level-2 heading within BOUNDS, or nil."
+  (save-excursion
+    (goto-char (car bounds))
+    (let (last)
+      (while (re-search-forward "^\\*\\* " (cdr bounds) t)
+        (setq last (match-beginning 0)))
+      last)))
+
+(defconst my/capture--keep-choice "+ Keep as a new heading"
+  "Completion candidate that leaves the capture where Org filed it.")
+
+(defun my/capture--ask-target ()
+  "Ask which heading the capture being finalised should join.
+Runs from `org-capture-prepare-finalize-hook'.
+
+Stays silent in three cases: an abort, a template other than the Ideas
+one, and a refile.  `C-c C-w' already chooses a destination and moves
+the entry itself; asking as well would have two mechanisms moving the
+same entry."
+  (setq my/capture--attach-target nil
+        my/capture--attach-stamp nil)
+  (when (and (not (bound-and-true-p org-note-abort))
+             (not (bound-and-true-p org-capture-is-refiling))
+             (equal (org-capture-get :key) "j"))
+    (when-let* ((headings (my/capture--existing-headings)))
+      (let ((choice (completing-read
+                     "File this capture under: "
+                     (cons my/capture--keep-choice headings)
+                     nil t nil nil my/capture--keep-choice)))
+        (unless (equal choice my/capture--keep-choice)
+          (setq my/capture--attach-target choice
+                my/capture--attach-stamp
+                (save-excursion
+                  (goto-char (point-min))
+                  (org-entry-get (point) "CAPTURED"))))))))
+
+(defun my/capture--fragment-from-entry ()
+  "Return the capture entry at point as a body fragment, or nil if empty.
+
+Point must be on the capture heading.  Produces a source line followed
+by the body, and keeps any heading text the entry was given as its own
+paragraph -- discarding text that was typed is not something a filing
+decision should do quietly."
+  (let* ((heading  (string-trim (or (org-get-heading t t t t) "")))
+         (source   (my/capture--source-value
+                    (org-entry-get (point) "SOURCE")
+                    (org-entry-get (point) "CAPTURED")))
+         (element  (org-element-at-point))
+         (beg      (org-element-property :contents-begin element))
+         (end      (org-element-property :contents-end element))
+         (body     (if (and beg end)
+                       (my/--strip-properties-drawer
+                        (buffer-substring-no-properties beg end))
+                     ""))
+         (blocks   (delq nil
+                         (list (unless (string-empty-p heading) heading)
+                               (unless (string-empty-p (string-trim body))
+                                 (string-trim body))))))
+    ;; A source line on its own says where nothing came from.
+    (when blocks
+      (string-join (delq nil (cons (when source (format "Source: %s" source))
+                                   blocks))
+                   "\n\n"))))
+
+(defun my/capture--attach-last-entry ()
+  "Move the entry just filed by org-capture under `my/capture--attach-target'.
+Runs from `org-capture-after-finalize-hook'.
+
+Nothing is deleted until the destination has been located and the
+replacement text built, so every way this can fail leaves the capture
+where org-capture put it."
+  (let ((target my/capture--attach-target)
+        (stamp  my/capture--attach-stamp)
+        (buffer (my/capture--captures-buffer)))
+    (setq my/capture--attach-target nil
+          my/capture--attach-stamp nil)
+    (when (and target buffer)
+      (with-current-buffer buffer
+        (org-with-wide-buffer
+         (let* ((bounds (my/capture--ideas-bounds))
+                (entry  (and bounds (my/capture--last-entry-position bounds))))
+           (cond
+            ((null entry)
+             (message "Capture left in place: no entry found under `%s'"
+                      my/capture-ideas-heading))
+            (t
+             (goto-char entry)
+             (cond
+              ((not (equal (org-entry-get (point) "CAPTURED") stamp))
+               (message "Capture left in place: the last entry is not the one just written"))
+              (t
+               (let ((fragment  (my/capture--fragment-from-entry))
+                     (entry-end (save-excursion (org-end-of-subtree t t) (point)))
+                     (destination (org-find-exact-headline-in-buffer
+                                   target (current-buffer))))
+                 (cond
+                  ((null fragment)
+                   (delete-region entry entry-end)
+                   (save-buffer)
+                   (message "Empty capture discarded"))
+                  ((null destination)
+                   (message "Capture left in place: heading \"%s\" disappeared" target))
+                  (t
+                   ;; DESTINATION is a marker, so it stays valid across
+                   ;; the deletion below however the two regions are
+                   ;; ordered in the file.
+                   (delete-region entry entry-end)
+                   (goto-char destination)
+                   (goto-char (save-excursion (org-end-of-subtree t t) (point)))
+                   (skip-chars-backward " \t\n")
+                   (unless (bolp) (insert "\n"))
+                   (insert "\n" fragment "\n")
+                   (save-buffer)
+                   (set-marker destination nil)
+                   (message "✓ Filed under \"%s\"" target))))))))))))))
+
+(add-hook 'org-capture-prepare-finalize-hook #'my/capture--ask-target)
+(add-hook 'org-capture-after-finalize-hook #'my/capture--attach-last-entry)
+
 (defun my/capture-idea ()
   "Directly invoke Ideas capture (template j) — no menu shown.
 Opens capture buffer to the RIGHT of the current window.
@@ -169,7 +423,7 @@ Comparison is case-insensitive and ignores surrounding whitespace."
     (nreverse matches)))
 
 (defun my/--note-last-source (file)
-  "Return the last 'Source: ...' line found in FILE, or nil."
+  "Return the last source line value found in FILE, or nil."
   (with-temp-buffer
     (insert-file-contents file)
     (goto-char (point-min))
@@ -182,28 +436,36 @@ Comparison is case-insensitive and ignores surrounding whitespace."
 ;; HELPERS: Building and inserting the promoted fragment
 ;; ============================================================
 
-(defun my/--note-fragment (body source-value)
-  "Return the text fragment to insert into a note.
-Combines an optional 'Source: ...' line (from SOURCE-VALUE) with
-BODY.  Returns an empty string when both are empty."
-  (concat
-   (when (and source-value (not (string-empty-p source-value)))
-     (format "Source: %s\n\n" source-value))
-   (when (and body (not (string-empty-p body)))
-     (if (string-suffix-p "\n" body) body (concat body "\n")))))
+(defun my/--note-fragment (segments &optional last-source)
+  "Return the text to insert into a note for SEGMENTS.
 
-(defun my/--append-to-note (file body source-value)
-  "Append BODY to FILE.
-Insert SOURCE-VALUE first only when it differs from the last
-existing 'Source: ...' line in FILE."
-  (let* ((last-source (my/--note-last-source file))
-         ;; Suppress the duplicate Source line by passing nil.
-         (effective-source
-          (unless (and source-value last-source
-                       (string= (string-trim source-value)
-                                (string-trim last-source)))
-            source-value))
-         (fragment (my/--note-fragment body effective-source)))
+SEGMENTS is an ordered list of (SOURCE-VALUE . TEXT) as produced by
+`my/capture--split-into-segments'.  A source line is emitted before a
+segment only when its origin differs from the one emitted before it,
+so a run of material from the same place is labelled once.  LAST-SOURCE
+is the value of the last source line already present in the target
+note, and takes part in that comparison, which stops a note from
+repeating a label it already ends with.
+
+Order is the capture order; nothing is reordered or merged."
+  (let ((blocks nil)
+        (previous (my/capture--source-key last-source)))
+    (dolist (segment segments)
+      (let* ((source (car segment))
+             (text   (string-trim-right (or (cdr segment) "")))
+             (key    (my/capture--source-key source)))
+        (unless (string-empty-p (string-trim text))
+          (when (and key (not (equal key previous)))
+            (push (format "Source: %s" source) blocks)
+            (setq previous key))
+          (push text blocks))))
+    (if blocks
+        (concat (string-join (nreverse blocks) "\n\n") "\n")
+      "")))
+
+(defun my/--append-to-note (file segments)
+  "Append SEGMENTS to FILE, suppressing a source label the note already ends with."
+  (let ((fragment (my/--note-fragment segments (my/--note-last-source file))))
     (unless (string-empty-p fragment)
       (with-current-buffer (find-file-noselect file)
         (goto-char (point-max))
@@ -228,8 +490,8 @@ If FILE is visited by a buffer, update that buffer too."
           (set-visited-file-name new-path t t))))
     new-path))
 
-(defun my/--insert-note-body-at-top (body source-value)
-  "Insert SOURCE-VALUE and BODY into current Denote note after front matter.
+(defun my/--insert-note-body-at-top (segments)
+  "Insert SEGMENTS into the current Denote note, after the front matter.
 Leaves exactly one blank line between the front matter and the
 inserted fragment."
   (save-excursion
@@ -254,7 +516,7 @@ inserted fragment."
         (forward-line 1))
       (delete-region blank-beg (point)))
     (insert "\n")
-    (insert (my/--note-fragment body source-value))))
+    (insert (my/--note-fragment segments))))
 
 ;; ============================================================
 ;; HELPERS: Reading the capture heading
@@ -294,15 +556,45 @@ Top-level capture headings are used directly."
               (point)))
            (t current-point)))))))
 
+(defun my/capture--split-into-segments (body heading-source heading-captured)
+  "Split BODY into an ordered list of (SOURCE-VALUE . TEXT).
+
+A capture heading can hold material from several origins: the entry it
+was created with, plus every fragment later filed under it, each
+introduced by its own source line.  This turns that back into ordered
+pairs.
+
+The heading's own SOURCE and CAPTURED properties describe the text
+before the first source line in BODY, which is what an entry captured
+the old way consists of entirely.  Nothing therefore needs migrating:
+an entry with no source lines in its body comes back as one segment."
+  (let ((segments nil)
+        (current (my/capture--source-value heading-source heading-captured))
+        (chunk nil))
+    (dolist (line (split-string (or body "") "\n"))
+      (if (string-match my/capture-source-line-regexp line)
+          (progn
+            (push (cons current (string-join (nreverse chunk) "\n")) segments)
+            (setq chunk nil
+                  current (string-trim (match-string 1 line))))
+        (push line chunk)))
+    (push (cons current (string-join (nreverse chunk) "\n")) segments)
+    (seq-remove (lambda (segment)
+                  (string-empty-p (string-trim (or (cdr segment) ""))))
+                (nreverse segments))))
+
 (defun my/--capture-heading-data-at (pos)
   "Return plist with heading data for subtree at POS.
-Result contains :title :source :body :beg :end.
+Result contains :title :segments :beg :end.
+:segments is the ordered (SOURCE-VALUE . TEXT) list described in
+`my/capture--split-into-segments'.
 :beg and :end are markers so later buffer edits cannot invalidate them."
   (save-excursion
     (goto-char pos)
     (org-back-to-heading t)
     (let* ((title (org-get-heading t t t t))
            (source (org-entry-get (point) "SOURCE"))
+           (captured (org-entry-get (point) "CAPTURED"))
            (beg (copy-marker (point)))
            (end (copy-marker
                  (save-excursion
@@ -318,8 +610,7 @@ Result contains :title :source :body :beg :end.
                  (buffer-substring-no-properties contents-begin contents-end))
               "")))
       (list :title title
-            :source source
-            :body body
+            :segments (my/capture--split-into-segments body source captured)
             :beg beg
             :end end))))
 
@@ -348,9 +639,14 @@ Behavior:
   chosen silo before appending.
 - If multiple notes with the same title exist, abort with a warning.
 
-Only the capture body is copied. The PROPERTIES drawer is stripped.
-A 'Source: ...' line is inserted before the appended fragment only if it
-differs from the last Source: line already present in the target note."
+Only the capture body is copied; the PROPERTIES drawer is stripped.
+
+A capture heading may hold material from several origins, gathered
+there by `C-c C-c' over successive captures.  Each is carried across
+with its own source line, in capture order, and a source line is
+emitted only when the origin changes -- including against the line the
+target note already ends with, so a note is never given a label it just
+had."
   (interactive)
   (unless (eq major-mode 'org-mode)
     (user-error "Not in org-mode"))
@@ -374,8 +670,7 @@ differs from the last Source: line already present in the target note."
                           ("journal" my-notes-journal)
                           ("docu"    my-notes-docu)
                           (_         my-notes-pks)))
-         (source-value  (plist-get target-data :source))
-         (body          (plist-get target-data :body))
+         (segments      (plist-get target-data :segments))
          (captures-buf  (current-buffer))
          (heading-beg   (plist-get target-data :beg))
          (heading-end   (plist-get target-data :end))
@@ -404,7 +699,7 @@ differs from the last Source: line already present in the target note."
                       silo))
                     (my/--move-note-to-silo existing-file target-dir)
                   existing-file))))
-        (my/--append-to-note final-file body source-value)
+        (my/--append-to-note final-file segments)
         (my/--capture-remove-heading captures-buf heading-beg heading-end)
         (message "✓ Appended to existing note: \"%s\"" title)))
 
@@ -419,7 +714,7 @@ differs from the last Source: line already present in the target note."
       (with-current-buffer (or (and denote-last-path
                                     (find-buffer-visiting denote-last-path))
                                (current-buffer))
-        (my/--insert-note-body-at-top body source-value)
+        (my/--insert-note-body-at-top segments)
         (save-buffer))
       (my/--capture-remove-heading captures-buf heading-beg heading-end)
       (message "✓ Note created: \"%s\" → %s/" title silo)))))
