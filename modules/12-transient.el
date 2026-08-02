@@ -81,7 +81,7 @@
   "File and document management."
   [["File"
     ("r" "Rename file"    denote-rename-file)
-    ("k" "Add keywords"   denote-rename-file-keywords)
+    ("k" "Add keywords"   my/denote-keywords-edit)
     ("c" "Change silo"    my/denote-move-to-silo)
     ("d" "Delete note"    my/denote-delete-note)]
    [("q" "Quit" transient-quit-one)]])

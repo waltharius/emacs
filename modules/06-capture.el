@@ -9,6 +9,10 @@
 ;; C-c n m    — Promote heading to Denote note (create or append)
 ;; C-c C-w    — Refile heading to existing note (standard org-refile)
 ;;
+;; Keywords for a promoted note are read by `my/notes-read-keywords'
+;; from 05-notes.el, which init.el loads first, so that every tag
+;; prompt in this configuration completes against the same vocabulary.
+;;
 ;; HOW THE RIGHT-SIDE WINDOW WORKS
 ;; --------------------------------
 ;; org-capture-mode-hook fires after the capture buffer is created
@@ -358,9 +362,7 @@ differs from the last Source: line already present in the target note."
          (target-data   (my/--capture-heading-data-at target-pos))
          (heading-title (plist-get target-data :title))
          (title         (read-string "Note title: " heading-title))
-         (tags-input    (read-string "Tags (space-separated): "))
-         (keywords      (unless (string-empty-p tags-input)
-                          (split-string tags-input " " t)))
+         (keywords      (my/notes-read-keywords))
          (silo-key      (read-char-choice
                          "Save in: [j]ournal [p]ks [d]ocu: "
                          '(?j ?p ?d)))

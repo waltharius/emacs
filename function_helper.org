@@ -42,8 +42,10 @@ capture commands in the second. <<p-1>>
 :CUSTOM_ID: fn-my-denote-base
 :END:
 
-Creates a plain Denote note. Prompts for title, tags (space-separated),
-and silo (=pks= / =docu= / =journal=).
+Creates a plain Denote note. Prompts for title, keywords and silo
+(=pks= / =docu= / =journal=). The keyword prompt completes against the
+keywords already in use and takes entries separated by commas — see
+[[#keyword-prompts][Keyword Prompts]].
 
 Function: =my/denote-base= | Module: =modules/05-notes.el=
 
@@ -75,8 +77,11 @@ Function: =my/denote-journal-date= | Module: =modules/05-notes.el=
 :CUSTOM_ID: fn-my-denote-essay
 :END:
 
-Creates note prefixed =ESEJ:= with tags =esej=, =project=, plus a
-user-provided project tag. Inserts scaffold: Metadata, Essay Plan,
+Creates note prefixed =ESEJ:= with keywords =esej=, =project=, plus one
+or more project keywords chosen at the same completing prompt as
+everywhere else ([[#keyword-prompts][Keyword Prompts]]) — the project keyword is the one
+that must match existing notes exactly, since it is what later gathers
+the essay's material. Inserts scaffold: Metadata, Essay Plan,
 Bibliography, Working Notes. Always saved in =pks= silo.
 
 Function: =my/denote-essay= | Module: =modules/05-notes.el=
@@ -87,7 +92,8 @@ Function: =my/denote-essay= | Module: =modules/05-notes.el=
 :END:
 
 Creates a new note linked bidirectionally to the current buffer.
-Requires =#+identifier:= in source note. Source gets a forward link,
+Keywords come from the same completing prompt as everywhere else
+([[#keyword-prompts][Keyword Prompts]]). Requires =#+identifier:= in source note. Source gets a forward link,
 new note gets a =:BACKLINK:= property. Layout: source left, new note
 right in split window.
 
@@ -590,9 +596,13 @@ Function: =denote-rename-file= (Denote package)
 :CUSTOM_ID: fn-denote-rename-file-keywords
 :END:
 
-Adds or changes keywords in the current Denote filename and front matter.
+Adds or changes keywords in the current Denote filename and front
+matter. Thin wrapper around Denote's =denote-rename-file-keywords=,
+adding nothing but the prompt behaviour described in
+[[#keyword-prompts][Keyword Prompts]]; which file is acted on and how front matter is
+rewritten stays Denote's business.
 
-Function: =denote-rename-file-keywords= (Denote package)
+Function: =my/denote-keywords-edit= | Module: =modules/05-notes.el=
 
 *** c — Change silo
 :PROPERTIES:
@@ -2187,6 +2197,99 @@ directories that should not be scanned at all — =.git=, Syncthing's
 =.stversions=, attachment folders. =denote-excluded-directories-regexp=
 is set to ="inbox"= in =25-inbox-review.el=; widening it there helps
 every Denote operation, not only tooltips.
+
+* Keyword Prompts
+:PROPERTIES:
+:CUSTOM_ID: keyword-prompts
+:END:
+
+Every prompt for tags in this configuration goes through one function,
+=my/notes-read-keywords=, so that they all complete against the same
+vocabulary and all behave the same way.
+
+Function: =my/notes-read-keywords= | Module: =modules/05-notes.el=
+
+Callers: =my/denote-base=, =my/denote-essay=, =my/denote-linked-note=
+(05-notes.el), =my/capture-promote-to-note= (06-capture.el), Readwise
+quote promotion (24-readwise.el). =my/denote-keywords-edit= applies the
+same prompt behaviour to Denote's own =denote-rename-file-keywords=,
+which is what =C-c n d k= runs.
+
+=my/denote-journal= and =my/denote-journal-date= do not appear in that
+list: they write =:journal:= and prompt for nothing.
+
+** Completion instead of typing blind
+
+Tags used to be read with =read-string= and split on spaces, with no
+completion at all. With a few dozen keywords that was inconvenient;
+after the Obsidian migration it is a source of near-duplicates —
+=filozofia= beside =flozofia=, =kant= beside =kanta= — that nothing can
+tell apart afterwards, because Denote treats every distinct string as
+its own keyword.
+
+=denote-keywords-prompt= is Denote's own prompt. It completes against
+the vocabulary Denote infers from existing file names
+(=denote-infer-keywords= is =t=, set in 04-denote.el), removes
+duplicates and returns a list. Calling it rather than writing a private
+prompt is what keeps these commands and =denote-rename-file-keywords=
+identical to each other, and identical as Denote changes.
+
+*Separator changed.* Keywords are now typed *comma-separated*, as
+everywhere else in Denote, not space-separated. A keyword may therefore
+contain a space, which the old prompt could not express.
+
+** Creating a keyword that is a prefix of an existing one
+
+Vertico preselects the first matching candidate, and =RET=
+(=vertico-exit=) submits the *selected candidate*, not what was typed.
+Typing =zuzi= where =zuzia= exists therefore filed the note under
+=zuzia=. Only the element at point is completed, which is why placing
+the new keyword anywhere but last in the list used to be the way
+through.
+
+Vertico's documented answer is =M-RET= (=vertico-exit-input=), which
+submits the input as typed. It works in every prompt and keeps working
+whatever is configured here.
+
+=my/notes-keyword-preselect= makes that the behaviour of plain =RET=
+inside these prompts by binding =vertico-preselect= around the call.
+The binding is dynamic, so it covers the recursive minibuffer edit and
+nothing else — no hook, no advice, no global state, and no separate
+module loading later to correct a command that already ran.
+
+Keys inside a keyword prompt:
+
+| Key      | Effect                                                   |
+|----------+----------------------------------------------------------|
+| =RET=    | submit the input as typed                                |
+| =<down>= | step onto the first candidate                            |
+| =TAB=    | insert the selected candidate *without* exiting — the one to use before typing =,= and the next keyword |
+| =M-RET=  | submit the input as typed (unchanged, always available)   |
+
+The cost is one keystroke when reusing an existing keyword. Whether
+that is a good trade depends on how often new keywords are coined
+against how often old ones are reused.
+
+** Configuration
+
+#+begin_src emacs-lisp
+;; prompt = RET is literal (default); first = Vertico's own behaviour
+(setq my/notes-keyword-preselect 'prompt)
+#+end_src
+
+Without Vertico the setting has no reader and the prompt is Denote's
+unmodified. Without Denote, =my/notes-read-keywords= falls back to the
+old space-separated =read-string=, so note creation still works.
+
+** Why the vocabulary prompt is not instant
+
+=denote-keywords-prompt= builds its candidate list from
+=denote-directory-files=, which walks the whole notes tree. That is the
+same cost described in [[#link-tooltips][Link Tooltips]] and the same measurement applies:
+
+#+begin_src emacs-lisp
+(benchmark-run 3 (denote-directory-files))
+#+end_src
 
 * Global Keybindings
 :PROPERTIES:

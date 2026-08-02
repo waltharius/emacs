@@ -7,6 +7,90 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02d — One keyword prompt, in the commands that own it
+
+### Context
+
+Two problems, one cause.
+
+A keyword that is a prefix of an existing keyword could not be created.
+Typing `zuzi` at the Denote keyword prompt preselected `zuzia`, and RET
+filed the note under `zuzia`. Vertico preselects the first matching
+candidate and binds RET to `vertico-exit`, which submits the selected
+candidate rather than the input; only the element at point is completed,
+which is why placing the new keyword anywhere but last in the
+comma-separated list was the way through.
+
+Separately, `my/denote-base`, `my/denote-essay`, `my/denote-linked-note`,
+`my/capture-promote-to-note` and Readwise quote promotion each read tags
+with their own `read-string` and split on spaces. No completion at all,
+so nothing stopped a typo becoming a keyword indistinguishable from a
+real one — `filozofia` beside `flozofia` — and after three thousand
+migrated notes that is not a hypothetical.
+
+### A — `my/notes-read-keywords` in 05-notes.el
+
+One function, called by every command in this configuration that asks
+for tags. It delegates to Denote's own `denote-keywords-prompt`, which
+completes against the vocabulary inferred from existing file names,
+removes duplicates and returns a list. Writing a private prompt would
+have meant these commands drifting away from
+`denote-rename-file-keywords` at the first Denote release.
+
+Keywords are consequently typed comma-separated now, as everywhere else
+in Denote, rather than space-separated. A keyword may contain a space,
+which the old prompt could not express.
+
+Denote absent, the function falls back to the old space-separated
+`read-string` rather than failing on a missing symbol.
+
+### B — The prompt behaviour is bound, not hooked
+
+`my/notes-keyword-preselect` (default `prompt`) is bound to
+`vertico-preselect` around the call. The binding is dynamic, so it is
+in force for the recursive minibuffer edit and for nothing else.
+
+An earlier draft did this with a `minibuffer-setup-hook` in a separate
+module, detecting keyword prompts by prompt text. That was rejected and
+the reasoning is worth keeping: a module loading after the commands it
+corrects, matching prompt strings to guess what is being asked, is a
+repair layer rather than a fix. The prompt belongs to the command that
+issues it.
+
+Cost of the setting: reusing an existing keyword takes one more
+keystroke, `<down>` then RET, or TAB (`vertico-insert`) to insert
+without exiting, which is what a comma-separated list needs. Set to
+`first` to restore Vertico's default; `M-RET` (`vertico-exit-input`)
+submits the input as typed either way and needed no configuration in the
+first place.
+
+### C — `my/denote-keywords-edit`, and why a wrapper
+
+`C-c n d k` ran `denote-rename-file-keywords` directly, and that
+function is Denote's — there was no local function to correct. The
+wrapper adds the binding and calls the command with
+`call-interactively`, so which file is acted on, how front matter is
+rewritten and what is confirmed all remain Denote's, and remain correct
+when Denote changes them. `12-transient.el` points `k` at the wrapper.
+
+### D — Essay project tag
+
+`my/denote-essay` read its project tag with `read-string` and put it
+into the keyword list verbatim. That is the keyword least tolerant of a
+typo, since it is what later gathers the essay's material, so it now
+goes through the same completing prompt and accepts more than one.
+
+### E — Files touched
+
+- `05-notes.el` — helper, wrapper, three call sites
+- `06-capture.el`, `24-readwise.el` — call sites, dependency noted in
+  their commentaries; both already load after 05-notes.el
+- `12-transient.el` — `k` retargeted
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02c — Link tooltips: a directory scan per mouse movement
 
 ### Context

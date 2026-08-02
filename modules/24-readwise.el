@@ -23,6 +23,10 @@
 ;; kept here -- one source of truth, and it survives losing this
 ;; directory entirely.
 ;;
+;; Keywords for a promoted note are read by `my/notes-read-keywords'
+;; from 05-notes.el, which init.el loads first, so that every tag
+;; prompt in this configuration completes against the same vocabulary.
+;;
 ;; API reference: https://readwise.io/api_deets
 
 ;;; Code:
@@ -531,9 +535,7 @@ disposable by design, so a link to it would eventually dangle."
       (let* ((default-title (truncate-string-to-width
                              (or (plist-get record :quote) "") 60 nil nil "..."))
              (title (read-string "Note title: " nil nil default-title))
-             (tags-input (read-string "Tags (space-separated): "))
-             (keywords (unless (string-empty-p tags-input)
-                         (split-string tags-input " " t))))
+             (keywords (my/notes-read-keywords)))
         (save-window-excursion
           (denote title keywords)
           (setq buffer (current-buffer))
