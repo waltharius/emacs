@@ -31,40 +31,49 @@
   (load-theme 'modus-operandi-tinted t))
 
 ;; ============================================================
-;; THEME SWITCHER: Toggle light/dark
+;; THEME SWITCHING
 ;; ============================================================
+;; One entry point.  `load-theme' adds to `custom-enabled-themes' rather
+;; than replacing it, so loading a second theme without disabling the
+;; first leaves both active and the result depends on the order they
+;; happen to be applied in.  Every switch below therefore disables what
+;; is enabled first.
 
-(defun my/toggle-modus-theme ()
-  "Toggle between modus-operandi-tinted (light) and modus-vivendi-tinted (dark)."
-  (interactive)
-  (if (member 'modus-vivendi-tinted custom-enabled-themes)
-      (progn
-        (disable-theme 'modus-vivendi-tinted)
-        (load-theme 'modus-operandi-tinted t)
-        (message "Light theme (tinted)"))
-    (progn
-      (disable-theme 'modus-operandi-tinted)
-      (load-theme 'modus-vivendi-tinted t)
-      (message "Dark theme (tinted)"))))
-
-;; Optional: Bind to a key (uncomment if you want)
-;; (global-set-key (kbd "C-c T") 'my/toggle-modus-theme)
-
-;; ============================================================
-;; QUICK THEME LOADERS
-;; ============================================================
+(defun my/load-theme (theme)
+  "Enable THEME as the only active theme."
+  (mapc #'disable-theme custom-enabled-themes)
+  (load-theme theme t))
 
 (defun my/load-theme-light ()
   "Load modus-operandi-tinted (light theme)."
   (interactive)
-  (load-theme 'modus-operandi-tinted t)
+  (my/load-theme 'modus-operandi-tinted)
   (message "Light theme loaded"))
 
 (defun my/load-theme-dark ()
   "Load modus-vivendi-tinted (dark theme)."
   (interactive)
-  (load-theme 'modus-vivendi-tinted t)
+  (my/load-theme 'modus-vivendi-tinted)
   (message "Dark theme loaded"))
+
+(defun my/toggle-modus-theme ()
+  "Toggle between modus-operandi-tinted (light) and modus-vivendi-tinted (dark).
+
+KNOWN LIMITATION: custom.el sets a dozen Org faces to literal light
+colours (`org-block' on #fef8e0, `org-link' on #555555, and so on).
+`custom-set-faces' overrides theme faces and survives `load-theme', so
+the dark theme currently produces light blocks on a dark background.
+Fixing that means either dropping those face definitions in favour of
+`modus-themes-common-palette-overrides', or accepting that this
+configuration is light-only and removing the dark commands.  Neither is
+decided, so the command stays and this note stays with it."
+  (interactive)
+  (if (member 'modus-vivendi-tinted custom-enabled-themes)
+      (my/load-theme-light)
+    (my/load-theme-dark)))
+
+;; Optional: Bind to a key (uncomment if you want)
+;; (global-set-key (kbd "C-c T") 'my/toggle-modus-theme)
 
 ;; ============================================================
 ;; BUILT-IN THEME ALTERNATIVES (no installation needed)

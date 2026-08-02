@@ -80,5 +80,16 @@
                       :foreground "#888888"
                       :height     0.85))
 
+;; ============================================================
+;; FONT CACHE COMPACTION
+;; ============================================================
+;; Emacs never compacts font caches while images are on screen, and on
+;; some builds the compaction itself is a visible pause.  Notes here
+;; routinely display inline images (see `org-image-actual-width' in
+;; 11-org-appearance.el), so the compaction buys nothing and costs a
+;; stutter.
+
+(setq inhibit-compacting-font-caches t)
+
 (provide '03b-fonts)
 ;;; 03b-fonts.el ends here

@@ -59,11 +59,34 @@
 ;; is in force for the recursive minibuffer edit and for nothing else:
 ;; no hook, no advice, no global state.
 ;;
-;; The cost is one keystroke when reusing an existing keyword: <down>
-;; steps onto the candidate, and TAB (`vertico-insert') inserts it
-;; without exiting, which is what a comma-separated list needs.  Set
+;; The cost is one keystroke when reusing an existing keyword: one key
+;; steps onto the candidate, another inserts it.  Set
 ;; `my/notes-keyword-preselect' to `first' to restore Vertico's default
 ;; and go back to reaching for `M-RET'.
+;;
+;; KEYS INSIDE THESE PROMPTS
+;;
+;;   TAB       next candidate (first press leaves the input line)
+;;   S-TAB     previous candidate
+;;   M-TAB     insert the selected candidate WITHOUT exiting -- what a
+;;             comma-separated list needs between entries
+;;   RET       submit: the input when on the input line, the candidate
+;;             when one is selected
+;;   M-RET     submit the input regardless of selection (Vertico's own)
+;;
+;; TAB is Vertico's `vertico-insert' by default.  It is moved to M-TAB
+;; here because a list appearing under a half-typed word reads as
+;; something to step through, and TAB is the key hands reach for to do
+;; that.  The rebinding is confined to these prompts: file-name
+;; completion elsewhere keeps TAB as insert, where it matters most.
+;;
+;; It is applied with `minibuffer-with-setup-hook', which is the
+;; built-in way to configure one minibuffer session.  The hook exists
+;; only for the duration of the call, exactly like the
+;; `vertico-preselect' binding -- it is not a hook added to
+;; `minibuffer-setup-hook' globally.  `:append' places it after
+;; Vertico's own setup so that the local map it installs is the one
+;; being extended.
 
 (defgroup my/notes nil
   "Note creation commands."
@@ -88,12 +111,45 @@ unchanged.  Has no effect without Vertico."
                  (symbol :tag "Other `vertico-preselect' value"))
   :group 'my/notes)
 
+(defcustom my/notes-keyword-tab-navigates t
+  "Non-nil means TAB steps down the candidate list in keyword prompts.
+
+TAB is then `vertico-next', S-TAB is `vertico-previous', and
+`vertico-insert' -- insert the selected candidate without exiting --
+moves to M-TAB.  Only keyword prompts are affected; every other
+minibuffer keeps Vertico's defaults.
+
+Set to nil to leave these prompts with Vertico's own bindings, where
+TAB inserts and the arrow keys navigate."
+  :type 'boolean
+  :group 'my/notes)
+
 ;; Declared, not defined: `vertico-preselect' belongs to Vertico.  The
 ;; declaration marks the symbol special for this file, so that the
 ;; `let' below is a dynamic binding rather than a lexical one even when
 ;; Vertico has not been loaded -- in which case the binding exists and
 ;; nothing reads it.
 (defvar vertico-preselect)
+(defvar vertico-map)
+
+(defun my/notes--keyword-minibuffer-setup ()
+  "Install the keyword-prompt key bindings in the current minibuffer.
+
+Runs from `minibuffer-with-setup-hook' at the two call sites below,
+never from `minibuffer-setup-hook' itself, so no other prompt can
+reach it.  Builds a child of whatever local map is in place -- which
+is Vertico's, since `:append' orders this after Vertico's setup --
+and leaves everything it does not name alone."
+  (when (and my/notes-keyword-tab-navigates
+             (fboundp 'vertico-next))
+    (let ((map (make-sparse-keymap)))
+      (set-keymap-parent map (current-local-map))
+      (define-key map (kbd "TAB")     #'vertico-next)
+      (define-key map (kbd "<tab>")   #'vertico-next)
+      (define-key map (kbd "<backtab>") #'vertico-previous)
+      (define-key map (kbd "S-TAB")   #'vertico-previous)
+      (define-key map (kbd "M-TAB")   #'vertico-insert)
+      (use-local-map map))))
 
 (defun my/notes-read-keywords (&optional prompt initial)
   "Read keywords, completing against the keywords already in use.
@@ -107,7 +163,9 @@ not available, so that note creation still works rather than
 failing on a missing function."
   (if (fboundp 'denote-keywords-prompt)
       (let* ((vertico-preselect my/notes-keyword-preselect)
-             (keywords (denote-keywords-prompt prompt initial)))
+             (keywords (minibuffer-with-setup-hook
+                           (:append #'my/notes--keyword-minibuffer-setup)
+                         (denote-keywords-prompt prompt initial))))
         ;; Older Denote sorts inside the prompt, newer exposes it
         ;; separately; call it when present and take the result as-is
         ;; otherwise.
@@ -126,12 +184,19 @@ failing on a missing function."
 force, so that the keyword prompt behaves the same way here as in
 the note creation commands above.  Everything else -- which file is
 acted on, how front matter is rewritten, what is confirmed -- is
-Denote's and is deliberately not reimplemented."
+Denote's and is deliberately not reimplemented.
+
+Both bindings cover every minibuffer entered by that command, which
+in practice is only the keyword prompt: `denote-rename-file-keywords'
+takes its file from the current buffer or from the Dired marks
+without asking."
   (interactive)
   (unless (fboundp 'denote-rename-file-keywords)
     (user-error "Denote is not available"))
   (let ((vertico-preselect my/notes-keyword-preselect))
-    (call-interactively #'denote-rename-file-keywords)))
+    (minibuffer-with-setup-hook
+        (:append #'my/notes--keyword-minibuffer-setup)
+      (call-interactively #'denote-rename-file-keywords))))
 
 
 ;; ============================================================

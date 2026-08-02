@@ -132,9 +132,6 @@ add any new keywords found in existing notes.")
 (setq-default tab-width 4)
 (setq require-final-newline t)       ; Always end files with newline
 
-;; Don't create lockfiles
-(setq create-lockfiles nil)
-
 ;; ============================================================
 ;; RECENTF: Remember recent files
 ;; ============================================================

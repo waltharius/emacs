@@ -186,6 +186,38 @@
 (setq global-auto-revert-non-file-buffers t)
 (setq auto-revert-verbose nil)
 
+;; POLLING vs FILE NOTIFICATION
+;; ---------------------------
+;; With `global-auto-revert-non-file-buffers' on, auto-revert polls every
+;; `auto-revert-interval' seconds (5 by default) and reverts Dired
+;; buffers, which re-runs `ls' on the directory and re-applies
+;; `denote-dired-mode' font-lock to every line.  In ~/notes/journal/
+;; that is several thousand long file names, twelve times a minute,
+;; whether or not anything changed.
+;;
+;; `auto-revert-avoid-polling' switches to kernel file-notification
+;; watches: buffers revert when a change is reported and stay idle
+;; otherwise.  Polling remains as a fallback on filesystems that do not
+;; support notification.  This matters more here than in most
+;; configurations because Syncthing writes into the notes tree from
+;; outside Emacs, so auto-revert is worth keeping -- just not on a timer.
+(setq auto-revert-avoid-polling t)
+
+;; Even with notifications, a very large Dired buffer is expensive to
+;; re-fontify, so do not re-read the directory merely because the buffer
+;; regained focus.
+(setq dired-auto-revert-buffer nil)
+
+;; ============================================================
+;; FONT-LOCK: defer highlighting of off-screen text
+;; ============================================================
+;; Notes are long and `org-hide-emphasis-markers' (11-org-appearance.el)
+;; plus the Denote name faces make fontification non-trivial.  Deferring
+;; it slightly means scrolling shows text immediately and highlights it a
+;; fraction of a second later, instead of blocking the scroll.
+
+(setq jit-lock-defer-time 0.05)
+
 ;; ============================================================
 ;; MISC IMPROVEMENTS
 ;; ============================================================

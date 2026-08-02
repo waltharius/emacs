@@ -2153,7 +2153,7 @@ next refontified.
 
 ** Why this cache is allowed
 
-=26-performance.el= states that nothing caches =denote-directory-files=,
+=04-denote.el= states that nothing caches =denote-directory-files=,
 because a stale cache in a tree Syncthing writes into would advertise
 notes that no longer exist. That still holds. The cache in this module
 is keyed by identifier, is read only by the tooltip, is dropped whole
@@ -2259,12 +2259,25 @@ module loading later to correct a command that already ran.
 
 Keys inside a keyword prompt:
 
-| Key      | Effect                                                   |
-|----------+----------------------------------------------------------|
-| =RET=    | submit the input as typed                                |
-| =<down>= | step onto the first candidate                            |
-| =TAB=    | insert the selected candidate *without* exiting — the one to use before typing =,= and the next keyword |
-| =M-RET=  | submit the input as typed (unchanged, always available)   |
+| Key       | Effect                                                  |
+|-----------+---------------------------------------------------------|
+| =TAB=     | next candidate — the first press leaves the input line   |
+| =S-TAB=   | previous candidate                                       |
+| =M-TAB=   | insert the selected candidate *without* exiting — what a comma-separated list needs between entries |
+| =RET=     | submit: the input when on the input line, the candidate when one is selected |
+| =M-RET=   | submit the input regardless of selection (Vertico's own) |
+
+=TAB= is Vertico's =vertico-insert= by default. It is moved to =M-TAB=
+here because a list appearing under a half-typed word reads as
+something to step through, and =TAB= is the key hands reach for to do
+that. The rebinding is confined to these prompts: file-name completion
+elsewhere keeps =TAB= as insert, where it matters most.
+
+The rebinding is applied with =minibuffer-with-setup-hook=, the built-in
+way to configure a single minibuffer session. The hook exists only for
+the duration of the call, exactly like the =vertico-preselect= binding —
+nothing is added to =minibuffer-setup-hook= globally. =:append= places
+it after Vertico's own setup, so the local map it extends is Vertico's.
 
 The cost is one keystroke when reusing an existing keyword. Whether
 that is a good trade depends on how often new keywords are coined
@@ -2275,6 +2288,9 @@ against how often old ones are reused.
 #+begin_src emacs-lisp
 ;; prompt = RET is literal (default); first = Vertico's own behaviour
 (setq my/notes-keyword-preselect 'prompt)
+
+;; nil = leave Vertico's own TAB/arrow bindings alone in these prompts
+(setq my/notes-keyword-tab-navigates t)
 #+end_src
 
 Without Vertico the setting has no reader and the prompt is Denote's

@@ -28,6 +28,27 @@
 (setq org-hide-emphasis-markers t)
 
 ;; ============================================================
+;; INLINE IMAGES: scale once instead of on every redisplay
+;; ============================================================
+;; With `org-image-actual-width' unset, Org displays images at their
+;; intrinsic size.  A phone photo is 3,000-4,000 px wide, so every screen
+;; line of that image is computed against a bitmap far larger than the
+;; window, and scrolling past it recomputes window metrics for the whole
+;; thing.  This is the usual cause of "notes with photos scroll slowly";
+;; Obsidian sidesteps it because a browser engine rasterises and caches
+;; at the displayed size.
+;;
+;; A fixed width makes Emacs produce one scaled image and reuse it from
+;; the image cache.  Per-image overrides still work:
+;;   #+ATTR_ORG: :width 900
+
+(setq org-image-actual-width '(800))
+
+;; Keep scaled images in the cache long enough to survive scrolling back
+;; and forth through a note (default is 300 seconds).
+(setq image-cache-eviction-delay 900)
+
+;; ============================================================
 ;; MONOSPACE FOR CODE/TABLES (even when variable-pitch enabled)
 ;; ============================================================
 

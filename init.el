@@ -11,6 +11,16 @@
 
 (setq gc-cons-threshold most-positive-fixnum)
 
+;; Steady-state collector threshold, restored once startup is over.
+;;
+;; NOTE ON THE VALUE: 26-performance.el used to set this to 64 MB on the
+;; grounds that inline images raise the allocation rate.  That setting
+;; never took effect -- modules load from this file's body, so
+;; `after-init-hook' ran afterwards and put the value back to 16 MB.
+;; Emacs has therefore been running at 16 MB all along, apparently
+;; without trouble.  The value is left where it demonstrably works;
+;; raising it is an experiment to run deliberately and measure, not a
+;; side effect of moving a setting between files.
 (add-hook 'after-init-hook
           (lambda ()
             (setq gc-cons-threshold (* 16 1024 1024))
@@ -67,9 +77,12 @@
   (load (concat modules-dir "22-zettelkasten.el")) ; Folgezettel sequences (C-c n z)
   (load (concat modules-dir "23-fixed-tabs.el"))   ; Route commands to named tabs
   (load (concat modules-dir "24-readwise.el"))     ; Readwise import (C-c r s)
+  ;; 27 before 25: 25-inbox-review.el needs the identifier helpers and
+  ;; loads them by path when they are missing, which used to make this
+  ;; file load 27 a second time.  Loading it here in dependency order
+  ;; makes that fallback dormant, which is what it is for.
+  (load (concat modules-dir "27-denote-identifiers.el")) ; Identifier integrity after md files moved to org format
   (load (concat modules-dir "25-inbox-review.el")) ; Inbox review for old notes from Obsidian
-  (load (concat modules-dir "26-performance.el")) ; Fixing some performance issue after adding 3,5k files to the silos.
-  (load (concat modules-dir "27-denote-identifiers.el")) ; Identifier integrity for checking after md files moved to org format
   (load (concat modules-dir "28-writing-projects.el")) ; Writing projects (C-c n p)
   (load (concat modules-dir "29-writing-export.el")) ; ODT/DOCX export via ox-odt + LibreOffice
   (load (concat modules-dir "30-link-tooltips.el")) ; Cheap mouse tooltips over denote: links

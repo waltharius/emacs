@@ -7,6 +7,107 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02e — Dissolving 26-performance.el, plus structural fixes
+
+### Context
+
+`26-performance.el` was a module whose own header said it had to load
+last so that its values would win over the modules that set the same
+variables. That is the definition of a patch layer: it did not add
+behaviour, it corrected other files from a distance. Every setting in it
+had an obvious owner, and the reasoning attached to each — which was the
+valuable part — sat where nobody would read it while editing the line it
+described.
+
+### A — Where each setting went
+
+| Setting | New home |
+|---|---|
+| `auto-revert-avoid-polling`, `dired-auto-revert-buffer` | `02-editing.el`, next to `global-auto-revert-mode` |
+| `jit-lock-defer-time` | `02-editing.el` |
+| `org-image-actual-width`, `image-cache-eviction-delay` | `11-org-appearance.el` |
+| `inhibit-compacting-font-caches` | `03b-fonts.el` |
+| `gc-cons-threshold` | `init.el` — see below |
+| The "what is deliberately not tuned" note | `04-denote.el`, next to the Denote configuration it constrains |
+
+The commentary moved with each setting rather than being summarised.
+
+### B — `gc-cons-threshold` never worked
+
+The module set 64 MB at load time. Modules load from the body of
+`init.el`, so `after-init-hook` ran afterwards and set it back to 16 MB.
+The value has been 16 MB throughout, apparently without trouble.
+
+It is left at 16 MB, where it demonstrably works, with a comment
+recording what was intended and why raising it is an experiment to run
+and measure rather than a side effect of moving a setting between files.
+
+### C — `27-denote-identifiers.el` loaded twice
+
+`25-inbox-review.el` loads it by path when `featurep` reports it
+missing, which it was, because `init.el` loaded 25 first. `init.el` then
+loaded it again. Numeric order was the reason; dependency order is now
+the rule for this pair, and the path fallback in 25 becomes what it was
+meant to be — a fallback.
+
+### D — Theme switching stacked themes
+
+`load-theme` adds to `custom-enabled-themes` rather than replacing it.
+`my/toggle-modus-theme` disabled the outgoing theme; `my/load-theme-light`
+and `my/load-theme-dark` did not, so calling them directly left two
+themes active with the result depending on application order. All three
+now route through one function that disables what is enabled first.
+
+The dark theme remains unusable for a different reason, which is now
+recorded in the docstring rather than left to be rediscovered: `custom.el`
+sets a dozen Org faces to literal light colours, and `custom-set-faces`
+overrides theme faces. Deciding between palette overrides and a
+light-only configuration is a separate change.
+
+### E — Smaller corrections
+
+- `C-c d t` ran `denote-rename-file-keywords` directly, bypassing the
+  keyword prompt behaviour that `C-c n d k` gained in the previous
+  session. It now runs `my/denote-keywords-edit` like the menu entry.
+- `create-lockfiles` was set twice in `00-core.el`.
+- `custom.el` carried `(package-selected-packages nil)`, which would
+  make `package-autoremove` treat every installed package as an orphan.
+  Removed; `package.el` repopulates it on the next install.
+
+### F — TAB steps through candidates in keyword prompts
+
+A candidate list appearing under a half-typed word reads as something to
+step through, and TAB is the key hands reach for. In keyword prompts TAB
+is now `vertico-next`, S-TAB is `vertico-previous`, and `vertico-insert`
+— insert without exiting, which a comma-separated list needs between
+entries — moves to M-TAB.
+
+The rebinding is confined to these prompts, because TAB as insert is
+what makes file-name completion work and that is worth more elsewhere
+than stepping is. It is applied with `minibuffer-with-setup-hook`, the
+built-in way to configure a single minibuffer session: the hook exists
+for the duration of the call only, in the same way as the
+`vertico-preselect` binding beside it, and nothing is added to
+`minibuffer-setup-hook` globally. `:append` orders it after Vertico's
+own setup so that the map it extends is Vertico's.
+
+`my/notes-keyword-tab-navigates` set to nil restores Vertico's bindings
+in these prompts.
+
+### G — Not done
+
+`denote-journal` was raised in the audit as the largest available
+simplification. On the constraints it was measured against — identifiers
+carrying migrated dates, collisions originating in the migration rather
+than in note creation, a `:well-being:` property and a timestamped
+append-to-today behaviour that the package does not have — it would
+replace working code with configuration plus the same amount of custom
+code on top. Recorded as considered and declined.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02d — One keyword prompt, in the commands that own it
 
 ### Context

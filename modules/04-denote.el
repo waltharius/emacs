@@ -135,5 +135,36 @@
 (add-hook 'dired-mode-hook #'denote-dired-mode)
 (add-hook 'dired-mode-hook #'dired-hide-details-mode)
 
+;; ============================================================
+;; SCANNING COST: what is deliberately NOT tuned
+;; ============================================================
+;; Every Denote prompt, backlink buffer and keyword completion is built
+;; from `denote-directory-files', which walks the whole notes tree.  Two
+;; tempting optimisations are refused here, on purpose:
+;;
+;; `denote-infer-keywords' stays t.  It makes Denote read the keyword
+;; vocabulary from existing file names, which is what keeps the tag set
+;; consistent and what makes `my/notes-read-keywords' (05-notes.el)
+;; useful at all.  Turning it off would trade a correctness feature for
+;; an unmeasured speedup.  If a profiler report ever shows keyword
+;; inference dominating a prompt, the fix is to pin the vocabulary in
+;; `denote-known-keywords' and set `denote-infer-keywords' to nil --
+;; but measure first:
+;;
+;;   (benchmark-run 3 (denote-directory-files))
+;;   (length (denote-directory-files))
+;;
+;; Nothing caches `denote-directory-files' globally.  A stale cache in a
+;; tree that Syncthing writes into would list notes that no longer
+;; exist, which is a worse failure than a slow prompt.  The one cache
+;; that does exist (30-link-tooltips.el) is confined to tooltip text,
+;; expires in seconds, and is unreachable from any prompt.
+;;
+;; If the file count is far above the number of real notes, the tree is
+;; being walked into directories that hold none -- .git, Syncthing's
+;; .stversions, attachment folders.  `denote-excluded-directories-regexp'
+;; is owned by 25-inbox-review.el and widening it there is the fix that
+;; helps every Denote operation at once.
+
 (provide '04-denote)
 ;;; 04-denote.el ends here

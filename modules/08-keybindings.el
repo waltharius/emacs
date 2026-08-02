@@ -51,7 +51,10 @@
 (global-set-key (kbd "C-c d l") 'denote-link)                ; Insert link
 (global-set-key (kbd "C-c d b") 'denote-backlinks)           ; Show backlinks
 (global-set-key (kbd "C-c d r") 'denote-rename-file)         ; Rename note
-(global-set-key (kbd "C-c d t") 'denote-rename-file-keywords); Modify keywords
+;; Same command the transient menu uses (C-c n d k), not Denote's raw
+;; one: `my/denote-keywords-edit' (05-notes.el) adds the keyword prompt
+;; behaviour shared by every tag prompt in this configuration.
+(global-set-key (kbd "C-c d t") 'my/denote-keywords-edit)     ; Modify keywords
 
 ;; ============================================================
 ;; PDF EXPORT (C-c p)

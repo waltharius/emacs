@@ -57,7 +57,7 @@
 ;;
 ;; RELATED
 ;;
-;; `26-performance.el' explains why nothing here caches
+;; The scanning section of `04-denote.el' explains why nothing caches
 ;; `denote-directory-files' globally.  The cache below is deliberately
 ;; local to tooltips and short-lived, so no Denote prompt, backlink
 ;; buffer or search can ever be served from it.
