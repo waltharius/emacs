@@ -71,6 +71,7 @@
   (load (concat modules-dir "26-performance.el")) ; Fixing some performance issue after adding 3,5k files to the silos.
   (load (concat modules-dir "27-denote-identifiers.el")) ; Identifier integrity for checking after md files moved to org format
   (load (concat modules-dir "28-writing-projects.el")) ; Writing projects (C-c n p)
+  (load (concat modules-dir "29-writing-export.el")) ; ODT/DOCX export via ox-odt + LibreOffice
   )
 
 (add-hook 'emacs-startup-hook

@@ -1644,6 +1644,77 @@ guarantees. =~/notes/.stignore= excludes =.git= for the same reason.
 
 Module: =modules/28-writing-projects.el=
 
+* Office Export — ODT and DOCX (C-c n x)
+:PROPERTIES:
+:CUSTOM_ID: office-export
+:END:
+
+For text that leaves Emacs: a chapter for a supervisor, an article for
+an editor.
+
+| Key | Command                     | Effect                        |
+|-----+-----------------------------+-------------------------------|
+| =O= | =my/org-export-to-odt=      | ODT via Org's own exporter    |
+| =W= | =my/org-export-to-docx=     | ODT, then LibreOffice → DOCX  |
+| =?= | =my/office-check-setup=     | Report what is missing        |
+
+Output goes to =~/projects/<slug>/export/= when the file declares
+=#+project:=, otherwise to =~/notes/export/<silo>/=. A document is a
+deliverable of its project, not of the notes tree.
+
+** Why not pandoc
+
+Pandoc reads Org and writes DOCX in one step, and does produce real
+Word footnotes from org-cite citations. It is still the wrong tool
+here, for two reasons found by testing rather than assumed:
+
+- Its Org reader is a reimplementation. =#+INCLUDE: "f.org::*Heading"=
+  is unsupported — pandoc warns and *omits the content*. =:only-contents
+  t= is ignored, so the heading comes through anyway. Both are how
+  =20-transclusion.el= writes INCLUDE pairs, so an assembled manuscript
+  would export short without failing.
+- It renders citations with its own citeproc. PDF goes through Org and
+  citeproc-el; routing DOCX through pandoc lets one source produce two
+  different citation apparatus, and the difference would surface only
+  in the copy already sent.
+
+Org exports to ODT, LibreOffice converts. Same exporter as PDF, same
+INCLUDE handling, same citation renderer.
+
+** ODT or DOCX
+
+Word has opened ODT since 2007 and OnlyOffice reads it natively, so ODT
+is usually enough and skips the conversion. Reach for DOCX when the
+document is coming *back*: tracked changes and comments made in Word
+survive a DOCX round-trip more reliably than an ODT one.
+
+Note that neither direction merges. A supervisor's tracked changes
+cannot be applied to the Org source automatically — they are read and
+retyped. The exported file is a copy, never a second master.
+
+** Citations
+
+Handled by org-cite and CSL, the same as PDF. With a note style such as
+=chicago-notes-bibliography.csl= the citations become real footnotes and
+"ibid." is resolved from actual adjacency in the exported text, so
+reordering paragraphs fixes the back-references instead of breaking
+them.
+
+*Warning:* a discursive footnote sitting between two citations can
+confuse CSL position tracking, producing "ibid." where the short form
+belongs. Proofread citation runs in passages with dense commentary
+footnotes.
+
+** Configuration
+
+| Variable                        | Meaning                        |
+|---------------------------------+--------------------------------|
+| =my/office-output-dir=          | Root for non-project exports   |
+| =my/office-project-subdirectory=| Subdirectory inside a project  |
+| =my/office-convert-timeout=     | Seconds to wait for LibreOffice |
+
+Module: =modules/29-writing-export.el=
+
 * Citation Key Checker (C-c b c)
 :PROPERTIES:
 :CUSTOM_ID: cite-check

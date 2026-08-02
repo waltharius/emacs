@@ -7,6 +7,56 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02b — ODT/DOCX export
+
+### A — `modules/29-writing-export.el`
+
+Text that leaves Emacs had only one route out: PDF. A chapter going to a
+supervisor needs an editable format.
+
+Org exports to ODT and LibreOffice converts to DOCX, rather than pandoc
+converting Org to DOCX in one step. Pandoc is the obvious choice and was
+tested first; two findings ruled it out. Its Org reader is a
+reimplementation that does not support `#+INCLUDE:` with a heading target
+— it warns and omits the content — and ignores `:only-contents t`, which
+is exactly how 20-transclusion.el writes INCLUDE pairs, so an assembled
+manuscript would export short without failing. And it renders citations
+with its own citeproc, so the same source could produce one apparatus in
+the PDF and a different one in the DOCX, with the difference visible
+only in the copy already sent.
+
+Output lands in the project's export directory when the file declares
+`#+project:`, otherwise mirrors the silo structure. The project
+dependency is optional: without 28-writing-projects.el everything goes
+to the notes tree.
+
+ODT is kept as a first-class output rather than only an intermediate.
+Word has opened ODT since 2007 and OnlyOffice reads it natively; DOCX
+earns its conversion step only when the document is coming back edited.
+
+### B — Denote link filter fixed for non-LaTeX backends
+
+`my/--filter-denote-link` matched `\href{}{}` and returned an empty
+string for anything else. That is correct for LaTeX and destructive
+everywhere else: in ODT and HTML the transcoded link does not match, so
+the filter deleted the link *and its description text*. Prose would have
+gone missing from every ODT export, silently.
+
+The filter now recognises the LaTeX, ODT and HTML shapes and falls back
+to stripping tags while keeping the words.
+
+### C — `my/office-check-setup`
+
+Every failure here is quiet: a missing ox-odt exports nothing, a missing
+LibreOffice yields an ODT where DOCX was requested, and a non-CSL
+citation processor produces a document with no bibliography. Modelled on
+`my/csl-check-setup` for the same reason.
+
+*Not compiled or run: written without an Emacs available. The pandoc
+limitations above were tested directly; the ox-odt path was not.*
+
+---
+
 ## Session 2026-08-02 — Writing Projects: note creation, mention filtering
 
 ### A — `my/writing-project-new-note`
