@@ -7,6 +7,63 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02 — Writing Projects: note creation, mention filtering
+
+### A — `my/writing-project-new-note`
+
+Joining a project previously meant creating a note, then adding it in a
+second step, which left the `#+project:` keyword to be remembered by
+hand. One command now asks for project, section and title and writes
+the rest: the keyword, the Denote tag, and the hub link.
+
+Notes are created in `my/writing-project-note-directory` (`pks/`), not
+in the project directory. A chapter draft is still knowledge — searched,
+linked and transcluded with every other note, and useful after the
+project is finished. Only the organisational layer lives under
+`~/projects/`.
+
+### B — Mentions now exclude members
+
+New notes carry the project slug as a Denote keyword so that the
+ordinary Denote commands can find them, which means a member also
+satisfies the mention search and appeared in both lists. The mention
+listing subtracts current members, leaving exactly the notes that could
+still be promoted — the only reason to read that section.
+
+The keyword can be turned off with `my/writing-keyword-new-notes`, at
+the cost of chapters being reachable only through their hub.
+
+### C — `my/writing-project-refresh-titles`
+
+Hub links are `[[denote:IDENTIFIER][Title]]`, and identifiers never
+change, so renaming a note breaks nothing. The caption is a copy of the
+title taken when the link was written and does go stale. This resyncs
+captions from current titles; purely cosmetic, nothing depends on them.
+
+This does not extend to `#+INCLUDE:`, which takes a path and does break
+on rename. Assembling a manuscript needs identifiers resolved to paths
+at export time, which belongs to the export layer.
+
+### D — Membership was already additive; now it says so
+
+`my/writing-project-add-note` read the existing `#+project:` list and
+appended, rather than overwriting, from the start. The behaviour was not
+stated anywhere, so it was neither guaranteed nor obvious. The append is
+now its own function with a docstring explaining why: a note is
+routinely material for more than one text, and silently dropping an
+older membership would be worse than any duplication.
+
+### E — Smaller changes
+
+- Project prompts default to the current buffer's project.
+- Section prompts share one helper instead of being written out twice.
+- `my/writing-project-refresh-mentions` had leftover point manipulation
+  from an earlier draft and re-opened the hub buffer to save it.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-01b — Writing Projects, corrections
 
 ### A — `org-clock-persist-file` conflict removed from 04-denote.el

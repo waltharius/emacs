@@ -24,6 +24,22 @@
 ;; material would be wrong, so mentions are shown separately and can be
 ;; promoted with one key.
 ;;
+;; Because a member note may also carry the Denote keyword, the mentions
+;; listing subtracts everything already under materials: what remains is
+;; exactly the set of candidates for promotion, which is the only reason
+;; to look at that section at all.
+;;
+;; LINKS ARE BY IDENTIFIER.  Hub entries are `[[denote:IDENTIFIER][Title]]',
+;; and a Denote identifier is fixed at creation and survives every rename.
+;; Adding a keyword to a chapter changes its file name and breaks nothing.
+;; Only the description goes stale, which is cosmetic and repaired by
+;; `my/writing-project-refresh-titles'.
+;;
+;; This does NOT extend to `#+INCLUDE:', which takes a path and therefore
+;; does break on rename.  Assembling a manuscript needs identifiers
+;; resolved to paths at export time; that belongs to the export layer, not
+;; here.
+;;
 ;; PROGRESS is measured against a character target, over the files linked
 ;; under the "Text" section only.  Source notes and outlines are excluded
 ;; because they are not the deliverable.  The measurement runs on exported
@@ -32,7 +48,8 @@
 ;; fifth of an Org file.
 ;;
 ;; RELATION TO OTHER MODULES
-;; - Requires nothing.  Degrades if `denote' or `pandoc' are absent.
+;; - Requires nothing.  Degrades if `denote' or `pandoc' are absent;
+;;   creating notes needs `denote' and says so rather than failing.
 ;; - Appends to the menus of 12-transient via `my/transient-append', so a
 ;;   missing 12-transient leaves the entry out instead of breaking init.
 ;; - Owns `org-agenda-files'.  The setting that used to live in 05-notes.el
@@ -82,6 +99,33 @@ Ordinary operation reads the hub, which is one file, because scanning
 several thousand notes on every project visit would make the project
 unusable."
   :type '(repeat directory)
+  :group 'my/writing-projects)
+
+(defcustom my/writing-project-note-directory
+  (expand-file-name "~/notes/pks/")
+  "Silo in which `my/writing-project-new-note' creates notes.
+
+Project text lives in the knowledge silo like any other note, not in
+the project directory.  A chapter draft is still a note: it is
+searched, linked and transcluded with everything else, and it outlives
+the project as material even when the project itself is finished and
+archived."
+  :type 'directory
+  :group 'my/writing-projects)
+
+(defcustom my/writing-keyword-new-notes t
+  "When non-nil, new project notes also carry the project slug as a
+Denote keyword.
+
+The keyword is what makes a note findable by the ordinary Denote
+commands -- `denote-open-or-create', `consult-denote' and a plain file
+listing all key off the file name.  Without it a chapter is reachable
+only through its hub.
+
+It does mean a member note also satisfies the mention search, which is
+why `my/writing-project-refresh-mentions' subtracts current members
+before listing."
+  :type 'boolean
   :group 'my/writing-projects)
 
 (defcustom my/writing-count-with-pandoc t
@@ -216,6 +260,10 @@ membership scans needlessly slow."
 
 (defun my/writing--set-file-projects (slugs)
   "Write SLUGS as the `#+project:' line of the current buffer.
+
+Replaces the whole line, so callers pass the complete list.  Membership
+is additive -- see `my/writing--add-file-project'.
+
 Placed after the last front-matter keyword so it joins the existing
 block instead of landing in the body."
   (save-excursion
@@ -227,6 +275,17 @@ block instead of landing in the body."
       (while (looking-at "^#\\+[a-zA-Z_]+:")
         (forward-line 1))
       (insert "#+project: " (string-join slugs " ") "\n"))))
+
+(defun my/writing--add-file-project (slug)
+  "Add SLUG to the current buffer's project list, keeping the others.
+
+A note routinely belongs to more than one project: a section written
+for a chapter is often reused in a talk, and both should find it.
+Returns non-nil when the buffer changed."
+  (let ((current (my/writing--file-projects (buffer-file-name))))
+    (unless (member slug current)
+      (my/writing--set-file-projects (append current (list slug)))
+      t)))
 
 ;; ============================================================
 ;; PROJECT REGISTRY
@@ -268,11 +327,20 @@ transliteration rule applied inconsistently is worse than none."
        (directory-files my/writing-projects-directory nil nil t))))))
 
 (defun my/writing--read-project (&optional prompt)
-  "Prompt for a project slug with completion, using PROMPT."
+  "Prompt for a project slug with completion, using PROMPT.
+The project of the current buffer, when there is one, is offered as the
+default."
   (let ((slugs (my/writing-project-slugs)))
     (unless slugs
       (user-error "No writing projects yet -- create one with `my/writing-project-new'"))
-    (completing-read (or prompt "Project: ") slugs nil t)))
+    (completing-read (or prompt "Project: ") slugs nil t nil nil
+                     (my/writing--current-project))))
+
+(defun my/writing--read-section (&optional prompt)
+  "Prompt for one of the two materials sections, using PROMPT."
+  (completing-read (or prompt "Section: ")
+                   (list my/writing-heading-text my/writing-heading-sources)
+                   nil t nil nil my/writing-heading-text))
 
 (defun my/writing--current-project ()
   "Return the slug of the project the current buffer belongs to, or nil.
@@ -401,6 +469,11 @@ END is the next heading at the same or a shallower level."
           (push (match-string-no-properties 1) ids))
         (nreverse ids)))))
 
+(defun my/writing--member-ids ()
+  "Return every identifier listed under either materials section."
+  (append (my/writing--links-in-section my/writing-heading-text)
+          (my/writing--links-in-section my/writing-heading-sources)))
+
 (defun my/writing--append-link (heading id title)
   "Append a Denote link to ID titled TITLE at the end of HEADING's body.
 Returns nil when HEADING is absent or already lists ID."
@@ -417,13 +490,60 @@ Returns nil when HEADING is absent or already lists ID."
   (when (fboundp 'denote-get-path-by-id)
     (ignore-errors (denote-get-path-by-id id))))
 
+(defun my/writing--file-title (file)
+  "Return the title of FILE, falling back to its base name."
+  (or (my/writing--read-keyword file "title") (file-name-base file)))
+
 ;; ============================================================
 ;; MEMBERSHIP
 ;; ============================================================
 
 ;;;###autoload
+(defun my/writing-project-new-note (slug section title)
+  "Create a new note for project SLUG and list it under SECTION.
+
+Asks only for the title.  Everything that makes the note a member is
+written automatically: the `#+project:' keyword, the Denote keyword
+when `my/writing-keyword-new-notes' is on, and a link from the hub.
+
+The note is created in `my/writing-project-note-directory', not in the
+project directory.  Project text is still knowledge: it is searched,
+linked and transcluded with every other note, and it stays useful after
+the project is finished."
+  (interactive
+   (list (my/writing--read-project "New note in project: ")
+         (my/writing--read-section)
+         (read-string "Title: ")))
+  (unless (fboundp 'denote)
+    (user-error "Denote is not available -- cannot create notes"))
+  (when (string-empty-p (string-trim title))
+    (user-error "A title is required"))
+  (let ((keywords (when my/writing-keyword-new-notes (list slug))))
+    ;; `denote' creates the file and visits it, so the new buffer is
+    ;; current afterwards and its own file name is the one to use.
+    (denote title keywords 'org my/writing-project-note-directory)
+    (let ((file (buffer-file-name)))
+      (unless file
+        (user-error "Denote did not produce a file"))
+      (my/writing--add-file-project slug)
+      (save-buffer)
+      (let ((id (my/writing--keyword-in-buffer "identifier")))
+        (if (null id)
+            (message "Note created, but it has no identifier -- not linked")
+          (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
+            (if (my/writing--append-link section id title)
+                (progn (save-buffer)
+                       (message "Created and listed under %s / %s" slug section))
+              (message "Created, but the hub has no `%s' section" section))))))))
+
+;;;###autoload
 (defun my/writing-project-add-note (slug section)
   "Add the note in the current buffer to project SLUG under SECTION.
+
+Membership is ADDITIVE: a note already belonging to other projects keeps
+them and gains this one.  A note is routinely material for more than one
+text, and losing the older membership silently would be worse than any
+duplication.
 
 Writes both halves of the relation: the `#+project:' keyword into the
 note, and a Denote link into the hub.  The hub is what gets read during
@@ -431,10 +551,7 @@ normal work; the keyword is what allows the hub to be rebuilt if it is
 lost."
   (interactive
    (list (my/writing--read-project "Add to project: ")
-         (completing-read "Section: "
-                          (list my/writing-heading-text
-                                my/writing-heading-sources)
-                          nil t nil nil my/writing-heading-text)))
+         (my/writing--read-section)))
   (let ((file (buffer-file-name)))
     (unless file (user-error "This buffer is not visiting a file"))
     (unless (derived-mode-p 'org-mode) (user-error "Not an Org buffer"))
@@ -444,10 +561,8 @@ lost."
       (unless id
         (user-error "No `#+identifier:' -- this does not look like a Denote note"))
       ;; Note side.
-      (let ((current (my/writing--file-projects file)))
-        (unless (member slug current)
-          (my/writing--set-file-projects (append current (list slug)))
-          (save-buffer)))
+      (when (my/writing--add-file-project slug)
+        (save-buffer))
       ;; Hub side.
       (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
         (unless (my/writing--section-bounds section)
@@ -476,18 +591,42 @@ know whether a note is deliverable text or a source."
             (push file found)))))
     (let ((added 0))
       (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
-        (let ((known (append (my/writing--links-in-section my/writing-heading-text)
-                             (my/writing--links-in-section my/writing-heading-sources))))
+        (let ((known (my/writing--member-ids)))
           (dolist (file (nreverse found))
             (let ((id (my/writing--read-keyword file "identifier"))
-                  (title (or (my/writing--read-keyword file "title")
-                             (file-name-base file))))
+                  (title (my/writing--file-title file)))
               (when (and id (not (member id known)))
                 (when (my/writing--append-link my/writing-heading-sources id title)
                   (push id known)
                   (setq added (1+ added)))))))
         (when (> added 0) (save-buffer)))
       (message "Scanned %d notes, %d newly added to %s" scanned added slug))))
+
+;;;###autoload
+(defun my/writing-project-refresh-titles (slug)
+  "Update stale link descriptions in SLUG's hub from the notes' titles.
+
+Denote links carry an identifier, which is fixed at creation, so a
+renamed note stays linked and nothing breaks.  The description, however,
+is a copy of the title made when the link was written, and retitling a
+chapter leaves the hub showing the old wording.  This resynchronises it.
+
+Purely cosmetic: nothing depends on the description."
+  (interactive (list (my/writing--read-project "Refresh titles in: ")))
+  (let ((updated 0))
+    (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
+      (save-excursion
+        (goto-char (point-min))
+        (while (re-search-forward "\\[\\[denote:\\([^]]+\\)\\]\\[\\([^]]*\\)\\]\\]" nil t)
+          (let* ((id (match-string-no-properties 1))
+                 (shown (match-string-no-properties 2))
+                 (file (my/writing--id-to-file id))
+                 (title (and file (my/writing--file-title file))))
+            (when (and title (not (equal title shown)))
+              (replace-match (format "[[denote:%s][%s]]" id title) t t)
+              (setq updated (1+ updated))))))
+      (when (> updated 0) (save-buffer)))
+    (message "%d link description(s) updated" updated)))
 
 ;; ============================================================
 ;; MENTIONS
@@ -496,6 +635,11 @@ know whether a note is deliverable text or a source."
 ;; the name, so this needs no file to be opened -- which is what makes it
 ;; affordable at all, though it still lists several thousand directory
 ;; entries and is therefore a command, not something run on every visit.
+;;
+;; Members are subtracted from the result.  A note created by
+;; `my/writing-project-new-note' carries the project keyword and would
+;; otherwise appear in both lists, and the point of this section is to
+;; show what is NOT yet material -- the candidates for promotion.
 
 (defun my/writing--mention-files (slug)
   "Return notes whose Denote keywords include SLUG."
@@ -514,30 +658,36 @@ know whether a note is deliverable text or a source."
 (defun my/writing-project-refresh-mentions (slug)
   "Replace the mentions section of SLUG's hub with a fresh listing.
 
+Notes already listed under materials are left out: they are members, and
+the purpose of this section is to show what could still become one.
+
 The whole section is overwritten, so nothing may be written there by
 hand -- anything worth keeping belongs under materials."
   (interactive (list (my/writing--read-project "Refresh mentions of: ")))
-  (let ((files (my/writing--mention-files slug)))
+  (let ((files (my/writing--mention-files slug))
+        (listed 0))
     (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
-      (let ((bounds (my/writing--section-bounds my/writing-heading-mentions)))
+      (let ((bounds (my/writing--section-bounds my/writing-heading-mentions))
+            (members (my/writing--member-ids)))
         (unless bounds
           (user-error "Hub has no `%s' section" my/writing-heading-mentions))
         (save-excursion
           (delete-region (car bounds) (cdr bounds))
           (goto-char (car bounds))
-          (insert "Generated -- this section is overwritten in full.\n\n")
-          (if (null files)
-              (insert "No mentions.\n\n")
-            (dolist (file files)
-              (let ((id (my/writing--read-keyword file "identifier"))
-                    (title (or (my/writing--read-keyword file "title")
-                               (file-name-base file))))
+          (insert "Generated -- this section is overwritten in full.\n"
+                  "Notes already under materials are omitted.\n\n")
+          (dolist (file files)
+            (let ((id (my/writing--read-keyword file "identifier"))
+                  (title (my/writing--file-title file)))
+              (unless (and id (member id members))
+                (setq listed (1+ listed))
                 (insert (if id
                             (format "- [[denote:%s][%s]]\n" id title)
-                          (format "- [[file:%s][%s]]\n" file title)))))
-            (insert "\n"))))
+                          (format "- [[file:%s][%s]]\n" file title))))))
+          (insert (if (= listed 0) "No mentions outside materials.\n\n" "\n"))))
       (save-buffer))
-    (message "%d mention(s) of %s" (length files) slug)))
+    (message "%d mention(s) of %s outside materials (%d matched the keyword)"
+             listed slug (length files))))
 
 ;; ============================================================
 ;; PROGRESS
@@ -731,8 +881,10 @@ a flag would spend most of its life set wrongly."
     ("o" "Open hub"           my/writing-project-open)
     ("D" "Directory (dired)"  my/writing-project-dired)]
    ["Materials"
+    ("f" "New note in project" my/writing-project-new-note)
     ("a" "Add this note"      my/writing-project-add-note)
     ("m" "Refresh mentions"   my/writing-project-refresh-mentions)
+    ("t" "Refresh titles"     my/writing-project-refresh-titles)
     ("R" "Rebuild from scan"  my/writing-project-rebuild-materials)]
    ["Progress & time"
     ("p" "Progress"           my/writing-project-progress)

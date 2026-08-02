@@ -1467,12 +1467,32 @@ the deadline.
 | =n= | =my/writing-project-new=             | Create directory, hub, git   |
 | =o= | =my/writing-project-open=            | Open a hub file              |
 | =D= | =my/writing-project-dired=           | Project directory in Dired   |
+| =f= | =my/writing-project-new-note=        | Create a note already joined |
 | =a= | =my/writing-project-add-note=        | Add current note to project  |
 | =m= | =my/writing-project-refresh-mentions=| Regenerate the mentions list |
+| =t= | =my/writing-project-refresh-titles=  | Resync stale link captions   |
 | =R= | =my/writing-project-rebuild-materials= | Rebuild membership by scan |
 | =p= | =my/writing-project-progress=        | Chars / target / days left   |
 | =i= =c= =z= =g= | =org-clock-*=            | In, out, cancel, goto        |
 | =A= =U= | =org-agenda=, update files       | Agenda over hub files        |
+
+** Creating versus adding
+
+=f= asks for a project, a section and a title, then does everything
+else: creates the note in =my/writing-project-note-directory=
+(=pks/=, not the project directory), writes =#+project:=, adds the
+Denote keyword, and links it from the hub. =a= does the same for a note
+that already exists.
+
+Project text lives in the silo like any other note. A chapter draft is
+still knowledge: it is searched, linked and transcluded with everything
+else, and it stays useful once the project is finished.
+
+Membership is *additive*. A note already belonging to other projects
+keeps them and gains the new one — the =#+project:= line takes several
+slugs separated by spaces. Notes are routinely material for more than
+one text, and silently dropping an older membership would be worse than
+any duplication.
 
 ** Belonging versus mentioning
 
@@ -1488,10 +1508,28 @@ thesis happened that day. It is not a chapter. Listing it as project
 material would make the material list useless, so mentions are a
 separate section and =a= is what promotes one into Materials.
 
+Because =f= gives new notes the project keyword too, a member would
+otherwise appear in both lists. =m= subtracts current members, so what
+remains under Mentions is exactly the set of candidates for promotion —
+which is the only reason to read that section.
+
 =a= writes *both* halves: the keyword into the note, the link into the
 hub. The hub is the fast path — one file, read instantly. The keyword
 is repair data: if the hub is lost, =R= reconstructs it by scanning the
 silos. Scanning is never on the path of opening a project.
+
+** Links survive renaming
+
+Hub entries are =[[denote:IDENTIFIER][Title]]=. A Denote identifier is
+assigned at creation and never changes, so adding a tag to a chapter —
+which rewrites its file name — breaks nothing. Only the caption goes
+stale, since it is a copy of the title made when the link was written.
+=t= resyncs captions from the current titles; nothing depends on them.
+
+*Warning:* this does *not* extend to =#+INCLUDE:=, which takes a path
+and does break on rename. Assembling a manuscript from several chapter
+files needs identifiers resolved to paths at export time. That belongs
+to the export layer, not here.
 
 ** Why a keyword and not an Org property
 
@@ -1583,6 +1621,8 @@ fail on the first clock change.
 | =my/writing-projects-directory=       | Root of project directories    |
 | =my/writing-project-subdirectories=   | Created inside a new project   |
 | =my/writing-project-silos=            | Scanned by =R= and =m=         |
+| =my/writing-project-note-directory=   | Where =f= creates notes        |
+| =my/writing-keyword-new-notes=        | Also tag new notes with slug   |
 | =my/writing-count-with-pandoc=        | Exported text vs crude count   |
 | =my/writing-clock-idle-minutes=       | Ask after this much idleness   |
 | =my/writing-clock-auto-clockout-seconds= | Stop by itself; nil disables |
