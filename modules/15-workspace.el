@@ -8,8 +8,16 @@
 ;;   1. Custom notes dashboard  - Full buffer with clickable titles,
 ;;                                grouped by silo, recency, and tags.
 ;;                                Opens in its own named tab on startup.
-;;   2. Denote backlinks panel  - Right side window (C-c d b)
-;;   3. Denote-explore          - Tag stats and network (on demand)
+;;   2. Denote-explore          - Tag stats and network (on demand)
+;;
+;; WHAT THIS MODULE NO LONGER DOES:
+;;   - Unblocking Hunspell after session restore.  That is 03-spelling.el,
+;;     which registers itself on `my/desktop-after-startup-hook'.
+;;   - Deciding when startup has finished.  That is 01-ui.el, which owns
+;;     the session and publishes the hook above.
+;;   - Placing the Denote backlinks buffer in a side window.  That is one
+;;     Denote variable and lives in 04-denote.el; it was never a panel
+;;     belonging to this dashboard.
 ;;
 ;; SORTING STRATEGY:
 ;;   - Recently Modified section : by mtime (what you edited last)
@@ -19,14 +27,17 @@
 ;;                                 Files without identifier (captures.org) sort last.
 ;;
 ;; KEYBINDINGS:
-;;   C-c w d  - Open/refresh notes dashboard (also C-c n o in transient)
-;;   C-c w x  - Show tag statistics
-;;   C-c w r  - Jump to random note
+;;   C-c w d  - Open/refresh notes dashboard (also C-c n f d in transient)
+;;   C-c w x  - Show tag statistics (also C-c n f t)
+;;   C-c w r  - Jump to random note (also C-c n f r)
 ;;   g        - Refresh dashboard (inside dashboard buffer)
 ;;   q        - Bury dashboard
 ;;
 ;; HOW TO REVERT:
-;;   Remove (load ... "15-workspace.el") from init.el. Nothing else changes.
+;;   Remove (load ... "15-workspace.el") from init.el.  Nothing else
+;;   changes -- which is now true rather than aspirational: spell
+;;   checking, session restore and the backlinks window no longer pass
+;;   through this file.
 
 ;;; Code:
 
@@ -189,6 +200,11 @@ Entries that are files rather than directories are skipped."
 ;; ============================================================
 
 (defconst my/dashboard-buffer-name "*Notes Dashboard*")
+
+(defconst my/dashboard-tab-name "Dashboard"
+  "Name of the tab-bar tab the dashboard lives in.
+Passed to `my/fixed-tab-goto' (01-ui.el), which switches to that tab
+and creates it when it is missing.")
 
 (defun my/dashboard-open-in-new-tab (file)
   "Open FILE in a new named tab."
@@ -380,64 +396,30 @@ without any manual setup."
 (defun my/open-notes-dashboard ()
   "Open or refresh the Notes Dashboard in its own named tab."
   (interactive)
-  (my/fixed-tab-goto "Dashboard")
+  (my/fixed-tab-goto my/dashboard-tab-name)
   (switch-to-buffer (my/render-notes-dashboard)))
 
 ;; ============================================================
-;; STARTUP: Open Dashboard after init
+;; STARTUP: Open Dashboard once the session is ready
 ;; ============================================================
-;; Two paths to startup, both guarded by the same "Dashboard tab
-;; already exists?" check so only one ever fires:
+;; This module used to work out for itself when startup had finished:
+;; one hook for the case where a desktop was restored, another for the
+;; case where there was none, two timers, and a "does the Dashboard tab
+;; exist already?" test to keep both paths from firing.  It also
+;; unblocked Hunspell along the way -- which has nothing to do with a
+;; dashboard, and meant that dropping this module silently disabled
+;; spell checking for the whole session.
 ;;
-;;   Normal launch (desktop restored):
-;;     desktop-after-read-hook -> my/after-desktop-restore
-;;     Also unblocks Hunspell (flyspell recheck on all restored buffers).
-;;
-;;   First launch or --no-desktop (no desktop file yet):
-;;     emacs-startup-hook -> my/open-notes-dashboard directly.
-;;     desktop-after-read-hook never fires when there is no desktop,
-;;     so this hook is the only path.
-;;
-;; Both timers use 0.5 s delay to let the rest of startup settle first.
+;; `my/desktop-after-startup-hook' (01-ui.el) answers the question once,
+;; for everyone: it fires after startup whether or not a session was
+;; restored, and it fires exactly once.  The duplicate paths and the
+;; tab-existence test went with it.  This module now states what it
+;; wants, not when it may have it, and 03-spelling.el states its own.
 
-(defun my/after-desktop-restore ()
-  "Run once after desktop-restore: unblock Hunspell and open Dashboard."
-  (when (fboundp 'my/flyspell--recheck-all-buffers)
-    (run-with-timer 0.1 nil #'my/flyspell--recheck-all-buffers))
-  (run-with-timer
-   0.5 nil
-   (lambda ()
-     (unless (seq-find (lambda (tab) (equal (alist-get 'name tab) "Dashboard"))
-                       (tab-bar-tabs))
-       (my/open-notes-dashboard)))))
-
-(add-hook 'desktop-after-read-hook #'my/after-desktop-restore)
-
-;; Fallback: fires on first launch when there is no desktop to restore.
-;; On subsequent launches desktop-after-read-hook fires instead, so the
-;; Dashboard tab will already exist by the time this timer runs and the
-;; (unless ...) guard below ensures we do nothing.
-(add-hook 'emacs-startup-hook
-          (lambda ()
-            (run-with-timer
-             0.5 nil
-             (lambda ()
-               (unless (seq-find (lambda (tab) (equal (alist-get 'name tab) "Dashboard"))
-                                 (tab-bar-tabs))
-                 (my/open-notes-dashboard))))))
-
-;; ============================================================
-;; BACKLINKS: Right side-window
-;; ============================================================
-
-(with-eval-after-load 'denote
-  (setq denote-backlinks-display-buffer-action
-        '((display-buffer-reuse-window
-           display-buffer-in-side-window)
-          (side . right)
-          (slot . 0)
-          (window-width . 0.25)
-          (inhibit-same-window . t))))
+(if (boundp 'my/desktop-after-startup-hook)
+    (add-hook 'my/desktop-after-startup-hook #'my/open-notes-dashboard)
+  ;; Without 01-ui.el there is no session to wait for, so open directly.
+  (add-hook 'emacs-startup-hook #'my/open-notes-dashboard 95))
 
 ;; ============================================================
 ;; DENOTE-EXPLORE: Tag stats (lazy loaded)

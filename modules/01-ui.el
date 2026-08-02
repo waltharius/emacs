@@ -299,6 +299,53 @@ Use \\[my/desktop-show-protected] to see the outcome before it happens."
   (add-hook 'desktop-save-hook #'my/desktop-trim-buffers)
   (desktop-save-mode 1))
 
+;; ============================================================
+;; STARTUP: one hook, one firing
+;; ============================================================
+;; Several modules need to run something once the session is up: the
+;; dashboard opens itself (15-workspace.el), spell checking is unblocked
+;; (03-spelling.el).  Getting that moment right is fiddly and it was
+;; being solved twice, in modules that had no business knowing about
+;; desktop restoration:
+;;
+;;   - `desktop-after-read-hook' fires when a session was restored, and
+;;     never fires when there was no desktop file to read;
+;;   - `emacs-startup-hook' fires either way, but too early relative to
+;;     restoration.
+;;
+;; Both paths converge here, a guard makes sure only the first one
+;; counts, and consumers add themselves to one ordinary hook without
+;; needing to know which path was taken.  This module owns the session,
+;; so it is the one that can say when the session is ready; it does not
+;; need to know what anyone does with that fact.
+;;
+;; The delay lets the rest of startup settle before anything reshapes
+;; windows.
+
+(defcustom my/desktop-startup-delay 0.5
+  "Seconds to wait after startup before running `my/desktop-after-startup-hook'."
+  :type 'number :group 'my/desktop)
+
+(defvar my/desktop-after-startup-hook nil
+  "Hook run once, shortly after Emacs has finished starting up.
+
+Runs whether or not a desktop session was restored, and runs exactly
+once per Emacs process.  Add to it from any module that needs to act on
+a session that is ready to use.")
+
+(defvar my/desktop--startup-done nil
+  "Non-nil once `my/desktop-after-startup-hook' has been run.")
+
+(defun my/desktop--run-startup-hook ()
+  "Run `my/desktop-after-startup-hook' once, after a short delay."
+  (unless my/desktop--startup-done
+    (setq my/desktop--startup-done t)
+    (run-with-timer my/desktop-startup-delay nil
+                    (lambda () (run-hooks 'my/desktop-after-startup-hook)))))
+
+(add-hook 'desktop-after-read-hook #'my/desktop--run-startup-hook)
+(add-hook 'emacs-startup-hook #'my/desktop--run-startup-hook 90)
+
 ;; Don't save temporary/auxiliary files
 (add-to-list 'desktop-modes-not-to-save 'fundamental-mode)
 (setq desktop-files-not-to-save

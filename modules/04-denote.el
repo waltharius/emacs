@@ -136,6 +136,29 @@
 (add-hook 'dired-mode-hook #'dired-hide-details-mode)
 
 ;; ============================================================
+;; BACKLINKS: where the backlinks buffer appears
+;; ============================================================
+;; `denote-backlinks' (C-c d b) lists the notes that link to the current
+;; one.  By default Denote shows that list wherever `display-buffer'
+;; decides, which for a reference list is the wrong place: it is read
+;; alongside the note, not instead of it.  A side window on the right at
+;; a quarter of the frame width keeps both visible.
+;;
+;; This setting used to live in 15-workspace.el, whose header advertised
+;; it as a "Denote backlinks panel" feature of the dashboard.  It is one
+;; Denote variable and it belongs with the rest of the Denote
+;; configuration.
+
+(with-eval-after-load 'denote
+  (setq denote-backlinks-display-buffer-action
+        '((display-buffer-reuse-window
+           display-buffer-in-side-window)
+          (side . right)
+          (slot . 0)
+          (window-width . 0.25)
+          (inhibit-same-window . t))))
+
+;; ============================================================
 ;; SCANNING COST: what is deliberately NOT tuned
 ;; ============================================================
 ;; Every Denote prompt, backlink buffer and keyword completion is built
