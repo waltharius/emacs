@@ -1827,6 +1827,40 @@ Session persistence via built-in =desktop-save-mode=. Open files and
 cursor positions survive restarts. Desktop file lives in
 =~/.emacs.d/desktop/=.
 
+** =my/desktop-after-startup-hook=
+
+An ordinary hook, run *once*, shortly after Emacs has finished starting
+up — whether or not a session was restored.
+
+Two Emacs hooks answer half the question each: =desktop-after-read-hook=
+fires only when there was a desktop file to read, =emacs-startup-hook=
+fires either way but too early relative to restoration. Both feed this
+hook, and a flag makes sure only the first one counts. The delay before
+firing is =my/desktop-startup-delay= (0.5 s), which lets the rest of
+startup settle before anything reshapes windows.
+
+Registered on it:
+
+| Module | What it does |
+|--------+--------------|
+| =03-spelling.el= | Clears the Hunspell block and activates flyspell in every restored buffer |
+| =15-workspace.el= | Opens the notes dashboard in its tab |
+
+Both registrations are guarded: without =01-ui.el= they degrade to a
+message or to =emacs-startup-hook=, rather than to silence.
+
+This exists because the two consumers used to solve the problem
+separately, inside =15-workspace.el= — two hooks, two timers, and a
+"does the Dashboard tab exist already?" test whose only purpose was to
+stop them colliding. Spell checking also passed through that file, so
+removing the dashboard module disabled it. A module that owns the
+session can say when the session is ready; it should not have to know
+what anyone does with that fact.
+
+Functions: =my/desktop--run-startup-hook= | Variables:
+=my/desktop-after-startup-hook=, =my/desktop-startup-delay= |
+Module: =modules/01-ui.el=
+
 Three-layer strategy:
 
 | Layer    | When       | What happens                                       |
@@ -2306,6 +2340,95 @@ same cost described in [[#link-tooltips][Link Tooltips]] and the same measuremen
 #+begin_src emacs-lisp
 (benchmark-run 3 (denote-directory-files))
 #+end_src
+
+* Org Faces and Fonts
+:PROPERTIES:
+:CUSTOM_ID: org-faces
+:END:
+
+Where the appearance of Org text is decided, and why it is decided in
+exactly one place.
+
+** The rule
+
+*custom.el owns every Org face.* Set colours, weights and inheritance
+with =M-x customize-face=; no module calls =set-face-attribute= on an
+Org face any more.
+
+=03b-fonts.el= owns the three *base* faces those Org faces inherit
+from — =default=, =fixed-pitch= (JetBrains Mono) and =variable-pitch=
+(Playpen Sans Hebrew) — and the per-buffer choice between them, which is
+what makes journal notes handwritten. Changing the handwriting font
+there changes every face that inherits =variable-pitch=.
+
+** What used to go wrong
+
+=11-org-appearance.el= called =set-face-attribute= with
+=:foreground 'unspecified= on seven Org faces, under a comment claiming
+this left the colour "to inherit from custom.el". It does the opposite:
+=unspecified= *erases* the attribute. A colour set with
+=customize-face= applied for the rest of that session and was wiped at
+the next start, every time.
+
+It also produced the impression that *each file looked different*. It
+did not — each *frame* did. =set-face-attribute= alters the realised
+faces of existing frames; a new frame recomputes its faces from the
+theme and =custom-set-faces=, where the erasure does not appear. A note
+opened with =C-c n v f= (detach to frame) therefore showed the theme's
+colours while the same note in the main frame showed none.
+
+Two further traps worth remembering:
+
+- =~code~= is =org-code= and ~=verbatim=~ is =org-verbatim= — *two
+  different faces*. A difference between them reads like a per-document
+  quirk until you notice which marker was used.
+- =custom.el= and the module disagreed about =org-block=: Georgia in one,
+  monospace in the other. The winner depended on how old the frame was.
+
+** Current settings
+
+| Face | Look | Applies to |
+|------+------+------------|
+| =org-quote= | journal handwriting font, italic, 1.1 | =#+begin_quote= blocks |
+| =org-block= | monospace, cream background | =#+begin_src=, =#+begin_example= |
+| =org-verbatim= | purple, *not* bold | ~=text=~ |
+| =org-code= | dark green, not bold | =~text~= |
+| =org-table=, =org-meta-line=, =org-checkbox=, =org-link=, =org-special-keyword= | monospace | structure that must stay aligned |
+
+=org-quote= inherits =variable-pitch= rather than naming a font, so a
+quotation is set in the same hand as a journal entry in *every* note,
+not only in journals. =org-block= inherits =fixed-pitch=, so source
+blocks stay monospace even inside a journal.
+
+=org-verbatim= deliberately has *no* =:foreground=: the purple comes
+from =modus-operandi-tinted= itself. =org-code= is pinned to
+=dark green= because the theme offers nothing like it.
+
+Quote blocks are only given the =org-quote= face when
+=org-fontify-quote-and-verse-blocks= is non-nil, which =01-ui.el= sets.
+
+** Theme
+
+Light only: =modus-operandi-tinted=, loaded by =09-theme.el=. There is
+no dark command and no toggle.
+
+Dark mode cannot work while custom.el pins Org faces to literal light
+colours such as =#fef8e0=, because =custom-set-faces= outranks a theme.
+Making it work means moving those colours into
+=modus-themes-common-palette-overrides=, which names palette entries
+that each theme resolves for itself — a real piece of work, not a
+toggle.
+
+=modus-themes-headings= still sets heading colour and variable pitch,
+but custom.el's =org-level-1..8= heights outrank the sizes given there.
+Change heading sizes in custom.el.
+
+** If a colour looks wrong
+
+With point on the text, =C-u C-x == names every face at that position.
+=M-x describe-face= then shows where the face got its attributes. If a
+face differs between two frames, that is the symptom described above and
+means something has started calling =set-face-attribute= again.
 
 * Global Keybindings
 :PROPERTIES:

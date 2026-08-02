@@ -49,20 +49,28 @@
 (setq image-cache-eviction-delay 900)
 
 ;; ============================================================
-;; MONOSPACE FOR CODE/TABLES (even when variable-pitch enabled)
+;; ORG FACES ARE NOT SET HERE
 ;; ============================================================
-
-;; These faces stay monospace even in journal notes with handwriting font.
-;; Only :inherit is set here; all colour/size attributes are left as
-;; 'unspecified so they inherit from the face hierarchy (or custom.el).
-(with-eval-after-load 'org
-  (set-face-attribute 'org-table          nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
-  (set-face-attribute 'org-code           nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
-  (set-face-attribute 'org-block          nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
-  (set-face-attribute 'org-verbatim       nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
-  (set-face-attribute 'org-special-keyword nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
-  (set-face-attribute 'org-meta-line      nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
-  (set-face-attribute 'org-checkbox       nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified))
+;; This module used to call `set-face-attribute' on org-table, org-code,
+;; org-block, org-verbatim and others, passing `:foreground 'unspecified'
+;; with a comment claiming that this left the colour to custom.el.  It
+;; does the opposite: `unspecified' ERASES the attribute, so every colour
+;; set through `M-x customize-face' was wiped the moment Org loaded and
+;; had to be set again in every session.
+;;
+;; Worse, the erasure was invisible in new frames.  `set-face-attribute'
+;; changes the realised attributes of existing frames; a new frame
+;; recomputes its faces from the theme and `custom-set-faces' specs, in
+;; which the erasure does not appear.  The same face therefore looked
+;; one way in the main frame and another in a frame made by
+;; `my/detach-buffer-to-frame' -- which is what "every file looks
+;; different" turned out to be.
+;;
+;; Org face appearance is now owned entirely by custom.el, which is what
+;; 01-ui.el already said was the rule.  `:inherit fixed-pitch' -- the one
+;; thing these calls were really for, keeping code monospace inside
+;; journal buffers that use a handwriting font -- is expressed there
+;; too, so nothing is lost.
 
 ;; ============================================================
 ;; VISUAL IMPROVEMENTS

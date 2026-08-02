@@ -7,6 +7,124 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02f — Org faces, light-only theme, and 15-workspace split
+
+### A — Why customised colours never survived a restart
+
+`11-org-appearance.el` called, seven times over:
+
+```elisp
+(set-face-attribute 'org-code nil :inherit 'fixed-pitch
+                    :height 'unspecified :foreground 'unspecified)
+```
+
+under a comment claiming this left colour and size "to inherit from the
+face hierarchy (or custom.el)". It does the opposite. `unspecified`
+**erases** the attribute. Every colour set through `M-x customize-face`
+was written to custom.el, applied at startup, and then wiped the moment
+Org loaded — so it had to be set again in every session. The same
+mistake, with the same explanation attached, was in `03b-fonts.el` for
+`org-quote`.
+
+### B — Why the same face looked different in different windows
+
+`set-face-attribute` changes the realised attributes of frames that
+already exist. A new frame computes its faces from the theme and
+`custom-set-faces` specs, in which the erasure does not appear. A note
+read in a frame made by `my/detach-buffer-to-frame` therefore showed the
+theme's colours while the same note in the main frame showed none — which
+is what "every file looks different" was.
+
+`=verbatim=` and `~code~` compounded it: they are two different faces,
+and custom.el gave one `extra-bold` and the other `normal`, so the
+difference read as a per-document quirk rather than a per-marker one.
+
+### C — custom.el is now the only owner
+
+Both face blocks are deleted. `01-ui.el` already stated that org faces
+live exclusively in custom.el; that is now true. `:inherit fixed-pitch`
+— the one thing those calls were really for, keeping code monospace
+inside journal buffers that use a handwriting font — is expressed in
+custom.el instead, so nothing is lost and Customize can edit all of it.
+
+Faces added or changed there:
+
+| Face | Now | Why |
+|---|---|---|
+| `org-quote` | `:inherit variable-pitch`, italic, 1.1 | Quotations render in the journal handwriting font in every note, not just journals. Was Georgia. |
+| `org-block` | `:inherit fixed-pitch`, background kept | Source blocks are monospace. custom.el said Georgia and the module said monospace; they disagreed and the winner depended on frame age. |
+| `org-verbatim` | `:inherit fixed-pitch`, `:weight normal` | Purple without the bold. No `:foreground` on purpose — the purple is the theme's, which is the one that was liked. |
+| `org-code` | `:inherit fixed-pitch`, `"dark green"`, normal weight | Distinguishable from verbatim at a glance. The theme has no dark green, so this one is pinned. |
+| `org-table`, `org-meta-line`, `org-checkbox`, `org-link` | `:inherit fixed-pitch` | Carried over from the deleted blocks. |
+
+`org-quote` inherits `variable-pitch` rather than naming the font, so
+changing the handwriting font in `03b-fonts.el` still changes every face
+that follows it.
+
+### D — Light only
+
+`my/load-theme-dark`, `my/toggle-modus-theme` and `my/load-theme` are
+gone, along with the commented list of alternative themes. The dark
+theme could not work while custom.el pins a dozen Org faces to literal
+light colours, and keeping a switch beside a note explaining that the
+switch is broken is worse than not having the switch.
+
+Restoring dark mode later is real work rather than a toggle: the colours
+would have to move to `modus-themes-common-palette-overrides`, which
+names palette entries that each theme resolves for itself. Recorded here
+so the size of that job is known before anyone starts it.
+
+`modus-themes-headings` is kept with a note that custom.el's
+`org-level-*` heights outrank it, so sizes are changed in one place.
+
+### E — 15-workspace.el gives back what was not its
+
+Three responsibilities left the module:
+
+- **Unblocking Hunspell** → `03-spelling.el`. The blocking flag was
+  already there; only the release lived elsewhere, which meant that
+  removing the dashboard module silently disabled spell checking for the
+  whole session while the header claimed "nothing else changes".
+- **Deciding when startup has finished** → `01-ui.el`, which owns the
+  session.
+- **`denote-backlinks-display-buffer-action`** → `04-denote.el`. One
+  Denote variable, advertised in the header as a "backlinks panel"
+  feature of the dashboard.
+
+### F — One startup hook instead of two paths
+
+`01-ui.el` now publishes `my/desktop-after-startup-hook`, run once,
+whether or not a session was restored. `desktop-after-read-hook` covers
+the restore case, `emacs-startup-hook` covers a first launch with no
+desktop file, and a flag makes sure only the first counts.
+
+That deletes, from 15-workspace.el, two timers, a duplicated lambda and
+a "does the Dashboard tab exist already?" test that existed only to stop
+the two paths colliding. Consumers now say what they want and not when
+they may have it. Both registrations are guarded, so a missing 01-ui.el
+degrades to a visible message rather than to silence.
+
+### G — A finding from the audit that was wrong
+
+The audit claimed 15-workspace.el called `my/fixed-tab-goto` from
+23-fixed-tabs.el, a module loaded later, and that it worked only by
+timer accident. It does not: `my/fixed-tab-goto` is defined in
+`01-ui.el`, which loads first. 23-fixed-tabs.el holds the routing advice
+and the detach-to-frame commands, and nothing depends on it early. No
+reordering was needed and none was done.
+
+The dashboard's tab name is now a constant, `my/dashboard-tab-name`,
+rather than a string repeated in three places.
+
+### H — Stale header claims corrected
+
+`C-c n o` for the dashboard (it is `C-c n f d`), and the "Denote
+backlinks panel" feature entry.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02e — Dissolving 26-performance.el, plus structural fixes
 
 ### Context
