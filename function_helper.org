@@ -721,6 +721,10 @@ Function: =my/org-export-pdf-by-all-keywords= | Module: =modules/16-org-export.e
 :END:
 
 Toggle visual appearance settings for comfortable writing.
+=T= is not defined in =12-transient.el=: it is appended at load time by
+=30-link-tooltips.el= through =my/transient-append=, so removing that
+module leaves the rest of the submenu intact.
+
 Module: =modules/12-transient.el= / =modules/13-centered-writing.el=
 
 *** c — Center text
@@ -758,6 +762,17 @@ Function: =my/toggle-org-indent= | Module: =modules/11-org-appearance.el=
 Toggles visibility of Org emphasis markers (=*bold*=, =/italic/=, etc.).
 
 Function: =my/toggle-emphasis-markers= | Module: =modules/11-org-appearance.el=
+
+*** T — Link tooltips
+:PROPERTIES:
+:CUSTOM_ID: fn-my-link-tooltip-set-style
+:END:
+
+Chooses what the mouse tooltip over a =denote:= link shows. Prompts
+for =identifier=, =path= or =default=. See [[#link-tooltips][Link Tooltips]] for why the
+default is not =path=.
+
+Function: =my/link-tooltip-set-style= | Module: =modules/30-link-tooltips.el=
 
 ** C-c n t — Tools
 :PROPERTIES:
@@ -2058,6 +2073,120 @@ backup. Older versions open with =C-x C-f= like any text file.
 In =bash= those names trigger history expansion. Quote the *whole*
 name in single quotes (=cat '!home!…!bookmarks.~18~'=), not part of it,
 or run =set +H=. =zsh= does not have this problem.
+
+* Link Tooltips
+:PROPERTIES:
+:CUSTOM_ID: link-tooltips
+:END:
+
+Hovering the mouse over a =denote:= link used to stall Emacs for as
+long as it took to list the whole =denote-directory=. This section
+explains the cause and what was traded away to remove it.
+
+Module: =modules/30-link-tooltips.el=
+
+** The cause
+
+Denote registers a =:help-echo= *function* for its Org link type:
+
+#+begin_src emacs-lisp
+(org-link-set-parameters "denote"
+  :follow #'denote-link-ol-follow
+  :help-echo #'denote-link-ol-help-echo
+  ...)
+#+end_src
+
+Org copies whatever =:help-echo= holds into the =help-echo= text
+property. The distinction that matters:
+
+- a *string* is produced once, while the buffer is fontified;
+- a *function* is called by redisplay every time the pointer lands on
+  the link, and again as it moves across it.
+
+=denote-link-ol-help-echo= resolves the identifier through
+=denote-get-path-by-id=, which calls =denote-directory-files=, which
+walks the tree with =directory-files-recursively=. Denote caches none
+of it. The cost is one full recursive scan of =~/notes/= per pointer
+movement — invisible at a few hundred notes, unusable at several
+thousand.
+
+** What is traded
+
+The tooltip is informational: it names the file behind a link whose
+title is already printed on screen. Paying the most expensive operation
+in the note collection for that is a bad trade, so the parameter is
+replaced.
+
+Only the tooltip changes. =:follow= is untouched, so opening a link
+still resolves the identifier against the current state of the tree,
+and a note moved between devices by Syncthing is always found. A stale
+tooltip can at worst name a path that has since changed, and nothing
+acts on that text.
+
+** Styles
+
+=my/link-tooltip-style=:
+
+| Value        | Shows                     | Disk access                          |
+|--------------+---------------------------+--------------------------------------|
+| =identifier= | =denote:20260802T101500=  | none (default)                       |
+| =path=       | the resolved file name    | one scan per =my/link-tooltip-cache-seconds= |
+| =default=    | Org's own =LINK: ...=     | none                                 |
+
+=identifier= is the default because the path answers a question that is
+rarely being asked.
+
+Switching to or from =default= changes a decision Org makes while
+fontifying, so =my/link-tooltip-set-style= runs =font-lock-flush= in the
+current buffer. Other open Org buffers pick the change up when they are
+next refontified.
+
+** Why this cache is allowed
+
+=26-performance.el= states that nothing caches =denote-directory-files=,
+because a stale cache in a tree Syncthing writes into would advertise
+notes that no longer exist. That still holds. The cache in this module
+is keyed by identifier, is read only by the tooltip, is dropped whole
+after =my/link-tooltip-cache-seconds= (30), and is unreachable from any
+prompt, backlink buffer or search.
+
+Failed lookups are cached alongside successful ones. An identifier with
+no file behind it is a broken link, and retrying the scan on every
+pointer movement is exactly the cost being removed.
+
+** Reading the link under the pointer
+
+The identifier comes from the =htmlize-link= text property, written by
+=org-activate-links= and also the source Denote's own tooltip function
+reads. A line-bounded regexp scan is the fallback for buffers fontified
+by something else. Neither path touches the file system; neither cost
+grows with buffer size.
+
+** Configuration
+
+#+begin_src emacs-lisp
+(setq my/link-tooltip-style 'identifier)   ; identifier | path | default
+(setq my/link-tooltip-cache-seconds 30)    ; only used by `path'
+#+end_src
+
+=M-x my/link-tooltip-clear-cache= empties the cache early; it is needed
+only when a tooltip is expected to reflect a move made seconds ago.
+
+** Related measurement
+
+The same directory scan is behind every Denote prompt and backlink
+buffer. To see what it currently costs:
+
+#+begin_src emacs-lisp
+(benchmark-run 3 (denote-directory-files))
+(length (denote-directory-files))
+#+end_src
+
+If the count is far above the number of real notes, the tree contains
+directories that should not be scanned at all — =.git=, Syncthing's
+=.stversions=, attachment folders. =denote-excluded-directories-regexp=
+is set to ="inbox"= in =25-inbox-review.el=; widening it there helps
+every Denote operation, not only tooltips.
 
 * Global Keybindings
 :PROPERTIES:

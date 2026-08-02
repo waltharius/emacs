@@ -7,6 +7,105 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02c — Link tooltips: a directory scan per mouse movement
+
+### Context
+
+Hovering the mouse over a link in a note froze Emacs for a noticeable
+interval. The freeze appeared only recently, and only over links.
+
+Denote registers a `:help-echo` **function** for its Org link type.
+Org copies whatever `:help-echo` holds into the `help-echo` text
+property: a string is produced once during fontification, a function is
+called by redisplay on every pointer movement onto or across the link.
+The function, `denote-link-ol-help-echo`, resolves the identifier with
+`denote-get-path-by-id`, which calls `denote-directory-files`, which
+walks the tree with `directory-files-recursively`. Denote caches none
+of this.
+
+The cost is therefore one full recursive scan of `~/notes/` per pointer
+movement. This is unnoticeable at a few hundred notes and unusable at
+several thousand — which is what the Obsidian migration produced. No
+recent commit introduced the freeze; the file count crossed the
+threshold at which an always-present cost became visible.
+
+### A — `modules/30-link-tooltips.el`
+
+Replaces the parameter rather than the function, through the documented
+`org-link-set-parameters` API, so nothing is advised or redefined in
+Denote and a Denote upgrade cannot silently undo or conflict with it.
+
+`my/link-tooltip-style` selects between:
+
+- `identifier` — the link target, no file system access. Default.
+- `path` — the resolved path, memoised for
+  `my/link-tooltip-cache-seconds` (30). One scan per burst of hovering
+  instead of one per pointer movement.
+- `default` — parameter set to nil, Org supplies its own `LINK: ...`
+  text, built at fontification time.
+
+`identifier` is the default because the tooltip is informational and
+the link's title is already on screen: the path answers a question that
+is rarely being asked, at the price of the most expensive operation in
+the note collection.
+
+Only the tooltip changes. `:follow` is untouched, so opening a link
+still resolves the identifier against the current state of the tree and
+a note moved between devices by Syncthing is always found. The worst a
+stale tooltip can do is name a path that has since changed, and nothing
+reads that text but the user.
+
+### B — Why the cache is local to tooltips
+
+`26-performance.el` states that nothing caches `denote-directory-files`,
+because a stale cache in a tree Syncthing writes into would advertise
+notes that no longer exist. That still holds. The cache here is keyed
+by identifier, is consulted only by the tooltip, expires wholesale after
+`my/link-tooltip-cache-seconds`, and is unreachable from any prompt,
+backlink buffer or search. Failed lookups are cached alongside
+successful ones: an identifier with no file behind it is a broken link,
+and retrying the scan on every pointer movement is the cost being
+removed.
+
+### C — Reading the link under the pointer
+
+The identifier is taken from the `htmlize-link` text property, which
+`org-activate-links` writes and which Denote's own tooltip function also
+reads. A line-bounded regexp scan is kept as a fallback for buffers
+fontified by something other than `org-activate-links`. Neither path
+touches the file system, and neither cost grows with buffer size.
+
+### D — Menu
+
+`T` under `C-c n v` (View), appended after `e` via `my/transient-append`,
+so an absent `12-transient.el` leaves the module working and silent.
+
+Switching to or from `default` changes a decision Org makes while
+fontifying, so `my/link-tooltip-set-style` calls `font-lock-flush` in
+the current buffer; other open Org buffers pick the change up when they
+are next refontified.
+
+### E — Not addressed here
+
+`denote-excluded-directories-regexp` is `"inbox"`, so any `.git`,
+`.stversions` or attachment directory inside `~/notes/` is still walked
+by every Denote scan. Whether that matters is a measurement, not a
+guess:
+
+```elisp
+(benchmark-run 3 (denote-directory-files))
+(length (denote-directory-files))
+```
+
+If the file count is far above the number of real notes, the exclusion
+regexp — owned by `25-inbox-review.el` — is the next thing to widen,
+and the gain applies to every prompt and backlink buffer rather than to
+tooltips alone.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02b — ODT/DOCX export
 
 ### A — `modules/29-writing-export.el`
