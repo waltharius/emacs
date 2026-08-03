@@ -2751,22 +2751,39 @@ untouched, and carried out changes that had been declined at the prompt.
 Neither was reproducible from the outside and both may depend on the
 state of this particular tree, so this is not a verdict on the package —
 it is a decision about what can be vouched for with three thousand real
-notes on the other end of the command. The keyword side is written
-against =denote-rename-file=, whose Lisp signature — =FILE=, =TITLE=,
-=KEYWORDS=, =SIGNATURE=, =DATE= — is documented and stable. Title and
-signature are read from the file and handed straight back, so nothing
-but the keyword field is asked to move, and =DATE= is nil, which leaves
-the identifier alone.
+notes on the other end of the command.
 
-The narrower =denote-rename-file-keywords= was tried first and rejected:
-its arity differs between Denote versions.
+** How a keyword is written
 
-*One consequence.* Denote rebuilds the whole file name from the
-components it is given, so a note whose front matter title disagrees
-with its file name — which the migration could produce — will also have
-its file name corrected to match the front matter. That is Denote's own
-rule for which of the two wins, but it is a second change arriving with
-the first.
+Against Denote's *file-naming scheme*, not against its functions. Two
+attempts to call them failed on argument count —
+=denote-rename-file-keywords=, then =denote-rename-file= — because those
+signatures have changed across releases, and correcting a call only
+moves the failure to the next one.
+
+The scheme does not change; it is what Denote exists to promise:
+
+: IDENTIFIER[==SIGNATURE][--TITLE][__KEYWORD_KEYWORD].EXTENSION
+
+together with =#+filetags:  :one:two:= holding the same keywords.
+Changing a keyword means editing those two places, in that order: front
+matter first, file name second. Interrupted in between, the note has its
+new keywords and its old name — visible, and repaired by running the
+same rename again.
+
+*Nothing before the keyword field is touched.* Identifier, signature and
+title are carried across as text, so — unlike =denote-rename-file=,
+which rebuilds the whole name — no second change arrives alongside the
+one that was asked for.
+
+The command refuses rather than guesses in the two cases where guessing
+would lose work: a buffer with unsaved changes, and a destination name
+already taken.
+
+Keywords are lower-cased and underscores and spaces become hyphens.
+That is not Denote's full sluggification and does not try to be:
+keywords here are normally chosen from the completion list of those
+already in use.
 
 Keyword sorting is not lost with =denote-explore-sort-keywords= gone:
 Denote sorts keywords on every rename while =denote-sort-keywords= is

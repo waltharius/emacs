@@ -40,14 +40,13 @@
 ;; on the package.  It is a decision about what can be vouched for when
 ;; three thousand real notes are on the other end of the command.
 ;;
-;; The keyword side is therefore written against `denote-rename-file',
-;; whose Lisp signature -- FILE, TITLE, KEYWORDS, SIGNATURE, DATE -- is
-;; documented and stable.  The narrower `denote-rename-file-keywords'
-;; was tried first and rejected: its arity differs between Denote
-;; versions, and a helper that has to guess how many arguments its
-;; dependency takes this month is not a dependency worth having.  Title
-;; and signature are read from the file and handed straight back, so
-;; nothing but the keyword field is asked to move.
+;; The keyword side is therefore written against Denote's FILE-NAMING
+;; SCHEME rather than against its functions.  Two attempts to call them
+;; failed on argument count -- `denote-rename-file-keywords', then
+;; `denote-rename-file' -- because those signatures have changed across
+;; releases, and correcting a call only moves the failure to the next
+;; one.  The scheme itself does not change: it is what Denote exists to
+;; promise.  See the section on writing keywords below.
 ;;
 ;; SCOPE: INBOX YES, ATTACHMENTS NO
 ;;
@@ -98,12 +97,6 @@
 (require 'subr-x)
 (require 'seq)
 (require 'transient)
-
-;; Declared, not defined: these belong to Denote.  Declaring marks them
-;; special for this file so the bindings below are dynamic, and a name
-;; absent from some version simply gets a binding nothing reads.
-(defvar denote-rename-confirmations)
-(defvar denote-save-buffers)
 
 (defun my/maintenance--require-identifiers ()
   "Signal unless 27-denote-identifiers.el has been loaded."
@@ -270,23 +263,24 @@ included, since staged notes link to filed ones and to each other."
 ;; ============================================================
 ;; KEYWORDS
 ;; ============================================================
-;; Keywords are read from file names, which is where Denote keeps them
-;; and what its own rename rebuilds.  See the Commentary above for why
-;; this is written against `denote-rename-file-keywords' rather than
-;; delegated, and for what the scope includes.
+;; Keywords are read from file names, which is where Denote keeps them.
+;; The reader below and the name builder further down are inverses of
+;; each other and must agree exactly about where the keyword field
+;; begins, which is why both parse the scheme here rather than one of
+;; them borrowing an accessor from Denote.  See the Commentary above for
+;; what the scope includes.
 
 (defun my/maintenance--file-keywords (file)
-  "Return FILE's keywords, read from its file name, as a list of strings."
-  (cond
-   ((fboundp 'denote-extract-keywords-from-path)
-    (denote-extract-keywords-from-path file))
-   ((fboundp 'denote-retrieve-filename-keywords)
-    (when-let* ((raw (denote-retrieve-filename-keywords file)))
-      (split-string raw "_" t)))
-   (t
-    (let ((name (file-name-nondirectory file)))
-      (when (string-match "__\\([^.]+\\)" name)
-        (split-string (match-string 1 name) "_" t))))))
+  "Return FILE's keywords, read from its file name, as a list of strings.
+
+The inverse of `my/maintenance--new-file-name'.  Both find the keyword
+field at the first double underscore of the base name: a title slug
+never contains one, so it is a reliable boundary, and having the two
+agree by construction is what stops a rename from computing a name for a
+file it misread."
+  (let ((base (file-name-base file)))
+    (when (string-match "__" base)
+      (split-string (substring base (match-end 0)) "_" t))))
 
 (defun my/maintenance--keyword-table ()
   "Return a hash of keyword -> list of files using it."
@@ -405,62 +399,154 @@ Each keyword is a button that starts a rename of it."
 identical variable in 25-inbox-review.el: one preview window reused
 across the session, rather than a new split per note.")
 
-(defun my/maintenance--current-title (file)
-  "Return the title to keep when renaming FILE.
+;; ------------------------------------------------------------
+;; Writing a note's keywords
+;; ------------------------------------------------------------
+;; Done here rather than through Denote's renaming commands.  Two
+;; attempts to call them failed on argument count --
+;; `denote-rename-file-keywords' and then `denote-rename-file' itself --
+;; because those signatures have changed across Denote releases.
+;; Correcting a call only moves the failure to the next release.
+;;
+;; What does not change is the file-naming scheme, which is the whole
+;; point of Denote and is specified in its manual:
+;;
+;;   IDENTIFIER[==SIGNATURE][--TITLE][__KEYWORD_KEYWORD].EXTENSION
+;;
+;; and, for Org, the `#+filetags:' line holding the same keywords as
+;; `:one:two:'.  Changing a keyword means editing those two places and
+;; nothing else.  That is a smaller and more stable contract than any
+;; function signature, and it is the contract Denote itself promises to
+;; keep.
+;;
+;; The identifier, signature and title are never touched, so unlike
+;; `denote-rename-file' -- which rebuilds the whole name from
+;; components and would also "correct" a title that disagrees with its
+;; front matter -- nothing arrives alongside the change that was asked
+;; for.
+;;
+;; ORDER, AND WHAT AN INTERRUPTION LEAVES
+;;
+;; Front matter first, file name second.  Interrupted in between, the
+;; note has its new keywords and its old name -- visible, and repaired
+;; by running the same rename again.  The other order would leave a name
+;; claiming keywords the note does not have.
 
-The front matter's title where there is one, the file name's otherwise,
-which is Denote's own order of precedence for that field."
-  (cond
-   ((and (fboundp 'denote-retrieve-title-or-filename)
-         (fboundp 'denote-filetype-heuristics))
-    (denote-retrieve-title-or-filename file (denote-filetype-heuristics file)))
-   ((fboundp 'denote-retrieve-filename-title)
-    (or (denote-retrieve-filename-title file) ""))
-   (t "")))
+;; Denote's, declared so the reference below is dynamic.
+(defvar denote-sort-keywords)
+
+(defun my/maintenance--normalize-keyword (keyword)
+  "Return KEYWORD in the shape a Denote file name can hold.
+
+Underscore separates keywords in a file name and a space cannot appear
+in one, so both become a hyphen; the rest is lower-cased.  This is not
+Denote's full sluggification, and does not try to be: keywords here are
+normally chosen from the completion list of those already in use, which
+are in that shape already."
+  (let ((clean (string-trim (or keyword ""))))
+    (unless (string-empty-p clean)
+      (downcase (replace-regexp-in-string "[ \t_]+" "-" clean)))))
+
+(defun my/maintenance--sort-keywords (keywords)
+  "Return KEYWORDS in the order Denote would store them.
+
+Alphabetical unless `denote-sort-keywords' is bound and nil, matching
+Denote's own default and its choice of `string-lessp'."
+  (if (and (boundp 'denote-sort-keywords) (not denote-sort-keywords))
+      keywords
+    (sort (copy-sequence keywords) #'string-lessp)))
+
+(defun my/maintenance--new-file-name (file keywords)
+  "Return the path FILE would have carrying KEYWORDS.
+
+Only the `__KEYWORDS' component is rebuilt.  Everything before it --
+identifier, signature, title -- is carried across as text, so it cannot
+be altered by mistake.  A title slug never contains a double underscore,
+which is what makes the first one a reliable boundary."
+  (let* ((directory (file-name-directory file))
+         (extension (file-name-extension file t))
+         (base (file-name-base file))
+         (stem (if (string-match "__" base)
+                   (substring base 0 (match-beginning 0))
+                 base)))
+    (expand-file-name
+     (concat stem
+             (when keywords (concat "__" (string-join keywords "_")))
+             extension)
+     directory)))
+
+(defun my/maintenance--write-filetags (keywords)
+  "Rewrite the `#+filetags:' line of the current buffer to hold KEYWORDS.
+
+Removes the line when KEYWORDS is nil: a field asserting nothing is
+noise.  Adds one above `#+identifier:', where Denote puts it, when the
+note has none and keywords are being given to it.
+
+The search is bounded to the first few thousand characters, which is
+where front matter is and where a stray `#+filetags:' further down --
+inside an example block, say -- cannot be mistaken for it."
+  (save-restriction
+    (widen)
+    (save-excursion
+      (goto-char (point-min))
+      (let ((value (when keywords
+                     (concat ":" (string-join keywords ":") ":")))
+            (limit (min (point-max) 4096)))
+        (cond
+         ((re-search-forward "^\\(#\\+filetags:[ \t]*\\)\\(.*\\)$" limit t)
+          (if keywords
+              (unless (equal (match-string 2) value)
+                (replace-match (concat (match-string 1) value) t t))
+            (delete-region (line-beginning-position)
+                           (min (point-max) (1+ (line-end-position))))))
+         (keywords
+          (goto-char (point-min))
+          (if (re-search-forward "^#\\+identifier:" limit t)
+              (beginning-of-line)
+            (goto-char (point-min))
+            (forward-line 1))
+          (insert "#+filetags:  " value "\n")))))))
 
 (defun my/maintenance--set-keywords (file keywords)
-  "Give FILE the keyword list KEYWORDS and save it.  Return the new path.
+  "Give FILE the keyword list KEYWORDS.  Return its path afterwards.
 
-Goes through `denote-rename-file', whose Lisp signature -- FILE, TITLE,
-KEYWORDS, SIGNATURE, DATE -- is documented and stable.  The narrower
-`denote-rename-file-keywords' was tried first and rejected: its arity
-differs between Denote versions, and a helper that has to guess how many
-arguments its dependency takes this month is not a dependency worth
-having.
-
-Title and signature are read from the file and passed back unchanged, so
-nothing but the keyword field is asked to move, and DATE is nil, which
-leaves the identifier alone.  Reading them explicitly rather than using
-the `keep-current' symbol keeps this working on Denote versions that
-predate it; the effect is the same, since `keep-current' resolves to the
-same current values.
-
-ONE CONSEQUENCE WORTH KNOWING: Denote rebuilds the whole file name from
-these components.  A note whose front matter title disagrees with its
-file name -- which the Obsidian migration could produce -- will
-therefore also have its file name corrected to match the front matter.
-That is Denote's own rule for which of the two wins, but it is a second
-change arriving with the first.
-
-Denote's own confirmations are switched off for the duration: the review
-list has already asked about this file, and a second prompt whose answer
-means something different is how a declined change turns into a
-carried-out one.  `denote-save-buffers' is switched on so the note
-reaches the disk rather than sitting modified in a buffer, with an
-explicit save afterwards for the case where Denote leaves that to the
-caller."
-  (let ((denote-rename-confirmations nil)
-        (denote-save-buffers t))
-    (let* ((title (my/maintenance--current-title file))
-           (signature (or (and (fboundp 'denote-retrieve-filename-signature)
-                               (denote-retrieve-filename-signature file))
-                          ""))
-           (new (denote-rename-file file title keywords signature nil)))
-      (when-let* ((path (if (stringp new) new file))
-                  (buffer (find-buffer-visiting path)))
+Writes the `#+filetags:' line and then renames the file, saving as it
+goes.  Refuses rather than guesses in the two cases where guessing would
+lose work: a buffer with unsaved changes, and a destination name already
+taken."
+  (unless (equal (file-name-extension file) "org")
+    (user-error "Only Org notes are handled here: %s"
+                (file-name-nondirectory file)))
+  (let* ((wanted (my/maintenance--sort-keywords
+                  (delete-dups
+                   (delq nil (mapcar #'my/maintenance--normalize-keyword
+                                     keywords)))))
+         (new-file (my/maintenance--new-file-name file wanted))
+         (buffer (find-buffer-visiting file)))
+    (when (and buffer (buffer-modified-p buffer))
+      (user-error "%s has unsaved changes - save it first"
+                  (file-name-nondirectory file)))
+    (when (and (not (equal new-file file)) (file-exists-p new-file))
+      (user-error "%s already exists" (file-name-nondirectory new-file)))
+    ;; 1. Front matter, through the visiting buffer when there is one so
+    ;;    that what is on screen and what is on disk stay the same thing.
+    (if buffer
         (with-current-buffer buffer
-          (when (buffer-modified-p) (save-buffer))))
-      new)))
+          (my/maintenance--write-filetags wanted)
+          (when (buffer-modified-p) (save-buffer)))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (my/maintenance--write-filetags wanted)
+        (write-region (point-min) (point-max) file nil 'silent)))
+    ;; 2. File name.
+    (unless (equal new-file file)
+      (rename-file file new-file)
+      (when (buffer-live-p buffer)
+        (with-current-buffer buffer
+          ;; Third argument: the file has already been renamed, so do
+          ;; not mark the buffer modified or offer to write it again.
+          (set-visited-file-name new-file :no-query :along-with-file))))
+    new-file))
 
 (defun my/maintenance--keyword-list-entries ()
   "Convert `my/maintenance--keyword-entries' into tabulated-list form."

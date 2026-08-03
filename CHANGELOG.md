@@ -7,6 +7,83 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02p — Built on the file-naming scheme, not on Denote's functions
+
+### The failure, twice
+
+```
+Wrong number of arguments: denote-rename-file-keywords, 2
+Wrong number of arguments: denote-rename-file, 5
+```
+
+Both signatures have changed across Denote releases. Correcting the
+second call after the first failed was the wrong response: it kept the
+same dependency and only moved the failure to whichever release changes
+next.
+
+### What is stable
+
+The file-naming scheme, which is what Denote exists to promise:
+
+```
+IDENTIFIER[==SIGNATURE][--TITLE][__KEYWORD_KEYWORD].EXTENSION
+```
+
+and, for Org, `#+filetags:  :one:two:` holding the same keywords.
+Changing a keyword means editing those two places. That is a smaller and
+far more stable contract than any function signature, and it is the one
+Denote's manual commits to.
+
+`my/maintenance--set-keywords` now writes the front matter line and
+renames the file itself. Two Denote functions remain in the module, both
+one-argument accessors used for reading:
+`denote-retrieve-filename-signature` and the variable
+`denote-sort-keywords`.
+
+### This is narrower than what it replaces, not wider
+
+`denote-rename-file` rebuilds the *whole* name from components, which is
+why the previous version came with a warning that a note whose front
+matter title disagreed with its file name would have the name
+"corrected" as a side effect.
+
+Nothing before the keyword field is now touched at all. Identifier,
+signature and title are carried across as text. The change that was
+asked for is the only change that arrives.
+
+### Reader and writer are inverses on purpose
+
+`my/maintenance--file-keywords` and `my/maintenance--new-file-name` both
+find the keyword field at the first double underscore of the base name —
+a title slug never contains one, so it is a reliable boundary. They
+parse it here rather than one of them borrowing an accessor from Denote,
+because if the two disagreed about where the field begins, a rename
+would compute a name for a file it had misread.
+
+### Order, and what an interruption leaves
+
+Front matter first, file name second. Interrupted between the two, the
+note has its new keywords and its old name — visible, and repaired by
+running the same rename again. The other order would leave a name
+claiming keywords the note does not have.
+
+### Refuses rather than guesses
+
+Two cases where guessing would lose work: a buffer with unsaved changes,
+and a destination name already taken. Both stop with a message naming
+the file.
+
+When a buffer visits the note, the front matter is edited through it and
+`set-visited-file-name` follows the rename, so what is on screen and
+what is on disk stay the same thing. Keywords are lower-cased and
+underscores and spaces become hyphens — not Denote's full
+sluggification, and not trying to be, since keywords here are normally
+chosen from the completion list of those already in use.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02o — Stop depending on another package's arity
 
 ### The failure
