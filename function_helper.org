@@ -2780,6 +2780,13 @@ The command refuses rather than guesses in the two cases where guessing
 would lose work: a buffer with unsaved changes, and a destination name
 already taken.
 
+The edit goes to the *file*, not through whatever buffer is visiting it.
+A buffer can be read-only for reasons that have nothing to do with the
+file — =view-mode=, which the preview here turns on — and writing to a
+file should not need that buffer's permission. An open buffer is
+re-read afterwards with =revert-buffer=, preserving its modes and its
+read-only state.
+
 Keywords are lower-cased and underscores and spaces become hyphens.
 That is not Denote's full sluggification and does not try to be:
 keywords here are normally chosen from the completion list of those

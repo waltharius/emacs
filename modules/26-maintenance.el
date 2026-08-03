@@ -431,6 +431,12 @@ across the session, rather than a new split per note.")
 ;; note has its new keywords and its old name -- visible, and repaired
 ;; by running the same rename again.  The other order would leave a name
 ;; claiming keywords the note does not have.
+;;
+;; The edit itself goes to the file, not through whatever buffer happens
+;; to be visiting it.  A buffer can be read-only for reasons that have
+;; nothing to do with the file -- `view-mode', which the preview here
+;; turns on -- and fighting that in order to write to disk is the wrong
+;; way round.  An open buffer is re-read afterwards instead.
 
 ;; Denote's, declared so the reference below is dynamic.
 (defvar denote-sort-keywords)
@@ -510,10 +516,24 @@ inside an example block, say -- cannot be mistaken for it."
 (defun my/maintenance--set-keywords (file keywords)
   "Give FILE the keyword list KEYWORDS.  Return its path afterwards.
 
-Writes the `#+filetags:' line and then renames the file, saving as it
-goes.  Refuses rather than guesses in the two cases where guessing would
-lose work: a buffer with unsaved changes, and a destination name already
-taken."
+Writes the `#+filetags:' line, renames the file, and re-reads any buffer
+that was visiting it.  Refuses rather than guesses in the two cases
+where guessing would lose work: a buffer with unsaved changes, and a
+destination name already taken.
+
+THE EDIT GOES TO THE DISK, NOT THROUGH THE BUFFER
+
+An earlier version edited the visiting buffer and saved it, which failed
+with `Buffer is read-only' whenever that buffer happened to be in
+`view-mode' -- which the preview here puts it in, and which any number
+of other things might.  Fighting a buffer's read-only state in order to
+write to a file is the wrong way round: nothing about the file requires
+the buffer's cooperation.
+
+So the file is edited through a temporary buffer, and a buffer visiting
+it is brought back into line afterwards with `revert-buffer'.  Its
+read-only state is preserved across `set-visited-file-name', and
+`:preserve-modes' keeps `view-mode' and anything else it had."
   (unless (equal (file-name-extension file) "org")
     (user-error "Only Org notes are handled here: %s"
                 (file-name-nondirectory file)))
@@ -528,24 +548,25 @@ taken."
                   (file-name-nondirectory file)))
     (when (and (not (equal new-file file)) (file-exists-p new-file))
       (user-error "%s already exists" (file-name-nondirectory new-file)))
-    ;; 1. Front matter, through the visiting buffer when there is one so
-    ;;    that what is on screen and what is on disk stay the same thing.
-    (if buffer
-        (with-current-buffer buffer
-          (my/maintenance--write-filetags wanted)
-          (when (buffer-modified-p) (save-buffer)))
-      (with-temp-buffer
-        (insert-file-contents file)
-        (my/maintenance--write-filetags wanted)
-        (write-region (point-min) (point-max) file nil 'silent)))
+    ;; 1. Front matter, on disk.
+    (with-temp-buffer
+      (insert-file-contents file)
+      (my/maintenance--write-filetags wanted)
+      (write-region (point-min) (point-max) file nil 'silent))
     ;; 2. File name.
     (unless (equal new-file file)
       (rename-file file new-file)
       (when (buffer-live-p buffer)
         (with-current-buffer buffer
-          ;; Third argument: the file has already been renamed, so do
-          ;; not mark the buffer modified or offer to write it again.
-          (set-visited-file-name new-file :no-query :along-with-file))))
+          (let ((read-only buffer-read-only))
+            ;; Third argument: the file has already been renamed, so do
+            ;; not mark the buffer modified or offer to write it again.
+            (set-visited-file-name new-file :no-query :along-with-file)
+            (setq buffer-read-only read-only)))))
+    ;; 3. Bring an open buffer back into line with what is now on disk.
+    (when (buffer-live-p buffer)
+      (with-current-buffer buffer
+        (revert-buffer :ignore-auto :noconfirm :preserve-modes)))
     new-file))
 
 (defun my/maintenance--keyword-list-entries ()

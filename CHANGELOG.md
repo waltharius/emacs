@@ -7,6 +7,58 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02q — Writing to a file should not need a buffer's permission
+
+### The failure
+
+```
+if: Buffer is read-only: #<buffer [D] Chrześcijaństwo - religia niewolników>
+```
+
+reported without the preview having been used at all. The note was
+simply already open — from a tab, from an earlier preview, from
+anywhere.
+
+`my/maintenance--set-keywords` edited the front matter *through* the
+visiting buffer and saved it, on the reasoning that what is on screen
+and what is on disk should stay the same thing. That reasoning holds;
+the implementation did not. A buffer can be read-only for reasons that
+have nothing to do with the file — `view-mode`, which the preview in
+this very module turns on, is one of several — and the edit had no way
+past it.
+
+### The fix is a change of direction, not a workaround
+
+Binding `inhibit-read-only` would have worked and would have been wrong:
+fighting a buffer's read-only state in order to write to a file is the
+wrong way round. Nothing about writing a file requires the cooperation
+of a buffer that happens to be looking at it.
+
+The file is now edited through a temporary buffer, and an open buffer is
+brought back into line afterwards with `revert-buffer`. Screen and disk
+still agree; the agreement is now reached from the disk's side.
+
+`:preserve-modes` keeps `view-mode` and anything else the buffer had,
+and its read-only state is saved and restored across
+`set-visited-file-name`, which is free to clear it.
+
+### Sequence
+
+1. refuse if the visiting buffer has unsaved changes, or the
+   destination name is taken;
+2. rewrite `#+filetags:` on disk;
+3. rename the file;
+4. `set-visited-file-name` on any visiting buffer, preserving read-only;
+5. `revert-buffer` it.
+
+Steps 2 and 3 keep their order for the reason already recorded: an
+interruption between them leaves new keywords under an old name, which
+is visible and repaired by running the rename again.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02p — Built on the file-naming scheme, not on Denote's functions
 
 ### The failure, twice
