@@ -41,8 +41,23 @@
 ;; A fixed width makes Emacs produce one scaled image and reuse it from
 ;; the image cache.  Per-image overrides still work:
 ;;   #+ATTR_ORG: :width 900
+;;
+;; TUNING.  This is a pixel count, so what it looks like depends on the
+;; display and on its scaling factor; 800 read as too small and is now
+;; 1100.  Raise it further if images still look cramped, but not much
+;; beyond 1600: `my/org-image-max-pixels' in 31-org-images.el caps
+;; stored attachments at that, and asking for more than a file contains
+;; upscales a bitmap, which only adds blur.  Raise both together if
+;; genuinely larger images are wanted.
+;;
+;; A float in the list -- '(0.9) -- would instead track the window
+;; width.  It is not used here: the scaled bitmap then has to be rebuilt
+;; whenever the window is resized, which happens on every writeroom
+;; toggle and every window split, and Org measures against the window
+;; rather than the text column, so with the centred layout of
+;; 10-visual-fill.el the result can be wider than the text it sits in.
 
-(setq org-image-actual-width '(800))
+(setq org-image-actual-width '(1100))
 
 ;; Keep scaled images in the cache long enough to survive scrolling back
 ;; and forth through a note (default is 300 seconds).

@@ -581,6 +581,94 @@ Only works if the buffer's file path contains ="journal"=.
 
 Function: =my/denote-set-wellbeing= | Module: =modules/05-notes.el=
 
+*** i — Image from disk
+:PROPERTIES:
+:CUSTOM_ID: fn-my-org-image-insert
+:END:
+
+Copies an image from anywhere on disk into =~/notes/attachments/= and
+links it at point. Two prompts: the file, then a short name with the
+source's own base name offered as the default (=RET= accepts it).
+
+With a prefix argument (=C-u C-c n i i=) the image is stored at its
+original resolution.
+
+Function: =my/org-image-insert= | Module: =modules/31-org-images.el=
+
+**** Where the file goes and how it is named
+
+The copy is called =IDENTIFIER--name.ext=, where the identifier is the
+one belonging to the *note the image is inserted into*:
+
+: 20260803T121500--wykres-inflacji.png
+
+So every attachment of one note sorts next to its siblings in the
+folder, and a file whose identifier matches no note is an orphan by
+inspection. A note without a Denote identifier falls back to its
+=#+identifier:= keyword and then to its file name, which is what makes
+the command work in =captures.org= as well.
+
+Reusing the note's identifier means two files under =~/notes/= carry
+the same one. The attachment folder is therefore added to
+=denote-excluded-directories-regexp= at load time — extending the value
+=25-inbox-review.el= sets for the inbox, never replacing it — so Denote
+prompts, backlinks and keyword completion never see it.
+=26-maintenance.el= and =27-denote-identifiers.el= read =.org= files
+only, so images were already invisible to them.
+
+The link is relative (=[[file:../attachments/…]]=), which survives a
+home directory that differs between machines. Set
+=my/org-image-link-style= to =absolute= to change that.
+
+**** Size on disk and size on screen
+
+Two different numbers, easy to confuse:
+
+| Setting                    | Meaning                      | Default |
+|----------------------------+------------------------------+---------|
+| =my/org-image-max-pixels=  | longer edge of the *stored* file | 1600 |
+| =org-image-actual-width=   | width of the *preview*       | =(1100)= |
+
+The first is a one-off conversion applied while copying, so a four
+megabyte photograph does not enter the notes tree and does not get
+carried to every device by Syncthing. It needs ImageMagick (=magick=,
+or =convert= on version 6) on =PATH= — on NixOS, add =imagemagick= to
+the system packages. Without it the file is copied unchanged and the
+echo area says so; nothing fails. SVG and GIF are never rescaled.
+
+The second lives in =modules/11-org-appearance.el=. Displaying more
+pixels than the stored file has only upscales a bitmap, so raise the
+two together or neither. A single image can override the global width
+with =#+ATTR_ORG: :width 900= above its link.
+
+**** Clicking a picture
+
+Inline previews carry a keymap:
+
+- =mouse-1=, =RET= — open the image. In an Emacs =image-mode= buffer by
+  default; set =my/org-image-click-action= to =external= for the
+  desktop image viewer, or to =nil= to turn the whole thing off.
+- =x= — open in the desktop viewer regardless of that setting.
+- =i +=, =i -=, =i o= — Emacs' own image commands still work; the
+  keymap inherits =image-map=.
+
+A click landing on anything other than an image just moves point.
+
+Growing the preview in place is deliberately not what this does: it
+rescales a bitmap inside the text buffer, reflows everything below it,
+and loses the size at the next image refresh.
+
+*** I — Attachments folder
+:PROPERTIES:
+:CUSTOM_ID: fn-my-org-image-attachments-dired
+:END:
+
+Opens =~/notes/attachments/= in Dired, creating it if it is not there
+yet. Useful for spotting orphans: the identifier prefix of every file
+names the note it was inserted into.
+
+Function: =my/org-image-attachments-dired= | Module: =modules/31-org-images.el=
+
 ** C-c n d — Document / File management
 :PROPERTIES:
 :CUSTOM_ID: menu-notes-doc

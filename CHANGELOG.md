@@ -7,6 +7,120 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-03a — Images get a folder, a size, and a click
+
+### What was missing
+
+Notes could show an image only if one was already somewhere on disk and
+a link to it was typed by hand. Nothing said where such files should
+live, nothing kept them from being four megabytes of phone photograph,
+and the inline preview was a dead rectangle: no way to see the picture
+at full size short of finding the file again.
+
+### 31-org-images.el
+
+A new module, `C-c n i i`. It asks for a file, asks for a short name
+(the source's own base name is offered as the default), copies the image
+into `~/notes/attachments/` and links it at point.
+
+The copy is named `IDENTIFIER--name.ext`, where the identifier is the
+**note's**, taken from its file name via
+`denote-retrieve-filename-identifier`. Every attachment of one note
+therefore sorts next to its siblings, and a file whose identifier
+matches no note is an orphan by inspection. Notes without a Denote
+identifier fall back to `#+identifier:` and then to their file name, so
+the command also works in `captures.org`.
+
+`C-c n i I` opens the attachment folder in Dired.
+
+### Why the attachment folder is hidden from Denote
+
+Reusing the note's identifier means two files under `~/notes/` share
+one. That is precisely what `27-denote-identifiers.el` reports as a
+fault — but it reads `.org` files only, so images never reach it. The
+exposure is Denote itself, which walks the whole tree for every prompt,
+backlink buffer and keyword completion.
+
+The module therefore adds the folder name to
+`denote-excluded-directories-regexp`. It **extends** the value rather
+than setting it: `25-inbox-review.el` owns the base value (`inbox`) and
+that must survive. The extension is idempotent and disappears with the
+module, which is correct — without the module there is no attachment
+folder to hide.
+
+### Rescaling happens once, on the way in
+
+A phone photograph is three to four thousand pixels wide. Nothing in a
+note needs that; Syncthing copies every byte of it to every device.
+`my/org-image-max-pixels` (1600) caps the longer edge as the file is
+copied, through ImageMagick's `magick`, or `convert` on version 6.
+
+Two failure paths both end in a plain copy rather than an error: no
+ImageMagick on `PATH`, and a format the installed ImageMagick has no
+delegate for. The message says which happened. SVG and GIF are never
+rescaled — pixel dimensions mean nothing for a vector, and an animated
+GIF has to be coalesced frame by frame and usually grows.
+
+On NixOS, `imagemagick` has to be in the system packages for any of
+this to run; without it the module still works, it just stores
+originals.
+
+### Display width: 800 → 1100
+
+`org-image-actual-width` in `11-org-appearance.el` was `'(800)` and read
+as too small. The number is a pixel count, so what it looks like
+depends on the display and its scaling; 1100 is a starting point, not a
+measurement.
+
+A float — `'(0.9)`, a fraction of the window — was considered and
+rejected. The scaled bitmap would have to be rebuilt on every window
+resize, which is every writeroom toggle and every split, and Org
+measures the window rather than the text column, so under the centred
+layout of `10-visual-fill.el` an image can come out wider than the
+prose it sits in.
+
+The two numbers are linked: asking to display more pixels than
+`my/org-image-max-pixels` stores upscales a bitmap and only adds blur.
+Raise both or neither.
+
+### Clicking a preview
+
+Org's inline preview is a scaled bitmap in an overlay carrying
+`image-map`, which has no binding for a click. The module puts its own
+keymap there, with `image-map` as parent so `i +`, `i -` and `i o` keep
+working:
+
+- `mouse-1` and `RET` open the file (`image-mode` buffer by default,
+  `my/org-image-click-action` switches to the desktop viewer);
+- `x` opens it in the desktop viewer regardless;
+- a click that lands on something other than an image only moves point,
+  so the binding never swallows an ordinary click.
+
+Growing the overlay in place was the alternative. It rescales a bitmap
+inside a text buffer, reflowing everything below it, and the size is
+lost at the next image refresh. Opening the file gives full resolution
+with panning and zooming that already exist.
+
+### Two Org generations
+
+Org 9.8 renamed `org-display-inline-images` to
+`org-link-preview-region` and changed the argument list. Both names are
+advised for the keymap, and the refresh after insertion tries each form
+in turn, so a version that accepts neither degrades to "the preview
+appears at the next manual refresh" rather than to an error.
+
+### Files touched
+
+- `modules/31-org-images.el` — new
+- `modules/11-org-appearance.el` — `org-image-actual-width` 800 → 1100
+- `init.el` — loads 31 after 30
+- `function_helper.org` — `C-c n i i` and `C-c n i I` documented
+
+`12-transient.el` is unchanged: both entries are appended through
+`my/transient-append`, which reports and skips when the menu is absent.
+
+---
+
 ## Session 2026-08-02s — Extraction was taking the front matter
 
 ### What was reported
@@ -20,7 +134,7 @@ the inbox note did not disappear.
 
 ### Three of those are not faults
 
-`C-c n t i x` is `my/inbox-extract`, which splits a *fragment* out into
+`C-c n t i x` is `my/inbox-extract`, which splits a _fragment_ out into
 a **new** note and leaves a link in its place. A new note gets a new
 identifier and today's date; the source stays where it is; the
 `:extracted_from:` property names the file it came from. All by design.
@@ -39,7 +153,7 @@ paragraph is the front matter block**. Extraction then:
 
 1. offered `#+title:      Farewell letter…` as the default title —
    exactly what was seen;
-2. wrote the source's header as the *body* of the new note, which also
+2. wrote the source's header as the _body_ of the new note, which also
    receives a header of its own, hence the duplication;
 3. **deleted that header from the source** and put a link there, because
    extracted text is replaced by a link.
@@ -85,14 +199,14 @@ read by this module or by Denote's writing path.
 Both faults in this module were positional or data-dependent:
 
 - the `stringp, nil` crash needed an inbox note without `:source_path:`,
-  which only notes *created* in the inbox lack;
+  which only notes _created_ in the inbox lack;
 - this one needed point to be in the front matter rather than the body.
 
 Neither is reached by ordinary use until the day it is. Code that has
 worked for months can still contain a fault reached by one cursor
 position, and "it worked before" narrows nothing.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -158,14 +272,14 @@ that cannot be nil.
 The two recorded in function_helper.org — duplicate top-level
 definitions, and calls to functions never defined — both pass on this
 repository and would have said nothing here. They catch a module being
-internally inconsistent about *symbols*.
+internally inconsistent about _symbols_.
 
-This was a *value* of the wrong type, produced only by data of a shape
+This was a _value_ of the wrong type, produced only by data of a shape
 that had not occurred yet. Byte-compilation does not catch it either.
 Nothing short of running the command against a note without a source
 path does.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -181,7 +295,7 @@ reported without the preview having been used at all. The note was
 simply already open — from a tab, from an earlier preview, from
 anywhere.
 
-`my/maintenance--set-keywords` edited the front matter *through* the
+`my/maintenance--set-keywords` edited the front matter _through_ the
 visiting buffer and saved it, on the reasoning that what is on screen
 and what is on disk should stay the same thing. That reasoning holds;
 the implementation did not. A buffer can be read-only for reasons that
@@ -217,7 +331,7 @@ Steps 2 and 3 keep their order for the reason already recorded: an
 interruption between them leaves new keywords under an old name, which
 is visible and repaired by running the rename again.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -256,7 +370,7 @@ one-argument accessors used for reading:
 
 ### This is narrower than what it replaces, not wider
 
-`denote-rename-file` rebuilds the *whole* name from components, which is
+`denote-rename-file` rebuilds the _whole_ name from components, which is
 why the previous version came with a warning that a note whose front
 matter title disagreed with its file name would have the name
 "corrected" as a side effect.
@@ -294,7 +408,7 @@ underscores and spaces become hyphens — not Denote's full
 sluggification, and not trying to be, since keywords here are normally
 chosen from the completion list of those already in use.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -357,7 +471,7 @@ Two mechanical checks are now recorded in function_helper.org — the
 duplicate-definition grep and the byte-compilation warning scan. Neither
 would have caught this one. Only calling the function does.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -405,8 +519,8 @@ Neither is a substitute for running the command. This module's writing
 path had been read carefully and reasoned about at length, and it had
 been broken since the moment it was written.
 
-*Not compiled or run: written without an Emacs available. The check
-above is offered precisely because that is a real limitation here.*
+_Not compiled or run: written without an Emacs available. The check
+above is offered precisely because that is a real limitation here._
 
 ---
 
@@ -438,14 +552,14 @@ twice in this configuration, in `25-inbox-review.el` and
 scrolls, the mouse behaves, and stepping away and returning costs
 nothing.
 
-| Key | Effect |
-|---|---|
-| `RET` | preview the note in a side window, focus stays on the list |
-| `o` | step into the preview, where it scrolls normally (`q` returns) |
-| `y` | rename this note |
-| `n` | leave it alone |
-| `g` | redraw |
-| `q` | leave; unhandled notes keep their keyword |
+| Key   | Effect                                                         |
+| ----- | -------------------------------------------------------------- |
+| `RET` | preview the note in a side window, focus stays on the list     |
+| `o`   | step into the preview, where it scrolls normally (`q` returns) |
+| `y`   | rename this note                                               |
+| `n`   | leave it alone                                                 |
+| `g`   | redraw                                                         |
+| `q`   | leave; unhandled notes keep their keyword                      |
 
 Focus stays on the list on `RET` for the reason already written into
 `my/inbox-preview`: the decision keys live in the list buffer, and
@@ -473,7 +587,7 @@ stays on screen while the work is done.
 against the identical variable in `25-inbox-review.el`: one preview
 window per session rather than a new split per note.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -506,12 +620,12 @@ signature are not rebuilt, so nothing else can move.
 
 Per-file confirmation is kept, as asked, and gains a fourth answer:
 
-| Key | Effect |
-|---|---|
-| `y` | rename this note |
-| `n` | leave it alone, move on |
+| Key | Effect                                            |
+| --- | ------------------------------------------------- |
+| `y` | rename this note                                  |
+| `n` | leave it alone, move on                           |
 | `v` | show the note in another window and **ask again** |
-| `q` | stop, leaving the rest untouched |
+| `q` | stop, leaving the rest untouched                  |
 
 `v` exists because a keyword that looks wrong in a list is sometimes
 right in the note, and deciding that used to mean leaving the command,
@@ -582,7 +696,7 @@ filed, which resolve as those notes move. The remainder are Obsidian
 in-document section links that the migration did not distinguish from
 links to other documents, and are a separate job.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -597,13 +711,13 @@ collection, and find notes sharing an identifier or a signature.
 Three of those four already existed and were reachable only through
 `M-x`, which is why they read as missing:
 
-| Wanted | Already provided by |
-|---|---|
-| identifier change + link rewriting | `my/denote-change-identifier` (27) |
-| duplicate identifier report | `my/denote-check-identifiers` (27) |
-| walk and fix duplicates | `my/denote-fix-duplicates` (27) |
-| keyword rename across the collection | `denote-explore-rename-keyword` |
-| front matter vs file name mismatch | `denote-explore-sync-metadata` |
+| Wanted                               | Already provided by                |
+| ------------------------------------ | ---------------------------------- |
+| identifier change + link rewriting   | `my/denote-change-identifier` (27) |
+| duplicate identifier report          | `my/denote-check-identifiers` (27) |
+| walk and fix duplicates              | `my/denote-fix-duplicates` (27)    |
+| keyword rename across the collection | `denote-explore-rename-keyword`    |
+| front matter vs file name mismatch   | `denote-explore-sync-metadata`     |
 
 denote-explore has been installed since 15-workspace.el was written;
 only two of its commands were ever called.
@@ -682,7 +796,7 @@ instead of one prompt per file. That is the part that writes to the
 whole collection at once, and it is being kept for its own pass rather
 than added at the end of a long one.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -709,9 +823,9 @@ a graphical frame might not have matched it.
 
 Insertion moves to two keys, for two different moments:
 
-| Key | Effect |
-|---|---|
-| `,` | insert the highlighted candidate and start the next keyword |
+| Key     | Effect                                                       |
+| ------- | ------------------------------------------------------------ |
+| `,`     | insert the highlighted candidate and start the next keyword  |
 | `C-TAB` | insert without exiting, when the separator is not wanted yet |
 
 The comma is the better key on its own merits, not merely a key that
@@ -745,7 +859,7 @@ Under GNOME on Wayland the compositor takes its keys before Emacs sees
 them, and `C-h k` reports nothing at all for those — no event, no
 message. Any binding reaching for `Alt` deserves that check first.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -761,10 +875,10 @@ let*: Wrong number of arguments: #[nil ...], 1
 
 `my/denote--silo-files` was defined twice:
 
-| Module | Signature | Returns |
-|---|---|---|
-| `05-notes.el` | `(dir)` | Denote files directly inside one silo, non-recursive |
-| `27-denote-identifiers.el` | `()` | every .org file across all silos, recursive |
+| Module                     | Signature | Returns                                              |
+| -------------------------- | --------- | ---------------------------------------------------- |
+| `05-notes.el`              | `(dir)`   | Denote files directly inside one silo, non-recursive |
+| `27-denote-identifiers.el` | `()`      | every .org file across all silos, recursive          |
 
 Two different functions, two different jobs, one symbol. `init.el` loads
 27 after 05, so 27's zero-argument version was the one that existed by
@@ -828,7 +942,7 @@ This is the duplication finding from session 2026-08-02's audit —
 crash rather than as tidiness. The six front-matter readers are still
 six; this closes only the pair that collided outright.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -859,11 +973,11 @@ no default title to offer. There was nowhere to type one.
 The prompt introduced in the previous session was already asking the
 right question; it just refused free text. It now takes three answers:
 
-| Answer | Result |
-|---|---|
-| TAB onto an existing heading, RET | filed under it, source line, no second heading |
-| type something, RET | the capture keeps its own heading, named with that text |
-| RET on an empty prompt | untitled, exactly as before |
+| Answer                            | Result                                                  |
+| --------------------------------- | ------------------------------------------------------- |
+| TAB onto an existing heading, RET | filed under it, source line, no second heading          |
+| type something, RET               | the capture keeps its own heading, named with that text |
+| RET on an empty prompt            | untitled, exactly as before                             |
 
 The `+ Keep as a new heading` sentinel is gone — an empty answer says
 the same thing without occupying a candidate slot.
@@ -883,14 +997,14 @@ The prompt binds `my/notes-keyword-preselect` and installs
 `my/notes--keyword-minibuffer-setup`, both from `05-notes.el`: RET is
 literal, TAB steps onto the list. Reused rather than reimplemented, and
 deliberately not given a second variable name — it governs one behaviour
-and one name is what keeps it consistent. That the name says *keyword*
+and one name is what keeps it consistent. That the name says _keyword_
 is a reminder of where the behaviour was first needed, not a claim about
 its scope.
 
 The prompt now appears even when no headings exist yet, since naming a
 first capture is exactly the case that needs it.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -984,7 +1098,7 @@ Recorded in the module commentary rather than defended against, because
 the alternatives — a marker character, a drawer — cost more readability
 in captures.org than the case is worth.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -1030,13 +1144,13 @@ custom.el instead, so nothing is lost and Customize can edit all of it.
 
 Faces added or changed there:
 
-| Face | Now | Why |
-|---|---|---|
-| `org-quote` | `:inherit variable-pitch`, italic, 1.1 | Quotations render in the journal handwriting font in every note, not just journals. Was Georgia. |
-| `org-block` | `:inherit fixed-pitch`, background kept | Source blocks are monospace. custom.el said Georgia and the module said monospace; they disagreed and the winner depended on frame age. |
-| `org-verbatim` | `:inherit fixed-pitch`, `:weight normal` | Purple without the bold. No `:foreground` on purpose — the purple is the theme's, which is the one that was liked. |
-| `org-code` | `:inherit fixed-pitch`, `"dark green"`, normal weight | Distinguishable from verbatim at a glance. The theme has no dark green, so this one is pinned. |
-| `org-table`, `org-meta-line`, `org-checkbox`, `org-link` | `:inherit fixed-pitch` | Carried over from the deleted blocks. |
+| Face                                                     | Now                                                   | Why                                                                                                                                     |
+| -------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `org-quote`                                              | `:inherit variable-pitch`, italic, 1.1                | Quotations render in the journal handwriting font in every note, not just journals. Was Georgia.                                        |
+| `org-block`                                              | `:inherit fixed-pitch`, background kept               | Source blocks are monospace. custom.el said Georgia and the module said monospace; they disagreed and the winner depended on frame age. |
+| `org-verbatim`                                           | `:inherit fixed-pitch`, `:weight normal`              | Purple without the bold. No `:foreground` on purpose — the purple is the theme's, which is the one that was liked.                      |
+| `org-code`                                               | `:inherit fixed-pitch`, `"dark green"`, normal weight | Distinguishable from verbatim at a glance. The theme has no dark green, so this one is pinned.                                          |
+| `org-table`, `org-meta-line`, `org-checkbox`, `org-link` | `:inherit fixed-pitch`                                | Carried over from the deleted blocks.                                                                                                   |
 
 `org-quote` inherits `variable-pitch` rather than naming the font, so
 changing the handwriting font in `03b-fonts.el` still changes every face
@@ -1102,7 +1216,7 @@ rather than a string repeated in three places.
 `C-c n o` for the dashboard (it is `C-c n f d`), and the "Denote
 backlinks panel" feature entry.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -1120,14 +1234,14 @@ described.
 
 ### A — Where each setting went
 
-| Setting | New home |
-|---|---|
-| `auto-revert-avoid-polling`, `dired-auto-revert-buffer` | `02-editing.el`, next to `global-auto-revert-mode` |
-| `jit-lock-defer-time` | `02-editing.el` |
-| `org-image-actual-width`, `image-cache-eviction-delay` | `11-org-appearance.el` |
-| `inhibit-compacting-font-caches` | `03b-fonts.el` |
-| `gc-cons-threshold` | `init.el` — see below |
-| The "what is deliberately not tuned" note | `04-denote.el`, next to the Denote configuration it constrains |
+| Setting                                                 | New home                                                       |
+| ------------------------------------------------------- | -------------------------------------------------------------- |
+| `auto-revert-avoid-polling`, `dired-auto-revert-buffer` | `02-editing.el`, next to `global-auto-revert-mode`             |
+| `jit-lock-defer-time`                                   | `02-editing.el`                                                |
+| `org-image-actual-width`, `image-cache-eviction-delay`  | `11-org-appearance.el`                                         |
+| `inhibit-compacting-font-caches`                        | `03b-fonts.el`                                                 |
+| `gc-cons-threshold`                                     | `init.el` — see below                                          |
+| The "what is deliberately not tuned" note               | `04-denote.el`, next to the Denote configuration it constrains |
 
 The commentary moved with each setting rather than being summarised.
 
@@ -1203,7 +1317,7 @@ append-to-today behaviour that the package does not have — it would
 replace working code with configuration plus the same amount of custom
 code on top. Recorded as considered and declined.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -1287,7 +1401,7 @@ goes through the same completing prompt and accepts more than one.
   their commentaries; both already load after 05-notes.el
 - `12-transient.el` — `k` retargeted
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -1386,7 +1500,7 @@ regexp — owned by `25-inbox-review.el` — is the next thing to widen,
 and the gain applies to every prompt and backlink buffer rather than to
 tooltips alone.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -1422,7 +1536,7 @@ earns its conversion step only when the document is coming back edited.
 `my/--filter-denote-link` matched `\href{}{}` and returned an empty
 string for anything else. That is correct for LaTeX and destructive
 everywhere else: in ODT and HTML the transcoded link does not match, so
-the filter deleted the link *and its description text*. Prose would have
+the filter deleted the link _and its description text_. Prose would have
 gone missing from every ODT export, silently.
 
 The filter now recognises the LaTeX, ODT and HTML shapes and falls back
@@ -1435,8 +1549,8 @@ LibreOffice yields an ODT where DOCX was requested, and a non-CSL
 citation processor produces a document with no bibliography. Modelled on
 `my/csl-check-setup` for the same reason.
 
-*Not compiled or run: written without an Emacs available. The pandoc
-limitations above were tested directly; the ox-odt path was not.*
+_Not compiled or run: written without an Emacs available. The pandoc
+limitations above were tested directly; the ox-odt path was not._
 
 ---
 
@@ -1493,7 +1607,7 @@ older membership would be worse than any duplication.
 - `my/writing-project-refresh-mentions` had leftover point manipulation
   from an earlier draft and re-opened the hub buffer to save it.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
@@ -1554,7 +1668,7 @@ New section `#writing-projects`. The main menu overview now lists `p`
 alongside `l` and `z` as dynamically appended, and names
 `my/transient-append` as what makes a missing module harmless.
 
-*Not compiled or run: written without an Emacs available.*
+_Not compiled or run: written without an Emacs available._
 
 ---
 
