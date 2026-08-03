@@ -671,10 +671,12 @@ path or file name, so moving a note between silos never breaks incoming
 or outgoing links.
 
 Functions: =my/denote-move-to-silo=, =my/denote--file-title=,
-=my/denote--file-identifier=, =my/denote--silo-files=,
-=my/denote--current-silo=, =my/denote--titles-equal-p=,
-=my/denote--relocate=, =my/denote--remove= | Variable:
-=my/denote-silo-alist= | Module: =modules/05-notes.el=
+=my/denote--silo-note-files=, =my/denote--current-silo=,
+=my/denote--titles-equal-p=, =my/denote--relocate=, =my/denote--remove=
+| Variable: =my/denote-silo-alist= | Module: =modules/05-notes.el=
+
+Identifiers are read with =my/denote--file-identifier=, which lives in
+=modules/27-denote-identifiers.el= — see [[#symbol-collisions][One symbol, one owner]].
 
 *** d — Delete note
 :PROPERTIES:
@@ -2535,6 +2537,62 @@ appears, nothing was lost.
 
 Heading text, when some was typed, is kept as the first paragraph of the
 appended fragment.
+
+* One symbol, one owner
+:PROPERTIES:
+:CUSTOM_ID: symbol-collisions
+:END:
+
+Elisp has a single namespace for functions. A second =defun= of the same
+name replaces the first silently, and the module that loses is the one
+whose author never opened the other file.
+
+This has already happened once. =my/denote--silo-files= was defined in
+=05-notes.el= taking a directory and in =27-denote-identifiers.el=
+taking nothing; =init.el= loads 27 after 05, so moving a note between
+silos failed with =Wrong number of arguments=. =my/denote--file-identifier=
+was duplicated in the same two files with matching behaviour, which
+hides the collision instead of reporting it.
+
+** The check
+
+#+begin_src sh
+grep -h "^(defun \|^(defmacro \|^(defsubst " modules/*.el \
+  | sed 's/^(def[a-z]* //; s/[ )].*//' | sort | uniq -d
+#+end_src
+
+Should print nothing. Worth running before committing any helper with a
+generic name.
+
+The same over =defvar=, =defconst= and =defcustom= prints only
+=vertico-preselect=, which is deliberate: =05-notes.el= and
+=06-capture.el= each carry a bare =(defvar vertico-preselect)= to mark a
+variable belonging to Vertico as special for that file. That declares
+rather than defines, and repeating it is harmless.
+
+** Shared helpers and their owners
+
+| Helper | Owner | Also called from |
+|--------+-------+------------------|
+| =my/denote--file-identifier= | =27-denote-identifiers.el= | 05-notes.el, 25-inbox-review.el |
+| =my/notes-read-keywords= | =05-notes.el= | 06-capture.el, 24-readwise.el |
+| =my/notes--keyword-minibuffer-setup= | =05-notes.el= | 06-capture.el |
+| =my/fixed-tab-goto= | =01-ui.el= | 15-workspace.el, 21-dashboards.el |
+| =my/transient-append= | =12-transient.el= | every module adding a menu entry |
+
+Resolution is at call time, so load order does not constrain these —
+only whether the owning module is loaded at all. Callers that would
+otherwise produce a void-function backtrace guard with =fboundp= and
+fail with a sentence instead.
+
+** Still outstanding
+
+Reading Denote front matter is implemented independently in
+=15-workspace.el=, =21-dashboards.el=, =25-inbox-review.el=,
+=28-writing-projects.el=, =16-org-export.el= and =29-writing-export.el=,
+each with its own regexp for =^#+title:=. The names differ, so nothing
+collides, but it is the same duplication one step short of the failure
+above.
 
 * Global Keybindings
 :PROPERTIES:

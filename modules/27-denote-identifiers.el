@@ -70,8 +70,13 @@ share an identifier with a filed note until it is accepted."
    (lambda (f) (string-match-p my/denote-scan-exclude-regexp f))
    (directory-files-recursively my-notes-dir "\\.org\\'")))
 
-(defun my/denote--silo-files ()
-  "Return every .org file in the silos where identifiers must be unique."
+(defun my/denote--identifier-scope-files ()
+  "Return every .org file in the silos where identifiers must be unique.
+
+Named for the scope it describes rather than generically: 05-notes.el
+lists the files of a single silo for a different purpose, and the two
+carried the same name -- with different arities -- until moving a note
+between silos started failing with a wrong-number-of-arguments error."
   (seq-remove
    (lambda (f) (string-match-p my/denote-scan-exclude-regexp f))
    (seq-mapcat (lambda (dir)
@@ -80,7 +85,11 @@ share an identifier with a filed note until it is accepted."
                my/denote-silo-directories)))
 
 (defun my/denote--file-identifier (file)
-  "Return the identifier in FILE's name, or nil."
+  "Return the identifier in FILE's name, or nil.
+
+Owned here, and also called by 05-notes.el and 25-inbox-review.el:
+identifier parsing belongs to the module responsible for identifier
+integrity, and one definition is what stops the three from drifting."
   (let ((name (file-name-nondirectory file)))
     (when (string-match (concat "\\`\\(" my/denote-identifier-regexp "\\)")
                         name)
@@ -100,12 +109,13 @@ FILES defaults to the silo files only - see the scope note above."
     (maphash (lambda (id files)
                (when (> (length files) 1)
                  (push (cons id (sort files #'string<)) groups)))
-             (my/denote--identifier-table (or files (my/denote--silo-files))))
+             (my/denote--identifier-table
+              (or files (my/denote--identifier-scope-files))))
     (sort groups (lambda (a b) (string< (car a) (car b))))))
 
 (defun my/denote--silo-identifier-table ()
   "Return a hash of identifier -> silo files."
-  (my/denote--identifier-table (my/denote--silo-files)))
+  (my/denote--identifier-table (my/denote--identifier-scope-files)))
 
 (defun my/denote--identifier-free-p (id &optional table)
   "Return non-nil when ID is used by no file in TABLE.

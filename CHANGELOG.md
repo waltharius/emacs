@@ -7,6 +7,89 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02i — Two modules, one symbol: moving notes between silos
+
+### The failure
+
+`my/denote-move-to-silo` stopped working with
+
+```
+let*: Wrong number of arguments: #[nil ...], 1
+```
+
+`my/denote--silo-files` was defined twice:
+
+| Module | Signature | Returns |
+|---|---|---|
+| `05-notes.el` | `(dir)` | Denote files directly inside one silo, non-recursive |
+| `27-denote-identifiers.el` | `()` | every .org file across all silos, recursive |
+
+Two different functions, two different jobs, one symbol. `init.el` loads
+27 after 05, so 27's zero-argument version was the one that existed by
+the time anything ran, and 05's caller passed it a directory.
+
+Elisp has one namespace for functions. The second `defun` replaces the
+first without a word, and the module that loses is the one whose author
+never sees the other file. Nothing warned: the two definitions were
+eleven hundred lines apart in different files, and the failure only
+surfaces when the losing module's code is actually invoked.
+
+### The same trap, not yet sprung
+
+`my/denote--file-identifier` was also defined in both, and is called
+from `05-notes.el`, `25-inbox-review.el` and `27-denote-identifiers.el`.
+Both versions took one argument and both returned the anchored
+identifier, so 27's silently winning changed nothing — which is worse,
+not better: the collision was invisible and would have become a bug the
+first time either definition was edited.
+
+### The fix
+
+Two different functions get two different names, each saying what it
+returns rather than what it operates on:
+
+- `05-notes.el`: `my/denote--silo-files` → `my/denote--silo-note-files`
+- `27-denote-identifiers.el`: `my/denote--silo-files` →
+  `my/denote--identifier-scope-files`
+
+One function gets one owner. `my/denote--file-identifier` stays in
+27-denote-identifiers.el, which is the module responsible for identifier
+integrity, and where 25-inbox-review.el already got it from. The copy in
+05-notes.el is deleted along with the `my/denote--identifier-regexp`
+constant that only it used.
+
+Resolution is at call time, so load order does not matter.
+`my/denote-move-to-silo` gains an `fboundp` guard so that a missing
+module produces a sentence instead of a void-function backtrace.
+
+### Preventing the next one
+
+The whole class is visible in one command:
+
+```sh
+grep -h "^(defun \|^(defmacro \|^(defsubst " modules/*.el \
+  | sed 's/^(def[a-z]* //; s/[ )].*//' | sort | uniq -d
+```
+
+It now returns nothing. The same check over `defvar`, `defconst` and
+`defcustom` returns only `vertico-preselect`, which is the deliberate
+bare declaration in `05-notes.el` and `06-capture.el` — those declare a
+variable belonging to Vertico rather than defining one, and repeating a
+declaration is harmless.
+
+Worth running before any commit that adds a helper with a generic name.
+
+### Note on the audit
+
+This is the duplication finding from session 2026-08-02's audit —
+"reading front matter: six independent implementations" — arriving as a
+crash rather than as tidiness. The six front-matter readers are still
+six; this closes only the pair that collided outright.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02h — One prompt, three answers; and a keybinding that never existed
 
 ### A — `C-c n m` is not a binding

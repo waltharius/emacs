@@ -468,6 +468,17 @@ without asking."
 ;; ============================================================
 ;; MOVE NOTE BETWEEN SILOS
 ;; ============================================================
+;; Reads identifiers with `my/denote--file-identifier', which belongs to
+;; 27-denote-identifiers.el -- the module that owns identifier integrity
+;; and is also where 25-inbox-review.el gets it from.  A copy used to
+;; live here as well.  Two copies of a four-line function is not a
+;; maintenance cost worth mentioning, but two definitions of one symbol
+;; is: the later-loading module wins, silently, and the earlier one gets
+;; whatever behaviour that other module happened to give it.
+;;
+;; Resolution is at call time, so the load order does not matter; the
+;; guard in `my/denote-move-to-silo' turns a missing module into a
+;; sentence rather than a void-function backtrace.
 
 (defvar my/denote-silo-alist
   `(("journal" . ,my-notes-journal)
@@ -476,9 +487,6 @@ without asking."
   "Alist of (NAME . DIRECTORY) for every Denote silo.
 Used by `my/denote-move-to-silo' to build its completion list.
 Add an entry here when a new silo is added to 00-core.el.")
-
-(defconst my/denote--identifier-regexp "\\`\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)"
-  "Match a Denote identifier at the start of a bare file name.")
 
 (defun my/denote--file-title (file)
   "Return the `#+title:' value of FILE, or nil if absent.
@@ -491,15 +499,14 @@ the top, so there is no reason to load a whole note from disk."
     (when (re-search-forward "^#\\+title:[ \t]+\\(.*?\\)[ \t]*$" nil t)
       (match-string-no-properties 1))))
 
-(defun my/denote--file-identifier (file)
-  "Return the Denote identifier of FILE, taken from its file name."
-  (let ((name (file-name-nondirectory file)))
-    (when (string-match my/denote--identifier-regexp name)
-      (match-string 1 name))))
-
-(defun my/denote--silo-files (dir)
+(defun my/denote--silo-note-files (dir)
   "Return the Denote files directly inside DIR.
-Non-recursive on purpose: the silos in this configuration are flat."
+Non-recursive on purpose: the silos in this configuration are flat.
+
+Named for what it returns rather than generically: 27-denote-identifiers.el
+has its own scan with a different shape and a different job, and the two
+carried the same name until one of them started being called with the
+wrong number of arguments."
   (when (file-directory-p dir)
     (directory-files dir t "\\`[0-9]\\{8\\}T[0-9]\\{6\\}")))
 
@@ -558,6 +565,8 @@ clash: two notes sharing an identifier make `denote:' links to that
 identifier ambiguous.  The retitling path exists to unblock the move;
 the duplicate identifier still needs sorting out afterwards."
   (interactive)
+  (unless (fboundp 'my/denote--file-identifier)
+    (user-error "27-denote-identifiers.el is not loaded"))
   (let ((file (buffer-file-name)))
     (unless file
       (user-error "This buffer is not visiting a file"))
@@ -583,7 +592,7 @@ the duplicate identifier still needs sorting out afterwards."
       (unless (file-directory-p target-dir)
         (user-error "Target silo does not exist: %s" target-dir))
 
-      (let* ((target-files (my/denote--silo-files target-dir))
+      (let* ((target-files (my/denote--silo-note-files target-dir))
              (title-matches
               (seq-filter (lambda (f)
                             (my/denote--titles-equal-p title
