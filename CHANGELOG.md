@@ -7,6 +7,55 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02n — A function called and never defined
+
+### The failure
+
+`y` in the keyword review reported `Symbol's function definition is
+void`. `my/maintenance--set-keywords` — the only function in the module
+that writes — was called from `my/keyword-rename-apply` and did not
+exist.
+
+It was deleted in the previous session. Replacing the rename section
+wholesale removed a helper that lived inside it and was still referenced
+from the code that replaced it. The paren balance was correct, the file
+loaded without complaint, and the only way to find out was to press the
+one key that uses it.
+
+Restored unchanged: `denote-rename-file-keywords`,
+`denote-rename-confirmations` bound to nil, `denote-save-buffers` bound
+to t, explicit save afterwards.
+
+### The check that would have caught it
+
+Byte-compilation. It reports a call to an undefined function as a
+warning, which is exactly this class of error:
+
+```sh
+emacs -Q --batch \
+  --eval '(dolist (f (file-expand-wildcards "modules/*.el")) (byte-compile-file f))' \
+  2>&1 | grep "not known to be defined" | grep "my/"
+rm -f modules/*.elc
+```
+
+Filtering on `my/` is what makes the output readable: under `-Q` the
+compiler knows nothing about Denote, Vertico or Org either, and those
+warnings are noise. A warning naming a `my/` symbol is not.
+
+This belongs beside the duplicate-definition grep from session
+2026-08-02i as a pre-commit check. Between them they cover the two ways a
+module can be internally wrong while still loading: a symbol defined
+twice, and a symbol called but never defined.
+
+Neither is a substitute for running the command. This module's writing
+path had been read carefully and reasoned about at length, and it had
+been broken since the moment it was written.
+
+*Not compiled or run: written without an Emacs available. The check
+above is offered precisely because that is a real limitation here.*
+
+---
+
 ## Session 2026-08-02m — The keyword rename becomes a buffer
 
 ### What was wrong

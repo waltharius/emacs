@@ -400,6 +400,31 @@ Each keyword is a button that starts a rename of it."
 identical variable in 25-inbox-review.el: one preview window reused
 across the session, rather than a new split per note.")
 
+(defun my/maintenance--set-keywords (file keywords)
+  "Give FILE the keyword list KEYWORDS and save it.  Return the new path.
+
+Uses `denote-rename-file-keywords', the same primitive behind
+`C-c n d k', which touches the keyword field and nothing else.
+
+Denote's own confirmations are switched off for the duration: the
+review list has already asked about this file, and a second prompt whose
+answer means something different is how a declined change turns into a
+carried-out one.  `denote-save-buffers' is switched on so the note
+reaches the disk rather than sitting modified in a buffer, with an
+explicit save afterwards for the case where Denote leaves that to the
+caller."
+  (let ((denote-rename-confirmations nil)
+        (denote-save-buffers t))
+    (let ((new (if (fboundp 'denote-rename-file-keywords)
+                   (denote-rename-file-keywords file keywords)
+                 (denote-rename-file file 'keep-current keywords
+                                     'keep-current 'keep-current))))
+      (when-let* ((path (if (stringp new) new file))
+                  (buffer (find-buffer-visiting path)))
+        (with-current-buffer buffer
+          (when (buffer-modified-p) (save-buffer))))
+      new)))
+
 (defun my/maintenance--keyword-list-entries ()
   "Convert `my/maintenance--keyword-entries' into tabulated-list form."
   (mapcar

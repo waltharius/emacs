@@ -2580,6 +2580,29 @@ grep -h "^(defun \|^(defmacro \|^(defsubst " modules/*.el \
 Should print nothing. Worth running before committing any helper with a
 generic name.
 
+** The other half: called but never defined
+
+A symbol defined twice is one way a module can be wrong while still
+loading. A symbol *called* and never defined is the other, and it is
+quieter: parens balance, the file loads, and the error appears only when
+the one key that uses it is pressed. That is how
+=my/maintenance--set-keywords= reached 26-maintenance.el without
+existing.
+
+Byte-compilation reports it:
+
+#+begin_src sh
+emacs -Q --batch \
+  --eval '(dolist (f (file-expand-wildcards "modules/*.el")) (byte-compile-file f))' \
+  2>&1 | grep "not known to be defined" | grep "my/"
+rm -f modules/*.elc
+#+end_src
+
+Filtering on =my/= is what makes it readable: under =-Q= the compiler
+knows nothing about Denote, Vertico or Org either, and those warnings
+are noise. A warning naming a =my/= symbol is not.
+
+
 The same over =defvar=, =defconst= and =defcustom= prints only
 =vertico-preselect=, which is deliberate: =05-notes.el= and
 =06-capture.el= each carry a bare =(defvar vertico-preselect)= to mark a
