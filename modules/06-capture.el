@@ -291,15 +291,20 @@ like an existing one could not be entered at all.  Binding
 step onto an existing heading, which is the behaviour already learnt
 from tagging.  The variable is named for keywords because that is where
 it was first needed; it governs one behaviour and is deliberately not
-duplicated under a second name."
+duplicated under a second name.
+
+Unlike a keyword prompt this one reads a single value, so no separator
+key is installed: a heading may contain a comma."
   (let ((vertico-preselect (if (boundp 'my/notes-keyword-preselect)
                                my/notes-keyword-preselect
                              'prompt)))
     (string-trim
      (minibuffer-with-setup-hook
          (:append (lambda ()
-                    (when (fboundp 'my/notes--keyword-minibuffer-setup)
-                      (my/notes--keyword-minibuffer-setup))))
+                    (when (fboundp 'my/notes--completion-keys)
+                      ;; No separator argument: a heading is a single
+                      ;; value and may legitimately contain a comma.
+                      (my/notes--completion-keys))))
        (completing-read
         "File under (TAB for existing, text for a new heading, empty for none): "
         headings nil nil)))))

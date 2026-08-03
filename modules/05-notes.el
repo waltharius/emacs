@@ -68,17 +68,27 @@
 ;;
 ;;   TAB       next candidate (first press leaves the input line)
 ;;   S-TAB     previous candidate
-;;   M-TAB     insert the selected candidate WITHOUT exiting -- what a
-;;             comma-separated list needs between entries
+;;   ,         insert the highlighted candidate and start the next
+;;             keyword -- the fast way to pick several from the list
+;;   C-TAB     insert the highlighted candidate WITHOUT exiting, when
+;;             the separator is not wanted yet
 ;;   RET       submit: the input when on the input line, the candidate
 ;;             when one is selected
 ;;   M-RET     submit the input regardless of selection (Vertico's own)
 ;;
-;; TAB is Vertico's `vertico-insert' by default.  It is moved to M-TAB
-;; here because a list appearing under a half-typed word reads as
-;; something to step through, and TAB is the key hands reach for to do
-;; that.  The rebinding is confined to these prompts: file-name
-;; completion elsewhere keeps TAB as insert, where it matters most.
+;; TAB is Vertico's `vertico-insert' by default.  It is moved here
+;; because a list appearing under a half-typed word reads as something
+;; to step through, and TAB is the key hands reach for to do that.  The
+;; rebinding is confined to these prompts: file-name completion
+;; elsewhere keeps TAB as insert, where it matters most.
+;;
+;; Insertion first went to M-TAB, which was the obvious key and does not
+;; work: GNOME owns Alt-Tab as the window switcher, so the compositor
+;; consumes it and Emacs never sees the event.  The comma is the better
+;; key anyway -- in a list of keywords it already means "this one is
+;; finished", so completing to the highlighted candidate first is what
+;; it was going to be used for regardless.  On the input line, with
+;; nothing highlighted, it stays an ordinary comma.
 ;;
 ;; It is applied with `minibuffer-with-setup-hook', which is the
 ;; built-in way to configure one minibuffer session.  The hook exists
@@ -132,23 +142,66 @@ TAB inserts and the arrow keys navigate."
 (defvar vertico-preselect)
 (defvar vertico-map)
 
-(defun my/notes--keyword-minibuffer-setup ()
-  "Install the keyword-prompt key bindings in the current minibuffer.
+(defvar my/notes--completion-separator nil
+  "Separator character bound by `my/notes--completion-keys', or nil.")
 
-Runs from `minibuffer-with-setup-hook' at the two call sites below,
-never from `minibuffer-setup-hook' itself, so no other prompt can
-reach it.  Builds a child of whatever local map is in place -- which
-is Vertico's, since `:append' orders this after Vertico's setup --
-and leaves everything it does not name alone."
+(defun my/notes-completion-separate ()
+  "Insert the highlighted candidate, then start the next entry.
+
+On the input line, with nothing highlighted, this is an ordinary
+separator character -- which is what typing a new keyword by hand
+needs.  With a candidate highlighted it completes to that candidate
+first, so choosing several existing keywords is: filter, TAB, comma,
+repeat.
+
+`vertico--index' is Vertico's own variable and no part of a public
+API.  When it is absent or negative this degrades to inserting the
+character, which is what the key does anyway, so a future Vertico that
+renames it costs a keystroke rather than breaking the prompt."
+  (interactive)
+  (when (and (fboundp 'vertico-insert)
+             (integerp (bound-and-true-p vertico--index))
+             (>= vertico--index 0))
+    (vertico-insert))
+  (insert (or (bound-and-true-p my/notes--completion-separator) ",")))
+
+(defun my/notes--completion-keys (&optional separator)
+  "Install candidate-stepping keys in the current minibuffer.
+
+Called from `minibuffer-with-setup-hook' at each prompt that wants
+them, never from `minibuffer-setup-hook' itself, so no other prompt can
+reach it.  Builds a child of whatever local map is in place -- which is
+Vertico's, since `:append' orders this after Vertico's setup -- and
+leaves everything it does not name alone.
+
+  TAB      next candidate
+  S-TAB    previous candidate
+  C-TAB    insert the highlighted candidate WITHOUT exiting
+
+SEPARATOR, when given, is a string bound to
+`my/notes-completion-separate', which does the same insertion and then
+starts the next entry.  Only prompts that read a separated list pass
+one; a prompt reading a single value must not, since the character has
+no special meaning there and may legitimately occur in the answer.
+
+NOT M-TAB.  That was the obvious key and it does not work: GNOME owns
+Alt-Tab as the window switcher, so the compositor consumes it and Emacs
+never sees the event."
   (when (and my/notes-keyword-tab-navigates
              (fboundp 'vertico-next))
     (let ((map (make-sparse-keymap)))
       (set-keymap-parent map (current-local-map))
-      (define-key map (kbd "TAB")     #'vertico-next)
-      (define-key map (kbd "<tab>")   #'vertico-next)
+      ;; Both spellings of each key: a graphical frame sends the
+      ;; function-key form, a terminal the control-character form.
+      (define-key map (kbd "TAB")       #'vertico-next)
+      (define-key map (kbd "<tab>")     #'vertico-next)
+      (define-key map (kbd "S-TAB")     #'vertico-previous)
       (define-key map (kbd "<backtab>") #'vertico-previous)
-      (define-key map (kbd "S-TAB")   #'vertico-previous)
-      (define-key map (kbd "M-TAB")   #'vertico-insert)
+      (define-key map (kbd "C-TAB")     #'vertico-insert)
+      (define-key map (kbd "<C-tab>")   #'vertico-insert)
+      (when separator
+        (setq-local my/notes--completion-separator separator)
+        (define-key map (kbd separator) #'my/notes-completion-separate))
       (use-local-map map))))
 
 (defun my/notes-read-keywords (&optional prompt initial)
@@ -164,7 +217,7 @@ failing on a missing function."
   (if (fboundp 'denote-keywords-prompt)
       (let* ((vertico-preselect my/notes-keyword-preselect)
              (keywords (minibuffer-with-setup-hook
-                           (:append #'my/notes--keyword-minibuffer-setup)
+                           (:append (lambda () (my/notes--completion-keys ",")))
                          (denote-keywords-prompt prompt initial))))
         ;; Older Denote sorts inside the prompt, newer exposes it
         ;; separately; call it when present and take the result as-is
@@ -195,7 +248,7 @@ without asking."
     (user-error "Denote is not available"))
   (let ((vertico-preselect my/notes-keyword-preselect))
     (minibuffer-with-setup-hook
-        (:append #'my/notes--keyword-minibuffer-setup)
+        (:append (lambda () (my/notes--completion-keys ",")))
       (call-interactively #'denote-rename-file-keywords))))
 
 

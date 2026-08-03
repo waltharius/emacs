@@ -2307,15 +2307,30 @@ Keys inside a keyword prompt:
 |-----------+---------------------------------------------------------|
 | =TAB=     | next candidate — the first press leaves the input line   |
 | =S-TAB=   | previous candidate                                       |
-| =M-TAB=   | insert the selected candidate *without* exiting — what a comma-separated list needs between entries |
+| =,=       | insert the highlighted candidate and start the next keyword — the fast way to take several from the list |
+| =C-TAB=   | insert the highlighted candidate *without* exiting, when the separator is not wanted yet |
 | =RET=     | submit: the input when on the input line, the candidate when one is selected |
 | =M-RET=   | submit the input regardless of selection (Vertico's own) |
 
-=TAB= is Vertico's =vertico-insert= by default. It is moved to =M-TAB=
-here because a list appearing under a half-typed word reads as
-something to step through, and =TAB= is the key hands reach for to do
-that. The rebinding is confined to these prompts: file-name completion
-elsewhere keeps =TAB= as insert, where it matters most.
+Choosing several existing keywords is therefore *filter, TAB, comma,
+repeat*. On the input line, with nothing highlighted, =,= stays an
+ordinary comma, so typing a new keyword by hand is unaffected.
+
+=TAB= is Vertico's =vertico-insert= by default. It is moved here
+because a list appearing under a half-typed word reads as something to
+step through, and =TAB= is the key hands reach for to do that. The
+rebinding is confined to these prompts: file-name completion elsewhere
+keeps =TAB= as insert, where it matters most.
+
+*Not M-TAB.* Insertion was bound there first and could never fire:
+GNOME owns =Alt-Tab= as the window switcher, so the compositor consumes
+the event and Emacs never sees it. Worth remembering before reaching for
+=Alt= in any binding on this desktop — =C-h k= followed by the key
+reports nothing at all when the compositor has taken it.
+
+The capture destination prompt ([[#capture-filing][Capture Filing]]) shares =TAB=, =S-TAB=
+and =C-TAB= through the same function but gets *no* =,= binding: it reads
+a single heading, and a heading may contain a comma.
 
 The rebinding is applied with =minibuffer-with-setup-hook=, the built-in
 way to configure a single minibuffer session. The hook exists only for
@@ -2475,7 +2490,8 @@ heading beginning like an existing one can be entered. =TAB= steps onto
 the list. This is the same behaviour as the tag prompts
 ([[#keyword-prompts][Keyword Prompts]]) and is driven by the same
 =my/notes-keyword-preselect=, deliberately not duplicated under a second
-name.
+name. =C-TAB= inserts without exiting; there is no =,= binding here,
+because this prompt reads one heading and a heading may contain a comma.
 
 Naming happens by editing the capture buffer while it is still open, so
 Org writes the headline out itself.
@@ -2576,7 +2592,7 @@ rather than defines, and repeating it is harmless.
 |--------+-------+------------------|
 | =my/denote--file-identifier= | =27-denote-identifiers.el= | 05-notes.el, 25-inbox-review.el |
 | =my/notes-read-keywords= | =05-notes.el= | 06-capture.el, 24-readwise.el |
-| =my/notes--keyword-minibuffer-setup= | =05-notes.el= | 06-capture.el |
+| =my/notes--completion-keys= | =05-notes.el= | 06-capture.el |
 | =my/fixed-tab-goto= | =01-ui.el= | 15-workspace.el, 21-dashboards.el |
 | =my/transient-append= | =12-transient.el= | every module adding a menu entry |
 

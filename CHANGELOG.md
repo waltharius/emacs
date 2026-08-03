@@ -7,6 +7,69 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02j — M-TAB never reached Emacs
+
+### The failure
+
+Stepping through keyword candidates with TAB worked; inserting one
+without leaving the prompt did not, so taking several keywords from the
+list meant retyping them.
+
+`vertico-insert` was bound to `M-TAB`. GNOME owns `Alt-Tab` as the
+window switcher, so the compositor consumes the event and Emacs never
+receives it. The binding was correct and unreachable — the worst kind,
+because nothing reports an error: the key simply does something else,
+somewhere else.
+
+A second defect in the same line: `M-TAB` was bound without `<M-tab>`,
+while TAB and S-TAB were both given their function-key and
+control-character spellings. Even on a desktop that left Alt-Tab alone,
+a graphical frame might not have matched it.
+
+### The fix
+
+Insertion moves to two keys, for two different moments:
+
+| Key | Effect |
+|---|---|
+| `,` | insert the highlighted candidate and start the next keyword |
+| `C-TAB` | insert without exiting, when the separator is not wanted yet |
+
+The comma is the better key on its own merits, not merely a key that
+works. In a list of keywords it already means "this one is finished", so
+completing to the highlighted candidate first is what it was going to be
+used for anyway. Choosing several existing keywords becomes filter, TAB,
+comma, repeat. On the input line, with nothing highlighted, it stays an
+ordinary comma, so typing a new keyword by hand is untouched.
+
+Detecting "is a candidate highlighted" needs `vertico--index`, which is
+Vertico's own variable and no part of a public API. Guarded with
+`bound-and-true-p`, so a future Vertico that renames it costs a
+keystroke rather than breaking the prompt.
+
+### One helper, two kinds of prompt
+
+`my/notes--keyword-minibuffer-setup` is renamed
+`my/notes--completion-keys` and takes an optional separator. Keyword
+prompts pass `","`; the capture destination prompt in `06-capture.el`
+passes nothing, because it reads a single heading and a heading may
+legitimately contain a comma.
+
+Naming the function for what it installs rather than for the first
+prompt that wanted it also removes the awkwardness noted in session
+2026-08-02h, where a capture prompt was calling something called
+`keyword`.
+
+### Worth remembering
+
+Under GNOME on Wayland the compositor takes its keys before Emacs sees
+them, and `C-h k` reports nothing at all for those — no event, no
+message. Any binding reaching for `Alt` deserves that check first.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02i — Two modules, one symbol: moving notes between silos
 
 ### The failure
