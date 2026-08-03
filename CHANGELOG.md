@@ -7,6 +7,135 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-03b — Rescaling is not compression, and a failure that said nothing
+
+### What was reported, twice
+
+First: with ImageMagick installed, an inserted image still arrived at
+4.2 MB. Then, after the compression ladder was added, the same file
+again — this time with `stored unchanged: the converter refused it`.
+
+Two separate faults, one visible symptom.
+
+### Fault one: the pipeline was doing what it was told
+
+Session 2026-08-03a rescaled to 1600 px and stopped. PNG is lossless, so
+that removes pixels and stores every remaining one exactly. Measured on
+a 2559x1639 terminal screenshot:
+
+| step | size |
+|---------------------------------+--------|
+| source | 551 kB |
+| rescaled to 1600 px, still PNG | 489 kB |
+| rescaled, then `-colors 256` | 133 kB |
+| rescaled, then JPEG q85 | 146 kB |
+
+An 11 % saving against a factor of four. A source already under 1600 px
+saves nothing at all. Size falls only when fidelity is traded, and
+nothing in the module was trading any.
+
+### A ladder with a budget
+
+`my/org-image-max-bytes` (300 kB) is the target, and each rung runs only
+if the previous one left the file above it:
+
+1. rescale to `my/org-image-max-pixels`, never enlarging;
+2. under budget — stop, and the stored file is still pixel-exact;
+3. few colours in the source — quantise to 256 colours, staying PNG and
+   keeping alpha;
+4. otherwise, or when step 3 was not enough — JPEG at
+   `my/org-image-jpeg-quality`, with `jpeg:extent` as a ceiling.
+
+Quantising is tried before JPEG because it keeps text edges crisp while
+JPEG rings around every letter, and screenshots are most of what gets
+attached. The smallest candidate wins, so a rung that makes things worse
+cannot be chosen — which is not hypothetical: on a night photograph the
+palette branch produced 2.1 MB against 293 kB for JPEG.
+
+Screenshot and photograph are told apart by distinct colours in a
+400x400 sample of the source, against `my/org-image-palette-max-colors`
+(4096). Measured: terminal screenshot 897, night photograph 18033,
+synthetic photographic noise 120000.
+
+`-sample`, not `-resize`. Interpolation invents colours: the same
+screenshot reports 8.8 million of them after a rescale, so counting on a
+resized copy would send every screenshot through JPEG. Counting a
+sample rather than the whole file costs 0.11 s instead of 0.45 s on a
+4 MP image, and only runs for files that are over budget anyway.
+
+Measured end to end on a 4000x3000 phone photograph: 4.17 MB in,
+1600x1200 and 293 kB out.
+
+### Fault two: the failure had nowhere to be seen
+
+`my/org-image--run` passed nil as the destination of `call-process`,
+which discards standard output and standard error. When ImageMagick
+exited non-zero the module knew only that, so it fell back to a plain
+copy and reported "the converter refused it" — accurate, useless, and
+indistinguishable from a dozen possible causes.
+
+Discarding a failing process's output is the bug. Now:
+
+- the command line, exit status and everything printed go to
+  `my/org-image-log-buffer` (`*org-image-log*`), and the echo area
+  names that buffer;
+- both `magick` and `convert` are tried in turn rather than only the
+  first one found, since "installed" and "working" are different
+  claims;
+- `my/org-image-diagnose` runs the same command on a chosen file and
+  collects the executables, their versions, the command line and its
+  output in one buffer;
+- the source path is expanded before it reaches an external process. A
+  name beginning with `~` passes `file-readable-p`, because Emacs
+  expands it, and fails in ImageMagick, which does not — a cause worth
+  removing rather than diagnosing.
+
+The colour count now reads the number from the END of the converter's
+output: called as `convert`, ImageMagick 7 prints a deprecation warning
+that contains the digit 7, which a leading-match would have taken as the
+colour count.
+
+### Names now come from the title
+
+`IDENTIFIER--TITLE-SLUG-N.EXT`, with N counting from 0 within the note,
+which is the convention the migrated attachments already follow:
+
+: 20241225T000000--25-12-2024-środa-0.png
+
+The default at the prompt is the note's `#+title:` rather than the
+source file's name, so an image from a camera folder no longer arrives
+called `IMG_2451`. `my/org-image-prompt-for-name` set to nil skips the
+prompt.
+
+Numbering ignores the extension when looking for the next free number,
+because the ladder may store one attachment of a note as PNG and the
+next as JPEG, and those must not collide on `-0`.
+
+One difference from the migrated files: the slug collapses runs of
+non-alphanumeric characters to a single hyphen, so `25-12-2024 - środa`
+gives `25-12-2024-środa` where the migration script produced
+`25-12-2024---środa`. Neither is parsed by anything; the old files are
+left alone.
+
+### `my/org-image-recompress-attachments`
+
+A one-off command for files stored before any of this existed. It
+rescales and recompresses in place, only when the result is smaller, and
+preserves names and extensions so that no link has to change. That
+constraint is also its limit: a photograph stored as PNG gets quantised
+rather than converted, and may band. Deleting such a file and inserting
+it again gives the better result, since the insertion path can choose
+the format.
+
+### Files touched
+
+- `modules/31-org-images.el` — compression ladder, title-based names,
+  numbering from 0, converter logging and fallback, `my/org-image-diagnose`,
+  recompress command, size reporting in the message
+- `function_helper.org` — updated to match
+
+---
+
 ## Session 2026-08-03b — Rescaling is not compression
 
 ### What was reported

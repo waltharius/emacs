@@ -667,6 +667,23 @@ All of this needs ImageMagick (=magick=, or =convert= on version 6) on
 file is copied unchanged and the message says so; nothing fails. SVG and
 GIF are always copied unchanged.
 
+**** When an image is stored unchanged anyway
+
+Both executables are tried in turn, and a failing run leaves its command
+line, exit status and output in =*org-image-log*=; the echo area names
+that buffer. A file that arrives at its original size with
+=conversion failed= in the message means ImageMagick ran and refused the
+job, not that it is missing.
+
+=M-x my/org-image-diagnose= asks for an image and collects the same
+information on demand: which executables are on =PATH=, their versions,
+the exact command line insertion would run, its exit status and its
+output. Nothing is stored and the file is not touched.
+
+The usual causes are a restrictive =policy.xml= (=magick -list policy=
+in a terminal reports it) and a missing delegate for the source format
+(the =Delegates= line of =magick -version=).
+
 **** Clicking a picture
 
 Inline previews carry a keymap:

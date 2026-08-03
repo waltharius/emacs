@@ -10,6 +10,7 @@
 ;;   `my/org-image-insert'                  C-c n i i
 ;;   `my/org-image-attachments-dired'       C-c n i I
 ;;   `my/org-image-recompress-attachments'  M-x, one-off cleanup
+;;   `my/org-image-diagnose'                M-x, when nothing shrinks
 ;;   mouse-1 / RET on a preview             open the image
 ;;   x on a preview                         open it in the desktop viewer
 ;;
@@ -64,6 +65,13 @@
 ;; PATH; on NixOS, `imagemagick' in the system packages.  Without it, or
 ;; for a format it has no delegate for, the file is copied unchanged and
 ;; the echo area says so.  Nothing fails.
+;;
+;; Both executables are tried in turn, because "installed" and "working"
+;; are different claims, and the command line, exit status and output of
+;; every failed run go to `my/org-image-log-buffer'.  An earlier version
+;; discarded them, which turned any conversion failure into a note that
+;; stayed four megabytes with nothing to explain why.
+;; `my/org-image-diagnose' collects the same information on demand.
 ;;
 ;; WHY CLICKING OPENS THE FILE INSTEAD OF GROWING THE PREVIEW
 ;;
@@ -288,20 +296,56 @@ share a number even though the pipeline may pick different formats."
 ;; CONVERTING
 ;; ============================================================
 
-(defun my/org-image--magick ()
-  "Return the ImageMagick executable to use, or nil when none is installed.
+(defvar my/org-image-log-buffer "*org-image-log*"
+  "Buffer where converter failures are recorded.
+A failed conversion is silent otherwise: the file is still stored, just
+unchanged, so without a log the only symptom is a note that stays four
+megabytes for no visible reason.")
+
+(defun my/org-image--converters ()
+  "Return the ImageMagick executables available, most current first.
 Version 7 installs `magick'; version 6 installs `convert', which
-version 7 still ships as a deprecated alias -- hence the order."
-  (or (executable-find "magick") (executable-find "convert")))
+version 7 still ships as a deprecated alias.  Both are returned: if one
+of them is broken -- a wrapper with the wrong environment, a policy that
+denies it something -- the other is worth trying before giving up."
+  (seq-filter #'identity
+              (list (executable-find "magick") (executable-find "convert"))))
+
+(defun my/org-image--magick ()
+  "Return the converter that would be tried first, or nil when none is installed."
+  (car (my/org-image--converters)))
 
 (defun my/org-image--size (file)
   "Return the size of FILE in bytes, or 0 when it is not there."
   (or (file-attribute-size (file-attributes file)) 0))
 
-(defun my/org-image--run (args)
-  "Run the converter with ARGS.  Return non-nil on success."
-  (let ((magick (my/org-image--magick)))
-    (and magick (eq 0 (apply #'call-process magick nil nil nil args)))))
+(defun my/org-image--log (program args status output)
+  "Record a failed run of PROGRAM with ARGS in `my/org-image-log-buffer'."
+  (with-current-buffer (get-buffer-create my/org-image-log-buffer)
+    (goto-char (point-max))
+    (insert (format "\n%s\n$ %s %s\nexit: %s\n%s\n"
+                    (format-time-string "%F %T")
+                    program
+                    (mapconcat #'shell-quote-argument args " ")
+                    status
+                    (string-trim (or output ""))))))
+
+(defun my/org-image--run (args &optional capture)
+  "Run each converter in turn with ARGS until one exits successfully.
+Return the converter's output when CAPTURE is non-nil, t for a plain
+success, and nil when every converter failed.  Output and exit status of
+a failed run go to `my/org-image-log-buffer'; discarding them is what
+made an earlier version report only that the converter refused a file."
+  (let ((converters (my/org-image--converters))
+        (result nil))
+    (while (and converters (null result))
+      (let ((program (pop converters)))
+        (with-temp-buffer
+          (let ((status (apply #'call-process program nil t nil args)))
+            (if (eq status 0)
+                (setq result (if capture (buffer-string) t))
+              (my/org-image--log program args status (buffer-string)))))))
+    result))
 
 (defun my/org-image--temp (extension)
   "Return a fresh temporary file name ending in EXTENSION."
@@ -312,15 +356,16 @@ version 7 still ships as a deprecated alias -- hence the order."
 `-sample' takes pixels as they are; `-resize' would blend them and
 report millions of colours for a two-colour screenshot.  An unreadable
 answer counts as `many', which routes the file to JPEG."
-  (let ((magick (my/org-image--magick)))
-    (with-temp-buffer
-      (if (and magick
-               (eq 0 (apply #'call-process magick nil t nil
-                            (list file "-sample" "400x400"
-                                  "-format" "%k" "info:")))
-               (string-match "[0-9]+" (buffer-string)))
-          (string-to-number (match-string 0 (buffer-string)))
-        most-positive-fixnum))))
+  (let ((output (my/org-image--run
+                 (list file "-sample" "400x400" "-format" "%k" "info:")
+                 t)))
+    ;; The number is taken from the END of the output: ImageMagick 7
+    ;; prints a deprecation warning when it is called as `convert', and
+    ;; that warning contains the digit 7.
+    (if (and (stringp output)
+             (string-match "\\([0-9]+\\)[ \t\n]*\\'" output))
+        (string-to-number (match-string 1 output))
+      most-positive-fixnum)))
 
 (defun my/org-image--compress (source no-resize)
   "Prepare a copy of SOURCE for storage.
@@ -398,7 +443,9 @@ symbol naming the last rung of the ladder that ran."
     ('original         "stored unchanged (prefix argument)")
     ('no-converter     "stored unchanged: ImageMagick not found")
     ('verbatim         "stored unchanged: format not rescaled")
-    ('converter-failed "stored unchanged: the converter refused it")
+    ('converter-failed
+     (format "stored unchanged: conversion failed, see %s"
+             my/org-image-log-buffer))
     ('resized          "rescaled")
     ('palette          "rescaled, 256-colour palette")
     ('jpeg             "rescaled, re-encoded as JPEG")
@@ -468,6 +515,9 @@ NO-RESIZE stores the image exactly as it is."
              current-prefix-arg))))
   (unless (derived-mode-p 'org-mode)
     (user-error "Images are inserted into Org buffers"))
+  ;; An external process does not expand "~": Emacs would read the file
+  ;; happily and ImageMagick would fail on the same name.
+  (setq source (expand-file-name source))
   (unless (file-readable-p source)
     (user-error "Cannot read %s" source))
   (make-directory my/org-image-attachments-directory t)
@@ -574,6 +624,61 @@ links keep working."
                changed (length files)
                (file-size-human-readable before)
                (file-size-human-readable after))))))
+
+;; ============================================================
+;; DIAGNOSTICS
+;; ============================================================
+
+;;;###autoload
+(defun my/org-image-diagnose (file)
+  "Report what the converter does with FILE, in one buffer.
+Writes the executables found, their versions, the exact command line
+that insertion would run, its exit status and everything it printed to
+`my/org-image-log-buffer', then shows it.  Nothing is stored and FILE is
+not touched."
+  (interactive
+   (list (read-file-name "Image to test: "
+                         (my/org-image--default-directory)
+                         nil t nil
+                         #'my/org-image--selectable-p)))
+  (setq file (expand-file-name file))
+  (let* ((converters (my/org-image--converters))
+         (extension (or (file-name-extension file) "png"))
+         (temp (my/org-image--temp extension))
+         (buffer (get-buffer-create my/org-image-log-buffer)))
+    (with-current-buffer buffer
+      (goto-char (point-max))
+      (insert (format "\n=== diagnose %s ===\n" (format-time-string "%F %T"))
+              (format "source:     %s\n" file)
+              (format "readable:   %s\n" (if (file-readable-p file) "yes" "no"))
+              (format "size:       %s\n"
+                      (file-size-human-readable (my/org-image--size file)))
+              (format "converters: %s\n" (or converters "NONE FOUND"))
+              (format "temp file:  %s\n" temp))
+      (dolist (program converters)
+        (goto-char (point-max))
+        (insert (format "\n--- %s -version ---\n" program))
+        (call-process program nil t nil "-version")))
+    (let ((ok (my/org-image--run
+               (append (list file "-auto-orient" "-strip")
+                       (when my/org-image-max-pixels
+                         (list "-resize"
+                               (format "%dx%d>"
+                                       my/org-image-max-pixels
+                                       my/org-image-max-pixels)))
+                       (list temp)))))
+      (with-current-buffer buffer
+        (goto-char (point-max))
+        (insert (format "\nrescale: %s, produced %s\n"
+                        (if ok "OK" "FAILED")
+                        (file-size-human-readable (my/org-image--size temp))))
+        (unless ok
+          (insert "The failed command line and its output are logged above.\n"
+                  "Worth checking in a terminal: `magick -list policy',\n"
+                  "which reports restrictions that make ImageMagick refuse\n"
+                  "files it can otherwise read.\n"))))
+    (ignore-errors (delete-file temp))
+    (display-buffer buffer)))
 
 ;; ============================================================
 ;; OPENING A PREVIEW
