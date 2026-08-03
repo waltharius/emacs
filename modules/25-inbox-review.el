@@ -148,16 +148,42 @@ shown in the mode line so a narrowed list never looks complete.")
   "Window used for previews.  Global on purpose - see the identical
 variable in 24-readwise.el for the reasoning.")
 
+(defun my/inbox--cell (value)
+  "Return VALUE as a string fit for a `tabulated-list-mode' cell.
+
+`tabulated-list-print-entry' requires a string and signals on anything
+else, taking the whole list down with it -- one malformed note and a
+thousand good ones become unreachable.  This is the boundary where that
+type is demanded, so it is the boundary where it is guaranteed: a note
+with a field this module cannot read shows an empty cell and stays on
+the list, where it can be seen and fixed."
+  (if (stringp value) value ""))
+
+(defun my/inbox--folder (entry)
+  "Return the source folder of ENTRY, as a string.
+
+`file-name-directory' returns nil, not the empty string, when its
+argument holds no directory part -- and the empty string holds none.  A
+note without a `:source_path:\=' therefore used to put nil into the
+Folder column and break the whole list.  Notes created in the inbox
+rather than migrated into it have no source path at all, so this was
+waiting for the first one of those."
+  (let ((source (plist-get entry :source)))
+    (or (and (stringp source)
+             (not (string-empty-p source))
+             (file-name-directory source))
+        "")))
+
 (defun my/inbox--list-entries (entries)
   "Convert ENTRIES into `tabulated-list-entries' form."
   (mapcar
    (lambda (e)
      (list e (vector
-              (plist-get e :date)
-              (plist-get e :status)
-              (plist-get e :tags)
-              (file-name-directory (or (plist-get e :source) ""))
-              (plist-get e :title))))
+              (my/inbox--cell (plist-get e :date))
+              (my/inbox--cell (plist-get e :status))
+              (my/inbox--cell (plist-get e :tags))
+              (my/inbox--cell (my/inbox--folder e))
+              (my/inbox--cell (plist-get e :title)))))
    entries))
 
 ;; Defined before `define-derived-mode', which creates NAME-map itself

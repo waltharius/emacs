@@ -7,6 +7,79 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02r — A nil in a tabulated-list cell
+
+### The failure
+
+`C-c n t r` (inbox review) reported
+
+```
+tabulated-list-print-entry: Wrong type argument: stringp, nil
+```
+
+`my/inbox--list-entries` built the Folder column as
+
+```elisp
+(file-name-directory (or (plist-get e :source) ""))
+```
+
+`file-name-directory` returns **nil**, not the empty string, when its
+argument holds no directory part — and the empty string holds none. So
+any inbox note without a `:source_path:` property put nil into the
+vector, and `tabulated-list-print-entry` signalled on it.
+
+The `(or ... "")` was already there, guarding the wrong side: it made
+sure `file-name-directory` received a string and never asked what it
+returned.
+
+Notes migrated from Obsidian carry `:source_path:`. Notes created in the
+inbox do not. This was waiting for the first one of those, and one such
+note makes the entire list unreachable — every other note with it.
+
+### Was this caused by recent work?
+
+No. The line is in `25-inbox-review.el`, which none of the recent
+sessions edited; the only change to that module's surroundings was
+`init.el` loading 27-denote-identifiers.el before it, which stopped a
+double load and touches nothing here. The fault is latent, data-driven,
+and predates all of it.
+
+That is worth recording plainly rather than assumed either way, because
+the honest answer to "did the last change break this" is usually
+findable and was findable here.
+
+### The fix, at the boundary that demands the type
+
+`my/inbox--folder` returns a string in every case, including the one
+where there is no source path.
+
+`my/inbox--cell` coerces every cell of the vector. `tabulated-list-mode`
+requires strings and signals on anything else, taking the whole list
+down — one malformed note and a thousand good ones become unreachable.
+Guaranteeing the type where it is demanded turns that into an empty
+cell on one row, with the note still listed, visible, and fixable.
+
+The same hazard was checked for elsewhere: every other
+`file-name-directory` call in the configuration is given an absolute
+path, and `26-maintenance.el`'s own list builds its cells from values
+that cannot be nil.
+
+### What the mechanical checks do and do not cover
+
+The two recorded in function_helper.org — duplicate top-level
+definitions, and calls to functions never defined — both pass on this
+repository and would have said nothing here. They catch a module being
+internally inconsistent about *symbols*.
+
+This was a *value* of the wrong type, produced only by data of a shape
+that had not occurred yet. Byte-compilation does not catch it either.
+Nothing short of running the command against a note without a source
+path does.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02q — Writing to a file should not need a buffer's permission
 
 ### The failure

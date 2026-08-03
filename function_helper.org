@@ -2602,6 +2602,30 @@ Filtering on =my/= is what makes it readable: under =-Q= the compiler
 knows nothing about Denote, Vertico or Org either, and those warnings
 are noise. A warning naming a =my/= symbol is not.
 
+** What neither check covers
+
+Both are about *symbols*: one defined twice, one never defined. Neither
+sees a *value* of the wrong type, and that is the other way a module
+breaks.
+
+=tabulated-list-print-entry: Wrong type argument: stringp, nil= in the
+inbox review came from =(file-name-directory "")=, which returns nil
+rather than the empty string. It had been in the code for as long as the
+module had, and fired the first time an inbox note lacked a
+=:source_path:= — the first note created there rather than migrated in.
+Byte-compilation says nothing about it.
+
+Two habits help where the checks cannot:
+
+- *Guarantee a type at the boundary that demands it,* not upstream of it.
+  =tabulated-list-mode= signals on a non-string and takes the whole list
+  down with it, so one malformed note makes a thousand good ones
+  unreachable. Coercing each cell turns that into one blank field on one
+  visible row.
+- *Read what a function returns, not only what it is given.* The broken
+  line already had an =(or ... "")= — guarding the argument, never the
+  result.
+
 
 The same over =defvar=, =defconst= and =defcustom= prints only
 =vertico-preselect=, which is deliberate: =05-notes.el= and
