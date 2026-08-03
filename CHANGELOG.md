@@ -7,6 +7,115 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02l — Keyword maintenance written here, not delegated
+
+### What was reported
+
+`K` (keyword rename, `denote-explore-rename-keyword`) produced a
+**second file** carrying only front matter — 137 bytes, no body — and
+left the original untouched. Two files, one identifier, one of them
+empty.
+
+`S` (`denote-explore-sync-metadata`) gave a save prompt that did not say
+what it wanted to do, failed with `denote--rename-file: The destination
+file already exists`, and made changes to a file that had been declined
+at the prompt.
+
+Neither could be reproduced from the outside, and both may depend on the
+state of this particular tree. This is therefore not a verdict on
+denote-explore. It is a decision about what can be vouched for when
+three thousand real notes are on the other end of the command:
+denote-explore is no longer called from the write path.
+
+### A — Keywords, on Denote's own primitive
+
+`my/maintenance-rename-keyword` is written against
+`denote-rename-file-keywords` — the same primitive behind `C-c n d k`,
+which touches the keyword field and nothing else. Title, identifier and
+signature are not rebuilt, so nothing else can move.
+
+Per-file confirmation is kept, as asked, and gains a fourth answer:
+
+| Key | Effect |
+|---|---|
+| `y` | rename this note |
+| `n` | leave it alone, move on |
+| `v` | show the note in another window and **ask again** |
+| `q` | stop, leaving the rest untouched |
+
+`v` exists because a keyword that looks wrong in a list is sometimes
+right in the note, and deciding that used to mean leaving the command,
+finding the file, and starting over. It does not end the run: the same
+question returns with the note on screen beside it. Built on
+`read-multiple-choice`, which is the built-in for exactly this and
+supplies its own help.
+
+### B — Two things the old command got wrong, fixed explicitly
+
+`denote-save-buffers` is bound to t for the duration, with a further
+explicit `save-buffer` afterwards, so a renamed note reaches the disk
+instead of sitting modified in a buffer. An interrupted run leaves
+nothing unsaved.
+
+`denote-rename-confirmations` is bound to nil. This command has already
+asked about this file; a second prompt underneath, whose answer means
+something different, is precisely how a declined change becomes a
+carried-out one.
+
+### C — A preview before the loop
+
+The affected notes are listed in a buffer before the first prompt, with
+the operation stated in a sentence — `Rename keyword X to Y` or
+`Remove keyword X` — and the four answers explained. The complaint about
+`S` was that it was impossible to see what it intended; that is a
+property worth not repeating.
+
+Renaming onto an existing keyword merges two spellings, so the
+replacement prompt completes over the keywords already in use.
+
+### D — `my/maintenance-keyword-inventory`
+
+Every keyword with the number of notes using it, **sorted
+alphabetically** rather than by frequency: near duplicates are what a
+migrated collection accumulates, and `filozofia` directly above
+`flozofia` is what makes them visible. Count is the second signal, and
+keywords used once are marked. Each keyword is a button that starts a
+rename of it.
+
+This is the keyword review that was deferred to a later part. It arrived
+early because the rename had to be rewritten anyway, and a rename
+without a way to find what needs renaming is half a tool.
+
+### E — Attachments
+
+Correct as observed: attachments carry an identifier so links can reach
+them, but no front matter and no keywords. Nothing here ever saw them —
+`my/denote--all-files` returns .org files only — but the Commentary now
+says so rather than leaving it to be inferred, and denote-explore, which
+did scan them, is gone from this module.
+
+### F — Menu
+
+`O` (alphabetise all keywords) and `S` (sync front matter to file names)
+are removed. Both were denote-explore writes and neither can be
+recommended on this evidence. Keyword sorting is not lost: Denote sorts
+keywords on every rename when `denote-sort-keywords` is non-nil, so the
+inventory and rename above maintain it note by note.
+
+Added: `k` keyword inventory, `z` notes with no keywords. Both read-only.
+
+### G — Findings from the first run, for the record
+
+`i` and `g` clean — no duplicate identifiers or signatures. `b` five
+notes and `l` seven, six of them in the inbox: links into notes not yet
+filed, which resolve as those notes move. The remainder are Obsidian
+in-document section links that the migration did not distinguish from
+links to other documents, and are a separate job.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02k — 26-maintenance.el, part one: checks and a menu
 
 ### Context

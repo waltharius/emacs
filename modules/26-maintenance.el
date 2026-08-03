@@ -2,65 +2,75 @@
 
 ;;; Commentary:
 ;; A place to look after the collection rather than write in it: find
-;; what the Obsidian migration broke, and reach the tools that fix it.
+;; what the Obsidian migration broke, and repair it.
 ;;
-;; MOSTLY A MENU, ON PURPOSE
+;; WHAT COMES FROM WHERE
 ;;
-;; Almost nothing here is new.  Three of the four jobs this module was
-;; asked for already existed and were reachable only through `M-x':
+;; Identifiers were already solved.  27-denote-identifiers.el holds
+;; `my/denote-change-identifier' (change one, and repoint every link to
+;; it), `my/denote-check-identifiers', `my/denote-fix-duplicates' and
+;; `my/denote-find-self-links'.  They were reachable only through `M-x',
+;; which is most of why this module exists.  It calls them; it does not
+;; reimplement them.
 ;;
-;;   `my/denote-change-identifier'   27-denote-identifiers.el
-;;   `my/denote-check-identifiers'   27-denote-identifiers.el
-;;   `my/denote-fix-duplicates'      27-denote-identifiers.el
-;;   `my/denote-find-self-links'     27-denote-identifiers.el
-;;   `denote-explore-rename-keyword' denote-explore package
-;;   `denote-explore-sync-metadata'  denote-explore package
+;; Denote upstream deliberately does not cover that ground: its manual
+;; gives sample code for finding duplicate identifiers and says that,
+;; being an edge case, it is not part of the code base.  Nor does
+;; `denote-rename-file-using-front-matter' change an identifier --
+;; Denote treats the file name as the source of truth for that field.
 ;;
-;; Denote itself deliberately does not solve the identifier problem:
-;; its manual gives sample code for finding duplicates and says in as
-;; many words that, being an edge case, it is not part of the code base.
-;; Nor will `denote-rename-file-using-front-matter' change one -- Denote
-;; treats the file name as the source of truth for identifiers.  So
-;; 27-denote-identifiers.el is not duplicating anything upstream, and
-;; this module calls it rather than reimplementing it.
+;; WRITTEN HERE
 ;;
-;; WHAT IS ACTUALLY NEW HERE
+;;   `my/denote-check-signatures'          duplicate Folgezettel signatures
+;;   `my/denote-check-broken-links'        `denote:' links with no target
+;;   `my/maintenance-keyword-inventory'    every keyword, with counts
+;;   `my/maintenance-notes-without-keywords'
+;;   `my/maintenance-rename-keyword'       rename or remove one keyword
+;;                                         across the collection
 ;;
-;;   `my/denote-check-signatures'    duplicate Folgezettel signatures
-;;   `my/denote-check-broken-links'  `denote:' links whose target does
-;;                                   not exist
+;; NOT DELEGATED TO denote-explore, AND WHY
 ;;
-;; denote-explore covers keywords and identifiers but not signatures,
-;; and a duplicate signature breaks a sequence exactly the way a
-;; duplicate identifier breaks a link.
+;; The first version of this module wrapped denote-explore, which does
+;; cover keywords.  In this collection its writing commands produced a
+;; second file holding only front matter while leaving the original
+;; untouched, and carried out changes that had been declined at the
+;; prompt.  Neither could be reproduced from the outside and it may well
+;; depend on the state of this particular tree, so this is not a verdict
+;; on the package.  It is a decision about what can be vouched for when
+;; three thousand real notes are on the other end of the command.
 ;;
-;; THE INBOX, AND WHY IT NEEDS SAYING
+;; The keyword side is therefore written against Denote's own
+;; primitive, `denote-rename-file-keywords' -- the same one behind
+;; `C-c n d k', which touches the keyword field and nothing else.
 ;;
-;; Every denote-explore command works from `denote-directory-files',
-;; which honours `denote-excluded-directories-regexp' -- set to "inbox"
-;; in 25-inbox-review.el.  Left alone, renaming a keyword would silently
-;; skip more than a thousand staged notes, and the old keyword would
-;; reappear one note at a time as they were filed.
+;; SCOPE: INBOX YES, ATTACHMENTS NO
 ;;
-;; The wrappers below therefore run denote-explore inside
-;; `my/maintenance-with-full-scope'.  The checks written here do not
-;; need it: they use `my/denote--all-files' from 27, which walks
-;; `my-notes-dir' directly for this very reason.
+;; Everything here reads `my/denote--all-files' from 27, which walks
+;; `my-notes-dir' directly and returns .org files only.  Two
+;; consequences, both wanted:
+;;
+;;   The staging inbox IS included.  A keyword renamed everywhere except
+;;   there comes back one note at a time as notes are filed -- a failure
+;;   that would surface weeks later, attached to nothing.  (Denote's own
+;;   listing would have excluded it, since 25-inbox-review.el sets
+;;   `denote-excluded-directories-regexp' to "inbox".)
+;;
+;;   Attachments are NOT included.  A PDF or an image carries an
+;;   identifier so that links can reach it, but it has no front matter
+;;   and no keywords to review.
 ;;
 ;; READ AND WRITE ARE SEPARATED IN THE MENU
 ;;
-;; The menu keeps checks apart from repairs, because the two carry
-;; different risk.  A check opens a buffer.  A repair renames files
-;; across the whole collection, and the ones that do are grouped under
-;; capital letters so that a mistyped key cannot start one.
+;; Checks are on lower-case keys and open a buffer.  Anything that
+;; renames files across the collection is on a capital, so a mistyped
+;; key cannot start one.
 ;;
 ;; DEPENDENCIES
 ;;
 ;; 27-denote-identifiers.el, at call time only -- this module has a
-;; lower number and therefore loads first, which does not matter because
-;; nothing here runs until a command is invoked.  Commands that need it
-;; check and say so.  denote-explore is required on demand by the
-;; wrappers.  12-transient.el is optional: the menu entry goes through
+;; lower number and loads first, which does not matter because nothing
+;; here runs until a command is invoked.  Commands that need it check
+;; and say so.  12-transient.el is optional: the menu entry goes through
 ;; `my/transient-append', which skips silently when absent.
 ;;
 ;; Docs: ~/.emacs.d/function_helper.org::#maintenance
@@ -71,50 +81,17 @@
 (require 'seq)
 (require 'transient)
 
-;; Denote's, declared so the bindings below are dynamic.
-(defvar denote-excluded-directories-regexp)
-(defvar denote-excluded-files-regexp)
-
-;; ============================================================
-;; SCOPE
-;; ============================================================
-
-(defconst my/maintenance-unrestricted-regexp "\\`\\'"
-  "A regexp that matches nothing a path can ever be.
-
-It matches the empty string only, so binding Denote's exclusion
-options to it excludes nothing.  An empty string is used rather than
-nil because Denote is free to treat nil and a regexp differently in
-future, while a regexp that cannot match is safe under either
-reading.")
-
-(defmacro my/maintenance-with-full-scope (&rest body)
-  "Run BODY with every note visible to Denote, staging inbox included.
-
-Maintenance is the one activity that must see the whole collection.
-Everywhere else the inbox is excluded on purpose: a staged note may
-duplicate a filed one until it is accepted, and hiding it keeps prompts
-and backlinks honest.  A keyword rename that skipped it would be wrong
-in a way that only shows up weeks later."
-  (declare (indent 0) (debug t))
-  `(let ((denote-excluded-directories-regexp my/maintenance-unrestricted-regexp)
-         (denote-excluded-files-regexp my/maintenance-unrestricted-regexp))
-     ,@body))
+;; Declared, not defined: these belong to Denote.  Declaring marks them
+;; special for this file so the bindings below are dynamic, and a name
+;; absent from some version simply gets a binding nothing reads.
+(defvar denote-rename-confirmations)
+(defvar denote-save-buffers)
 
 (defun my/maintenance--require-identifiers ()
   "Signal unless 27-denote-identifiers.el has been loaded."
   (unless (and (fboundp 'my/denote--all-files)
                (fboundp 'my/denote--identifier-table))
     (user-error "27-denote-identifiers.el is not loaded")))
-
-(defun my/maintenance--call-explore (command)
-  "Load denote-explore, then run COMMAND over the whole collection."
-  (unless (require 'denote-explore nil t)
-    (user-error "The denote-explore package is not available"))
-  (unless (fboundp command)
-    (user-error "%s is not defined in this version of denote-explore" command))
-  (my/maintenance-with-full-scope
-    (call-interactively command)))
 
 ;; ============================================================
 ;; REPORTS
@@ -273,69 +250,226 @@ included, since staged notes link to filed ones and to each other."
       (message "No broken denote: links found"))))
 
 ;; ============================================================
-;; KEYWORD TOOLS (denote-explore, run over the whole collection)
+;; KEYWORDS
 ;; ============================================================
-;; Thin wrappers, each doing three things the bare command cannot: load
-;; denote-explore, widen the scope to include the inbox, and say
-;; something useful when the package is missing.
+;; Keywords are read from file names, which is where Denote keeps them
+;; and what its own rename rebuilds.  See the Commentary above for why
+;; this is written against `denote-rename-file-keywords' rather than
+;; delegated, and for what the scope includes.
+
+(defun my/maintenance--file-keywords (file)
+  "Return FILE's keywords, read from its file name, as a list of strings."
+  (cond
+   ((fboundp 'denote-extract-keywords-from-path)
+    (denote-extract-keywords-from-path file))
+   ((fboundp 'denote-retrieve-filename-keywords)
+    (when-let* ((raw (denote-retrieve-filename-keywords file)))
+      (split-string raw "_" t)))
+   (t
+    (let ((name (file-name-nondirectory file)))
+      (when (string-match "__\\([^.]+\\)" name)
+        (split-string (match-string 1 name) "_" t))))))
+
+(defun my/maintenance--keyword-table ()
+  "Return a hash of keyword -> list of files using it."
+  (my/maintenance--require-identifiers)
+  (let ((table (make-hash-table :test #'equal)))
+    (dolist (file (my/denote--all-files))
+      (dolist (keyword (my/maintenance--file-keywords file))
+        (puthash keyword (cons file (gethash keyword table)) table)))
+    table))
+
+(defun my/maintenance--keyword-names (&optional table)
+  "Return every keyword in TABLE, sorted alphabetically."
+  (let (names)
+    (maphash (lambda (keyword _files) (push keyword names))
+             (or table (my/maintenance--keyword-table)))
+    (sort names #'string<)))
+
+;; ------------------------------------------------------------
+;; Inventory
+;; ------------------------------------------------------------
 
 ;;;###autoload
-(defun my/maintenance-rename-keyword ()
-  "Rename or remove one keyword across the whole collection.
+(defun my/maintenance-keyword-inventory ()
+  "List every keyword with the number of notes using it.
 
-`denote-explore-rename-keyword' with the inbox in scope.  It works from
-the front matter, asks for confirmation per file, and treats an empty
-replacement as removal.
+Sorted alphabetically on purpose rather than by frequency: near
+duplicates are what a migrated collection accumulates, and `filozofia'
+directly above `flozofia' is what makes them visible.  The count is the
+second signal -- a keyword used once beside one used four hundred times
+is usually a typo of it, and those are marked.
 
-On a keyword used by hundreds of notes this means hundreds of prompts.
-Renaming a rare keyword first is the cheap way to see what the command
-does before committing to a common one."
+Each keyword is a button that starts a rename of it."
   (interactive)
-  (my/maintenance--call-explore 'denote-explore-rename-keyword))
+  (let* ((table (my/maintenance--keyword-table))
+         (names (my/maintenance--keyword-names table))
+         (buffer (get-buffer-create "*Denote Keyword Inventory*")))
+    (if (null names)
+        (message "No keywords found")
+      (with-current-buffer buffer
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert (format "%d keyword(s) across %d note(s) under %s.\n"
+                          (length names)
+                          (length (my/denote--all-files))
+                          my-notes-dir))
+          (insert "Attachments are not listed: they carry identifiers, not keywords.\n")
+          (insert "Click a keyword to rename or remove it everywhere.\n")
+          (insert "A keyword used once is marked - usually specific, sometimes a typo.\n\n")
+          (dolist (keyword names)
+            (let ((count (length (gethash keyword table))))
+              (insert (format "%5d  " count))
+              (insert-text-button
+               keyword
+               'action (lambda (_) (my/maintenance-rename-keyword keyword))
+               'follow-link t
+               'help-echo (format "Rename or remove `%s' across the collection"
+                                  keyword))
+              (when (= count 1) (insert "   ·"))
+              (insert "\n"))))
+        (goto-char (point-min))
+        (special-mode)
+        (display-buffer (current-buffer)))
+      (message "%d keyword(s)" (length names)))))
 
 ;;;###autoload
-(defun my/maintenance-zero-keywords ()
-  "List notes carrying no keywords at all."
+(defun my/maintenance-notes-without-keywords ()
+  "Report notes carrying no keywords at all."
   (interactive)
-  (my/maintenance--call-explore 'denote-explore-zero-keywords))
+  (my/maintenance--require-identifiers)
+  (let ((files (seq-remove #'my/maintenance--file-keywords
+                           (my/denote--all-files))))
+    (if (my/maintenance--report
+         "*Denote Notes Without Keywords*"
+         (format "%d note(s) under %s carry no keywords."
+                 (length files) my-notes-dir)
+         (when files (list (cons "No keywords" (sort files #'string<)))))
+        (message "%d note(s) without keywords" (length files))
+      (message "Every note has at least one keyword"))))
+
+;; ------------------------------------------------------------
+;; Rename
+;; ------------------------------------------------------------
+
+(defun my/maintenance--set-keywords (file keywords)
+  "Give FILE the keyword list KEYWORDS and save it.  Return the new path.
+
+Uses `denote-rename-file-keywords', the same primitive behind
+`C-c n d k', which touches the keyword field and nothing else.
+
+Denote's own confirmations are switched off for the duration: this
+command has already asked about this file, and a second prompt whose
+answer means something different is how a declined change turns into a
+carried-out one.  `denote-save-buffers' is switched on so the note
+reaches the disk rather than sitting modified in a buffer -- with a
+belt-and-braces save afterwards for the case where Denote leaves it to
+the caller."
+  (let ((denote-rename-confirmations nil)
+        (denote-save-buffers t))
+    (let ((new (if (fboundp 'denote-rename-file-keywords)
+                   (denote-rename-file-keywords file keywords)
+                 (denote-rename-file file 'keep-current keywords
+                                     'keep-current 'keep-current))))
+      (when-let* ((path (if (stringp new) new file))
+                  (buffer (find-buffer-visiting path)))
+        (with-current-buffer buffer
+          (when (buffer-modified-p) (save-buffer))))
+      new)))
+
+(defun my/maintenance--view-file (file)
+  "Show FILE in another window without selecting it."
+  (display-buffer (find-file-noselect file)
+                  '(display-buffer-pop-up-window (inhibit-same-window . t))))
+
+(defun my/maintenance--preview-keyword-change (keyword replacement files)
+  "Show what renaming KEYWORD to REPLACEMENT would touch across FILES."
+  (my/maintenance--report
+   "*Denote Keyword Rename Preview*"
+   (format (concat "%s\n\n"
+                   "%d note(s) affected.  Each will be confirmed separately:\n"
+                   "  y  rename    n  leave alone    v  view the note    q  stop here\n\n"
+                   "Only the keyword field changes.  Title, identifier and signature\n"
+                   "are left exactly as they are, and every note is saved to disk.")
+           (if (string-empty-p replacement)
+               (format "Remove keyword `%s'." keyword)
+             (format "Rename keyword `%s' to `%s'." keyword replacement))
+           (length files))
+   (list (cons "Affected notes" (sort (copy-sequence files) #'string<)))))
 
 ;;;###autoload
-(defun my/maintenance-single-keywords ()
-  "List keywords used by exactly one note.
+(defun my/maintenance-rename-keyword (&optional keyword replacement)
+  "Rename KEYWORD to REPLACEMENT everywhere, one note at a time.
 
-The most useful of the keyword reports after a migration: a keyword
-that appears once is either genuinely specific or a misspelling of one
-that appears often, and the two are easy to tell apart by eye."
+An empty REPLACEMENT removes the keyword.  Interactively both are read
+with completion over the keywords already in use, so a rename onto an
+existing keyword -- merging two spellings into one -- is a matter of
+picking the survivor from the list.
+
+A preview of the affected notes is shown first.  Then each note is
+confirmed on its own, with four answers:
+
+  y  rename this note
+  n  leave it alone and move on
+  v  show the note in another window and ask again
+  q  stop, leaving the remaining notes untouched
+
+`v' exists because a keyword that looks wrong in a list sometimes turns
+out to be right in the note, and deciding that used to mean leaving the
+command, finding the file, and starting over.  It does not end the run:
+the same question comes back with the note on screen beside it.
+
+Only the keyword field is written.  A note is saved to disk as it is
+changed, so an interrupted run leaves no modified buffers behind."
   (interactive)
-  (my/maintenance--call-explore 'denote-explore-single-keywords))
-
-;;;###autoload
-(defun my/maintenance-sort-keywords ()
-  "Alphabetise the keywords of every note, renaming files where needed."
-  (interactive)
-  (my/maintenance--call-explore 'denote-explore-sort-keywords))
-
-;;;###autoload
-(defun my/maintenance-count-keywords ()
-  "Report how many distinct keywords the collection uses."
-  (interactive)
-  (my/maintenance--call-explore 'denote-explore-count-keywords))
-
-;;;###autoload
-(defun my/maintenance-sync-metadata ()
-  "Bring file names into line with front matter, note by note.
-
-`denote-explore-sync-metadata' compares each note's front matter with
-its file name and offers to rename where they disagree.  This is the
-best single check against migration damage, because a script that wrote
-front matter and file names separately could get them out of step
-without either looking wrong on its own.
-
-It does NOT touch identifiers: Denote treats the file name as the source
-of truth for those, so a wrong identifier needs
-`my/denote-change-identifier', which also repoints the links."
-  (interactive)
-  (my/maintenance--call-explore 'denote-explore-sync-metadata))
+  (my/maintenance--require-identifiers)
+  (let* ((table (my/maintenance--keyword-table))
+         (names (my/maintenance--keyword-names table))
+         (keyword (or keyword
+                      (completing-read "Rename which keyword: " names nil t)))
+         (files (gethash keyword table)))
+    (unless files
+      (user-error "No note uses the keyword `%s'" keyword))
+    (setq replacement
+          (string-trim
+           (or replacement
+               (completing-read
+                (format "Rename `%s' to (empty removes it): " keyword)
+                names nil nil))))
+    (when (string= replacement keyword)
+      (user-error "That is already the keyword"))
+    (my/maintenance--preview-keyword-change keyword replacement files)
+    (let ((changed 0)
+          (skipped 0))
+      (catch 'my/maintenance--stop
+        (dolist (file (sort (copy-sequence files) #'string<))
+          (let ((decided nil))
+            (while (not decided)
+              (pcase (car (read-multiple-choice
+                           (format "%s [%s]"
+                                   (file-relative-name file my-notes-dir)
+                                   (string-join
+                                    (my/maintenance--file-keywords file) ","))
+                           '((?y "yes" "Rename this note")
+                             (?n "no" "Leave this note alone")
+                             (?v "view" "Show the note, then ask again")
+                             (?q "quit" "Stop, leaving the rest untouched"))))
+                (?y
+                 (let* ((current (my/maintenance--file-keywords file))
+                        (kept (remove keyword current))
+                        (new (if (string-empty-p replacement)
+                                 kept
+                               (delete-dups (append kept (list replacement))))))
+                   (my/maintenance--set-keywords file new))
+                 (setq changed (1+ changed) decided t))
+                (?n (setq skipped (1+ skipped) decided t))
+                (?v (my/maintenance--view-file file))
+                (?q (throw 'my/maintenance--stop nil)))))))
+      (message "%s: %d note(s) changed, %d left alone"
+               (if (string-empty-p replacement)
+                   (format "Removed `%s'" keyword)
+                 (format "`%s' -> `%s'" keyword replacement))
+               changed skipped))))
 
 ;; ============================================================
 ;; MENU
@@ -347,17 +481,13 @@ of truth for those, so a wrong identifier needs
     ("i" "Duplicate identifiers" my/denote-check-identifiers)
     ("g" "Duplicate signatures"  my/denote-check-signatures)
     ("b" "Broken denote: links"  my/denote-check-broken-links)
-    ("l" "Self-links"            my/denote-find-self-links)]
-   ["Keywords"
-    ("u" "Used once only"        my/maintenance-single-keywords)
-    ("z" "Notes with none"       my/maintenance-zero-keywords)
-    ("c" "Count distinct"        my/maintenance-count-keywords)]
+    ("l" "Self-links"            my/denote-find-self-links)
+    ("k" "Keyword inventory"     my/maintenance-keyword-inventory)
+    ("z" "Notes with no keywords" my/maintenance-notes-without-keywords)]
    ["Repair (renames files)"
     ("R" "Change this note's identifier" my/denote-change-identifier)
     ("I" "Fix duplicate identifiers"     my/denote-fix-duplicates)
-    ("K" "Rename or remove a keyword"    my/maintenance-rename-keyword)
-    ("O" "Alphabetise all keywords"      my/maintenance-sort-keywords)
-    ("S" "Sync front matter ↔ names"     my/maintenance-sync-metadata)]
+    ("K" "Rename or remove a keyword"    my/maintenance-rename-keyword)]
    [("q" "Quit" transient-quit-one)]])
 
 ;; Appended after "a" (Add to dict), the last entry of the second
