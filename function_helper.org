@@ -1402,8 +1402,16 @@ decision — =pks=, =docu=, Zettelkasten, or nothing.
 | Key       | Command                | Effect                                |
 |-----------+------------------------+---------------------------------------|
 | =C-c n t i r= | =my/inbox-review=  | Open the review list                  |
-| =C-c X=   | =my/inbox-extract=     | Extract region/subtree/paragraph      |
+| =C-c X=, =C-c n t i x= | =my/inbox-extract= | Split a fragment into a *new* note |
 | =C-c n t i o= | =my/inbox-open-directory= | Inbox folder in Dired         |
+
+*Extraction is not promotion.* =x= takes a region, subtree or paragraph
+out into a *new* note — new identifier, today's date, =:extracted_from:=
+naming the source — and leaves a link where the fragment was. The
+source note stays in the inbox, which is why it does not disappear.
+
+Filing a note into a silo is =p= or =d= *inside the review list*. Those
+act on the row at point, which is why they are not on the menu.
 
 In the review list:
 
@@ -1418,6 +1426,26 @@ In the review list:
 | =k=   | Reject → =~/notes/inbox-odrzucone/= (confirmed)              |
 | =/=   | Filter by title, tags or source folder; =C-/= clears         |
 | =g=   | Refresh; =S= or a header click sorts; =q= quits              |
+
+** Extraction stops at the front matter
+
+The paragraph fallback used to take it. =#+key:= lines are contiguous,
+so with point anywhere among them the surrounding "paragraph" *is* the
+front matter block — and since extracted text is replaced by a link,
+extraction wrote the source's header into a new note and *removed it
+from the source*.
+
+=my/inbox--content-start= now marks where the body begins: past the
+leading =#+key:= lines and any =:PROPERTIES:= drawer beneath them.
+
+- point in the body, paragraph reaching too far up → the start is
+  clamped;
+- point in the front matter → refused, with a message;
+- nothing but whitespace selected → refused.
+
+If a note was extracted from while point sat in its header, check it:
+the identifier survives in the file name, but =#+title:=,
+=#+filetags:= and =#+identifier:= may need restoring.
 
 ** Why the inbox is not a silo
 

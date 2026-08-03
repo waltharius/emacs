@@ -467,20 +467,66 @@ existing thread."
 ;; EXTRACT PART OF A NOTE INTO A NEW NOTE
 ;; ============================================================
 
+(defun my/inbox--content-start ()
+  "Return the position where the note's body begins.
+
+Everything above it describes the note rather than being part of it:
+the leading run of `#+key:' lines, and a `:PROPERTIES:' drawer sitting
+directly beneath them.  A note with no front matter at all returns
+`point-min', which is correct - all of it is body."
+  (save-excursion
+    (save-restriction
+      (widen)
+      (goto-char (point-min))
+      ;; Leading `#+key:' lines, and the blank lines among them.
+      (while (and (not (eobp))
+                  (looking-at "^[ \t]*\\(#\\+[^:\n]+:\\|$\\)"))
+        (forward-line 1))
+      ;; A properties drawer here belongs to the file, not to a heading.
+      (when (looking-at "^[ \t]*:PROPERTIES:[ \t]*$")
+        (when (re-search-forward "^[ \t]*:END:[ \t]*$" nil t)
+          (forward-line 1)))
+      (point))))
+
 (defun my/inbox--extract-bounds ()
-  "Bounds of the text to extract: region, else subtree, else paragraph."
-  (cond
-   ((use-region-p)
-    (cons (region-beginning) (region-end)))
-   ((and (derived-mode-p 'org-mode)
-         (save-excursion (ignore-errors (org-back-to-heading t))))
-    (save-excursion
-      (org-back-to-heading t)
-      (let ((beg (point)))
-        (org-end-of-subtree t t)
-        (cons beg (point)))))
-   (t (cons (save-excursion (backward-paragraph) (point))
-            (save-excursion (forward-paragraph) (point))))))
+  "Bounds of the text to extract: region, else subtree, else paragraph.
+
+Never reaches into the front matter.  Without that floor the paragraph
+fallback silently took it: `#+key:' lines are contiguous, so with point
+anywhere among them the surrounding \"paragraph\" IS the front matter
+block.  Extracting it produced a new note whose body was the source's
+header - duplicated, since the new note gets a header of its own - and,
+far worse, removed that header from the source, because extracted text
+is replaced by a link.
+
+When point is in the body and only the paragraph reaches too far up,
+the start is clamped instead.  When point is itself in the front matter
+there is nothing to extract and this says so."
+  (let* ((floor (my/inbox--content-start))
+         (bounds
+          (cond
+           ((use-region-p)
+            (cons (region-beginning) (region-end)))
+           ((and (derived-mode-p 'org-mode)
+                 (save-excursion (ignore-errors (org-back-to-heading t))))
+            (save-excursion
+              (org-back-to-heading t)
+              (let ((beg (point)))
+                (org-end-of-subtree t t)
+                (cons beg (point)))))
+           (t (cons (save-excursion (backward-paragraph) (point))
+                    (save-excursion (forward-paragraph) (point)))))))
+    (when (< (car bounds) floor)
+      (if (>= (point) floor)
+          (setcar bounds floor)
+        (user-error "Point is in the front matter - nothing to extract")))
+    (when (>= (car bounds) (cdr bounds))
+      (user-error "Nothing to extract here"))
+    (when (string-empty-p
+           (string-trim (buffer-substring-no-properties
+                         (car bounds) (cdr bounds))))
+      (user-error "Nothing to extract here"))
+    bounds))
 
 ;;;###autoload
 (defun my/inbox-extract ()
@@ -491,11 +537,18 @@ note records where it came from in :extracted_from:."
   (interactive)
   (let* ((bounds (my/inbox--extract-bounds))
          (text (buffer-substring-no-properties (car bounds) (cdr bounds)))
+         ;; First line with something on it, minus any heading stars.
+         ;; A `#+key:' line cannot reach here now that the bounds refuse
+         ;; the front matter, but stripping one costs nothing and makes
+         ;; a bad default impossible rather than merely unlikely.
          (default-title
           (string-trim
            (replace-regexp-in-string
-            "\\`\\*+\\s-*" ""
-            (car (split-string (string-trim text) "\n")))))
+            "\\`\\(?:\\*+\\s-*\\|#\\+[^:\n]+:\\s-*\\)" ""
+            (or (seq-find (lambda (line)
+                            (not (string-empty-p (string-trim line))))
+                          (split-string text "\n"))
+                ""))))
          (title (read-string
                  (format "Title (%s): " default-title)
                  nil nil default-title))
@@ -583,9 +636,14 @@ note records where it came from in :extracted_from:."
 (transient-define-prefix my/inbox-menu ()
   "Review notes migrated from Obsidian."
   [["Review"
-    ("r" "Review inbox"        my/inbox-review)]
+    ;; Promotion into a silo happens inside the review list, on the note
+    ;; at point - it needs a selected row, so it cannot be offered here.
+    ("r" "Review inbox  (p/d file it, k reject)" my/inbox-review)]
    ["In a note"
-    ("x" "Extract to new note" my/inbox-extract)]
+    ;; NOT promotion: this splits a fragment out into a NEW note, with a
+    ;; new identifier and today's date, and leaves the source in place
+    ;; with a link where the fragment was.
+    ("x" "Extract fragment to a new note" my/inbox-extract)]
    ["Files"
     ("o" "Open inbox folder"   my/inbox-open-directory)
     ("O" "Open rejects folder" my/inbox-open-reject-directory)]

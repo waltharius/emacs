@@ -7,6 +7,95 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02s — Extraction was taking the front matter
+
+### What was reported
+
+`C-c n t i x` in an inbox note offered the whole `#+title:      ...`
+line as the default title, then produced a note containing only front
+matter, duplicated. A second attempt worked, but the new note carried
+today's date rather than the source's, recorded
+`:extracted_from: 20230331T114200--farewell-letter-to-bd-team.org`, and
+the inbox note did not disappear.
+
+### Three of those are not faults
+
+`C-c n t i x` is `my/inbox-extract`, which splits a *fragment* out into
+a **new** note and leaves a link in its place. A new note gets a new
+identifier and today's date; the source stays where it is; the
+`:extracted_from:` property names the file it came from. All by design.
+
+Promotion into a silo is `my/inbox-accept`, reached as `p` or `d` on a
+row inside the review list (`C-c n t i r`), with `k` to reject. It needs
+a selected row, which is why it is not on the menu — and why `x` sitting
+there alone invited the confusion. Both entries are relabelled.
+
+### One of them is a real fault, and it destroys source text
+
+`my/inbox--extract-bounds` fell back to
+`backward-paragraph`/`forward-paragraph`. Front matter lines are
+contiguous, so with point anywhere among them **the surrounding
+paragraph is the front matter block**. Extraction then:
+
+1. offered `#+title:      Farewell letter…` as the default title —
+   exactly what was seen;
+2. wrote the source's header as the *body* of the new note, which also
+   receives a header of its own, hence the duplication;
+3. **deleted that header from the source** and put a link there, because
+   extracted text is replaced by a link.
+
+The second attempt succeeded because point was by then in the body.
+
+**Worth checking:** the note this was first tried on may have lost its
+front matter. Its Denote identifier lives in the file name, so it is
+recoverable, but `#+title:`, `#+filetags:` and `#+identifier:` may need
+restoring.
+
+### The fix
+
+`my/inbox--content-start` returns where the body begins: past the
+leading run of `#+key:` lines and any `:PROPERTIES:` drawer beneath
+them. `my/inbox--extract-bounds` will not start above it.
+
+- point in the body, paragraph reaching too far up → start clamped;
+- point in the front matter → refused, with a message;
+- empty result → refused.
+
+The default title now takes the first line with something on it, and
+strips a `#+key:` prefix as well as heading stars. That prefix cannot
+reach it any more; stripping it makes a bad default impossible rather
+than unlikely.
+
+### Was this caused by recent work?
+
+No. `my/inbox-extract` and `my/inbox--extract-bounds` have not been
+edited in this configuration's recent history — the only change ever
+made to `25-inbox-review.el` here is the cell coercion in session
+2026-08-02r, in a different function. The changelog references the
+module in eight earlier sessions and modifies it in none of them.
+
+Nor is a global setting involved. Everything that moved out of
+`26-performance.el` — `auto-revert-avoid-polling`,
+`dired-auto-revert-buffer`, `jit-lock-defer-time`, image sizes, font
+cache compaction — was already in effect before the move and is not
+read by this module or by Denote's writing path.
+
+### Why "it worked before" is true and unhelpful
+
+Both faults in this module were positional or data-dependent:
+
+- the `stringp, nil` crash needed an inbox note without `:source_path:`,
+  which only notes *created* in the inbox lack;
+- this one needed point to be in the front matter rather than the body.
+
+Neither is reached by ordinary use until the day it is. Code that has
+worked for months can still contain a fault reached by one cursor
+position, and "it worked before" narrows nothing.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02r — A nil in a tabulated-list cell
 
 ### The failure
