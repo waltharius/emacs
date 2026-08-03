@@ -2657,26 +2657,42 @@ of truth for that field.
 
 ** Renaming a keyword everywhere
 
-=K= shows the affected notes first, then confirms each one:
+=K= asks for the keyword and its replacement, then opens a review list
+of every note that uses it. Nothing is written until a decision is made
+on a row.
 
 | Key | Effect |
 |-----+--------|
+| =RET= | preview the note in a side window, focus stays on the list |
+| =o= | step into the preview, where it scrolls normally (=q= returns) |
 | =y= | rename this note |
-| =n= | leave it alone, move on |
-| =v= | show the note in another window and *ask again* |
-| =q= | stop, leaving the rest untouched |
+| =n= | leave it alone |
+| =g= | redraw |
+| =q= | leave; unhandled notes keep their keyword |
 
-=v= does not end the run. A keyword that looks wrong in a list is
-sometimes right in the note, and that decision should not cost leaving
-the command and finding the file by hand.
+Focus stays on the list on =RET= for the same reason as in
+[[#inbox-review][Inbox Review]]: the decision keys live in the list buffer, and
+=view-mode= in the preview binds =n= to its own command. Press =o= when
+you want to read the note properly.
+
+Each row shows its state — pending, renamed, skipped — and the mode line
+counts what is left. Leaving part-way through is safe: every note is
+written and saved as it is handled, so there are never modified buffers
+waiting.
 
 An empty replacement removes the keyword. Renaming onto an *existing*
 keyword merges two spellings, which is why the replacement prompt
 completes over the keywords already in use.
 
 Only the keyword field is written — title, identifier and signature stay
-as they are — and each note is saved to disk as it changes, so an
-interrupted run leaves no modified buffers behind.
+as they are.
+
+*Why a buffer and not a prompt.* The first version asked file by file
+with =read-multiple-choice=, offering =v= to view the note. That reads
+raw input events: every mouse movement redrew the prompt, and while it
+was reading, no other window received input — so the note it had just
+displayed could not be scrolled. A blocking prompt owns the input stream
+by definition and cannot be made to allow navigation.
 
 ** Finding what needs renaming
 

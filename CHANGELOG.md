@@ -7,6 +7,73 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02m — The keyword rename becomes a buffer
+
+### What was wrong
+
+`K` displayed a note on `v` and then refused to let it be read. The
+preview could not be scrolled: touching it with the mouse replaced it
+with the choice prompt again, and any movement or click inside the
+affected windows caused redraws and previews in unexpected places.
+
+`read-multiple-choice` reads **raw input events**. A mouse movement or a
+click is not one of its answers, so each one re-prompts and redraws. And
+while it is reading, nothing else receives input at all — so the note it
+had just put on screen could not be scrolled, which was the entire
+purpose of offering to put it there.
+
+This was a design error rather than a detail. A blocking prompt cannot
+be made to allow free navigation; it owns the input stream by
+definition. Adding `v` to it produced something that looked like a
+reading option and could not be used as one.
+
+### The shape it should have had
+
+A `tabulated-list-mode` review buffer — the shape that already works
+twice in this configuration, in `25-inbox-review.el` and
+`24-readwise.el`. Nothing holds the input stream, so the preview
+scrolls, the mouse behaves, and stepping away and returning costs
+nothing.
+
+| Key | Effect |
+|---|---|
+| `RET` | preview the note in a side window, focus stays on the list |
+| `o` | step into the preview, where it scrolls normally (`q` returns) |
+| `y` | rename this note |
+| `n` | leave it alone |
+| `g` | redraw |
+| `q` | leave; unhandled notes keep their keyword |
+
+Focus stays on the list on `RET` for the reason already written into
+`my/inbox-preview`: the decision keys live in the list buffer, and
+`view-mode` in the preview binds `n` to its own command, so a preview
+that stole focus would swallow them.
+
+Per-file confirmation is unchanged in substance — nothing is written
+until `y` is pressed on that row. What changed is that the decision no
+longer has to be made without the ability to look.
+
+### Rows track what happened
+
+Each row carries a state: pending, renamed, skipped. Denote returns the
+new path after a rename and the row is updated with it, so a second `y`
+cannot act on a name that no longer exists. The mode line counts what is
+left. Leaving the buffer part-way through is safe: every note is written
+and saved as it is handled.
+
+The separate preview report is gone — the list is the preview, and it
+stays on screen while the work is done.
+
+### Consistency
+
+`my/maintenance--note-window` is global and reused, for the reason given
+against the identical variable in `25-inbox-review.el`: one preview
+window per session rather than a new split per note.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02l — Keyword maintenance written here, not delegated
 
 ### What was reported

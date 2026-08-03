@@ -26,7 +26,8 @@
 ;;   `my/maintenance-keyword-inventory'    every keyword, with counts
 ;;   `my/maintenance-notes-without-keywords'
 ;;   `my/maintenance-rename-keyword'       rename or remove one keyword
-;;                                         across the collection
+;;                                         across the collection, through
+;;                                         a review list with a preview
 ;;
 ;; NOT DELEGATED TO denote-explore, AND WHY
 ;;
@@ -58,6 +59,18 @@
 ;;   Attachments are NOT included.  A PDF or an image carries an
 ;;   identifier so that links can reach it, but it has no front matter
 ;;   and no keywords to review.
+;;
+;; DECISIONS BELONG IN A BUFFER, NOT IN A PROMPT
+;;
+;; The keyword rename first asked file by file with
+;; `read-multiple-choice'.  That reads raw input events, so every mouse
+;; movement redrew the prompt, and while it was reading, no other window
+;; could receive input -- the note it had just displayed could not be
+;; scrolled, which was the whole point of offering to display it.
+;;
+;; A blocking prompt cannot be made to allow free navigation.  The
+;; review therefore happens in a `tabulated-list-mode' buffer, the shape
+;; that already works in 25-inbox-review.el and 24-readwise.el.
 ;;
 ;; READ AND WRITE ARE SEPARATED IN THE MENU
 ;;
@@ -349,127 +362,228 @@ Each keyword is a button that starts a rename of it."
       (message "Every note has at least one keyword"))))
 
 ;; ------------------------------------------------------------
-;; Rename
+;; Rename: a review list, not a prompt
 ;; ------------------------------------------------------------
+;; The first version asked file by file with `read-multiple-choice',
+;; which is the wrong tool here and failed in a way worth recording.
+;; That function reads raw input events.  A mouse movement or a click is
+;; not one of its answers, so every one of them redraws the prompt; and
+;; while it is reading, nothing else receives input, so the note it had
+;; just displayed could not be scrolled.  Reading a note before deciding
+;; about it was exactly the point of the option.
+;;
+;; A blocking prompt cannot be fixed into allowing free navigation.  So
+;; the decision moves into a buffer instead, following the pattern that
+;; already works in 25-inbox-review.el and 24-readwise.el: a
+;; `tabulated-list-mode' of affected notes, a preview in a side window,
+;; and one key per decision.  Nothing holds the input stream, so the
+;; preview scrolls, the mouse behaves, and stepping away and coming back
+;; costs nothing.
+;;
+;; Per-file confirmation is unchanged in substance: nothing is written
+;; until `y' is pressed on that row.
 
-(defun my/maintenance--set-keywords (file keywords)
-  "Give FILE the keyword list KEYWORDS and save it.  Return the new path.
+(defconst my/maintenance--keyword-buffer "*Keyword Rename*"
+  "Name of the keyword review buffer.")
 
-Uses `denote-rename-file-keywords', the same primitive behind
-`C-c n d k', which touches the keyword field and nothing else.
+(defvar my/maintenance--keyword-entries nil
+  "Rows of the keyword review: plists with :file and :status.")
 
-Denote's own confirmations are switched off for the duration: this
-command has already asked about this file, and a second prompt whose
-answer means something different is how a declined change turns into a
-carried-out one.  `denote-save-buffers' is switched on so the note
-reaches the disk rather than sitting modified in a buffer -- with a
-belt-and-braces save afterwards for the case where Denote leaves it to
-the caller."
-  (let ((denote-rename-confirmations nil)
-        (denote-save-buffers t))
-    (let ((new (if (fboundp 'denote-rename-file-keywords)
-                   (denote-rename-file-keywords file keywords)
-                 (denote-rename-file file 'keep-current keywords
-                                     'keep-current 'keep-current))))
-      (when-let* ((path (if (stringp new) new file))
-                  (buffer (find-buffer-visiting path)))
-        (with-current-buffer buffer
-          (when (buffer-modified-p) (save-buffer))))
-      new)))
+(defvar my/maintenance--keyword-old nil
+  "Keyword being renamed in the current review.")
 
-(defun my/maintenance--view-file (file)
-  "Show FILE in another window without selecting it."
-  (display-buffer (find-file-noselect file)
-                  '(display-buffer-pop-up-window (inhibit-same-window . t))))
+(defvar my/maintenance--keyword-new nil
+  "Replacement keyword, or the empty string to remove.")
 
-(defun my/maintenance--preview-keyword-change (keyword replacement files)
-  "Show what renaming KEYWORD to REPLACEMENT would touch across FILES."
-  (my/maintenance--report
-   "*Denote Keyword Rename Preview*"
-   (format (concat "%s\n\n"
-                   "%d note(s) affected.  Each will be confirmed separately:\n"
-                   "  y  rename    n  leave alone    v  view the note    q  stop here\n\n"
-                   "Only the keyword field changes.  Title, identifier and signature\n"
-                   "are left exactly as they are, and every note is saved to disk.")
-           (if (string-empty-p replacement)
-               (format "Remove keyword `%s'." keyword)
-             (format "Rename keyword `%s' to `%s'." keyword replacement))
-           (length files))
-   (list (cons "Affected notes" (sort (copy-sequence files) #'string<)))))
+(defvar my/maintenance--note-window nil
+  "Window used for previews.  Global for the same reason as the
+identical variable in 25-inbox-review.el: one preview window reused
+across the session, rather than a new split per note.")
+
+(defun my/maintenance--keyword-list-entries ()
+  "Convert `my/maintenance--keyword-entries' into tabulated-list form."
+  (mapcar
+   (lambda (entry)
+     (let ((file (plist-get entry :file)))
+       (list entry
+             (vector (plist-get entry :status)
+                     (string-join (my/maintenance--file-keywords file) ",")
+                     (file-name-nondirectory
+                      (directory-file-name (file-name-directory file)))
+                     (file-name-nondirectory file)))))
+   my/maintenance--keyword-entries))
+
+(defun my/maintenance--keyword-pending ()
+  "Return the rows still awaiting a decision."
+  (seq-filter (lambda (entry) (equal (plist-get entry :status) "pending"))
+              my/maintenance--keyword-entries))
+
+;; Defined before `define-derived-mode', which would otherwise create
+;; the map itself while the symbol is unbound -- same order as
+;; 25-inbox-review.el.
+(defvar my/keyword-rename-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "RET") #'my/keyword-rename-preview)
+    (define-key map (kbd "o")   #'my/keyword-rename-visit-preview)
+    (define-key map (kbd "y")   #'my/keyword-rename-apply)
+    (define-key map (kbd "n")   #'my/keyword-rename-skip)
+    (define-key map (kbd "g")   #'my/keyword-rename-refresh)
+    (define-key map (kbd "q")   #'quit-window)
+    map)
+  "Keymap for `my/keyword-rename-mode'.")
+
+(define-derived-mode my/keyword-rename-mode tabulated-list-mode "KeywordRename"
+  "Major mode for renaming one keyword across the notes that use it.
+
+Nothing is written until `y' is pressed on a row, and each row is
+written on its own.  Leaving the buffer and returning later is safe:
+the rows that were already handled say so.
+
+\\{my/keyword-rename-mode-map}"
+  (setq tabulated-list-format
+        (vector (list "State" 8 t)
+                (list "Keywords" 34 t)
+                (list "Folder" 10 t)
+                (list "File" 0 t)))
+  (setq tabulated-list-padding 1)
+  (tabulated-list-init-header)
+  (hl-line-mode 1))
+
+(defun my/maintenance--keyword-render ()
+  "Redraw the review list, keeping point on the same row."
+  (setq tabulated-list-entries (my/maintenance--keyword-list-entries))
+  (tabulated-list-print t)
+  (setq mode-line-process
+        (format " [%d left]" (length (my/maintenance--keyword-pending))))
+  (force-mode-line-update))
+
+(defun my/maintenance--keyword-entry ()
+  "Row at point, or an error naming what to do about it."
+  (or (tabulated-list-get-id)
+      (if (derived-mode-p 'my/keyword-rename-mode)
+          (user-error "Point is not on a note row - move to one first")
+        (user-error "Not in a keyword review (M-x my/maintenance-rename-keyword)"))))
+
+(defun my/keyword-rename-preview ()
+  "Show the note at point in a side window, keeping focus on the list.
+
+Focus stays here because the decision keys live in this buffer, and
+`view-mode' in the preview binds n to its own command.  Press o to step
+into the preview when you want to scroll it -- q there comes back."
+  (interactive)
+  (let* ((entry (my/maintenance--keyword-entry))
+         (buffer (find-file-noselect (plist-get entry :file)))
+         (window (if (window-live-p my/maintenance--note-window)
+                     my/maintenance--note-window
+                   (setq my/maintenance--note-window (split-window-right 70)))))
+    (set-window-buffer window buffer)
+    (with-current-buffer buffer
+      (view-mode 1)
+      (goto-char (point-min)))
+    (set-window-point window (point-min))))
+
+(defun my/keyword-rename-visit-preview ()
+  "Move point into the preview window, where the note can be scrolled freely."
+  (interactive)
+  (unless (window-live-p my/maintenance--note-window)
+    (my/keyword-rename-preview))
+  (select-window my/maintenance--note-window))
+
+(defun my/keyword-rename-refresh ()
+  "Redraw the list."
+  (interactive)
+  (my/maintenance--keyword-render))
+
+(defun my/keyword-rename-skip ()
+  "Leave the note at point alone and move to the next row."
+  (interactive)
+  (let ((entry (my/maintenance--keyword-entry)))
+    (when (equal (plist-get entry :status) "pending")
+      (plist-put entry :status "skipped"))
+    (my/maintenance--keyword-render)
+    (forward-line 1)))
+
+(defun my/keyword-rename-apply ()
+  "Rename the keyword in the note at point, then move to the next row.
+
+The only command here that writes.  Denote returns the new path, which
+replaces the old one in the row, so a second press cannot act on a name
+that no longer exists."
+  (interactive)
+  (let* ((entry (my/maintenance--keyword-entry))
+         (file (plist-get entry :file)))
+    (if (not (equal (plist-get entry :status) "pending"))
+        (progn
+          (message "Already %s" (plist-get entry :status))
+          (forward-line 1))
+      (let* ((current (my/maintenance--file-keywords file))
+             (kept (remove my/maintenance--keyword-old current))
+             (wanted (if (string-empty-p my/maintenance--keyword-new)
+                         kept
+                       (delete-dups
+                        (append kept (list my/maintenance--keyword-new)))))
+             (result (my/maintenance--set-keywords file wanted)))
+        (plist-put entry :file (if (stringp result) result file))
+        (plist-put entry :status "renamed")
+        (my/maintenance--keyword-render)
+        (forward-line 1)
+        (message "%d note(s) left" (length (my/maintenance--keyword-pending)))))))
 
 ;;;###autoload
 (defun my/maintenance-rename-keyword (&optional keyword replacement)
-  "Rename KEYWORD to REPLACEMENT everywhere, one note at a time.
+  "Rename KEYWORD to REPLACEMENT across the collection, note by note.
 
 An empty REPLACEMENT removes the keyword.  Interactively both are read
-with completion over the keywords already in use, so a rename onto an
-existing keyword -- merging two spellings into one -- is a matter of
-picking the survivor from the list.
+with completion over the keywords already in use, so merging two
+spellings into one is a matter of picking the survivor from the list.
 
-A preview of the affected notes is shown first.  Then each note is
-confirmed on its own, with four answers:
+Opens a review list of the affected notes.  Nothing is written until a
+decision is made on a row:
 
-  y  rename this note
-  n  leave it alone and move on
-  v  show the note in another window and ask again
-  q  stop, leaving the remaining notes untouched
+  RET  preview the note in a side window
+  o    step into the preview, where it scrolls normally (q returns)
+  y    rename this note
+  n    leave it alone
+  g    redraw
+  q    leave; unhandled notes keep their keyword
 
-`v' exists because a keyword that looks wrong in a list sometimes turns
-out to be right in the note, and deciding that used to mean leaving the
-command, finding the file, and starting over.  It does not end the run:
-the same question comes back with the note on screen beside it.
-
-Only the keyword field is written.  A note is saved to disk as it is
-changed, so an interrupted run leaves no modified buffers behind."
+Only the keyword field is written -- title, identifier and signature
+stay as they are -- and each note is saved to disk as it changes, so
+leaving part-way through is safe and leaves no modified buffers."
   (interactive)
   (my/maintenance--require-identifiers)
   (let* ((table (my/maintenance--keyword-table))
          (names (my/maintenance--keyword-names table))
-         (keyword (or keyword
-                      (completing-read "Rename which keyword: " names nil t)))
-         (files (gethash keyword table)))
+         (old (or keyword
+                  (completing-read "Rename which keyword: " names nil t)))
+         (files (gethash old table)))
     (unless files
-      (user-error "No note uses the keyword `%s'" keyword))
-    (setq replacement
-          (string-trim
-           (or replacement
-               (completing-read
-                (format "Rename `%s' to (empty removes it): " keyword)
-                names nil nil))))
-    (when (string= replacement keyword)
-      (user-error "That is already the keyword"))
-    (my/maintenance--preview-keyword-change keyword replacement files)
-    (let ((changed 0)
-          (skipped 0))
-      (catch 'my/maintenance--stop
-        (dolist (file (sort (copy-sequence files) #'string<))
-          (let ((decided nil))
-            (while (not decided)
-              (pcase (car (read-multiple-choice
-                           (format "%s [%s]"
-                                   (file-relative-name file my-notes-dir)
-                                   (string-join
-                                    (my/maintenance--file-keywords file) ","))
-                           '((?y "yes" "Rename this note")
-                             (?n "no" "Leave this note alone")
-                             (?v "view" "Show the note, then ask again")
-                             (?q "quit" "Stop, leaving the rest untouched"))))
-                (?y
-                 (let* ((current (my/maintenance--file-keywords file))
-                        (kept (remove keyword current))
-                        (new (if (string-empty-p replacement)
-                                 kept
-                               (delete-dups (append kept (list replacement))))))
-                   (my/maintenance--set-keywords file new))
-                 (setq changed (1+ changed) decided t))
-                (?n (setq skipped (1+ skipped) decided t))
-                (?v (my/maintenance--view-file file))
-                (?q (throw 'my/maintenance--stop nil)))))))
-      (message "%s: %d note(s) changed, %d left alone"
-               (if (string-empty-p replacement)
-                   (format "Removed `%s'" keyword)
-                 (format "`%s' -> `%s'" keyword replacement))
-               changed skipped))))
+      (user-error "No note uses the keyword `%s'" old))
+    (let ((new (string-trim
+                (or replacement
+                    (completing-read
+                     (format "Rename `%s' to (empty removes it): " old)
+                     names nil nil)))))
+      (when (string= new old)
+        (user-error "That is already the keyword"))
+      (setq my/maintenance--keyword-old old
+            my/maintenance--keyword-new new
+            my/maintenance--keyword-entries
+            (mapcar (lambda (file) (list :file file :status "pending"))
+                    (sort (copy-sequence files) #'string<)))
+      (let ((buffer (get-buffer-create my/maintenance--keyword-buffer)))
+        (with-current-buffer buffer
+          (my/keyword-rename-mode)
+          (setq header-line-format
+                (if (string-empty-p new)
+                    (format " Remove keyword `%s'   |   RET preview  o scroll it  y remove  n keep  q leave"
+                            old)
+                  (format " `%s' -> `%s'   |   RET preview  o scroll it  y rename  n keep  q leave"
+                          old new)))
+          (my/maintenance--keyword-render)
+          (goto-char (point-min)))
+        (pop-to-buffer buffer)
+        (message "%d note(s) use `%s'" (length files) old)))))
 
 ;; ============================================================
 ;; MENU
