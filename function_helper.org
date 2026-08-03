@@ -2752,8 +2752,21 @@ Neither was reproducible from the outside and both may depend on the
 state of this particular tree, so this is not a verdict on the package —
 it is a decision about what can be vouched for with three thousand real
 notes on the other end of the command. The keyword side is written
-against Denote's own =denote-rename-file-keywords=, the same primitive
-behind =C-c n d k=.
+against =denote-rename-file=, whose Lisp signature — =FILE=, =TITLE=,
+=KEYWORDS=, =SIGNATURE=, =DATE= — is documented and stable. Title and
+signature are read from the file and handed straight back, so nothing
+but the keyword field is asked to move, and =DATE= is nil, which leaves
+the identifier alone.
+
+The narrower =denote-rename-file-keywords= was tried first and rejected:
+its arity differs between Denote versions.
+
+*One consequence.* Denote rebuilds the whole file name from the
+components it is given, so a note whose front matter title disagrees
+with its file name — which the migration could produce — will also have
+its file name corrected to match the front matter. That is Denote's own
+rule for which of the two wins, but it is a second change arriving with
+the first.
 
 Keyword sorting is not lost with =denote-explore-sort-keywords= gone:
 Denote sorts keywords on every rename while =denote-sort-keywords= is

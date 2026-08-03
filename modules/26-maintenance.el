@@ -40,9 +40,14 @@
 ;; on the package.  It is a decision about what can be vouched for when
 ;; three thousand real notes are on the other end of the command.
 ;;
-;; The keyword side is therefore written against Denote's own
-;; primitive, `denote-rename-file-keywords' -- the same one behind
-;; `C-c n d k', which touches the keyword field and nothing else.
+;; The keyword side is therefore written against `denote-rename-file',
+;; whose Lisp signature -- FILE, TITLE, KEYWORDS, SIGNATURE, DATE -- is
+;; documented and stable.  The narrower `denote-rename-file-keywords'
+;; was tried first and rejected: its arity differs between Denote
+;; versions, and a helper that has to guess how many arguments its
+;; dependency takes this month is not a dependency worth having.  Title
+;; and signature are read from the file and handed straight back, so
+;; nothing but the keyword field is asked to move.
 ;;
 ;; SCOPE: INBOX YES, ATTACHMENTS NO
 ;;
@@ -400,25 +405,57 @@ Each keyword is a button that starts a rename of it."
 identical variable in 25-inbox-review.el: one preview window reused
 across the session, rather than a new split per note.")
 
+(defun my/maintenance--current-title (file)
+  "Return the title to keep when renaming FILE.
+
+The front matter's title where there is one, the file name's otherwise,
+which is Denote's own order of precedence for that field."
+  (cond
+   ((and (fboundp 'denote-retrieve-title-or-filename)
+         (fboundp 'denote-filetype-heuristics))
+    (denote-retrieve-title-or-filename file (denote-filetype-heuristics file)))
+   ((fboundp 'denote-retrieve-filename-title)
+    (or (denote-retrieve-filename-title file) ""))
+   (t "")))
+
 (defun my/maintenance--set-keywords (file keywords)
   "Give FILE the keyword list KEYWORDS and save it.  Return the new path.
 
-Uses `denote-rename-file-keywords', the same primitive behind
-`C-c n d k', which touches the keyword field and nothing else.
+Goes through `denote-rename-file', whose Lisp signature -- FILE, TITLE,
+KEYWORDS, SIGNATURE, DATE -- is documented and stable.  The narrower
+`denote-rename-file-keywords' was tried first and rejected: its arity
+differs between Denote versions, and a helper that has to guess how many
+arguments its dependency takes this month is not a dependency worth
+having.
 
-Denote's own confirmations are switched off for the duration: the
-review list has already asked about this file, and a second prompt whose
-answer means something different is how a declined change turns into a
+Title and signature are read from the file and passed back unchanged, so
+nothing but the keyword field is asked to move, and DATE is nil, which
+leaves the identifier alone.  Reading them explicitly rather than using
+the `keep-current' symbol keeps this working on Denote versions that
+predate it; the effect is the same, since `keep-current' resolves to the
+same current values.
+
+ONE CONSEQUENCE WORTH KNOWING: Denote rebuilds the whole file name from
+these components.  A note whose front matter title disagrees with its
+file name -- which the Obsidian migration could produce -- will
+therefore also have its file name corrected to match the front matter.
+That is Denote's own rule for which of the two wins, but it is a second
+change arriving with the first.
+
+Denote's own confirmations are switched off for the duration: the review
+list has already asked about this file, and a second prompt whose answer
+means something different is how a declined change turns into a
 carried-out one.  `denote-save-buffers' is switched on so the note
 reaches the disk rather than sitting modified in a buffer, with an
 explicit save afterwards for the case where Denote leaves that to the
 caller."
   (let ((denote-rename-confirmations nil)
         (denote-save-buffers t))
-    (let ((new (if (fboundp 'denote-rename-file-keywords)
-                   (denote-rename-file-keywords file keywords)
-                 (denote-rename-file file 'keep-current keywords
-                                     'keep-current 'keep-current))))
+    (let* ((title (my/maintenance--current-title file))
+           (signature (or (and (fboundp 'denote-retrieve-filename-signature)
+                               (denote-retrieve-filename-signature file))
+                          ""))
+           (new (denote-rename-file file title keywords signature nil)))
       (when-let* ((path (if (stringp new) new file))
                   (buffer (find-buffer-visiting path)))
         (with-current-buffer buffer

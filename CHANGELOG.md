@@ -7,6 +7,69 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02o — Stop depending on another package's arity
+
+### The failure
+
+`y` in the keyword review reported
+
+```
+if: Wrong number of arguments: denote-rename-file-keywords, 2
+```
+
+`denote-rename-file-keywords` does not take `(FILE KEYWORDS)` in this
+Denote version. Its arity has changed across releases — it is one of the
+commands rewritten when Denote consolidated its renaming code — and this
+module was calling it with a shape that happened to be true elsewhere.
+
+### The fix is to remove the dependency, not to correct the call
+
+Guessing the current arity would leave the same problem waiting for the
+next Denote release. The rename now goes through `denote-rename-file`,
+whose Lisp signature is documented and stable:
+
+```
+(denote-rename-file FILE &optional TITLE KEYWORDS SIGNATURE DATE)
+```
+
+Title and signature are read from the file and handed straight back, so
+nothing but the keyword field is asked to move. DATE is nil, which
+leaves the identifier alone.
+
+Reading those values explicitly rather than passing the `keep-current`
+symbol keeps this working on Denote versions predating that symbol. The
+effect is identical — `keep-current` resolves to the same current
+values — and it removes one more assumption about which version is
+installed.
+
+### One consequence worth stating
+
+Denote rebuilds the entire file name from the components it is given. A
+note whose front matter title disagrees with its file name — which the
+Obsidian migration could produce — will therefore have its file name
+corrected to match the front matter as well.
+
+That is Denote's own rule for which of the two wins, and it is the
+behaviour `keep-current` would have produced too. It is recorded here
+and in the function's docstring because it is a second change arriving
+alongside the one that was asked for.
+
+### Note on the last three sessions
+
+This is the third failure in a row in the same twenty lines: a helper
+deleted with the section around it, a blocking prompt that could not
+allow what it offered, and now an arity assumed rather than checked.
+All three were invisible to paren balance and to reading, and all three
+surfaced on the same keypress.
+
+Two mechanical checks are now recorded in function_helper.org — the
+duplicate-definition grep and the byte-compilation warning scan. Neither
+would have caught this one. Only calling the function does.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02n — A function called and never defined
 
 ### The failure
