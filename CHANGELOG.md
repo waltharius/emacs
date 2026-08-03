@@ -7,6 +7,111 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-03b — Rescaling is not compression
+
+### What was reported
+
+With ImageMagick installed, an inserted image still arrived at 4.2 MB
+where a few hundred kilobytes would do. At 1366 attachments and 204 MB,
+the collection averages 153 kB per file; twenty images at four megabytes
+would undo that on their own.
+
+### The pipeline was doing what it was told, and that was not enough
+
+Session 2026-08-03a rescaled to 1600 px and stopped. PNG is lossless, so
+that removes pixels and stores every remaining one exactly. Measured
+here on a 2559x1639 terminal screenshot:
+
+| step | size |
+|-------------------------------------+--------|
+| source | 551 kB |
+| rescaled to 1600 px, still PNG | 489 kB |
+| rescaled, then `-colors 256` | 133 kB |
+| rescaled, then JPEG q85 | 146 kB |
+
+An 11 % saving against a factor of four. A source already under 1600 px
+saves nothing at all, which is the other half of the report. Size falls
+only when fidelity is traded, and nothing in the module was trading any.
+
+### A ladder with a budget
+
+`my/org-image-max-bytes` (300 kB) is now the target, and each rung runs
+only if the previous one left the file above it:
+
+1. rescale to `my/org-image-max-pixels`, never enlarging;
+2. under budget — stop, and the stored file is still pixel-exact;
+3. few colours in the source — quantise to 256 colours, staying PNG and
+   keeping alpha;
+4. otherwise, or when step 3 was not enough — JPEG at
+   `my/org-image-jpeg-quality`, with `jpeg:extent` as a ceiling.
+
+Quantising is tried before JPEG because it keeps text edges crisp, while
+JPEG rings around every letter — and screenshots are most of what gets
+attached. Whichever candidate is smallest wins, so a rung that makes
+things worse cannot be chosen.
+
+### Telling a screenshot from a photograph
+
+By distinct colours in a 400x400 sample of the source, against
+`my/org-image-palette-max-colors` (4096). Measured: the terminal
+screenshot 897, a plasma-fractal stand-in for a photograph 120000.
+
+`-sample` and not `-resize`, which matters more than it looks.
+`-resize` interpolates, and interpolation invents colours: the same
+screenshot reports 8.8 million of them after a rescale. Counting on a
+resized copy would classify everything as photographic and route every
+screenshot through JPEG.
+
+Counting is done on a sample rather than the whole file for speed —
+0.11 s against 0.45 s on a 4 MP image, and it only runs for files that
+are over budget in the first place.
+
+### Names now come from the title
+
+`IDENTIFIER--TITLE-SLUG-N.EXT`, with N counting from 0 within the note,
+which is the convention the migrated attachments already follow:
+
+: 20241225T000000--25-12-2024-środa-0.png
+
+The default offered at the prompt is the note's `#+title:` rather than
+the source file's name, so an image dropped in from a camera or a
+screenshot folder no longer arrives called `IMG_2451`.
+`my/org-image-prompt-for-name` set to nil skips the prompt entirely and
+takes the title.
+
+Numbering ignores the extension when looking for the next free number,
+because the ladder may store one attachment of a note as PNG and the
+next as JPEG, and those must not collide on `-0`.
+
+One difference from the migrated files: the slug collapses runs of
+non-alphanumeric characters to a single hyphen, so a title of
+`25-12-2024 - środa` gives `25-12-2024-środa` where the migration script
+produced `25-12-2024---środa`. Both are stable and neither is parsed by
+anything; the old files are left alone.
+
+### `my/org-image-recompress-attachments`
+
+A one-off command for files stored before any of this existed. It
+rescales and recompresses in place, only when the result is smaller, and
+preserves names and extensions so that no link has to change. That last
+constraint is also its limit: a photograph stored as PNG gets quantised
+rather than turned into a JPEG and may band. Deleting such a file and
+inserting it again gives the better result, since the insertion path can
+choose the format.
+
+### The message now carries the evidence
+
+Insertion reports source size, stored size and which rung ran — enough
+to see at a glance whether ImageMagick was found and what it decided.
+
+### Files touched
+
+- `modules/31-org-images.el` — compression ladder, title-based names,
+  numbering from 0, recompress command, size reporting in the message
+- `function_helper.org` — updated to match
+
+---
+
 ## Session 2026-08-03a — Images get a folder, a size, and a click
 
 ### What was missing
@@ -269,10 +374,10 @@ that cannot be nil.
 
 ### What the mechanical checks do and do not cover
 
-The two recorded in function_helper.org — duplicate top-level
+The two recorded in function*helper.org — duplicate top-level
 definitions, and calls to functions never defined — both pass on this
 repository and would have said nothing here. They catch a module being
-internally inconsistent about _symbols_.
+internally inconsistent about \_symbols*.
 
 This was a _value_ of the wrong type, produced only by data of a shape
 that had not occurred yet. Byte-compilation does not catch it either.

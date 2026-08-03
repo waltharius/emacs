@@ -586,30 +586,36 @@ Function: =my/denote-set-wellbeing= | Module: =modules/05-notes.el=
 :CUSTOM_ID: fn-my-org-image-insert
 :END:
 
-Copies an image from anywhere on disk into =~/notes/attachments/= and
-links it at point. Two prompts: the file, then a short name with the
-source's own base name offered as the default (=RET= accepts it).
+Copies an image from anywhere on disk into =~/notes/attachments/=,
+shrinks it, and links it at point. Two prompts: the file, then a name
+with the note's =#+title:= offered as the default (=RET= accepts it).
+Set =my/org-image-prompt-for-name= to nil to skip the second prompt.
 
-With a prefix argument (=C-u C-c n i i=) the image is stored at its
-original resolution.
+With a prefix argument (=C-u C-c n i i=) the image is stored exactly as
+it is, at full resolution and without recompression.
+
+The echo area reports source size, stored size and what was done, e.g.
+=…-0.png 4.2M → 148k (rescaled, 256-colour palette)=.
 
 Function: =my/org-image-insert= | Module: =modules/31-org-images.el=
 
-**** Where the file goes and how it is named
+**** How the file is named
 
-The copy is called =IDENTIFIER--name.ext=, where the identifier is the
-one belonging to the *note the image is inserted into*:
+: IDENTIFIER--TITLE-SLUG-N.EXT
+: 20241225T000000--25-12-2024-środa-0.png
 
-: 20260803T121500--wykres-inflacji.png
+The identifier belongs to the *note the image is inserted into*, the
+slug comes from its title, and =N= counts from 0 within that note. So
+every attachment of one note sorts next to its siblings, and a file
+whose identifier matches no note is an orphan by inspection. A note
+without a Denote identifier falls back to =#+identifier:= and then to
+its file name, which is what makes the command work in =captures.org=.
 
-So every attachment of one note sorts next to its siblings in the
-folder, and a file whose identifier matches no note is an orphan by
-inspection. A note without a Denote identifier falls back to its
-=#+identifier:= keyword and then to its file name, which is what makes
-the command work in =captures.org= as well.
+The number ignores the extension, because one note can end up with a
+PNG and a JPEG and they must not both claim =-0=.
 
-Reusing the note's identifier means two files under =~/notes/= carry
-the same one. The attachment folder is therefore added to
+Reusing the note's identifier means two files under =~/notes/= carry the
+same one. The attachment folder is therefore added to
 =denote-excluded-directories-regexp= at load time — extending the value
 =25-inbox-review.el= sets for the inbox, never replacing it — so Denote
 prompts, backlinks and keyword completion never see it.
@@ -617,40 +623,60 @@ prompts, backlinks and keyword completion never see it.
 only, so images were already invisible to them.
 
 The link is relative (=[[file:../attachments/…]]=), which survives a
-home directory that differs between machines. Set
-=my/org-image-link-style= to =absolute= to change that.
+home directory that differs between machines. =my/org-image-link-style=
+set to =absolute= changes that.
 
-**** Size on disk and size on screen
+**** How the file is shrunk
 
-Two different numbers, easy to confuse:
+Rescaling alone barely helps, because PNG is lossless: a 4 MB screenshot
+at 1600 px is still nearly 4 MB. Size falls only when fidelity is
+traded, so each step below runs only if the one before left the file
+over =my/org-image-max-bytes=:
 
-| Setting                    | Meaning                      | Default |
-|----------------------------+------------------------------+---------|
-| =my/org-image-max-pixels=  | longer edge of the *stored* file | 1600 |
-| =org-image-actual-width=   | width of the *preview*       | =(1100)= |
+1. rescale to =my/org-image-max-pixels=, never enlarging;
+2. under budget — stop, and the file is still pixel-exact;
+3. few colours in the source (screenshot, diagram, chart) — quantise to
+   256 colours, staying PNG and keeping transparency;
+4. otherwise, or when step 3 was not enough — JPEG at
+   =my/org-image-jpeg-quality=.
 
-The first is a one-off conversion applied while copying, so a four
-megabyte photograph does not enter the notes tree and does not get
-carried to every device by Syncthing. It needs ImageMagick (=magick=,
-or =convert= on version 6) on =PATH= — on NixOS, add =imagemagick= to
-the system packages. Without it the file is copied unchanged and the
-echo area says so; nothing fails. SVG and GIF are never rescaled.
+Measured on a 2559x1639 terminal screenshot: 551 kB source, 489 kB after
+rescaling alone, 133 kB after quantising, 146 kB as JPEG.
 
-The second lives in =modules/11-org-appearance.el=. Displaying more
-pixels than the stored file has only upscales a bitmap, so raise the
-two together or neither. A single image can override the global width
-with =#+ATTR_ORG: :width 900= above its link.
+Screenshots and photographs are told apart by counting distinct colours
+in a small sample of the source, against
+=my/org-image-palette-max-colors= (4096). Lower it if screenshots come
+out looking like JPEG; raise it if photographs come out banded.
+
+| Setting                        | Meaning                          | Default |
+|--------------------------------+----------------------------------+---------|
+| =my/org-image-max-pixels=      | longer edge of the stored file   |    1600 |
+| =my/org-image-max-bytes=       | size budget for the stored file  |  300 kB |
+| =my/org-image-palette-max-colors= | screenshot / photograph split |    4096 |
+| =my/org-image-jpeg-quality=    | quality when JPEG is chosen      |      85 |
+| =org-image-actual-width=       | width of the *preview* on screen | =(1100)= |
+
+The last one lives in =modules/11-org-appearance.el= and is a display
+setting, not a storage setting. Displaying more pixels than the stored
+file has only upscales a bitmap, so raise it and
+=my/org-image-max-pixels= together or neither. A single image can
+override the width with =#+ATTR_ORG: :width 900= above its link.
+
+All of this needs ImageMagick (=magick=, or =convert= on version 6) on
+=PATH= — on NixOS, =imagemagick= in the system packages. Without it the
+file is copied unchanged and the message says so; nothing fails. SVG and
+GIF are always copied unchanged.
 
 **** Clicking a picture
 
 Inline previews carry a keymap:
 
 - =mouse-1=, =RET= — open the image. In an Emacs =image-mode= buffer by
-  default; set =my/org-image-click-action= to =external= for the
-  desktop image viewer, or to =nil= to turn the whole thing off.
+  default; set =my/org-image-click-action= to =external= for the desktop
+  image viewer, or to =nil= to turn the whole thing off.
 - =x= — open in the desktop viewer regardless of that setting.
-- =i +=, =i -=, =i o= — Emacs' own image commands still work; the
-  keymap inherits =image-map=.
+- =i +=, =i -=, =i o= — Emacs' own image commands still work; the keymap
+  inherits =image-map=.
 
 A click landing on anything other than an image just moves point.
 
@@ -669,6 +695,24 @@ names the note it was inserted into.
 
 Function: =my/org-image-attachments-dired= | Module: =modules/31-org-images.el=
 
+**** M-x my/org-image-recompress-attachments
+:PROPERTIES:
+:CUSTOM_ID: fn-my-org-image-recompress-attachments
+:END:
+
+One-off cleanup for files stored before the size budget existed, or
+before ImageMagick was installed. Rescales and recompresses every
+attachment over =my/org-image-max-bytes= in place, keeping it only when
+the result is smaller, and asks for confirmation with the count and the
+total size first.
+
+Names and extensions are preserved, so no link has to change — which is
+also the limit: a photograph stored as PNG is quantised rather than
+converted to JPEG, and may band. Deleting that file and inserting it
+again gives a better result, because the insertion path can choose the
+format.
+
+Function: =my/org-image-recompress-attachments= | Module: =modules/31-org-images.el=
 ** C-c n d — Document / File management
 :PROPERTIES:
 :CUSTOM_ID: menu-notes-doc

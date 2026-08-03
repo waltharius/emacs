@@ -1,73 +1,84 @@
 ;;; 31-org-images.el --- Image attachments for notes -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Pick an image from disk, downscale it, park it in ~/notes/attachments/
+;; Pick an image from disk, shrink it, park it in ~/notes/attachments/
 ;; under the identifier of the note it is inserted into, and link it at
 ;; point.  Clicking the inline preview opens the file at full size.
 ;;
 ;; Entry points:
 ;;
-;;   `my/org-image-insert'             C-c n i i
-;;   `my/org-image-attachments-dired'  C-c n i I
-;;   mouse-1 / RET on a preview        open the image
-;;   x on a preview                    open it in the desktop viewer
+;;   `my/org-image-insert'                  C-c n i i
+;;   `my/org-image-attachments-dired'       C-c n i I
+;;   `my/org-image-recompress-attachments'  M-x, one-off cleanup
+;;   mouse-1 / RET on a preview             open the image
+;;   x on a preview                         open it in the desktop viewer
 ;;
-;; WHY THE FILE NAME CARRIES THE NOTE IDENTIFIER
+;; HOW ATTACHMENTS ARE NAMED
 ;;
-;; An attachment folder without a naming rule becomes unreadable within
-;; a year: several hundred files called IMG_2451.jpg with nothing to say
-;; which note wanted them.  Naming each copy
+;;   IDENTIFIER--TITLE-SLUG-N.EXT
+;;   20241225T000000--25-12-2024-środa-0.png
 ;;
-;;   20260803T121500--wykres-inflacji.png
+;; The identifier is the NOTE's, taken from its file name; the slug comes
+;; from its `#+title:'; N counts from 0 within that note.  So every
+;; attachment of one note sorts next to its siblings, a file whose
+;; identifier matches no note is an orphan by inspection, and the folder
+;; stays readable after a thousand files -- which IMG_2451.jpg does not.
 ;;
-;; puts every attachment of one note next to its siblings in a sorted
-;; listing, and makes an orphan obvious -- an identifier with no note
-;; behind it is a file nothing refers to any more.
+;; Reusing the note's identifier means two files under ~/notes/ carry the
+;; same one, which is what 27-denote-identifiers.el exists to report.  It
+;; reads .org files only, so images never reach it; the exposure is
+;; Denote itself, which walks the whole tree for every prompt.  This
+;; module therefore adds the folder to
+;; `denote-excluded-directories-regexp' -- extending, never replacing,
+;; the value 25-inbox-review.el sets for the staging inbox.
 ;;
-;; The identifier is the NOTE's, not a fresh one.  That is the whole
-;; point, and it is also why the attachment folder must stay out of
-;; Denote's way: two files sharing an identifier is exactly what
-;; 27-denote-identifiers.el exists to report.  It only ever reads .org
-;; files, so images are invisible to it, but Denote's own prompts and
-;; backlink buffers walk the whole tree.  This module therefore adds the
-;; folder to `denote-excluded-directories-regexp' -- extending, never
-;; replacing, the value 25-inbox-review.el sets for the staging inbox.
-;; Removing this module removes the exclusion with it, which is correct:
-;; without the module there is no attachment folder to hide.
+;; WHY RESIZING ALONE IS NOT ENOUGH
 ;;
-;; WHY THE COPY IS DOWNSCALED
+;; PNG is lossless.  Rescaling a 4 MB screenshot to 1600 px and writing
+;; it back as PNG gives roughly 4 MB again: fewer pixels, each one still
+;; stored exactly.  Measured on a 2559x1639 terminal screenshot:
 ;;
-;; A phone photograph is 3-4 thousand pixels wide and several megabytes.
-;; Nothing in a note needs that: it is displayed at around a thousand
-;; pixels, exported at less, and Syncthing copies every byte of it to
-;; every device.  `my/org-image-max-pixels' caps the longer edge on the
-;; way in.  This is a one-off conversion of the stored file, not a
-;; display setting -- display width is `org-image-actual-width', owned by
-;; 11-org-appearance.el, and the two are related only in that there is no
-;; point storing many more pixels than are ever shown.
+;;   resize to 1600 px, PNG          551 kB -> 489 kB
+;;   the same, then -colors 256      551 kB -> 133 kB
+;;   the same, then JPEG q85         551 kB -> 146 kB
 ;;
-;; Downscaling needs ImageMagick (`magick', or `convert' on version 6) on
-;; PATH.  Without it the file is copied unchanged and a message says so;
-;; nothing fails.  On NixOS, add `imagemagick' to the system packages.
+;; Size only falls once fidelity is traded, so the pipeline is a ladder
+;; and each rung runs only if the one before left the file over
+;; `my/org-image-max-bytes':
+;;
+;;   1. rescale to `my/org-image-max-pixels' (never enlarge)
+;;   2. under budget?  stop -- the file is still pixel-exact
+;;   3. few colours in the source (screenshot, diagram, chart)?
+;;      quantise to a 256-colour palette, keeping PNG and its alpha
+;;   4. otherwise, or if step 3 was not enough: JPEG, with
+;;      `jpeg:extent' as a ceiling
+;;
+;; Step 3 before step 4 on purpose: quantising keeps text edges crisp,
+;; while JPEG puts ringing around every letter.  The two are told apart
+;; by counting distinct colours in a nearest-neighbour sample of the
+;; SOURCE (`-sample', not `-resize': interpolation invents colours and
+;; would make every screenshot look photographic).  A screenshot lands
+;; around a thousand, a photograph in the hundred thousands.
+;;
+;; All of this needs ImageMagick (`magick', or `convert' on version 6) on
+;; PATH; on NixOS, `imagemagick' in the system packages.  Without it, or
+;; for a format it has no delegate for, the file is copied unchanged and
+;; the echo area says so.  Nothing fails.
 ;;
 ;; WHY CLICKING OPENS THE FILE INSTEAD OF GROWING THE PREVIEW
 ;;
-;; Org's inline preview is one scaled bitmap held in an overlay.  Growing
-;; it in place is possible -- `image-increase-size', which Emacs already
-;; binds under `i +' in `image-map' -- but it rescales the same overlay
-;; inside a text buffer, reflowing everything below it, and the enlarged
-;; size is lost on the next image refresh.  Opening the file gives the
-;; full resolution in a buffer (or viewer) built for looking at images,
-;; with panning and zooming that already work.  `image-map' stays
-;; reachable as the parent keymap, so `i +' still does what it did.
+;; Org's preview is one scaled bitmap in an overlay.  Growing it in place
+;; rescales that bitmap inside a text buffer, reflows everything below
+;; it, and loses the size at the next image refresh.  Opening the file
+;; gives full resolution with panning and zooming that already work.
+;; `image-map' stays the parent keymap, so `i +' still does what it did.
 ;;
 ;; DEPENDENCIES
 ;;
-;; Org is required.  Denote is optional and only supplies the identifier;
-;; without it the note's file name is used instead.  ImageMagick is
-;; optional, as described above.  12-transient.el is optional: the menu
-;; entries go through `my/transient-append', which reports and skips when
-;; the menu or the helper is absent.
+;; Org is required.  Denote is optional and only supplies the identifier.
+;; ImageMagick is optional, as described above.  12-transient.el is
+;; optional: the menu entries go through `my/transient-append', which
+;; reports and skips when the menu or the helper is absent.
 ;;
 ;; RELATED
 ;;
@@ -99,18 +110,35 @@ notes together, and excluded from Denote's file listing at load time."
 
 (defcustom my/org-image-max-pixels 1600
   "Longer edge of a stored attachment, in pixels.
-Images are never enlarged: a source smaller than this is copied as it
-is.  Set to nil to store every image at its original resolution."
+Images are never enlarged: a source smaller than this keeps its size.
+Nil stores every image at its original resolution."
   :type '(choice (const :tag "Do not resize" nil) integer)
   :group 'my)
 
+(defcustom my/org-image-max-bytes (* 300 1024)
+  "Size an attachment should not exceed once stored.
+A file still over this after rescaling is quantised or re-encoded as
+JPEG; see the ladder in the commentary.  Nil rescales only, which for a
+PNG source means almost no saving at all."
+  :type '(choice (const :tag "No budget" nil) integer)
+  :group 'my)
+
+(defcustom my/org-image-palette-max-colors 4096
+  "Colour count below which an image is treated as a screenshot.
+Counted in a 400x400 nearest-neighbour sample of the source.  Below the
+threshold the file is quantised to 256 colours and stays PNG; above it,
+JPEG is used instead.  Lower this if screenshots come out looking like
+JPEG; raise it if photographs come out banded."
+  :type 'integer
+  :group 'my)
+
 (defcustom my/org-image-jpeg-quality 85
-  "JPEG quality of rescaled attachments, 1-100."
+  "JPEG quality used when an image has to be re-encoded, 1-100."
   :type 'integer
   :group 'my)
 
 (defcustom my/org-image-no-resize-extensions '("svg" "svgz" "gif")
-  "Extensions never passed through the rescaler.
+  "Extensions copied verbatim, without going through the converter.
 SVG is a vector format, so pixel dimensions mean nothing; an animated
 GIF would have to be coalesced frame by frame and usually grows."
   :type '(repeat string)
@@ -121,6 +149,13 @@ GIF would have to be coalesced frame by frame and usually grows."
 Nil picks the first of ~/Pictures/, ~/Obrazy/, ~/Downloads/, ~/Pobrane/
 that exists, and falls back to the home directory."
   :type '(choice (const :tag "Guess" nil) directory)
+  :group 'my)
+
+(defcustom my/org-image-prompt-for-name t
+  "Whether to ask for the attachment name.
+The note's title is offered as the default, so RET accepts it.  Nil
+skips the prompt and uses the title without asking."
+  :type 'boolean
   :group 'my)
 
 (defcustom my/org-image-link-style 'relative
@@ -157,8 +192,8 @@ keymap alone."
 ;; ============================================================
 ;; DENOTE: keep the attachment folder out of the note listing
 ;; ============================================================
-;; See the commentary.  The base value belongs to 25-inbox-review.el and
-;; is extended here, never overwritten; running this twice is harmless.
+;; The base value belongs to 25-inbox-review.el and is extended here,
+;; never overwritten; evaluating this twice is harmless.
 
 (with-eval-after-load 'denote
   (let ((name (file-name-nondirectory
@@ -188,6 +223,16 @@ configuration carry Polish characters unchanged."
         "image"
       (substring s 0 (min (length s) 60)))))
 
+(defun my/org-image--note-title ()
+  "Return the `#+title:' of the current buffer, or nil."
+  (or (and (fboundp 'org-collect-keywords)
+           (cadr (assoc "TITLE" (org-collect-keywords '("TITLE")))))
+      (save-excursion
+        (goto-char (point-min))
+        (when (re-search-forward "^#\\+title:[ \t]+\\(.*[^ \t\n]\\)"
+                                 (min 4096 (point-max)) t)
+          (match-string-no-properties 1)))))
+
 (defun my/org-image--identifier-from-front-matter ()
   "Return the `#+identifier:' of the current buffer, or nil."
   (save-excursion
@@ -200,8 +245,7 @@ configuration carry Polish characters unchanged."
   "Return the identifier attachments of this buffer are named after.
 The Denote identifier of the file name when there is one, the
 `#+identifier:' keyword next, and the file name itself as a last
-resort so that the command also works in notes that are not Denote
-files at all."
+resort, so the command also works in notes that are not Denote files."
   (let ((file (buffer-file-name)))
     (or (and file
              (fboundp 'denote-retrieve-filename-identifier)
@@ -210,58 +254,155 @@ files at all."
         (and file (my/org-image--slug (file-name-base file)))
         (format-time-string "%Y%m%dT%H%M%S"))))
 
-(defun my/org-image--unique-target (identifier slug extension)
-  "Return an unused path IDENTIFIER--SLUG.EXTENSION in the attachment folder."
-  (let* ((base (format "%s--%s" identifier slug))
-         (dir my/org-image-attachments-directory)
-         (candidate (expand-file-name (concat base "." extension) dir))
-         (n 1))
-    (while (file-exists-p candidate)
-      (setq candidate (expand-file-name (format "%s-%d.%s" base n extension) dir)
-            n (1+ n)))
+(defun my/org-image--next-index (identifier slug)
+  "Return the next free number for IDENTIFIER and SLUG, counting from 0.
+The extension is ignored, so a PNG and a JPEG of the same note never
+share a number even though the pipeline may pick different formats."
+  (let* ((dir my/org-image-attachments-directory)
+         (regexp (concat "\\`" (regexp-quote (format "%s--%s-" identifier slug))
+                         "\\([0-9]+\\)\\."))
+         (highest -1))
+    (dolist (file (and (file-directory-p dir)
+                       (directory-files dir nil regexp t)))
+      (when (string-match regexp file)
+        (setq highest (max highest (string-to-number (match-string 1 file))))))
+    (1+ highest)))
+
+(defun my/org-image--target (identifier slug extension)
+  "Return the path of the next attachment for IDENTIFIER and SLUG."
+  (let ((index (my/org-image--next-index identifier slug))
+        (dir my/org-image-attachments-directory)
+        (candidate nil))
+    ;; The index comes from the numbers already in use; step past a name
+    ;; that is somehow taken anyway rather than overwrite it.
+    (while (progn
+             (setq candidate
+                   (expand-file-name
+                    (format "%s--%s-%d.%s" identifier slug index extension)
+                    dir))
+             (file-exists-p candidate))
+      (setq index (1+ index)))
     candidate))
 
 ;; ============================================================
-;; COPY AND RESCALE
+;; CONVERTING
 ;; ============================================================
 
 (defun my/org-image--magick ()
   "Return the ImageMagick executable to use, or nil when none is installed.
-Version 7 installs `magick'; version 6 installs `convert'."
+Version 7 installs `magick'; version 6 installs `convert', which
+version 7 still ships as a deprecated alias -- hence the order."
   (or (executable-find "magick") (executable-find "convert")))
 
-(defun my/org-image--install (source target &optional no-resize)
-  "Copy SOURCE to TARGET, downscaling on the way when that is possible.
-Return non-nil when the copy was rescaled.  Any failure of the external
-converter falls back to a plain copy: a format ImageMagick has no
-delegate for should still end up in the note."
-  (let* ((ext (downcase (or (file-name-extension source) "")))
-         (magick (my/org-image--magick))
-         (rescale (and (not no-resize)
-                       magick
-                       my/org-image-max-pixels
-                       (not (member ext my/org-image-no-resize-extensions)))))
+(defun my/org-image--size (file)
+  "Return the size of FILE in bytes, or 0 when it is not there."
+  (or (file-attribute-size (file-attributes file)) 0))
+
+(defun my/org-image--run (args)
+  "Run the converter with ARGS.  Return non-nil on success."
+  (let ((magick (my/org-image--magick)))
+    (and magick (eq 0 (apply #'call-process magick nil nil nil args)))))
+
+(defun my/org-image--temp (extension)
+  "Return a fresh temporary file name ending in EXTENSION."
+  (make-temp-file "org-image-" nil (concat "." extension)))
+
+(defun my/org-image--sampled-colors (file)
+  "Return the number of distinct colours in a small sample of FILE.
+`-sample' takes pixels as they are; `-resize' would blend them and
+report millions of colours for a two-colour screenshot.  An unreadable
+answer counts as `many', which routes the file to JPEG."
+  (let ((magick (my/org-image--magick)))
+    (with-temp-buffer
+      (if (and magick
+               (eq 0 (apply #'call-process magick nil t nil
+                            (list file "-sample" "400x400"
+                                  "-format" "%k" "info:")))
+               (string-match "[0-9]+" (buffer-string)))
+          (string-to-number (match-string 0 (buffer-string)))
+        most-positive-fixnum))))
+
+(defun my/org-image--compress (source no-resize)
+  "Prepare a copy of SOURCE for storage.
+Return a list (FILE EXTENSION METHOD).  FILE is either SOURCE itself or
+a temporary file the caller must copy and then delete.  METHOD is a
+symbol naming the last rung of the ladder that ran."
+  (let ((ext (downcase (or (file-name-extension source) "png")))
+        (budget my/org-image-max-bytes))
     (cond
-     ((not rescale)
-      (copy-file source target t)
-      nil)
+     (no-resize (list source ext 'original))
+     ((null (my/org-image--magick)) (list source ext 'no-converter))
+     ((member ext my/org-image-no-resize-extensions) (list source ext 'verbatim))
      (t
-      ;; The trailing ">" means "only shrink"; without a shell around it
-      ;; the character needs no quoting.
-      (let* ((geometry (format "%dx%d>"
-                               my/org-image-max-pixels
-                               my/org-image-max-pixels))
-             (args (append (list source "-auto-orient" "-strip"
-                                 "-resize" geometry)
-                           (when (member ext '("jpg" "jpeg"))
-                             (list "-quality"
-                                   (number-to-string my/org-image-jpeg-quality)))
-                           (list target)))
-             (status (apply #'call-process magick nil nil nil args)))
-        (if (and (eq status 0) (file-exists-p target))
-            t
-          (copy-file source target t)
-          nil))))))
+      (let* ((resized (my/org-image--temp ext))
+             (temps (list resized))
+             (result
+              (if (not (my/org-image--run
+                        (append (list source "-auto-orient" "-strip")
+                                (when my/org-image-max-pixels
+                                  (list "-resize"
+                                        (format "%dx%d>"
+                                                my/org-image-max-pixels
+                                                my/org-image-max-pixels)))
+                                (list resized))))
+                  ;; No delegate for this format, or a broken source.
+                  (list source ext 'converter-failed)
+                (if (or (null budget)
+                        (<= (my/org-image--size resized) budget))
+                    (list resized ext 'resized)
+                  ;; Over budget: trade fidelity for size, cheapest
+                  ;; trade first.
+                  (let ((best resized)
+                        (best-ext ext)
+                        (best-method 'resized))
+                    (when (<= (my/org-image--sampled-colors source)
+                              my/org-image-palette-max-colors)
+                      (let ((png8 (my/org-image--temp "png")))
+                        (push png8 temps)
+                        (when (and (my/org-image--run
+                                    (list resized "-colors" "256"
+                                          "-define" "png:compression-level=9"
+                                          png8))
+                                   (< (my/org-image--size png8)
+                                      (my/org-image--size best)))
+                          (setq best png8
+                                best-ext "png"
+                                best-method 'palette))))
+                    (when (> (my/org-image--size best) budget)
+                      (let ((jpeg (my/org-image--temp "jpg")))
+                        (push jpeg temps)
+                        (when (and (my/org-image--run
+                                    (list resized
+                                          "-background" "white"
+                                          "-alpha" "remove" "-alpha" "off"
+                                          "-quality"
+                                          (number-to-string
+                                           my/org-image-jpeg-quality)
+                                          "-define"
+                                          (format "jpeg:extent=%d" budget)
+                                          jpeg))
+                                   (< (my/org-image--size jpeg)
+                                      (my/org-image--size best)))
+                          (setq best jpeg
+                                best-ext "jpg"
+                                best-method 'jpeg))))
+                    (list best best-ext best-method))))))
+        (dolist (file temps)
+          (unless (equal file (car result))
+            (ignore-errors (delete-file file))))
+        result)))))
+
+(defun my/org-image--method-description (method)
+  "Return what to tell the user about METHOD."
+  (pcase method
+    ('original         "stored unchanged (prefix argument)")
+    ('no-converter     "stored unchanged: ImageMagick not found")
+    ('verbatim         "stored unchanged: format not rescaled")
+    ('converter-failed "stored unchanged: the converter refused it")
+    ('resized          "rescaled")
+    ('palette          "rescaled, 256-colour palette")
+    ('jpeg             "rescaled, re-encoded as JPEG")
+    (_                 "stored")))
 
 ;; ============================================================
 ;; INSERTING
@@ -292,9 +433,8 @@ delegate for should still end up in the note."
 (defun my/org-image--preview-region (beg end)
   "Render inline previews between BEG and END.
 Org 9.8 renamed `org-display-inline-images' to `org-link-preview-region'
-and the argument lists differ, so each form is tried in turn and a
-version that accepts neither simply leaves the preview to the next
-manual refresh."
+and the argument lists differ, so each form is tried in turn; a version
+that accepts neither leaves the preview to the next manual refresh."
   (or (ignore-errors
         (and (fboundp 'org-link-preview-region)
              (progn (org-link-preview-region nil beg end) t)))
@@ -306,9 +446,9 @@ manual refresh."
 ;;;###autoload
 (defun my/org-image-insert (source name &optional no-resize)
   "Copy SOURCE into the attachment folder as NAME and link it at point.
-The copy is named after the identifier of the current note, and its
-longer edge is capped at `my/org-image-max-pixels'.  With a prefix
-argument, NO-RESIZE keeps the original resolution."
+NAME defaults to the note's title; the stored file is named after the
+note's identifier and numbered from 0.  With a prefix argument,
+NO-RESIZE stores the image exactly as it is."
   (interactive
    (progn
      (unless (derived-mode-p 'org-mode)
@@ -316,37 +456,43 @@ argument, NO-RESIZE keeps the original resolution."
      (let ((file (read-file-name "Image file: "
                                  (my/org-image--default-directory)
                                  nil t nil
-                                 #'my/org-image--selectable-p)))
+                                 #'my/org-image--selectable-p))
+           (default (or (my/org-image--note-title)
+                        (and (buffer-file-name)
+                             (file-name-base (buffer-file-name)))
+                        "image")))
        (list file
-             (read-string "Name in the attachment folder: "
-                          nil nil (file-name-base file))
+             (if my/org-image-prompt-for-name
+                 (read-string "Name in the attachment folder: " nil nil default)
+               default)
              current-prefix-arg))))
   (unless (derived-mode-p 'org-mode)
     (user-error "Images are inserted into Org buffers"))
   (unless (file-readable-p source)
     (user-error "Cannot read %s" source))
   (make-directory my/org-image-attachments-directory t)
-  (let* ((ext (downcase (or (file-name-extension source) "png")))
-         (target (my/org-image--unique-target (my/org-image--identifier)
-                                              (my/org-image--slug name)
-                                              ext))
-         (rescaled (my/org-image--install source target no-resize)))
+  (let* ((before (my/org-image--size source))
+         (prepared (my/org-image--compress source no-resize))
+         (produced (nth 0 prepared))
+         (extension (nth 1 prepared))
+         (method (nth 2 prepared))
+         (target (my/org-image--target (my/org-image--identifier)
+                                       (my/org-image--slug name)
+                                       extension)))
+    (copy-file produced target t)
+    (unless (equal produced source)
+      (ignore-errors (delete-file produced)))
     (unless (bolp) (insert "\n"))
     (let ((beg (point)))
       (when my/org-image-attr-width
         (insert (format "#+ATTR_ORG: :width %s\n" my/org-image-attr-width)))
       (insert (format "[[file:%s]]\n" (my/org-image--link-path target)))
       (my/org-image--preview-region beg (point)))
-    (message "%s → %s%s"
-             (file-name-nondirectory source)
+    (message "%s  %s → %s  (%s)"
              (file-name-nondirectory target)
-             (cond (rescaled (format " (capped at %d px)"
-                                     my/org-image-max-pixels))
-                   ((and my/org-image-max-pixels
-                         (not no-resize)
-                         (not (my/org-image--magick)))
-                    " (copied unchanged: ImageMagick not found)")
-                   (t "")))))
+             (file-size-human-readable before)
+             (file-size-human-readable (my/org-image--size target))
+             (my/org-image--method-description method))))
 
 ;;;###autoload
 (defun my/org-image-attachments-dired ()
@@ -354,6 +500,80 @@ argument, NO-RESIZE keeps the original resolution."
   (interactive)
   (make-directory my/org-image-attachments-directory t)
   (dired my/org-image-attachments-directory))
+
+;; ============================================================
+;; ONE-OFF CLEANUP
+;; ============================================================
+;; For files stored before the budget existed, or before ImageMagick was
+;; installed.  Names and extensions are preserved, so no link anywhere
+;; has to change -- which also means a photograph stored as PNG is
+;; quantised rather than turned into a JPEG, and may band.  Deleting
+;; such a file and inserting it again gives a better result, since the
+;; insertion path is free to choose the format.
+
+;;;###autoload
+(defun my/org-image-recompress-attachments ()
+  "Shrink attachments larger than `my/org-image-max-bytes' in place.
+Only PNG and JPEG files are touched, and only when the result is
+actually smaller.  Names and extensions are preserved, so existing
+links keep working."
+  (interactive)
+  (let* ((dir my/org-image-attachments-directory)
+         (budget (or my/org-image-max-bytes
+                     (user-error "`my/org-image-max-bytes' is nil")))
+         (files (and (file-directory-p dir)
+                     (seq-filter
+                      (lambda (file)
+                        (and (member (downcase (or (file-name-extension file) ""))
+                                     '("png" "jpg" "jpeg"))
+                             (> (my/org-image--size file) budget)))
+                      (directory-files dir t "\\`[^.]" t))))
+         (before 0)
+         (after 0)
+         (changed 0))
+    (cond
+     ((null (my/org-image--magick))
+      (user-error "ImageMagick not found"))
+     ((null files)
+      (message "Nothing over %s in %s"
+               (file-size-human-readable budget) dir))
+     ((yes-or-no-p
+       (format "Recompress %d file(s), %s in total, in place? "
+               (length files)
+               (file-size-human-readable
+                (apply #'+ (mapcar #'my/org-image--size files)))))
+      (dolist (file files)
+        (let* ((ext (downcase (file-name-extension file)))
+               (temp (my/org-image--temp ext))
+               (jpeg (member ext '("jpg" "jpeg")))
+               (size (my/org-image--size file)))
+          (setq before (+ before size))
+          (when (and (my/org-image--run
+                      (append (list file "-auto-orient" "-strip")
+                              (when my/org-image-max-pixels
+                                (list "-resize"
+                                      (format "%dx%d>"
+                                              my/org-image-max-pixels
+                                              my/org-image-max-pixels)))
+                              (if jpeg
+                                  (list "-quality"
+                                        (number-to-string
+                                         my/org-image-jpeg-quality)
+                                        "-define"
+                                        (format "jpeg:extent=%d" budget))
+                                (list "-colors" "256"
+                                      "-define" "png:compression-level=9"))
+                              (list temp)))
+                     (> (my/org-image--size temp) 0)
+                     (< (my/org-image--size temp) size))
+            (copy-file temp file t)
+            (setq changed (1+ changed)))
+          (ignore-errors (delete-file temp))
+          (setq after (+ after (my/org-image--size file)))))
+      (message "Recompressed %d of %d file(s): %s → %s"
+               changed (length files)
+               (file-size-human-readable before)
+               (file-size-human-readable after))))))
 
 ;; ============================================================
 ;; OPENING A PREVIEW
