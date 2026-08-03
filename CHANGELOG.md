@@ -7,6 +7,106 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-02k — 26-maintenance.el, part one: checks and a menu
+
+### Context
+
+A maintenance layer was asked for: change a note's identifier including
+its file name and every link to it, rename a keyword across the
+collection, and find notes sharing an identifier or a signature.
+
+Three of those four already existed and were reachable only through
+`M-x`, which is why they read as missing:
+
+| Wanted | Already provided by |
+|---|---|
+| identifier change + link rewriting | `my/denote-change-identifier` (27) |
+| duplicate identifier report | `my/denote-check-identifiers` (27) |
+| walk and fix duplicates | `my/denote-fix-duplicates` (27) |
+| keyword rename across the collection | `denote-explore-rename-keyword` |
+| front matter vs file name mismatch | `denote-explore-sync-metadata` |
+
+denote-explore has been installed since 15-workspace.el was written;
+only two of its commands were ever called.
+
+Denote upstream does not cover the identifier case and says so: its
+manual gives sample code for finding duplicates and states that, being
+an edge case, it is not part of the code base. Nor does
+`denote-rename-file-using-front-matter` change an identifier — Denote
+treats the file name as the source of truth for that field. So 27 is
+not duplicating upstream, and the new module calls it rather than
+reimplementing it.
+
+### A — What is new
+
+`my/denote-check-signatures` and `my/denote-check-broken-links`.
+
+denote-explore covers keywords and identifiers, not signatures. A
+duplicate signature makes a sequence ambiguous in the same way a
+duplicate identifier makes a link ambiguous, and `denote-sequence`
+writes signatures into file names where a migration or a manual rename
+can collide with them.
+
+Broken links are the other half of the identifier problem: a `denote:`
+link still looks like a link and still fontifies when its target is
+gone. Reported grouped by missing identifier, so one deleted note does
+not read as several problems.
+
+Both scan `my-notes-dir` directly through `my/denote--all-files` from
+27, which is why they see the staging inbox without any special
+arrangement.
+
+### B — The inbox had to be said out loud
+
+Every denote-explore command works from `denote-directory-files`, which
+honours `denote-excluded-directories-regexp` — `"inbox"`, set by
+25-inbox-review.el. Left alone, renaming a keyword would silently skip
+over a thousand staged notes, and the old keyword would return one note
+at a time as they were filed. That failure would surface weeks later,
+attached to nothing.
+
+`my/maintenance-with-full-scope` binds both exclusion options to a
+regexp matching only the empty string, so nothing is excluded for the
+duration of a maintenance command and nothing outside one is affected.
+An impossible regexp rather than nil, because Denote is free to treat
+nil differently in future while a regexp that cannot match is safe under
+either reading.
+
+### C — Reads and writes are separated in the menu
+
+`C-c n !`, appended to the main menu after `a` through
+`my/transient-append`.
+
+Checks sit in their own columns on lower-case keys; anything that
+renames files across the collection is on a capital, so a mistyped key
+cannot start one. `R` (change this note's identifier) and `I` (fix
+duplicates) reach 27; `K`, `O` and `S` reach denote-explore through
+wrappers that load it, widen the scope, and report its absence in a
+sentence rather than a void-function error.
+
+### D — Load order
+
+`init.el` already loaded 27 before 25 for a dependency reason. 26 joins
+that block after 25, so the sequence is 27, 25, 26 — dependency order,
+not numeric. The comment there now says so rather than explaining one
+pair.
+
+Nothing in 26 runs at load time, so the number would not have mattered;
+saying which order is intended does.
+
+### E — Deliberately not in this part
+
+A keyword review list — every keyword with its usage count, acting on
+the one at point — and a wrapper giving
+`denote-explore-rename-keyword` a single confirmation with a preview
+instead of one prompt per file. That is the part that writes to the
+whole collection at once, and it is being kept for its own pass rather
+than added at the end of a long one.
+
+*Not compiled or run: written without an Emacs available.*
+
+---
+
 ## Session 2026-08-02j — M-TAB never reached Emacs
 
 ### The failure

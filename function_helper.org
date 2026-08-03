@@ -2610,6 +2610,103 @@ each with its own regexp for =^#+title:=. The names differ, so nothing
 collides, but it is the same duplication one step short of the failure
 above.
 
+* Maintenance (C-c n !)
+:PROPERTIES:
+:CUSTOM_ID: maintenance
+:END:
+
+Looking after the collection rather than writing in it: finding what the
+migration broke, and reaching the tools that fix it.
+
+Module: =modules/26-maintenance.el=
+
+** The menu
+
+| Key | Command | Does |
+|-----+---------+------|
+| =i= | =my/denote-check-identifiers= | notes sharing an identifier (27-denote-identifiers.el) |
+| =g= | =my/denote-check-signatures= | notes sharing a Folgezettel signature |
+| =b= | =my/denote-check-broken-links= | =denote:= links whose target does not exist |
+| =l= | =my/denote-find-self-links= | notes linking to their own identifier |
+| =u= | =my/maintenance-single-keywords= | keywords used by exactly one note |
+| =z= | =my/maintenance-zero-keywords= | notes with no keywords |
+| =c= | =my/maintenance-count-keywords= | how many distinct keywords exist |
+| =R= | =my/denote-change-identifier= | change this note's identifier *and repoint every link to it* |
+| =I= | =my/denote-fix-duplicates= | walk duplicate identifier groups, one confirmation each |
+| =K= | =my/maintenance-rename-keyword= | rename or remove one keyword across the collection |
+| =O= | =my/maintenance-sort-keywords= | alphabetise every note's keywords |
+| =S= | =my/maintenance-sync-metadata= | bring file names into line with front matter |
+
+Lower case reads, upper case writes. Anything that renames files across
+the collection is on a capital so a mistyped key cannot start it.
+
+** Changing an identifier
+
+=R= is the answer to "this journal entry's time is wrong and I know what
+it should be". It verifies the new identifier is free in the silos,
+rewrites =#+identifier:=, renames the file, and *updates every =denote:=
+link pointing at it* across the whole notes tree, inbox included —
+links first, so an interruption leaves links pointing at a file that
+still exists.
+
+It accepts any valid identifier, not only the suggested next free one,
+so the remembered time can be typed directly.
+
+Denote will not do this itself. Its manual gives sample code for finding
+duplicate identifiers and states that, as an edge case, it is not part
+of the code base; and =denote-rename-file-using-front-matter= never
+changes an identifier, because Denote treats the file name as the source
+of truth for that field.
+
+** The inbox is in scope here, and only here
+
+denote-explore commands work from =denote-directory-files=, which
+honours =denote-excluded-directories-regexp= — set to ="inbox"= in
+=25-inbox-review.el=. Without intervention, renaming a keyword would
+silently skip every staged note, and the old keyword would reappear one
+note at a time as they were filed.
+
+=my/maintenance-with-full-scope= binds Denote's exclusion options to a
+regexp that matches only the empty string, so nothing is excluded for
+the duration of one maintenance command and nothing outside one is
+touched.
+
+The checks written in this module do not need it: they read
+=my/denote--all-files= from 27-denote-identifiers.el, which walks
+=my-notes-dir= directly for exactly this reason.
+
+** What comes from where
+
+Almost nothing in this module is new code. It is a menu over:
+
+- =27-denote-identifiers.el= — identifiers, duplicates, self-links, and
+  the link-rewriting rename;
+- the =denote-explore= package — keywords and front-matter sync, already
+  installed since =15-workspace.el= but with only two of its commands
+  ever called.
+
+Genuinely new: =my/denote-check-signatures= (denote-explore covers
+keywords and identifiers, not signatures) and
+=my/denote-check-broken-links=.
+
+** Practical notes
+
+=K= asks for confirmation *per file*. On a keyword used by hundreds of
+notes that is hundreds of prompts — try a rare keyword first to see what
+the command does.
+
+=u= (keywords used once) is the most useful report after a migration: a
+keyword appearing once is either genuinely specific or a misspelling of
+one that appears often, and the two are easy to tell apart by eye.
+
+=S= is the best single check against migration damage, since a script
+that wrote front matter and file names separately could get them out of
+step without either looking wrong alone.
+
+Signatures are supposed to live in the pks silo
+([[#menu-zettelkasten][Zettelkasten]]), so a signature reported by =g= from anywhere else is
+worth a look on its own account. The report shows each file's path.
+
 * Global Keybindings
 :PROPERTIES:
 :CUSTOM_ID: global-keybindings

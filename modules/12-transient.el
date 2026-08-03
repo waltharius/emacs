@@ -11,6 +11,8 @@
 ;;   C-c n v  — View
 ;;   C-c n t  — Tools (Zotero/Bib, spelling, future integrations)
 ;;   C-c n l  — Philosophy (appended dynamically by 19-philosophy-notes.el)
+;;   C-c n z  — Zettelkasten (appended dynamically by 22-zettelkasten.el)
+;;   C-c n !  — Maintenance (appended dynamically by 26-maintenance.el)
 ;;   C-c n h  — Function Help (opens function_helper.org)
 ;;
 ;; Docs: ~/.emacs.d/function_helper.org::#menu-notes-main

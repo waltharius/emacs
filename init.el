@@ -77,12 +77,14 @@
   (load (concat modules-dir "22-zettelkasten.el")) ; Folgezettel sequences (C-c n z)
   (load (concat modules-dir "23-fixed-tabs.el"))   ; Route commands to named tabs
   (load (concat modules-dir "24-readwise.el"))     ; Readwise import (C-c r s)
-  ;; 27 before 25: 25-inbox-review.el needs the identifier helpers and
-  ;; loads them by path when they are missing, which used to make this
-  ;; file load 27 a second time.  Loading it here in dependency order
-  ;; makes that fallback dormant, which is what it is for.
+  ;; This block is in dependency order rather than numeric order.
+  ;; 27-denote-identifiers.el owns the identifier helpers; 25 loads them
+  ;; by path when they are missing, which used to make this file load 27
+  ;; a second time, and 26 calls them too.  Loading 27 first makes that
+  ;; fallback dormant, which is what it is for.
   (load (concat modules-dir "27-denote-identifiers.el")) ; Identifier integrity after md files moved to org format
   (load (concat modules-dir "25-inbox-review.el")) ; Inbox review for old notes from Obsidian
+  (load (concat modules-dir "26-maintenance.el")) ; Integrity checks and repairs (C-c n !)
   (load (concat modules-dir "28-writing-projects.el")) ; Writing projects (C-c n p)
   (load (concat modules-dir "29-writing-export.el")) ; ODT/DOCX export via ox-odt + LibreOffice
   (load (concat modules-dir "30-link-tooltips.el")) ; Cheap mouse tooltips over denote: links
