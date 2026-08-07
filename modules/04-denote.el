@@ -84,16 +84,17 @@
 (setq org-confirm-elisp-link-function #'y-or-n-p)
 
 ;; ============================================================
-;; E4 — DISABLE ORG-CLOCK PERSISTENCE
+;; E4 — ORG-CLOCK PERSISTENCE IS OWNED BY 28-writing-projects.el
 ;; ============================================================
-;; org-clock-persist is enabled by default in modern Emacs.
-;; It writes ~/.emacs.d/.org-clock.save.el on every quit and reads
-;; it on every startup, causing a noticeable delay even when you
-;; never use org-clock.  Disabled here because org-agenda and
-;; time-clocking are not part of this workflow.
-
-(setq org-clock-persist nil)
-(setq org-clock-persist-file nil)
+;; This block used to set `org-clock-persist' and `org-clock-persist-file'
+;; to nil, on the grounds that time tracking was not part of this
+;; workflow.  It now is: writing projects clock work against tasks in
+;; their hub file, and a writing session outlives an Emacs session.
+;;
+;; Nothing is set here any more.  `org-clock-persist-file' in particular
+;; must keep its default value: `org-clock-persistence-insinuate' writes
+;; to it on every clock change, and a nil file name errors out.
+;; See the Clock section of 28-writing-projects.el.
 
 ;; ============================================================
 ;; TITLE PROMPT: do not offer past titles as completion candidates
@@ -133,6 +134,60 @@
 
 (add-hook 'dired-mode-hook #'denote-dired-mode)
 (add-hook 'dired-mode-hook #'dired-hide-details-mode)
+
+;; ============================================================
+;; BACKLINKS: where the backlinks buffer appears
+;; ============================================================
+;; `denote-backlinks' (C-c d b) lists the notes that link to the current
+;; one.  By default Denote shows that list wherever `display-buffer'
+;; decides, which for a reference list is the wrong place: it is read
+;; alongside the note, not instead of it.  A side window on the right at
+;; a quarter of the frame width keeps both visible.
+;;
+;; This setting used to live in 15-workspace.el, whose header advertised
+;; it as a "Denote backlinks panel" feature of the dashboard.  It is one
+;; Denote variable and it belongs with the rest of the Denote
+;; configuration.
+
+(with-eval-after-load 'denote
+  (setq denote-backlinks-display-buffer-action
+        '((display-buffer-reuse-window
+           display-buffer-in-side-window)
+          (side . right)
+          (slot . 0)
+          (window-width . 0.25)
+          (inhibit-same-window . t))))
+
+;; ============================================================
+;; SCANNING COST: what is deliberately NOT tuned
+;; ============================================================
+;; Every Denote prompt, backlink buffer and keyword completion is built
+;; from `denote-directory-files', which walks the whole notes tree.  Two
+;; tempting optimisations are refused here, on purpose:
+;;
+;; `denote-infer-keywords' stays t.  It makes Denote read the keyword
+;; vocabulary from existing file names, which is what keeps the tag set
+;; consistent and what makes `my/notes-read-keywords' (05-notes.el)
+;; useful at all.  Turning it off would trade a correctness feature for
+;; an unmeasured speedup.  If a profiler report ever shows keyword
+;; inference dominating a prompt, the fix is to pin the vocabulary in
+;; `denote-known-keywords' and set `denote-infer-keywords' to nil --
+;; but measure first:
+;;
+;;   (benchmark-run 3 (denote-directory-files))
+;;   (length (denote-directory-files))
+;;
+;; Nothing caches `denote-directory-files' globally.  A stale cache in a
+;; tree that Syncthing writes into would list notes that no longer
+;; exist, which is a worse failure than a slow prompt.  The one cache
+;; that does exist (30-link-tooltips.el) is confined to tooltip text,
+;; expires in seconds, and is unreachable from any prompt.
+;;
+;; If the file count is far above the number of real notes, the tree is
+;; being walked into directories that hold none -- .git, Syncthing's
+;; .stversions, attachment folders.  `denote-excluded-directories-regexp'
+;; is owned by 25-inbox-review.el and widening it there is the fix that
+;; helps every Denote operation at once.
 
 (provide '04-denote)
 ;;; 04-denote.el ends here

@@ -11,6 +11,8 @@
 ;;   C-c n v  — View
 ;;   C-c n t  — Tools (Zotero/Bib, spelling, future integrations)
 ;;   C-c n l  — Philosophy (appended dynamically by 19-philosophy-notes.el)
+;;   C-c n z  — Zettelkasten (appended dynamically by 22-zettelkasten.el)
+;;   C-c n !  — Maintenance (appended dynamically by 26-maintenance.el)
 ;;   C-c n h  — Function Help (opens function_helper.org)
 ;;
 ;; Docs: ~/.emacs.d/function_helper.org::#menu-notes-main
@@ -81,7 +83,7 @@
   "File and document management."
   [["File"
     ("r" "Rename file"    denote-rename-file)
-    ("k" "Add keywords"   denote-rename-file-keywords)
+    ("k" "Add keywords"   my/denote-keywords-edit)
     ("c" "Change silo"    my/denote-move-to-silo)
     ("d" "Delete note"    my/denote-delete-note)]
    [("q" "Quit" transient-quit-one)]])
@@ -150,6 +152,48 @@
 ;; MAIN NOTES MENU  (C-c n)
 ;; Docs: ~/.emacs.d/function_helper.org::#menu-notes-main
 ;; ============================================================
+
+;; ============================================================
+;; SAFE MENU EXTENSION
+;; ============================================================
+;; Feature modules add their own entries to these menus with
+;; `transient-append-suffix', which needs an anchor: an existing key to
+;; append after.  Anchoring on a key contributed by ANOTHER feature
+;; module couples the two, and `transient-append-suffix' signals when
+;; the anchor is absent -- during module loading, which aborts init.el
+;; partway and leaves the rest of the configuration unloaded.
+;;
+;; That turns "I removed a module I do not use" into a broken Emacs,
+;; and the error names the appending module rather than the missing
+;; one, so the cause is not obvious.
+;;
+;; This wrapper degrades instead: a missing prefix or anchor leaves the
+;; entry out and says so, which is the correct outcome -- an entry
+;; whose neighbour does not exist has nowhere meaningful to go.
+
+(defun my/transient-append (prefix anchor suffix)
+  "Add SUFFIX to PREFIX after ANCHOR, without ever signalling.
+
+SUFFIX is a transient suffix specification such as
+\\='(\"z\" \"Label\" some-command).  Does nothing when PREFIX is not
+defined, when ANCHOR is not present in it, or when SUFFIX\\='s key is
+already bound there -- the last case making re-evaluation of a module
+during development harmless."
+  (let ((key (car suffix)))
+    (cond
+     ((not (fboundp prefix))
+      (message "transient: no %s, skipping `%s'" prefix key))
+     ((ignore-errors (transient-get-suffix prefix key))
+      nil)
+     ((not (ignore-errors (transient-get-suffix prefix anchor)))
+      (message "transient: %s has no `%s' to append after, skipping `%s'"
+               prefix anchor key))
+     (t
+      (condition-case err
+          (transient-append-suffix prefix anchor suffix)
+        (error
+         (message "transient: could not add `%s' to %s: %s"
+                  key prefix (error-message-string err))))))))
 
 (transient-define-prefix my/notes-menu ()
   "Unified menu for all note operations."

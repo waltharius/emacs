@@ -51,7 +51,10 @@
 (global-set-key (kbd "C-c d l") 'denote-link)                ; Insert link
 (global-set-key (kbd "C-c d b") 'denote-backlinks)           ; Show backlinks
 (global-set-key (kbd "C-c d r") 'denote-rename-file)         ; Rename note
-(global-set-key (kbd "C-c d t") 'denote-rename-file-keywords); Modify keywords
+;; Same command the transient menu uses (C-c n d k), not Denote's raw
+;; one: `my/denote-keywords-edit' (05-notes.el) adds the keyword prompt
+;; behaviour shared by every tag prompt in this configuration.
+(global-set-key (kbd "C-c d t") 'my/denote-keywords-edit)     ; Modify keywords
 
 ;; ============================================================
 ;; PDF EXPORT (C-c p)
@@ -121,6 +124,14 @@
 ;; land on journal or docu notes.  See the menu tree below.
 
 ;; ============================================================
+;; READWISE (already defined in 24-readwise.el)
+;; ============================================================
+;; C-c r s = sync highlights from Readwise (incremental)
+;; C-c r r = review books with unprocessed quotes
+;; C-c r o = open the import folder (~/Downloads/readwise) in Dired
+;; Also under the notes menu: C-c n t r
+
+;; ============================================================
 ;; ZOTERO / BIBLIOGRAPHY (already defined in 18-zotero-transient.el)
 ;; ============================================================
 ;; C-c x = my/zotero-menu (transient) — also reachable via C-c n t z
@@ -143,6 +154,8 @@
 ;; C-s = save-buffer       (matches most other editors)
 ;; C-z = undo              (NOT suspend-frame!)
 ;; C-x C-b = ibuffer (instead of plain list-buffers)
+;; C-x u = vundo (visual undo tree), NOT the default plain undo
+;; C-S-z = undo-redo (redo that does not itself become undoable)
 ;; M-Q = my/unfill-region (join a paragraph back into one line)
 
 ;; ============================================================
@@ -226,6 +239,17 @@ Typing Analytics:
 Bibliography:
   C-c x   - Zotero/bib menu (same as C-c n t z)
 
+Readwise:
+  C-c r s - Sync highlights (incremental; C-u for everything)
+  C-c r r - Review books with unprocessed quotes
+  C-c r o - Open import folder in Dired
+  (menu: C-c n t r)
+
+Inbox (notes migrated from Obsidian):
+  C-c X   - Extract region/subtree/paragraph to a new note
+            (only in ~/notes/inbox files; C-c x stays Zotero)
+  (menu: C-c n t i -- review list, extract, open folders)
+
 Spelling:
   C-;     - Correct word at point (needs flyspell on)
   C-c f b - Check visible portion of buffer
@@ -238,6 +262,8 @@ Rebound defaults (not the usual Emacs bindings!):
   C-s     - save-buffer
   C-z     - undo
   C-x C-b - ibuffer
+  C-x u   - Visual undo tree (vundo)
+  C-S-z   - Redo (undo-redo)
   M-Q     - Unfill (join) region
 
 Other:
@@ -280,6 +306,12 @@ C-c n -- NOTES TRANSIENT MENU TREE
        F  Detach whole tab to its own frame
   t  Tools ->
        z  Zotero/Bib ->  (same submenu as C-c x, see below)
+       r  Readwise ->  s Sync (incremental)  S Sync everything
+                       r Review books        o Open import folder
+          In *Readwise Books*: RET/mouse open, S sort, / filter,
+                               C-/ clear filter, g rebuild
+          In *Readwise Quotes*: RET note, o note+open, z zettel,
+                                a add to existing, g rebuild, q back
        s  Correct previous (transient: stays open)
        a  Add to dict       (transient: stays open)
        S  Check visible     b  Check full buffer   T  Toggle spellcheck

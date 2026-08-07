@@ -28,20 +28,64 @@
 (setq org-hide-emphasis-markers t)
 
 ;; ============================================================
-;; MONOSPACE FOR CODE/TABLES (even when variable-pitch enabled)
+;; INLINE IMAGES: scale once instead of on every redisplay
 ;; ============================================================
+;; With `org-image-actual-width' unset, Org displays images at their
+;; intrinsic size.  A phone photo is 3,000-4,000 px wide, so every screen
+;; line of that image is computed against a bitmap far larger than the
+;; window, and scrolling past it recomputes window metrics for the whole
+;; thing.  This is the usual cause of "notes with photos scroll slowly";
+;; Obsidian sidesteps it because a browser engine rasterises and caches
+;; at the displayed size.
+;;
+;; A fixed width makes Emacs produce one scaled image and reuse it from
+;; the image cache.  Per-image overrides still work:
+;;   #+ATTR_ORG: :width 900
+;;
+;; TUNING.  This is a pixel count, so what it looks like depends on the
+;; display and on its scaling factor; 800 read as too small and is now
+;; 1100.  Raise it further if images still look cramped, but not much
+;; beyond 1600: `my/org-image-max-pixels' in 31-org-images.el caps
+;; stored attachments at that, and asking for more than a file contains
+;; upscales a bitmap, which only adds blur.  Raise both together if
+;; genuinely larger images are wanted.
+;;
+;; A float in the list -- '(0.9) -- would instead track the window
+;; width.  It is not used here: the scaled bitmap then has to be rebuilt
+;; whenever the window is resized, which happens on every writeroom
+;; toggle and every window split, and Org measures against the window
+;; rather than the text column, so with the centred layout of
+;; 10-visual-fill.el the result can be wider than the text it sits in.
 
-;; These faces stay monospace even in journal notes with handwriting font.
-;; Only :inherit is set here; all colour/size attributes are left as
-;; 'unspecified so they inherit from the face hierarchy (or custom.el).
-(with-eval-after-load 'org
-  (set-face-attribute 'org-table          nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
-  (set-face-attribute 'org-code           nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
-  (set-face-attribute 'org-block          nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
-  (set-face-attribute 'org-verbatim       nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
-  (set-face-attribute 'org-special-keyword nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
-  (set-face-attribute 'org-meta-line      nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified)
-  (set-face-attribute 'org-checkbox       nil :inherit 'fixed-pitch :height 'unspecified :foreground 'unspecified))
+(setq org-image-actual-width '(1100))
+
+;; Keep scaled images in the cache long enough to survive scrolling back
+;; and forth through a note (default is 300 seconds).
+(setq image-cache-eviction-delay 900)
+
+;; ============================================================
+;; ORG FACES ARE NOT SET HERE
+;; ============================================================
+;; This module used to call `set-face-attribute' on org-table, org-code,
+;; org-block, org-verbatim and others, passing `:foreground 'unspecified'
+;; with a comment claiming that this left the colour to custom.el.  It
+;; does the opposite: `unspecified' ERASES the attribute, so every colour
+;; set through `M-x customize-face' was wiped the moment Org loaded and
+;; had to be set again in every session.
+;;
+;; Worse, the erasure was invisible in new frames.  `set-face-attribute'
+;; changes the realised attributes of existing frames; a new frame
+;; recomputes its faces from the theme and `custom-set-faces' specs, in
+;; which the erasure does not appear.  The same face therefore looked
+;; one way in the main frame and another in a frame made by
+;; `my/detach-buffer-to-frame' -- which is what "every file looks
+;; different" turned out to be.
+;;
+;; Org face appearance is now owned entirely by custom.el, which is what
+;; 01-ui.el already said was the rule.  `:inherit fixed-pitch' -- the one
+;; thing these calls were really for, keeping code monospace inside
+;; journal buffers that use a handwriting font -- is expressed there
+;; too, so nothing is lost.
 
 ;; ============================================================
 ;; VISUAL IMPROVEMENTS

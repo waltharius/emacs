@@ -132,14 +132,37 @@ JOURNAL-P non-nil adds fontspec + Playpen Sans Hebrew before the rest."
 ;; ============================================================
 ;; DENOTE LINK FILTER
 ;; ============================================================
+;; A denote: link means something inside the notes tree and nothing at
+;; all in an exported document, so it is reduced to its description.
+;;
+;; The filter receives the link already transcoded by the backend, so
+;; the markup to strip differs per backend: LaTeX produces \href{}{},
+;; ODT produces <text:a>, HTML produces <a>.  Matching only the LaTeX
+;; shape and returning "" otherwise -- which is what this did -- silently
+;; deleted the description text from every ODT and HTML export, taking
+;; the words with it rather than just the link.
+;;
+;; Backends other than these three fall through to stripping tags,
+;; which is wrong for none of them and right for most.
 
 (defun my/--filter-denote-link (link-str link-obj _info)
-  "Strip denote: links to their description text only.
-Returns description string for denote links, nil for all others."
+  "Reduce denote: links in LINK-STR to their description text.
+LINK-OBJ is the link element; returns nil for non-denote links so that
+other filters and backends handle them normally."
   (when (string= (org-element-property :type link-obj) "denote")
-    (if (string-match "\\\\href{[^}]*}{\\(.*\\)}" link-str)
-        (match-string 1 link-str)
-      "")))
+    (cond
+     ;; LaTeX: \href{target}{description}
+     ((string-match "\\\\href{[^}]*}{\\(.*\\)}" link-str)
+      (match-string 1 link-str))
+     ;; ODT: <text:a ...>description</text:a>
+     ((string-match "<text:a[^>]*>\\(\\(?:.\\|\n\\)*?\\)</text:a>" link-str)
+      (match-string 1 link-str))
+     ;; HTML: <a ...>description</a>
+     ((string-match "<a[^>]*>\\(\\(?:.\\|\n\\)*?\\)</a>" link-str)
+      (match-string 1 link-str))
+     ;; Anything else: drop markup, keep words.  Returning "" here would
+     ;; delete the text of the link along with the link itself.
+     (t (string-trim (replace-regexp-in-string "<[^>]*>" "" link-str))))))
 
 (add-to-list 'org-export-filter-link-functions
              #'my/--filter-denote-link)

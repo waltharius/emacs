@@ -31,6 +31,177 @@
   (setq org-cite-activate-processor 'citar))
 
 ;; ============================================================
+;; CITATION EXPORT — CSL
+;; ============================================================
+;; Citar above configures three of the four org-cite processors:
+;; insert, follow and activate.  Those all work inside the editor.
+;; The fourth, `org-cite-export-processor', decides what a citation
+;; turns into when the document is exported -- and without it Org falls
+;; back to the `basic' processor, which emits a plain-text key and no
+;; real bibliography.  Citations therefore looked fine while writing
+;; and came out wrong on export.
+;;
+;; CSL rather than biblatex, because biblatex only exists inside LaTeX
+;; and the deliverables here include ODT and EPUB as well as PDF.  One
+;; mechanism has to serve all three, and only CSL does.
+;;
+;; CSL handles note styles properly: the specification defines the
+;; `ibid', `ibid-with-locator', `subsequent' and `near-note' positions,
+;; and note styles such as chicago-note-bibliography implement them, so
+;; repeated references shorten the way a humanities text expects.
+;;
+;; Known limitation, worth remembering before a deadline rather than
+;; during one: a plain discursive footnote sitting between two
+;; citations can confuse position tracking, so an "ibid." may appear
+;; where "op. cit." belongs.  Proofread citation runs in a text with
+;; dense commentary footnotes.
+
+(use-package citeproc
+  :ensure t
+  :after oc)
+
+(defvar my/csl-styles-dir (expand-file-name "csl/" my-notes-dir)
+  "Directory holding CSL style files (.csl).
+
+Kept beside the notes rather than in .emacs.d because a style is part
+of a document's requirements, not part of the editor: which style a
+text uses is decided by the journal or publisher, and the file has to
+travel with the writing.")
+
+(defvar my/csl-locales-dir (expand-file-name "csl-locales/" my-notes-dir)
+  "Directory holding CSL locale files (locales-*.xml).
+
+Separate from the styles directory because citeproc looks the two up
+independently: every style shares the same locale data for a given
+language.  Without it citeproc uses the locales bundled with Org,
+which carry only en-US, so a Polish document renders English terms.")
+
+(defvar my/csl-default-style "chicago-notes-bibliography.csl"
+  "CSL style used when a document does not name its own.
+
+A note style, since footnote citations are the default need here.
+Override per document instead of changing this, because the style is a
+property of the text rather than of the configuration:
+
+  #+cite_export: csl apa.csl
+
+Note the plural in \"notes\": the CSL styles repository renamed the
+Chicago styles, and the old singular name now 404s.  Verify the
+downloaded file is around 100 kB rather than the 14 bytes of an error
+page -- `my/csl-check-setup\=' checks this.")
+
+(with-eval-after-load 'oc
+  ;; The styles directory is set unconditionally and first.  Loading
+  ;; oc-csl can fail -- most plausibly because citeproc is not
+  ;; installed yet -- and an error inside `with-eval-after-load' aborts
+  ;; the remainder of the block silently.  With the require on top, a
+  ;; missing citeproc therefore left `org-cite-export-processors'
+  ;; unset, Org fell back to its built-in `basic' processor, and export
+  ;; produced "(Author, Year)" with no bibliography and no visible
+  ;; error anywhere.
+  (setq org-cite-csl-styles-dir my/csl-styles-dir)
+  ;; Citeproc needs locale data for terms ("ibid.", "and", date
+  ;; formats).  Left unset it falls back to the locales bundled with
+  ;; Org inside the Nix store, which carry only en-US -- so a Polish
+  ;; document silently renders English wording.
+  (setq org-cite-csl-locales-dir my/csl-locales-dir)
+  (unless (require 'oc-csl nil t)
+    (message "org-cite: oc-csl unavailable (is citeproc installed?) -- \
+citations will export through the basic processor"))
+  ;; NOTE the plural.  `org-cite-export-processors' is the global
+  ;; setting: an alist keyed by export backend, where `t' is the
+  ;; fallback for every backend without its own entry.  The SINGULAR
+  ;; `org-cite-export-processor' is a buffer-local variable set by a
+  ;; `#+cite_export:' keyword, so assigning it globally has no effect
+  ;; -- Org then silently falls back to the `basic' processor, which
+  ;; emits a plain "(Author, Year)" and no bibliography.
+  ;;
+  ;; Each entry is (BACKEND PROCESSOR BIBLIOGRAPHY-STYLE), mirroring
+  ;; the argument order of the #+cite_export: keyword.
+  (setq org-cite-export-processors
+        `((t csl ,my/csl-default-style))))
+
+(defun my/csl--valid-file-p (file opening-tag)
+  "Return non-nil when FILE looks like real XML containing OPENING-TAG.
+
+Checking readability is not enough.  A failed download leaves a
+perfectly readable file behind: `curl -O\=' writes the server\='s error
+body, so a renamed or moved style arrives as a 14-byte file containing
+\"404: Not Found\".  Citeproc then parses an empty style, produces no
+layout parameters, and the export fails far away from the cause with
+`Wrong type argument: numberp, nil\='."
+  (and (file-readable-p file)
+       (> (or (file-attribute-size (file-attributes file)) 0) 200)
+       (with-temp-buffer
+         (insert-file-contents file nil 0 2000)
+         (goto-char (point-min))
+         (search-forward opening-tag nil t))))
+
+(defun my/csl-check-setup ()
+  "Report whether CSL export is ready, and what is missing if not.
+
+Written because every failure here is silent: a missing style
+directory or an unreadable .bib does not raise an error, it just
+produces an export with no bibliography, which is easy not to notice
+until the document is finished."
+  (interactive)
+  (let ((problems nil))
+    (unless (featurep 'citeproc)
+      (push "citeproc is not loaded (M-x package-install RET citeproc)" problems))
+    (unless (featurep 'oc-csl)
+      (push "oc-csl is not loaded -- export falls back to the basic processor"
+            problems))
+    (unless (and (boundp 'org-cite-csl-locales-dir)
+                 org-cite-csl-locales-dir
+                 (equal (expand-file-name org-cite-csl-locales-dir)
+                        (expand-file-name my/csl-locales-dir)))
+      (push (format "org-cite-csl-locales-dir is %S, expected %S"
+                    (and (boundp 'org-cite-csl-locales-dir)
+                         org-cite-csl-locales-dir)
+                    my/csl-locales-dir)
+            problems))
+    (unless (assq t org-cite-export-processors)
+      (push "org-cite-export-processors has no fallback entry -- citations will export via the basic processor"
+            problems))
+    (unless (file-directory-p my/csl-styles-dir)
+      (push (format "no CSL styles directory: %s" my/csl-styles-dir) problems))
+    (unless (file-directory-p my/csl-locales-dir)
+      (push (format "no CSL locales directory: %s" my/csl-locales-dir) problems))
+    (let ((locale (expand-file-name "locales-pl-PL.xml" my/csl-locales-dir)))
+      (cond
+       ((not (file-readable-p locale))
+        (push (format "Polish locale missing: %s" locale) problems))
+       ((not (my/csl--valid-file-p locale "<locale"))
+        (push (format "not a CSL locale (%d bytes): %s"
+                      (file-attribute-size (file-attributes locale)) locale)
+              problems))))
+    (unless (equal (expand-file-name my/csl-locales-dir)
+                   (and org-cite-csl-locales-dir
+                        (expand-file-name org-cite-csl-locales-dir)))
+      (push (format "org-cite-csl-locales-dir is %S, not %S -- the setq did not take effect"
+                    org-cite-csl-locales-dir my/csl-locales-dir)
+            problems))
+    (let ((style (expand-file-name my/csl-default-style my/csl-styles-dir)))
+      (cond
+       ((not (file-readable-p style))
+        (push (format "default style missing: %s" style) problems))
+       ((not (my/csl--valid-file-p style "<style"))
+        (push (format "not a CSL style (%d bytes): %s"
+                      (file-attribute-size (file-attributes style)) style)
+              problems))))
+    (dolist (bib (if (listp org-cite-global-bibliography)
+                     org-cite-global-bibliography
+                   (list org-cite-global-bibliography)))
+      (unless (file-readable-p bib)
+        (push (format "bibliography not readable: %s" bib) problems)))
+    (if problems
+        (message "CSL export NOT ready:\n- %s" (string-join (nreverse problems) "\n- "))
+      (message "CSL export ready: %s via %S + %s"
+               my/csl-default-style
+               (cadr (assq t org-cite-export-processors))
+               (string-join org-cite-global-bibliography ", ")))))
+
+;; ============================================================
 ;; DENOTE TEMPLATE: Bibliographic note front matter
 ;; ============================================================
 ;; Note: #+reference is added automatically by citar-denote — do not duplicate it here.
@@ -156,6 +327,161 @@
 (use-package nov
   :ensure t
   :mode ("\\.epub\\'" . nov-mode))
+
+;; ============================================================
+;; CITATION KEY CHECKER
+;; ============================================================
+;; Citation keys are generated from metadata by Better BibTeX, so
+;; correcting a year or an author can rewrite the key of an item
+;; already cited in finished text.  Turning off "regenerate citation
+;; key when item changes" prevents that going forward, but says
+;; nothing about what has already drifted, or about items added before
+;; the setting was changed.
+;;
+;; The failure is loud rather than silent -- a stale key exports as
+;; NO_ITEM_DATA -- but only at export time, which may be long after the
+;; writing.  This scans for it on demand instead.
+
+(defvar my/cite-check-directories nil
+  "Directories scanned by `my/cite-check-keys'.
+Nil means the whole notes tree.")
+
+(defconst my/cite--citation-re "\\[cite[^]]*\\]"
+  "Match a whole Org citation, from `[cite' to its closing bracket.")
+
+(defconst my/cite--key-re "@\\([^]&;, \t\n]+\\)"
+  "Match one key inside a citation, capturing the key itself.
+Deliberately permissive: Better BibTeX keys may contain characters
+this configuration has no reason to enumerate, so the pattern excludes
+the delimiters instead of listing what is allowed.")
+
+(defun my/cite--bibliography-keys ()
+  "Return a hash table of every key defined in the global bibliography."
+  (let ((table (make-hash-table :test #'equal)))
+    (dolist (bib (if (listp org-cite-global-bibliography)
+                     org-cite-global-bibliography
+                   (list org-cite-global-bibliography)))
+      (when (file-readable-p bib)
+        (with-temp-buffer
+          (insert-file-contents bib)
+          (goto-char (point-min))
+          (while (re-search-forward "^[ \t]*@[a-zA-Z]+[{(]\\([^,\n]+\\)," nil t)
+            (puthash (string-trim (match-string 1)) bib table)))))
+    table))
+
+(defun my/cite--org-files ()
+  "Return the Org files to scan."
+  (let ((dirs (or my/cite-check-directories (list my-notes-dir))))
+    (seq-mapcat (lambda (dir)
+                  (when (file-directory-p dir)
+                    (directory-files-recursively dir "\\.org\\'")))
+                dirs)))
+
+(defun my/cite--collect-uses ()
+  "Return (KEY FILE LINE) for every citation key used in the scanned files."
+  (let (uses)
+    (dolist (file (my/cite--org-files))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (while (re-search-forward my/cite--citation-re nil t)
+          (let ((citation (match-string 0))
+                (line (line-number-at-pos (match-beginning 0)))
+                (start 0))
+            ;; One citation may hold several keys: [cite:@a; @b].
+            (while (string-match my/cite--key-re citation start)
+              (push (list (match-string 1 citation) file line) uses)
+              (setq start (match-end 0)))))))
+    (nreverse uses)))
+
+(defun my/cite-check-keys ()
+  "Report citation keys used in notes that are absent from the bibliography.
+
+Run this before submitting a text, or occasionally over the whole
+collection.  A key that no longer resolves exports as NO_ITEM_DATA,
+which is visible but only once the document has been produced."
+  (interactive)
+  (let* ((defined (my/cite--bibliography-keys))
+         (uses (my/cite--collect-uses))
+         (missing (seq-remove (lambda (use) (gethash (car use) defined)) uses))
+         (grouped (make-hash-table :test #'equal)))
+    (dolist (use missing)
+      (push (cdr use) (gethash (car use) grouped)))
+    (if (null missing)
+        (message "All %d citation key use(s) resolve against %d bibliography entr(ies)"
+                 (length uses) (hash-table-count defined))
+      (with-current-buffer (get-buffer-create "*Citation Keys*")
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (special-mode)
+          (insert (format "Unresolved citation keys: %d\n"
+                          (hash-table-count grouped))
+                  (format "Checked %d use(s) against %d entr(ies) in %s\n\n"
+                          (length uses) (hash-table-count defined)
+                          (string-join org-cite-global-bibliography ", "))
+                  "RET on a location opens it.\n\n")
+          (maphash
+           (lambda (key places)
+             (insert (format "  %s\n" key))
+             (dolist (place (nreverse places))
+               (let ((file (car place)) (line (cadr place)))
+                 (insert "      ")
+                 (insert-text-button
+                  (format "%s:%d" (file-name-nondirectory file) line)
+                  'follow-link t
+                  'help-echo file
+                  'action (lambda (_b)
+                            (find-file file)
+                            (goto-char (point-min))
+                            (forward-line (1- line))))
+                 (insert "\n")))
+             (insert "\n"))
+           grouped)
+          (goto-char (point-min))))
+      (display-buffer "*Citation Keys*")
+      (message "%d unresolved key(s) -- see *Citation Keys*"
+               (hash-table-count grouped)))))
+
+(defun my/cite-rename-key (old new)
+  "Replace citation key OLD with NEW across the scanned Org files.
+
+Offered because the usual cause of an unresolved key is a rename in
+Zotero rather than a mistake in the text, and the same stale key is
+then likely to appear in several places.
+
+Only occurrences inside a citation are touched: the same string in
+ordinary prose is left alone, which matters because keys often look
+like ordinary words."
+  (interactive
+   (let ((old (read-string "Replace key: ")))
+     (list old (read-string (format "Replace %s with: " old)))))
+  (let ((changed 0)
+        (files 0))
+    (dolist (file (my/cite--org-files))
+      (let ((hits 0))
+        (with-temp-buffer
+          (insert-file-contents file)
+          (goto-char (point-min))
+          (while (re-search-forward my/cite--citation-re nil t)
+            (let* ((start (match-beginning 0))
+                   (end (match-end 0))
+                   (citation (match-string 0))
+                   (replaced (replace-regexp-in-string
+                              (concat "@" (regexp-quote old) "\\b")
+                              (concat "@" new) citation t t)))
+              (unless (equal citation replaced)
+                (delete-region start end)
+                (goto-char start)
+                (insert replaced)
+                (setq hits (1+ hits)))))
+          (when (> hits 0)
+            (write-region (point-min) (point-max) file nil 'silent)))
+        (when (> hits 0)
+          (setq changed (+ changed hits))
+          (setq files (1+ files)))))
+    (message "Replaced %d occurrence(s) of %s in %d file(s)" changed old files)))
+
+(global-set-key (kbd "C-c b c") #'my/cite-check-keys)
 
 (provide '17-bibliography)
 ;;; 17-bibliography.el ends here

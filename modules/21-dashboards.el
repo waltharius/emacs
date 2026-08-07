@@ -336,11 +336,8 @@ today, across every month and year."
 ;; ============================================================
 
 (with-eval-after-load '12-transient
-  (ignore-errors
-    (transient-remove-suffix 'my/notes-find-menu "h"))
-  (transient-append-suffix
-   'my/notes-find-menu "r"
-   '("h" "History →" my/dashboards-history-menu)))
+  (my/transient-append 'my/notes-find-menu "r"
+                       '("h" "History →" my/dashboards-history-menu)))
 
 (provide '21-dashboards)
 ;;; 21-dashboards.el ends here

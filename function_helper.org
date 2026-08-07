@@ -10,17 +10,22 @@
 :END:
 
 Main entry point for all note operations. Hierarchical structure:
-=c= Create, =f= Find, =i= Insert, =d= Document, =x= Export, =v= View,
-=t= Tools, =l= Philosophy (dynamic), =z= Zettelkasten (dynamic),
+=c= Create, =f= Find, =i= Insert, =d= Document, =x= Export,
+=p= Writing projects (dynamic), =v= View, =t= Tools,
+=l= Philosophy (dynamic), =z= Zettelkasten (dynamic),
 =h= Function Help. Also carries
 two top-level shortcuts duplicated from Tools → Spelling for the two
 most-used spelling commands: =s= Correct previous, =a= Add to dict
 (both =:transient t=, so the menu stays open after use).
 
-=l= and =z= are not defined in =12-transient.el= itself: they are
-appended at load time with =transient-append-suffix= by
-=19-philosophy-notes.el= and =22-zettelkasten.el= respectively, which
-is why both modules must load *after* =12-transient.el=.
+=l=, =z= and =p= are not defined in =12-transient.el= itself: they are
+appended at load time by =19-philosophy-notes.el=,
+=22-zettelkasten.el= and =28-writing-projects.el= respectively, which
+is why all three modules must load *after* =12-transient.el=. They go
+through =my/transient-append=, which reports and skips instead of
+signalling when the prefix, the anchor key or transient itself is
+missing — so removing any one module leaves the rest of the menu
+intact.
 
 Module: =modules/12-transient.el=
 
@@ -37,8 +42,10 @@ capture commands in the second. <<p-1>>
 :CUSTOM_ID: fn-my-denote-base
 :END:
 
-Creates a plain Denote note. Prompts for title, tags (space-separated),
-and silo (=pks= / =docu= / =journal=).
+Creates a plain Denote note. Prompts for title, keywords and silo
+(=pks= / =docu= / =journal=). The keyword prompt completes against the
+keywords already in use and takes entries separated by commas — see
+[[#keyword-prompts][Keyword Prompts]].
 
 Function: =my/denote-base= | Module: =modules/05-notes.el=
 
@@ -70,8 +77,11 @@ Function: =my/denote-journal-date= | Module: =modules/05-notes.el=
 :CUSTOM_ID: fn-my-denote-essay
 :END:
 
-Creates note prefixed =ESEJ:= with tags =esej=, =project=, plus a
-user-provided project tag. Inserts scaffold: Metadata, Essay Plan,
+Creates note prefixed =ESEJ:= with keywords =esej=, =project=, plus one
+or more project keywords chosen at the same completing prompt as
+everywhere else ([[#keyword-prompts][Keyword Prompts]]) — the project keyword is the one
+that must match existing notes exactly, since it is what later gathers
+the essay's material. Inserts scaffold: Metadata, Essay Plan,
 Bibliography, Working Notes. Always saved in =pks= silo.
 
 Function: =my/denote-essay= | Module: =modules/05-notes.el=
@@ -82,7 +92,8 @@ Function: =my/denote-essay= | Module: =modules/05-notes.el=
 :END:
 
 Creates a new note linked bidirectionally to the current buffer.
-Requires =#+identifier:= in source note. Source gets a forward link,
+Keywords come from the same completing prompt as everywhere else
+([[#keyword-prompts][Keyword Prompts]]). Requires =#+identifier:= in source note. Source gets a forward link,
 new note gets a =:BACKLINK:= property. Layout: source left, new note
 right in split window.
 
@@ -97,6 +108,10 @@ Function: =my/denote-linked-note= | Module: =modules/05-notes.el=
 
 Fires capture template =j= directly, no menu. Opens capture buffer to
 the right of current window. Records =:SOURCE:= property automatically.
+
+Confirming with =C-c C-c= asks which existing capture heading the entry
+belongs to — see [[#capture-filing][Capture Filing]]. The default is to keep it as a new
+heading, so a plain =RET= at the prompt behaves as before.
 
 Function: =my/capture-idea= | Module: =modules/06-capture.el=
 
@@ -115,8 +130,12 @@ Function: =org-capture= (built-in)
 :END:
 
 Promotes heading at point in captures file to a new Denote note.
-Preserves =:SOURCE:= as =Source:= line. Removes original heading after
-success.
+
+A capture heading may hold material from several origins, gathered there
+by =C-c C-c= over successive captures. Each is carried across with its
+own =Source:= line, in capture order, and a line is written only when
+the origin changes — including against the line the target note already
+ends with. See [[#capture-filing][Capture Filing]].
 
 *Warning:* destructive — deletes the original heading, no automatic undo.
 Commit captures.org before running on important entries.
@@ -359,6 +378,34 @@ Obsidian-style transclusion for Denote notes and arbitrary files.
 Lets you choose a source, then a target inside that source, and inserts
 both a live =#+transclude:= directive and an export-time =#+INCLUDE:= directive.
 
+**** Why a pair, and why export needs care
+
+=#+transclude:= works in the editor; =#+INCLUDE:= is what actually
+reaches an export, because transcluded regions carry a read-only text
+property that the Org exporter is documented as sensitive to (issue
+#86 in nobiot/org-transclusion reports an export failing on it with no
+file produced).
+
+The pairing creates its own hazard: with a transclusion *expanded*,
+the source text is already in the buffer, so =#+INCLUDE:= would pull it
+in a second time and the export would contain it twice.
+=my/transclusion--collapse-before-export= on
+=org-export-before-processing-functions= therefore removes live
+transclusions before every export. Removal is lossless — the
+=#+transclude:= keyword remains and =A= re-expands afterwards.
+
+**** Side effect worth knowing
+
+Heading and paragraph targets need a stable anchor, so the wizard
+writes =:CUSTOM_ID:= or =<<target>>= into the *source* file and saves
+it. That means it modifies files you never opened. Anchoring by line
+number or heading text instead would break on the first edit of the
+source, so the write is the lesser cost — but commit before heavy
+first use.
+
+Full guide with workflow and examples:
+=~/notes/docu/…org-transclusion-przyklady…org=
+
 Module: =modules/20-transclusion.el=
 
 **** a — Add transclusion (wizard)
@@ -534,6 +581,155 @@ Only works if the buffer's file path contains ="journal"=.
 
 Function: =my/denote-set-wellbeing= | Module: =modules/05-notes.el=
 
+*** i — Image from disk
+:PROPERTIES:
+:CUSTOM_ID: fn-my-org-image-insert
+:END:
+
+Copies an image from anywhere on disk into =~/notes/attachments/=,
+shrinks it, and links it at point. Two prompts: the file, then a name
+with the note's =#+title:= offered as the default (=RET= accepts it).
+Set =my/org-image-prompt-for-name= to nil to skip the second prompt.
+
+With a prefix argument (=C-u C-c n i i=) the image is stored exactly as
+it is, at full resolution and without recompression.
+
+The echo area reports source size, stored size and what was done, e.g.
+=…-0.png 4.2M → 148k (rescaled, 256-colour palette)=.
+
+Function: =my/org-image-insert= | Module: =modules/31-org-images.el=
+
+**** How the file is named
+
+: IDENTIFIER--TITLE-SLUG-N.EXT
+: 20241225T000000--25-12-2024-środa-0.png
+
+The identifier belongs to the *note the image is inserted into*, the
+slug comes from its title, and =N= counts from 0 within that note. So
+every attachment of one note sorts next to its siblings, and a file
+whose identifier matches no note is an orphan by inspection. A note
+without a Denote identifier falls back to =#+identifier:= and then to
+its file name, which is what makes the command work in =captures.org=.
+
+The number ignores the extension, because one note can end up with a
+PNG and a JPEG and they must not both claim =-0=.
+
+Reusing the note's identifier means two files under =~/notes/= carry the
+same one. The attachment folder is therefore added to
+=denote-excluded-directories-regexp= at load time — extending the value
+=25-inbox-review.el= sets for the inbox, never replacing it — so Denote
+prompts, backlinks and keyword completion never see it.
+=26-maintenance.el= and =27-denote-identifiers.el= read =.org= files
+only, so images were already invisible to them.
+
+The link is relative (=[[file:../attachments/…]]=), which survives a
+home directory that differs between machines. =my/org-image-link-style=
+set to =absolute= changes that.
+
+**** How the file is shrunk
+
+Rescaling alone barely helps, because PNG is lossless: a 4 MB screenshot
+at 1600 px is still nearly 4 MB. Size falls only when fidelity is
+traded, so each step below runs only if the one before left the file
+over =my/org-image-max-bytes=:
+
+1. rescale to =my/org-image-max-pixels=, never enlarging;
+2. under budget — stop, and the file is still pixel-exact;
+3. few colours in the source (screenshot, diagram, chart) — quantise to
+   256 colours, staying PNG and keeping transparency;
+4. otherwise, or when step 3 was not enough — JPEG at
+   =my/org-image-jpeg-quality=.
+
+Measured on a 2559x1639 terminal screenshot: 551 kB source, 489 kB after
+rescaling alone, 133 kB after quantising, 146 kB as JPEG.
+
+Screenshots and photographs are told apart by counting distinct colours
+in a small sample of the source, against
+=my/org-image-palette-max-colors= (4096). Lower it if screenshots come
+out looking like JPEG; raise it if photographs come out banded.
+
+| Setting                        | Meaning                          | Default |
+|--------------------------------+----------------------------------+---------|
+| =my/org-image-max-pixels=      | longer edge of the stored file   |    1600 |
+| =my/org-image-max-bytes=       | size budget for the stored file  |  300 kB |
+| =my/org-image-palette-max-colors= | screenshot / photograph split |    4096 |
+| =my/org-image-jpeg-quality=    | quality when JPEG is chosen      |      85 |
+| =org-image-actual-width=       | width of the *preview* on screen | =(1100)= |
+
+The last one lives in =modules/11-org-appearance.el= and is a display
+setting, not a storage setting. Displaying more pixels than the stored
+file has only upscales a bitmap, so raise it and
+=my/org-image-max-pixels= together or neither. A single image can
+override the width with =#+ATTR_ORG: :width 900= above its link.
+
+All of this needs ImageMagick (=magick=, or =convert= on version 6) on
+=PATH= — on NixOS, =imagemagick= in the system packages. Without it the
+file is copied unchanged and the message says so; nothing fails. SVG and
+GIF are always copied unchanged.
+
+**** When an image is stored unchanged anyway
+
+Both executables are tried in turn, and a failing run leaves its command
+line, exit status and output in =*org-image-log*=; the echo area names
+that buffer. A file that arrives at its original size with
+=conversion failed= in the message means ImageMagick ran and refused the
+job, not that it is missing.
+
+=M-x my/org-image-diagnose= asks for an image and collects the same
+information on demand: which executables are on =PATH=, their versions,
+the exact command line insertion would run, its exit status and its
+output. Nothing is stored and the file is not touched.
+
+The usual causes are a restrictive =policy.xml= (=magick -list policy=
+in a terminal reports it) and a missing delegate for the source format
+(the =Delegates= line of =magick -version=).
+
+**** Clicking a picture
+
+Inline previews carry a keymap:
+
+- =mouse-1=, =RET= — open the image. In an Emacs =image-mode= buffer by
+  default; set =my/org-image-click-action= to =external= for the desktop
+  image viewer, or to =nil= to turn the whole thing off.
+- =x= — open in the desktop viewer regardless of that setting.
+- =i +=, =i -=, =i o= — Emacs' own image commands still work; the keymap
+  inherits =image-map=.
+
+A click landing on anything other than an image just moves point.
+
+Growing the preview in place is deliberately not what this does: it
+rescales a bitmap inside the text buffer, reflows everything below it,
+and loses the size at the next image refresh.
+
+*** I — Attachments folder
+:PROPERTIES:
+:CUSTOM_ID: fn-my-org-image-attachments-dired
+:END:
+
+Opens =~/notes/attachments/= in Dired, creating it if it is not there
+yet. Useful for spotting orphans: the identifier prefix of every file
+names the note it was inserted into.
+
+Function: =my/org-image-attachments-dired= | Module: =modules/31-org-images.el=
+
+**** M-x my/org-image-recompress-attachments
+:PROPERTIES:
+:CUSTOM_ID: fn-my-org-image-recompress-attachments
+:END:
+
+One-off cleanup for files stored before the size budget existed, or
+before ImageMagick was installed. Rescales and recompresses every
+attachment over =my/org-image-max-bytes= in place, keeping it only when
+the result is smaller, and asks for confirmation with the count and the
+total size first.
+
+Names and extensions are preserved, so no link has to change — which is
+also the limit: a photograph stored as PNG is quantised rather than
+converted to JPEG, and may band. Deleting that file and inserting it
+again gives a better result, because the insertion path can choose the
+format.
+
+Function: =my/org-image-recompress-attachments= | Module: =modules/31-org-images.el=
 ** C-c n d — Document / File management
 :PROPERTIES:
 :CUSTOM_ID: menu-notes-doc
@@ -557,9 +753,13 @@ Function: =denote-rename-file= (Denote package)
 :CUSTOM_ID: fn-denote-rename-file-keywords
 :END:
 
-Adds or changes keywords in the current Denote filename and front matter.
+Adds or changes keywords in the current Denote filename and front
+matter. Thin wrapper around Denote's =denote-rename-file-keywords=,
+adding nothing but the prompt behaviour described in
+[[#keyword-prompts][Keyword Prompts]]; which file is acted on and how front matter is
+rewritten stays Denote's business.
 
-Function: =denote-rename-file-keywords= (Denote package)
+Function: =my/denote-keywords-edit= | Module: =modules/05-notes.el=
 
 *** c — Change silo
 :PROPERTIES:
@@ -620,10 +820,12 @@ path or file name, so moving a note between silos never breaks incoming
 or outgoing links.
 
 Functions: =my/denote-move-to-silo=, =my/denote--file-title=,
-=my/denote--file-identifier=, =my/denote--silo-files=,
-=my/denote--current-silo=, =my/denote--titles-equal-p=,
-=my/denote--relocate=, =my/denote--remove= | Variable:
-=my/denote-silo-alist= | Module: =modules/05-notes.el=
+=my/denote--silo-note-files=, =my/denote--current-silo=,
+=my/denote--titles-equal-p=, =my/denote--relocate=, =my/denote--remove=
+| Variable: =my/denote-silo-alist= | Module: =modules/05-notes.el=
+
+Identifiers are read with =my/denote--file-identifier=, which lives in
+=modules/27-denote-identifiers.el= — see [[#symbol-collisions][One symbol, one owner]].
 
 *** d — Delete note
 :PROPERTIES:
@@ -688,6 +890,10 @@ Function: =my/org-export-pdf-by-all-keywords= | Module: =modules/16-org-export.e
 :END:
 
 Toggle visual appearance settings for comfortable writing.
+=T= is not defined in =12-transient.el=: it is appended at load time by
+=30-link-tooltips.el= through =my/transient-append=, so removing that
+module leaves the rest of the submenu intact.
+
 Module: =modules/12-transient.el= / =modules/13-centered-writing.el=
 
 *** c — Center text
@@ -726,6 +932,17 @@ Toggles visibility of Org emphasis markers (=*bold*=, =/italic/=, etc.).
 
 Function: =my/toggle-emphasis-markers= | Module: =modules/11-org-appearance.el=
 
+*** T — Link tooltips
+:PROPERTIES:
+:CUSTOM_ID: fn-my-link-tooltip-set-style
+:END:
+
+Chooses what the mouse tooltip over a =denote:= link shows. Prompts
+for =identifier=, =path= or =default=. See [[#link-tooltips][Link Tooltips]] for why the
+default is not =path=.
+
+Function: =my/link-tooltip-set-style= | Module: =modules/30-link-tooltips.el=
+
 ** C-c n t — Tools
 :PROPERTIES:
 :CUSTOM_ID: menu-notes-tools
@@ -744,6 +961,16 @@ Opens bibliography/Zotero submenu. Also available directly as =C-c x=.
 See [[#menu-zotero-detail][Zotero menu detail]] below.
 
 Function: =my/zotero-menu= | Module: =modules/18-zotero-transient.el=
+
+*** i — Inbox (migrated notes)
+:PROPERTIES:
+:CUSTOM_ID: menu-inbox-entry
+:END:
+
+Opens the review queue for notes migrated from Obsidian.
+See [[#menu-inbox][Inbox review detail]] below.
+
+Function: =my/inbox-menu= | Module: =modules/25-inbox-review.el=
 
 *** Spelling commands
 :PROPERTIES:
@@ -1094,6 +1321,653 @@ Functions: =my/zettel-*=, =my/zettelkasten-menu=, =my/zettel--in-pks=
 | Module: =modules/22-zettelkasten.el= | Upstream manual:
 https://protesilaos.com/emacs/denote-sequence
 
+* Readwise (C-c n t r)
+:PROPERTIES:
+:CUSTOM_ID: menu-readwise
+:END:
+
+Imports Readwise highlights into one Org file per book, kept in
+=my/readwise-directory= (=~/Downloads/readwise/=).
+
+| Key       | Command                     | Effect                          |
+|-----------+-----------------------------+---------------------------------|
+| =C-c r s= | =my/readwise-sync=          | Incremental sync (=C-u= = full) |
+| =C-c r r= | =my/readwise-review=         | Books with unprocessed quotes  |
+| =C-c r o= | =my/readwise-open-directory= | Import folder in Dired         |
+| =s= / =S= | in the menu                 | Incremental / full sync         |
+
+** Why the files live outside the notes tree
+
+=denote-directory= is the notes root, so anything beneath it is
+visible to every Denote command, every dashboard and every search here.
+Readwise material is raw input awaiting triage, not part of the
+collection, so it sits outside — invisible by default rather than
+visible-with-exclusions.
+
+The files are therefore disposable: nothing links to them, and personal
+commentary is stored by Readwise in the highlight's =note= field and
+returns on every sync, so a book file can always be regenerated
+exactly. Losing the directory costs only the time to re-sync.
+
+** Why sync is two-phase
+
+=updatedAfter= returns each book carrying only its *changed*
+highlights. Writing that straight to disk would replace a complete file
+with a partial one. So phase one asks which books changed, and phase
+two re-fetches those books in full and rewrites their files. Every file
+stays a complete picture of Readwise's current state.
+
+The sync timestamp is recorded *before* fetching: a highlight changed
+while the sync runs would otherwise fall between the fetch and the
+timestamp and never be seen again.
+
+File names derive from =user_book_id=, not import time, so re-import
+overwrites rather than accumulating a copy per sync.
+
+** File format
+
+#+begin_example
+,#+name: rw-710138927
+,#+rw_location: s. 57
+,#+rw_url: https://readwise.io/open/710138927
+,#+begin_quote
+The principle of GTD is to collect everything...
+,#+end_quote
+
+Personal commentary, when there is any.
+#+end_example
+
+The Readwise id sits on a =#+name:= affiliated keyword rather than in a
+heading with a property drawer. These quotes have no natural title; one
+would have to be invented at import and discarded at promotion.
+
+Personal notes go *after* the quote block. A heading at column zero
+inside =#+begin_quote= terminates the enclosing section, leaving the
+block unclosed as far as =org-element= is concerned even though it
+still renders acceptably — which is what an earlier hand-rolled import
+of this material did.
+
+** Review and promotion
+
+=C-c r r= (or =r= in the menu) lists imported books that still have
+unprocessed quotes. Selecting one lists that book's quotes.
+
+*** Book list
+
+A =tabulated-list-mode= buffer, which supplies column sorting and
+alignment without hand-drawing either.
+
+| Key       | Effect                                    |
+|-----------+-------------------------------------------|
+| =RET=     | Open the book's quotes                    |
+| =mouse-1= | Same                                      |
+| =S=       | Sort by the column at point               |
+| =/=       | Filter by author or title (live)          |
+| =C-/=     | Clear the filter                          |
+| =g=       | Rebuild from disk and pks                 |
+| =q=       | Bury                                      |
+
+Columns: unprocessed count, total, author, import date, title.
+
+Sort choice and filter both persist across entering a book and
+returning, since both are held in globals.
+=tabulated-list-sort-key= is buffer-local and cleared by
+=define-derived-mode=, so a chosen sort would otherwise reset on every
+return.
+
+=/= narrows as you type. Author and title are matched as a single
+string, so a search need not know which field a word lives in — the
+same author recorded as "Emil Cioran" in one book and "Cioran Emil" in
+another both match =cioran=. =C-g= restores the previous filter.
+
+An active filter shows in the mode line as =[/text]= and is named in
+the message after a rebuild: a persistent filter that were invisible
+would make a partial list look complete.
+
+*** Quote list
+
+Four actions, available from the keyboard or from the per-quote
+buttons beneath each quote:
+
+| Key   | Effect                                                  |
+|-------+---------------------------------------------------------|
+| =RET= | Create a note, stay in the list                         |
+| =o=   | Create a note and show it beside the list               |
+| =z=   | Create a note, then run the Folgezettel commands on it  |
+| =a=   | Add the quote to an *existing* note as cited evidence   |
+| =g=   | Rebuild the list                                        |
+| =q=   | Back to the book list                                   |
+
+Each quote line shows its id, location and a clickable Readwise URL.
+
+The action buttons carry a marker pointing at the quote button rather
+than their own copy of the record, so the done state lives in one
+place and marking it disarms all five entry points at once.
+
+*** Consumed versus cited
+
+A quote can reach =pks= two ways, and they mean different things:
+
+| Written into the note | Meaning                    | On the list        |
+|-----------------------+----------------------------+--------------------|
+| =:RW_ID: rw-N=        | the note IS that quote     | disappears         |
+| =#+name: rw-N=        | the note QUOTES it         | stays, =[CYTOWANY]= |
+
+The second case is the book-note workflow: a note analysing a book
+cites passages as evidence, and that must not use them up — each
+remains available to become an atomic note of its own. Distinguishing
+the two costs one extra regexp and avoids the failure mode where
+citing a passage silently hides it from review.
+
+*** What promotion writes
+
+Prompts for a title, tags, and whether to carry over the personal
+comment. The comment prompt defaults to yes, so a bare =RET= accepts
+it; =y-or-n-p= has no notion of a default answer, so it reads a string
+instead and treats anything starting with =n= as a refusal.
+
+The note embeds the source rather than linking to it:
+
+#+begin_example
+,:PROPERTIES:
+,:RW_ID: rw-710138927
+,:RW_URL: https://readwise.io/open/710138927
+,:SOURCE_AUTHOR: Sönke Ahrens
+,:SOURCE_TITLE: How to Take Smart Notes
+,:SOURCE_LOCATION: s. 20
+,:END:
+#+end_example
+
+Embedding is required by the design: the imported file is disposable
+and may be regenerated or deleted at any time, so a link would
+eventually dangle.
+
+*** How "already processed" is decided
+
+=my/readwise--promoted-ids= scans =pks= once and classifies every
+=rw-<id>= it finds. Since promotion writes the id into the note, pks
+is the single source of truth — and it survives losing the whole
+import directory, which an index kept beside those disposable files
+would not.
+
+One pass over pks rather than one grep per quote: a book can hold
+hundreds of highlights, so per-quote scanning would be quadratic.
+
+*** When the list is marked and when it is rebuilt
+
+=RET= and =a= only mark the used quote (dimmed, labelled, disarmed),
+because both are for working down the list and a rebuild would lose
+the position.
+
+=o= and =z= rebuild instead, so the consumed quote disappears rather
+than lingering struck through — affordable precisely because attention
+moves to the new note anyway.
+
+*** Multiple authors
+
+Readwise's =author= is free display text with no separator convention;
+one book arrived as "Neil BrowneStuart M. Keeley". The importer passes
+it through unchanged rather than splitting heuristically, which would
+misfire on double-barrelled names, particles and initials. Correction
+belongs in Readwise, where a re-sync then rewrites the file.
+
+The structural answer, if wanted later, is to record a Citar key on
+the promoted note and let Zotero be authoritative for bibliography
+instead of duplicating an unreliable string.
+
+** Configuration
+
+| Variable                    | Purpose                                  |
+|-----------------------------+------------------------------------------|
+| =my/readwise-directory=     | Where book files are written             |
+| =my/readwise-categories=    | Which Readwise categories to keep        |
+| =my/readwise-file-keywords= | Denote keywords added to every file      |
+| =my/readwise-state-file=    | Last-sync timestamp                      |
+
+=my/readwise-categories= defaults to =("books")=; adding =articles= is
+a one-item change and needs no code edit.
+
+The state file lives *beside* the imported files rather than in
+=.emacs.d=, deliberately: losing the directory should lose the state
+too, so the next sync re-imports everything instead of skipping books
+whose files are gone.
+
+Token comes from =auth-source=:
+
+: machine readwise.io login apikey password YOUR-TOKEN
+
+Module: =modules/24-readwise.el=
+
+* Inbox: migrated Obsidian notes (C-c n t i)
+:PROPERTIES:
+:CUSTOM_ID: menu-inbox
+:END:
+
+Review queue for the notes converted from the Obsidian vault. Journal
+notes went straight into the =journal= silo; everything else landed in
+=my/inbox-directory= (=~/notes/inbox/=) because each one needs a
+decision — =pks=, =docu=, Zettelkasten, or nothing.
+
+| Key       | Command                | Effect                                |
+|-----------+------------------------+---------------------------------------|
+| =C-c n t i r= | =my/inbox-review=  | Open the review list                  |
+| =C-c X=, =C-c n t i x= | =my/inbox-extract= | Split a fragment into a *new* note |
+| =C-c n t i o= | =my/inbox-open-directory= | Inbox folder in Dired         |
+
+*Extraction is not promotion.* =x= takes a region, subtree or paragraph
+out into a *new* note — new identifier, today's date, =:extracted_from:=
+naming the source — and leaves a link where the fragment was. The
+source note stays in the inbox, which is why it does not disappear.
+
+Filing a note into a silo is =p= or =d= *inside the review list*. Those
+act on the row at point, which is why they are not on the menu.
+
+In the review list:
+
+| Key   | Effect                                                       |
+|-------+--------------------------------------------------------------|
+| =RET= | Preview in a side window (=view-mode=, =q= closes)           |
+| =e=   | Open for editing                                             |
+| =p=   | Accept into =pks= (repairs journal links to it)              |
+| =d=   | Accept into =docu= (same)                                    |
+| =z=   | Move to =pks=, open, run =my/zettel-adopt=                   |
+| =t=   | Edit tags (=denote-rename-file=)                             |
+| =k=   | Reject → =~/notes/inbox-odrzucone/= (confirmed)              |
+| =/=   | Filter by title, tags or source folder; =C-/= clears         |
+| =g=   | Refresh; =S= or a header click sorts; =q= quits              |
+
+** Extraction stops at the front matter
+
+The paragraph fallback used to take it. =#+key:= lines are contiguous,
+so with point anywhere among them the surrounding "paragraph" *is* the
+front matter block — and since extracted text is replaced by a link,
+extraction wrote the source's header into a new note and *removed it
+from the source*.
+
+=my/inbox--content-start= now marks where the body begins: past the
+leading =#+key:= lines and any =:PROPERTIES:= drawer beneath them.
+
+- point in the body, paragraph reaching too far up → the start is
+  clamped;
+- point in the front matter → refused, with a message;
+- nothing but whitespace selected → refused.
+
+If a note was extracted from while point sat in its header, check it:
+the identifier survives in the file name, but =#+title:=,
+=#+filetags:= and =#+identifier:= may need restoring.
+
+** Why the inbox is not a silo
+
+=denote-directory= is the notes root, so every subdirectory beneath it
+is visible to every Denote command, dashboard and search. Half-reviewed
+imports showing up there would defeat the point of staging, so the
+module sets =denote-excluded-directories-regexp= to ="inbox"=. That
+also matches =inbox-odrzucone/= as a substring, which is intended:
+rejected notes should be less visible still.
+
+Rejection *moves* rather than deletes. Several hundred decisions taken
+over weeks will contain mistakes; the folder gets emptied once, at the
+end.
+
+** Columns that come from the migration
+
+=Status= shows the Obsidian =status:= field (117 of the notes are
+marked =draft=). =Folder= shows =:source_path:=, the note's original
+vault location — which carries real classification information:
+=00 Studia/Rok II/...= is =docu= material, =00 ZK/...= is not. Both are
+read from the front matter without visiting the file.
+
+** Accepting a note repairs journal links to it
+
+The conversion could not resolve wikilinks pointing at non-journal
+notes, because those notes did not exist in Org yet — and might end up
+rejected. So the repair happens on accept: =p=, =d= and =z= scan the
+journal silo for =[[Title]]= and =[[original-md-filename]]=, including
+=#heading= and =|alias= variants, and rewrite them to
+=[[denote:IDENTIFIER][...]]=. The number repaired is reported in the
+echo area.
+
+This runs without asking. At this volume a prompt per accept would be
+noise, and the rewrite only ever touches links naming that exact note.
+
+** Extraction (C-c X)
+
+The counterpart to promoting a whole note: many fleeting notes hold one
+paragraph worth keeping among three that are not.
+
+=my/inbox-extract= takes the region; or the whole subtree when point is
+on a heading; or the paragraph otherwise. It prompts for title (default:
+first line of the selection), keywords and target silo, writes a new
+Denote note recording =:extracted_from:=, and replaces the extracted
+text with a =denote:= link — so the source keeps its context instead of
+quietly losing a passage.
+
+Bound to =C-c X=, not =C-c x=: the latter is =my/zotero-menu= globally,
+and the inbox minor-mode map would shadow it in exactly the buffers
+where a bibliography lookup is likely. The command also works in any
+Org buffer via =M-x=.
+
+** Configuration
+
+| Variable                      | Meaning                          |
+|-------------------------------+----------------------------------|
+| =my/inbox-directory=          | Staging folder to review         |
+| =my/inbox-reject-directory=   | Where =k= moves notes            |
+| =my/inbox-silos=              | Silos =p= / =d= can accept into  |
+| =my/inbox-journal-directory=  | Silo scanned for link repair     |
+
+Module: =modules/25-inbox-review.el=
+
+* Writing Projects (C-c n p)
+:PROPERTIES:
+:CUSTOM_ID: writing-projects
+:END:
+
+The management layer for a long-form text — tasks, deadline, time
+spent, and which notes belong to it. Not a writing environment: it
+holds no prose and does no exporting.
+
+A project is a directory under =my/writing-projects-directory=
+(=~/projects/=) containing a hub file named after it, plus =email/=.
+The written text is *not* there: it stays in the Denote silos and
+carries a =#+project:= line. Notes are knowledge that outlives the
+project; the hub, its tasks and its mail are scaffolding that dies with
+the deadline.
+
+| Key | Command                              | Effect                       |
+|-----+--------------------------------------+------------------------------|
+| =n= | =my/writing-project-new=             | Create directory, hub, git   |
+| =o= | =my/writing-project-open=            | Open a hub file              |
+| =D= | =my/writing-project-dired=           | Project directory in Dired   |
+| =f= | =my/writing-project-new-note=        | Create a note already joined |
+| =a= | =my/writing-project-add-note=        | Add current note to project  |
+| =m= | =my/writing-project-refresh-mentions=| Regenerate the mentions list |
+| =t= | =my/writing-project-refresh-titles=  | Resync stale link captions   |
+| =R= | =my/writing-project-rebuild-materials= | Rebuild membership by scan |
+| =p= | =my/writing-project-progress=        | Chars / target / days left   |
+| =i= =c= =z= =g= | =org-clock-*=            | In, out, cancel, goto        |
+| =A= =U= | =org-agenda=, update files       | Agenda over hub files        |
+
+** Creating versus adding
+
+=f= asks for a project, a section and a title, then does everything
+else: creates the note in =my/writing-project-note-directory=
+(=pks/=, not the project directory), writes =#+project:=, adds the
+Denote keyword, and links it from the hub. =a= does the same for a note
+that already exists.
+
+Project text lives in the silo like any other note. A chapter draft is
+still knowledge: it is searched, linked and transcluded with everything
+else, and it stays useful once the project is finished.
+
+Membership is *additive*. A note already belonging to other projects
+keeps them and gains the new one — the =#+project:= line takes several
+slugs separated by spaces. Notes are routinely material for more than
+one text, and silently dropping an older membership would be worse than
+any duplication.
+
+** Belonging versus mentioning
+
+Two relations, two mechanisms, deliberately not merged:
+
+| Relation  | Mechanism                              | Where it shows |
+|-----------+----------------------------------------+----------------|
+| belongs   | =#+project: slug= + link in the hub    | Materials      |
+| mentions  | Denote keyword =slug= in the file name | Mentions       |
+
+A journal entry keyworded =licencjat= records that something about the
+thesis happened that day. It is not a chapter. Listing it as project
+material would make the material list useless, so mentions are a
+separate section and =a= is what promotes one into Materials.
+
+Because =f= gives new notes the project keyword too, a member would
+otherwise appear in both lists. =m= subtracts current members, so what
+remains under Mentions is exactly the set of candidates for promotion —
+which is the only reason to read that section.
+
+=a= writes *both* halves: the keyword into the note, the link into the
+hub. The hub is the fast path — one file, read instantly. The keyword
+is repair data: if the hub is lost, =R= reconstructs it by scanning the
+silos. Scanning is never on the path of opening a project.
+
+** Links survive renaming
+
+Hub entries are =[[denote:IDENTIFIER][Title]]=. A Denote identifier is
+assigned at creation and never changes, so adding a tag to a chapter —
+which rewrites its file name — breaks nothing. Only the caption goes
+stale, since it is a copy of the title made when the link was written.
+=t= resyncs captions from the current titles; nothing depends on them.
+
+*Warning:* this does *not* extend to =#+INCLUDE:=, which takes a path
+and does break on rename. Assembling a manuscript from several chapter
+files needs identifiers resolved to paths at export time. That belongs
+to the export layer, not here.
+
+** Why a keyword and not an Org property
+
+Org properties live in a drawer under a heading, and Denote notes start
+with =#+title:= and usually have no top-level heading — a file-scope
+property would need =#+PROPERTY: PROJECT foo=. A =#+project:= keyword
+matches what Denote already writes, takes several values separated by
+spaces, and is greppable:
+
+: rg '^#\+project:.*licencjat' ~/notes
+
+** What counts towards the target
+
+Only files linked under the =Text= heading. Sources are excluded
+because they are not the deliverable.
+
+Counting runs =pandoc -f org -t plain= and measures the result, not the
+Org source: front matter, drawers, citation syntax and =:noexport:=
+subtrees can be a fifth of a file, and a publisher counts what the
+reader receives. Results are cached on each file's modification time,
+so pandoc runs once per edit rather than once per look. Set
+=my/writing-count-with-pandoc= to nil to fall back to a cruder in-Emacs
+count, then run =my/writing-clear-char-cache=.
+
+A link that resolves to no file is reported as =unresolved= rather than
+silently dropped — that means a note was deleted or its identifier
+changed.
+
+** No drafting/editing phase flag
+
+The progress line changes meaning once the target is passed:
+
+: licencjat: 7350 / 20000 chars (37%, 4 files) · 23 days · 550 chars/day
+: licencjat: 21200 / 20000 chars (106%, 9 files) · 23 days · 1200 chars over target
+
+An explicit phase flag was considered and rejected: drafting and
+editing alternate from one session to the next, so the flag would spend
+most of its life set wrongly. One comparison covers both.
+
+** Agenda is project hubs only
+
+=org-agenda-files= is the hub file of every project, rebuilt by =U= and
+on project creation. The previous setting in =05-notes.el= pointed at
+the three silos plus the capture file, so every agenda build read some
+3,700 notes to find no tasks at all — or worse, to find the =TODO=
+examples in =docu/= and present them as work.
+
+Personal tasks are not carved out as an exception. A project named
+"Life" is a project like any other.
+
+** Clocking, and what Wayland breaks
+
+Clocking is opt-in per heading: nothing is measured until =C-c C-x C-i=
+on a task, so this cannot leak into unrelated Emacs use.
+
+| Setting                          | Effect                              |
+|----------------------------------+-------------------------------------|
+| =org-clock-persist= = ='history= | A session outlives Emacs            |
+| =org-clock-idle-time=            | Prompt on return after N minutes    |
+| =org-clock-auto-clockout-timer=  | Stop by itself after N seconds      |
+| =org-time-stamp-rounding-minutes= | =S-<up>= on a CLOCK line moves 5 min |
+
+*Warning:* under Wayland none of the idle handling is fully reliable.
+Org can ask macOS and X11 how long the *user* has been idle (via
+=xprintidle=); under Wayland it can only ask Emacs, so reading in a
+browser with an Emacs frame focused is counted as work.
+
+Two fallbacks. Manual correction is the reliable one: put point on a
+timestamp inside a =CLOCK:= line and =S-<up>= / =S-<down>= moves it in
+five-minute steps, with Org recomputing the =\=> H:MM= total. =C-c C-x
+C-q= cancels a clock outright.
+
+The other is =my/writing-use-mutter-idle=, which takes idle time from
+GNOME Mutter over D-Bus. *Disabled by default and unverified.* Check it
+works before enabling:
+
+: dbus-send --print-reply --dest=org.gnome.Mutter.IdleMonitor \
+:   /org/gnome/Mutter/IdleMonitor/Core \
+:   org.gnome.Mutter.IdleMonitor.GetIdletime
+
+=04-denote.el= used to set =org-clock-persist-file= to nil. That block
+is now inert: a nil file name makes =org-clock-persistence-insinuate=
+fail on the first clock change.
+
+** Configuration
+
+| Variable                              | Meaning                        |
+|---------------------------------------+--------------------------------|
+| =my/writing-projects-directory=       | Root of project directories    |
+| =my/writing-project-subdirectories=   | Created inside a new project   |
+| =my/writing-project-silos=            | Scanned by =R= and =m=         |
+| =my/writing-project-note-directory=   | Where =f= creates notes        |
+| =my/writing-keyword-new-notes=        | Also tag new notes with slug   |
+| =my/writing-count-with-pandoc=        | Exported text vs crude count   |
+| =my/writing-clock-idle-minutes=       | Ask after this much idleness   |
+| =my/writing-clock-auto-clockout-seconds= | Stop by itself; nil disables |
+| =my/writing-use-mutter-idle=          | D-Bus idle query (unverified)  |
+| =my/writing-heading-*=                | Hub heading names              |
+
+*Warning:* the =my/writing-heading-*= variables name the headings the
+commands look for. Changing one after projects exist orphans that
+section in every hub already created. Set them before the first
+project, or rename the headings in every hub at the same time.
+
+** Why projects live outside the notes tree
+
+=~/notes= is synchronised by Syncthing and =~/projects/= is not.
+Project directories are meant to be independent git repositories, and
+Syncthing replicating =.git/= across devices can corrupt it — index,
+locks and packfiles are written concurrently with no atomicity
+guarantees. =~/notes/.stignore= excludes =.git= for the same reason.
+
+Module: =modules/28-writing-projects.el=
+
+* Office Export — ODT and DOCX (C-c n x)
+:PROPERTIES:
+:CUSTOM_ID: office-export
+:END:
+
+For text that leaves Emacs: a chapter for a supervisor, an article for
+an editor.
+
+| Key | Command                     | Effect                        |
+|-----+-----------------------------+-------------------------------|
+| =O= | =my/org-export-to-odt=      | ODT via Org's own exporter    |
+| =W= | =my/org-export-to-docx=     | ODT, then LibreOffice → DOCX  |
+| =?= | =my/office-check-setup=     | Report what is missing        |
+
+Output goes to =~/projects/<slug>/export/= when the file declares
+=#+project:=, otherwise to =~/notes/export/<silo>/=. A document is a
+deliverable of its project, not of the notes tree.
+
+** Why not pandoc
+
+Pandoc reads Org and writes DOCX in one step, and does produce real
+Word footnotes from org-cite citations. It is still the wrong tool
+here, for two reasons found by testing rather than assumed:
+
+- Its Org reader is a reimplementation. =#+INCLUDE: "f.org::*Heading"=
+  is unsupported — pandoc warns and *omits the content*. =:only-contents
+  t= is ignored, so the heading comes through anyway. Both are how
+  =20-transclusion.el= writes INCLUDE pairs, so an assembled manuscript
+  would export short without failing.
+- It renders citations with its own citeproc. PDF goes through Org and
+  citeproc-el; routing DOCX through pandoc lets one source produce two
+  different citation apparatus, and the difference would surface only
+  in the copy already sent.
+
+Org exports to ODT, LibreOffice converts. Same exporter as PDF, same
+INCLUDE handling, same citation renderer.
+
+** ODT or DOCX
+
+Word has opened ODT since 2007 and OnlyOffice reads it natively, so ODT
+is usually enough and skips the conversion. Reach for DOCX when the
+document is coming *back*: tracked changes and comments made in Word
+survive a DOCX round-trip more reliably than an ODT one.
+
+Note that neither direction merges. A supervisor's tracked changes
+cannot be applied to the Org source automatically — they are read and
+retyped. The exported file is a copy, never a second master.
+
+** Citations
+
+Handled by org-cite and CSL, the same as PDF. With a note style such as
+=chicago-notes-bibliography.csl= the citations become real footnotes and
+"ibid." is resolved from actual adjacency in the exported text, so
+reordering paragraphs fixes the back-references instead of breaking
+them.
+
+*Warning:* a discursive footnote sitting between two citations can
+confuse CSL position tracking, producing "ibid." where the short form
+belongs. Proofread citation runs in passages with dense commentary
+footnotes.
+
+** Configuration
+
+| Variable                        | Meaning                        |
+|---------------------------------+--------------------------------|
+| =my/office-output-dir=          | Root for non-project exports   |
+| =my/office-project-subdirectory=| Subdirectory inside a project  |
+| =my/office-convert-timeout=     | Seconds to wait for LibreOffice |
+
+Module: =modules/29-writing-export.el=
+
+* Citation Key Checker (C-c b c)
+:PROPERTIES:
+:CUSTOM_ID: cite-check
+:END:
+
+=my/cite-check-keys= scans the notes tree for citation keys that no
+longer exist in the bibliography, and lists each one with clickable
+locations.
+
+** Why it is needed
+
+Better BibTeX generates keys from metadata, so correcting a year or an
+author can rewrite the key of an item already cited in finished text.
+Unchecking "Regenerate citation key when item changes" in the Better
+BibTeX preferences prevents that going forward, but says nothing about
+keys that already drifted, or about items added before the setting was
+changed. Pinning a key (a =Citation Key:= line in an item's =Extra=
+field) is stronger still, since it survives a rebuild of the BBT
+database.
+
+The failure itself is loud, not silent: a stale key exports as
+=NO_ITEM_DATA=. But it only becomes visible once the document has been
+produced, which may be long after the writing. This checks on demand
+instead.
+
+** Commands
+
+| Command                | Effect                                        |
+|------------------------+-----------------------------------------------|
+| =my/cite-check-keys=   | report unresolved keys (=C-c b c=)            |
+| =my/cite-rename-key=   | replace a key across all scanned files        |
+
+=my/cite-rename-key= exists because the usual cause is a rename in
+Zotero rather than a typo, so the same stale key tends to appear in
+several places. It rewrites keys only *inside* citations — the same
+string in ordinary prose is untouched, which matters because keys
+often look like ordinary words.
+
+=my/cite-check-directories= narrows the scan; nil means the whole
+notes tree.
+
 * Zotero / Bibliography (C-c x)
 :PROPERTIES:
 :CUSTOM_ID: menu-zotero-detail
@@ -1139,6 +2013,40 @@ Module: =modules/06-capture.el=
 Session persistence via built-in =desktop-save-mode=. Open files and
 cursor positions survive restarts. Desktop file lives in
 =~/.emacs.d/desktop/=.
+
+** =my/desktop-after-startup-hook=
+
+An ordinary hook, run *once*, shortly after Emacs has finished starting
+up — whether or not a session was restored.
+
+Two Emacs hooks answer half the question each: =desktop-after-read-hook=
+fires only when there was a desktop file to read, =emacs-startup-hook=
+fires either way but too early relative to restoration. Both feed this
+hook, and a flag makes sure only the first one counts. The delay before
+firing is =my/desktop-startup-delay= (0.5 s), which lets the rest of
+startup settle before anything reshapes windows.
+
+Registered on it:
+
+| Module | What it does |
+|--------+--------------|
+| =03-spelling.el= | Clears the Hunspell block and activates flyspell in every restored buffer |
+| =15-workspace.el= | Opens the notes dashboard in its tab |
+
+Both registrations are guarded: without =01-ui.el= they degrade to a
+message or to =emacs-startup-hook=, rather than to silence.
+
+This exists because the two consumers used to solve the problem
+separately, inside =15-workspace.el= — two hooks, two timers, and a
+"does the Dashboard tab exist already?" test whose only purpose was to
+stop them colliding. Spell checking also passed through that file, so
+removing the dashboard module disabled it. A module that owns the
+session can say when the session is ready; it should not have to know
+what anyone does with that fact.
+
+Functions: =my/desktop--run-startup-hook= | Variables:
+=my/desktop-after-startup-hook=, =my/desktop-startup-delay= |
+Module: =modules/01-ui.el=
 
 Three-layer strategy:
 
@@ -1270,6 +2178,825 @@ trim (and its buffer killing) also runs here, because it hangs on
 
 Function: =my/desktop-save-now= | Module: =modules/01-ui.el=
 
+* Undo and Backup History
+:PROPERTIES:
+:CUSTOM_ID: undo-history
+:END:
+
+Four independent layers, each answering a different question. Full
+walkthrough with exercises:
+=~/notes/docu/…historia-zmian-undo-i-kopie-zapasowe…org=
+
+| Layer             | Question it answers                     | Horizon        |
+|-------------------+-----------------------------------------+----------------|
+| undo              | undo what I just did                    | seconds–hours  |
+| persistent undo   | …and after restarting Emacs             | days           |
+| numbered backups  | how the file looked before this session | last ~10 sessions |
+| git               | how this note looked in March           | years          |
+
+** vundo (C-x u)
+:PROPERTIES:
+:CUSTOM_ID: fn-vundo
+:END:
+
+Emacs's built-in undo is already a tree — undoing an undo is recorded
+as a change rather than discarding the branch, so every previous buffer
+state stays reachable. What was missing was a way to *see* it.
+
+=vundo= draws that existing tree and navigates it; it does not replace
+the undo system. Keymap, verified against =vundo-mode-map=:
+
+| Key           | Effect                                            |
+|---------------+---------------------------------------------------|
+| =f= / →       | forward (newer state)                             |
+| =b= / ←       | backward (older state)                            |
+| =n= / ↓       | *at a fork only*: sibling branch below            |
+| =p= / ↑       | *at a fork only*: sibling branch above            |
+| =a=           | back to the nearest fork                          |
+| =w=           | forward to the next fork                          |
+| =e=           | to the tip of the current branch                  |
+| =l= / =r=     | previous / next *saved* state                     |
+| =m= / =u=     | mark / unmark a node for diff                     |
+| =d=           | diff current node against marked (or its parent)  |
+| =RET=         | *confirm* — keep the buffer in the chosen state   |
+| =q= or ~C-g~  | quit and *roll back* what vundo did               |
+
+*=n= and =p= only move at a branching point.* They switch between
+branches sharing a parent, not up and down a list. On a linear stretch
+they have nowhere to go and appear to do nothing; the arrow keys are
+bound to the same commands, so they behave identically.
+
+*The connecting lines are connectors, not paths.* This is what makes
+the behaviour look broken: the drawn lines suggest a route you could
+walk, but =n=/=p= *jump* vertically between nodes in the **same
+column** — which is what siblings are, children of one fork drawn one
+row apart at equal distance from it. To drop to the node below, you
+must be standing directly above it. One step too far right and the
+node below is no longer your sibling, so nothing happens.
+
+: ──○──○──●──○──○      n works here (● is directly above)
+:      │
+:      └──○──○──○
+
+: ──○──○──○──●──○      n does nothing here
+:      │
+:      └──○──○──○      (nothing in this column below)
+
+The sequence that always works: =a= to reach the fork, =f= one step
+in, then =n= or =p=. =a= also reveals where the fork actually is,
+which is not always where the drawing suggests.
+
+*=RET= commits, =q= reverts.* Moving through the tree changes the
+buffer provisionally. =q= and ~C-g~ are bound to the *same* command
+(=vundo-quit=) — there is no difference between them, and by default
+both roll back. Set =vundo-roll-back-on-quit= to nil if you would
+rather have =q= keep the current state and stop needing =RET=.
+
+*=d= needs something to compare against.* The diff runs between the
+current node and a marked node, or its parent when nothing is marked —
+so at the root of the tree, with no mark set, there is nothing to
+diff. Mark with =m= first, then move and press =d=.
+
+This pairing was chosen over =undo-tree= specifically because
+=undo-tree= substitutes its own undo implementation. It is also
+incompatible with =undo-fu-session= — the two cannot be combined, since
+undo-tree defines its own data structures.
+
+** undo-fu-session
+:PROPERTIES:
+:CUSTOM_ID: fn-undo-fu-session
+:END:
+
+Writes undo history on save and restores it when the file is opened
+again, so the tree survives restarting Emacs. Standalone: despite the
+name it has no dependency on =undo-fu= and stores Emacs's built-in undo
+data unchanged.
+
+Data goes to =~/.emacs.d/undo-fu-session/=, capped at
+=undo-fu-session-file-limit= (2000) files, oldest removed first. Kept
+inside =.emacs.d= rather than beside the notes on purpose: it is
+machine-local state, and syncing it would create conflicts over files
+meaningless on the other device.
+
+*Restoration is conditional.* Buffer length and checksum are verified
+first; if the file changed outside Emacs — a Syncthing update from
+another device, for instance — the history is not restored, because it
+would describe different text than what is on disk.
+
+** Numbered backups
+:PROPERTIES:
+:CUSTOM_ID: numbered-backups
+:END:
+
+*A backup is written on the first save of a buffer after visiting it,
+not on every save.* This is the part that is easy to misread: with
+=kept-new-versions= at 10, the ten kept files are roughly the last ten
+*editing sessions*, not the last ten saves — usually far more history
+than the number suggests, not less.
+
+Notes go to =~/notes/.backups/=, everything else to
+=~/.emacs.d/backups/=. File names are the original's full path with
+=/= replaced by =!=, suffixed =.~N~=.
+
+=M-x diff-backup= diffs the current file against its most recent
+backup. Older versions open with =C-x C-f= like any text file.
+
+In =bash= those names trigger history expansion. Quote the *whole*
+name in single quotes (=cat '!home!…!bookmarks.~18~'=), not part of it,
+or run =set +H=. =zsh= does not have this problem.
+
+* Link Tooltips
+:PROPERTIES:
+:CUSTOM_ID: link-tooltips
+:END:
+
+Hovering the mouse over a =denote:= link used to stall Emacs for as
+long as it took to list the whole =denote-directory=. This section
+explains the cause and what was traded away to remove it.
+
+Module: =modules/30-link-tooltips.el=
+
+** The cause
+
+Denote registers a =:help-echo= *function* for its Org link type:
+
+#+begin_src emacs-lisp
+(org-link-set-parameters "denote"
+  :follow #'denote-link-ol-follow
+  :help-echo #'denote-link-ol-help-echo
+  ...)
+#+end_src
+
+Org copies whatever =:help-echo= holds into the =help-echo= text
+property. The distinction that matters:
+
+- a *string* is produced once, while the buffer is fontified;
+- a *function* is called by redisplay every time the pointer lands on
+  the link, and again as it moves across it.
+
+=denote-link-ol-help-echo= resolves the identifier through
+=denote-get-path-by-id=, which calls =denote-directory-files=, which
+walks the tree with =directory-files-recursively=. Denote caches none
+of it. The cost is one full recursive scan of =~/notes/= per pointer
+movement — invisible at a few hundred notes, unusable at several
+thousand.
+
+** What is traded
+
+The tooltip is informational: it names the file behind a link whose
+title is already printed on screen. Paying the most expensive operation
+in the note collection for that is a bad trade, so the parameter is
+replaced.
+
+Only the tooltip changes. =:follow= is untouched, so opening a link
+still resolves the identifier against the current state of the tree,
+and a note moved between devices by Syncthing is always found. A stale
+tooltip can at worst name a path that has since changed, and nothing
+acts on that text.
+
+** Styles
+
+=my/link-tooltip-style=:
+
+| Value        | Shows                     | Disk access                          |
+|--------------+---------------------------+--------------------------------------|
+| =identifier= | =denote:20260802T101500=  | none (default)                       |
+| =path=       | the resolved file name    | one scan per =my/link-tooltip-cache-seconds= |
+| =default=    | Org's own =LINK: ...=     | none                                 |
+
+=identifier= is the default because the path answers a question that is
+rarely being asked.
+
+Switching to or from =default= changes a decision Org makes while
+fontifying, so =my/link-tooltip-set-style= runs =font-lock-flush= in the
+current buffer. Other open Org buffers pick the change up when they are
+next refontified.
+
+** Why this cache is allowed
+
+=04-denote.el= states that nothing caches =denote-directory-files=,
+because a stale cache in a tree Syncthing writes into would advertise
+notes that no longer exist. That still holds. The cache in this module
+is keyed by identifier, is read only by the tooltip, is dropped whole
+after =my/link-tooltip-cache-seconds= (30), and is unreachable from any
+prompt, backlink buffer or search.
+
+Failed lookups are cached alongside successful ones. An identifier with
+no file behind it is a broken link, and retrying the scan on every
+pointer movement is exactly the cost being removed.
+
+** Reading the link under the pointer
+
+The identifier comes from the =htmlize-link= text property, written by
+=org-activate-links= and also the source Denote's own tooltip function
+reads. A line-bounded regexp scan is the fallback for buffers fontified
+by something else. Neither path touches the file system; neither cost
+grows with buffer size.
+
+** Configuration
+
+#+begin_src emacs-lisp
+(setq my/link-tooltip-style 'identifier)   ; identifier | path | default
+(setq my/link-tooltip-cache-seconds 30)    ; only used by `path'
+#+end_src
+
+=M-x my/link-tooltip-clear-cache= empties the cache early; it is needed
+only when a tooltip is expected to reflect a move made seconds ago.
+
+** Related measurement
+
+The same directory scan is behind every Denote prompt and backlink
+buffer. To see what it currently costs:
+
+#+begin_src emacs-lisp
+(benchmark-run 3 (denote-directory-files))
+(length (denote-directory-files))
+#+end_src
+
+If the count is far above the number of real notes, the tree contains
+directories that should not be scanned at all — =.git=, Syncthing's
+=.stversions=, attachment folders. =denote-excluded-directories-regexp=
+is set to ="inbox"= in =25-inbox-review.el=; widening it there helps
+every Denote operation, not only tooltips.
+
+* Keyword Prompts
+:PROPERTIES:
+:CUSTOM_ID: keyword-prompts
+:END:
+
+Every prompt for tags in this configuration goes through one function,
+=my/notes-read-keywords=, so that they all complete against the same
+vocabulary and all behave the same way.
+
+Function: =my/notes-read-keywords= | Module: =modules/05-notes.el=
+
+Callers: =my/denote-base=, =my/denote-essay=, =my/denote-linked-note=
+(05-notes.el), =my/capture-promote-to-note= (06-capture.el), Readwise
+quote promotion (24-readwise.el). =my/denote-keywords-edit= applies the
+same prompt behaviour to Denote's own =denote-rename-file-keywords=,
+which is what =C-c n d k= runs.
+
+=my/denote-journal= and =my/denote-journal-date= do not appear in that
+list: they write =:journal:= and prompt for nothing.
+
+** Completion instead of typing blind
+
+Tags used to be read with =read-string= and split on spaces, with no
+completion at all. With a few dozen keywords that was inconvenient;
+after the Obsidian migration it is a source of near-duplicates —
+=filozofia= beside =flozofia=, =kant= beside =kanta= — that nothing can
+tell apart afterwards, because Denote treats every distinct string as
+its own keyword.
+
+=denote-keywords-prompt= is Denote's own prompt. It completes against
+the vocabulary Denote infers from existing file names
+(=denote-infer-keywords= is =t=, set in 04-denote.el), removes
+duplicates and returns a list. Calling it rather than writing a private
+prompt is what keeps these commands and =denote-rename-file-keywords=
+identical to each other, and identical as Denote changes.
+
+*Separator changed.* Keywords are now typed *comma-separated*, as
+everywhere else in Denote, not space-separated. A keyword may therefore
+contain a space, which the old prompt could not express.
+
+** Creating a keyword that is a prefix of an existing one
+
+Vertico preselects the first matching candidate, and =RET=
+(=vertico-exit=) submits the *selected candidate*, not what was typed.
+Typing =zuzi= where =zuzia= exists therefore filed the note under
+=zuzia=. Only the element at point is completed, which is why placing
+the new keyword anywhere but last in the list used to be the way
+through.
+
+Vertico's documented answer is =M-RET= (=vertico-exit-input=), which
+submits the input as typed. It works in every prompt and keeps working
+whatever is configured here.
+
+=my/notes-keyword-preselect= makes that the behaviour of plain =RET=
+inside these prompts by binding =vertico-preselect= around the call.
+The binding is dynamic, so it covers the recursive minibuffer edit and
+nothing else — no hook, no advice, no global state, and no separate
+module loading later to correct a command that already ran.
+
+Keys inside a keyword prompt:
+
+| Key       | Effect                                                  |
+|-----------+---------------------------------------------------------|
+| =TAB=     | next candidate — the first press leaves the input line   |
+| =S-TAB=   | previous candidate                                       |
+| =,=       | insert the highlighted candidate and start the next keyword — the fast way to take several from the list |
+| =C-TAB=   | insert the highlighted candidate *without* exiting, when the separator is not wanted yet |
+| =RET=     | submit: the input when on the input line, the candidate when one is selected |
+| =M-RET=   | submit the input regardless of selection (Vertico's own) |
+
+Choosing several existing keywords is therefore *filter, TAB, comma,
+repeat*. On the input line, with nothing highlighted, =,= stays an
+ordinary comma, so typing a new keyword by hand is unaffected.
+
+=TAB= is Vertico's =vertico-insert= by default. It is moved here
+because a list appearing under a half-typed word reads as something to
+step through, and =TAB= is the key hands reach for to do that. The
+rebinding is confined to these prompts: file-name completion elsewhere
+keeps =TAB= as insert, where it matters most.
+
+*Not M-TAB.* Insertion was bound there first and could never fire:
+GNOME owns =Alt-Tab= as the window switcher, so the compositor consumes
+the event and Emacs never sees it. Worth remembering before reaching for
+=Alt= in any binding on this desktop — =C-h k= followed by the key
+reports nothing at all when the compositor has taken it.
+
+The capture destination prompt ([[#capture-filing][Capture Filing]]) shares =TAB=, =S-TAB=
+and =C-TAB= through the same function but gets *no* =,= binding: it reads
+a single heading, and a heading may contain a comma.
+
+The rebinding is applied with =minibuffer-with-setup-hook=, the built-in
+way to configure a single minibuffer session. The hook exists only for
+the duration of the call, exactly like the =vertico-preselect= binding —
+nothing is added to =minibuffer-setup-hook= globally. =:append= places
+it after Vertico's own setup, so the local map it extends is Vertico's.
+
+The cost is one keystroke when reusing an existing keyword. Whether
+that is a good trade depends on how often new keywords are coined
+against how often old ones are reused.
+
+** Configuration
+
+#+begin_src emacs-lisp
+;; prompt = RET is literal (default); first = Vertico's own behaviour
+(setq my/notes-keyword-preselect 'prompt)
+
+;; nil = leave Vertico's own TAB/arrow bindings alone in these prompts
+(setq my/notes-keyword-tab-navigates t)
+#+end_src
+
+Without Vertico the setting has no reader and the prompt is Denote's
+unmodified. Without Denote, =my/notes-read-keywords= falls back to the
+old space-separated =read-string=, so note creation still works.
+
+** Why the vocabulary prompt is not instant
+
+=denote-keywords-prompt= builds its candidate list from
+=denote-directory-files=, which walks the whole notes tree. That is the
+same cost described in [[#link-tooltips][Link Tooltips]] and the same measurement applies:
+
+#+begin_src emacs-lisp
+(benchmark-run 3 (denote-directory-files))
+#+end_src
+
+* Org Faces and Fonts
+:PROPERTIES:
+:CUSTOM_ID: org-faces
+:END:
+
+Where the appearance of Org text is decided, and why it is decided in
+exactly one place.
+
+** The rule
+
+*custom.el owns every Org face.* Set colours, weights and inheritance
+with =M-x customize-face=; no module calls =set-face-attribute= on an
+Org face any more.
+
+=03b-fonts.el= owns the three *base* faces those Org faces inherit
+from — =default=, =fixed-pitch= (JetBrains Mono) and =variable-pitch=
+(Playpen Sans Hebrew) — and the per-buffer choice between them, which is
+what makes journal notes handwritten. Changing the handwriting font
+there changes every face that inherits =variable-pitch=.
+
+** What used to go wrong
+
+=11-org-appearance.el= called =set-face-attribute= with
+=:foreground 'unspecified= on seven Org faces, under a comment claiming
+this left the colour "to inherit from custom.el". It does the opposite:
+=unspecified= *erases* the attribute. A colour set with
+=customize-face= applied for the rest of that session and was wiped at
+the next start, every time.
+
+It also produced the impression that *each file looked different*. It
+did not — each *frame* did. =set-face-attribute= alters the realised
+faces of existing frames; a new frame recomputes its faces from the
+theme and =custom-set-faces=, where the erasure does not appear. A note
+opened with =C-c n v f= (detach to frame) therefore showed the theme's
+colours while the same note in the main frame showed none.
+
+Two further traps worth remembering:
+
+- =~code~= is =org-code= and ~=verbatim=~ is =org-verbatim= — *two
+  different faces*. A difference between them reads like a per-document
+  quirk until you notice which marker was used.
+- =custom.el= and the module disagreed about =org-block=: Georgia in one,
+  monospace in the other. The winner depended on how old the frame was.
+
+** Current settings
+
+| Face | Look | Applies to |
+|------+------+------------|
+| =org-quote= | journal handwriting font, italic, 1.1 | =#+begin_quote= blocks |
+| =org-block= | monospace, cream background | =#+begin_src=, =#+begin_example= |
+| =org-verbatim= | purple, *not* bold | ~=text=~ |
+| =org-code= | dark green, not bold | =~text~= |
+| =org-table=, =org-meta-line=, =org-checkbox=, =org-link=, =org-special-keyword= | monospace | structure that must stay aligned |
+
+=org-quote= inherits =variable-pitch= rather than naming a font, so a
+quotation is set in the same hand as a journal entry in *every* note,
+not only in journals. =org-block= inherits =fixed-pitch=, so source
+blocks stay monospace even inside a journal.
+
+=org-verbatim= deliberately has *no* =:foreground=: the purple comes
+from =modus-operandi-tinted= itself. =org-code= is pinned to
+=dark green= because the theme offers nothing like it.
+
+Quote blocks are only given the =org-quote= face when
+=org-fontify-quote-and-verse-blocks= is non-nil, which =01-ui.el= sets.
+
+** Theme
+
+Light only: =modus-operandi-tinted=, loaded by =09-theme.el=. There is
+no dark command and no toggle.
+
+Dark mode cannot work while custom.el pins Org faces to literal light
+colours such as =#fef8e0=, because =custom-set-faces= outranks a theme.
+Making it work means moving those colours into
+=modus-themes-common-palette-overrides=, which names palette entries
+that each theme resolves for itself — a real piece of work, not a
+toggle.
+
+=modus-themes-headings= still sets heading colour and variable pitch,
+but custom.el's =org-level-1..8= heights outrank the sizes given there.
+Change heading sizes in custom.el.
+
+** If a colour looks wrong
+
+With point on the text, =C-u C-x == names every face at that position.
+=M-x describe-face= then shows where the face got its attributes. If a
+face differs between two frames, that is the symptom described above and
+means something has started calling =set-face-attribute= again.
+
+* Capture Filing
+:PROPERTIES:
+:CUSTOM_ID: capture-filing
+:END:
+
+How a capture joins a thread that already exists, and what promotion
+makes of the result.
+
+Module: =modules/06-capture.el=
+
+** The problem
+
+A capture usually continues something already noted. Retyping its
+heading from memory is how near-duplicates appear: =Do poprawy w moim
+systemie notowania Emacs= against the same words with one letter
+different is two headings to Org — and two separate notes once each is
+promoted, which is the failure =C-c n c m= exists to prevent.
+
+** The prompt
+
+=C-c C-c= in a capture buffer asks one question with three answers:
+
+: File under (TAB for existing, text for a new heading, empty for none):
+
+| Answer | Result |
+|--------+--------|
+| =TAB= onto an existing heading, then =RET= | text is appended under it with a =Source:= line and *no second heading* |
+| type something, then =RET= | the capture keeps its own heading, named with what was typed |
+| =RET= on an empty prompt | the capture keeps its own heading, untitled — exactly as before |
+
+=RET= submits *what was typed*, not the highlighted candidate, so a new
+heading beginning like an existing one can be entered. =TAB= steps onto
+the list. This is the same behaviour as the tag prompts
+([[#keyword-prompts][Keyword Prompts]]) and is driven by the same
+=my/notes-keyword-preselect=, deliberately not duplicated under a second
+name. =C-TAB= inserts without exiting; there is no =,= binding here,
+because this prompt reads one heading and a heading may contain a comma.
+
+Naming happens by editing the capture buffer while it is still open, so
+Org writes the headline out itself.
+
+The prompt does not appear on =C-c C-k= (abort) or =C-c C-w= (refile,
+which already chooses a destination itself).
+
+Only headings with text are offered as destinations — an unnamed capture
+was never given a subject and cannot serve as one.
+
+** The source line
+
+One format, in captures.org and in promoted notes alike:
+
+: Source: [[denote:20260715T101500][Przewodnik po bibliografii]] — [2026-08-02 nie 18:10]
+
+A property drawer is not an option for a fragment filed under an
+existing heading: Org only recognises one directly beneath a heading.
+Body text is also what a note receives, so all three places share this.
+
+Duplicate detection compares the *bracket link*, not the whole line, so
+the same origin captured at two different times counts as one source.
+
+*Limitation:* a line of prose beginning with =Source:= is read as
+metadata. Indent it or rephrase it.
+
+** What promotion does with it
+
+=my/capture--split-into-segments= turns a capture subtree into an
+ordered list of (source, text) pairs. The heading's own =:SOURCE:= and
+=:CAPTURED:= properties describe the text before the first =Source:=
+line in the body — so an entry captured the old way parses as one
+segment and *nothing in captures.org needs migrating*.
+
+The note then receives the segments in capture order, with a =Source:=
+line emitted only when the origin changes. Nothing is reordered or
+merged.
+
+** Why the C-c C-c hook is the fragile part
+
+org-capture fixes an entry's destination before the buffer opens and
+offers no way to change it at the end. The entry is therefore filed
+normally and moved afterwards, from
+=org-capture-prepare-finalize-hook= (ask) and
+=org-capture-after-finalize-hook= (move).
+
+That depends on org-capture's internal sequence. Three guards make every
+failure harmless:
+
+1. The entry to move must be the last level-2 heading under =Ideas=;
+2. its =:CAPTURED:= property must equal the one read from the capture
+   buffer moments earlier;
+3. the destination heading must still exist, and its marker is taken
+   *before* anything is deleted.
+
+Any of these failing produces a message and leaves the capture exactly
+where org-capture put it. If the message =Capture left in place: …=
+appears, nothing was lost.
+
+Heading text, when some was typed, is kept as the first paragraph of the
+appended fragment.
+
+* One symbol, one owner
+:PROPERTIES:
+:CUSTOM_ID: symbol-collisions
+:END:
+
+Elisp has a single namespace for functions. A second =defun= of the same
+name replaces the first silently, and the module that loses is the one
+whose author never opened the other file.
+
+This has already happened once. =my/denote--silo-files= was defined in
+=05-notes.el= taking a directory and in =27-denote-identifiers.el=
+taking nothing; =init.el= loads 27 after 05, so moving a note between
+silos failed with =Wrong number of arguments=. =my/denote--file-identifier=
+was duplicated in the same two files with matching behaviour, which
+hides the collision instead of reporting it.
+
+** The check
+
+#+begin_src sh
+grep -h "^(defun \|^(defmacro \|^(defsubst " modules/*.el \
+  | sed 's/^(def[a-z]* //; s/[ )].*//' | sort | uniq -d
+#+end_src
+
+Should print nothing. Worth running before committing any helper with a
+generic name.
+
+** The other half: called but never defined
+
+A symbol defined twice is one way a module can be wrong while still
+loading. A symbol *called* and never defined is the other, and it is
+quieter: parens balance, the file loads, and the error appears only when
+the one key that uses it is pressed. That is how
+=my/maintenance--set-keywords= reached 26-maintenance.el without
+existing.
+
+Byte-compilation reports it:
+
+#+begin_src sh
+emacs -Q --batch \
+  --eval '(dolist (f (file-expand-wildcards "modules/*.el")) (byte-compile-file f))' \
+  2>&1 | grep "not known to be defined" | grep "my/"
+rm -f modules/*.elc
+#+end_src
+
+Filtering on =my/= is what makes it readable: under =-Q= the compiler
+knows nothing about Denote, Vertico or Org either, and those warnings
+are noise. A warning naming a =my/= symbol is not.
+
+** What neither check covers
+
+Both are about *symbols*: one defined twice, one never defined. Neither
+sees a *value* of the wrong type, and that is the other way a module
+breaks.
+
+=tabulated-list-print-entry: Wrong type argument: stringp, nil= in the
+inbox review came from =(file-name-directory "")=, which returns nil
+rather than the empty string. It had been in the code for as long as the
+module had, and fired the first time an inbox note lacked a
+=:source_path:= — the first note created there rather than migrated in.
+Byte-compilation says nothing about it.
+
+Two habits help where the checks cannot:
+
+- *Guarantee a type at the boundary that demands it,* not upstream of it.
+  =tabulated-list-mode= signals on a non-string and takes the whole list
+  down with it, so one malformed note makes a thousand good ones
+  unreachable. Coercing each cell turns that into one blank field on one
+  visible row.
+- *Read what a function returns, not only what it is given.* The broken
+  line already had an =(or ... "")= — guarding the argument, never the
+  result.
+
+
+The same over =defvar=, =defconst= and =defcustom= prints only
+=vertico-preselect=, which is deliberate: =05-notes.el= and
+=06-capture.el= each carry a bare =(defvar vertico-preselect)= to mark a
+variable belonging to Vertico as special for that file. That declares
+rather than defines, and repeating it is harmless.
+
+** Shared helpers and their owners
+
+| Helper | Owner | Also called from |
+|--------+-------+------------------|
+| =my/denote--file-identifier= | =27-denote-identifiers.el= | 05-notes.el, 25-inbox-review.el |
+| =my/notes-read-keywords= | =05-notes.el= | 06-capture.el, 24-readwise.el |
+| =my/notes--completion-keys= | =05-notes.el= | 06-capture.el |
+| =my/fixed-tab-goto= | =01-ui.el= | 15-workspace.el, 21-dashboards.el |
+| =my/transient-append= | =12-transient.el= | every module adding a menu entry |
+
+Resolution is at call time, so load order does not constrain these —
+only whether the owning module is loaded at all. Callers that would
+otherwise produce a void-function backtrace guard with =fboundp= and
+fail with a sentence instead.
+
+** Still outstanding
+
+Reading Denote front matter is implemented independently in
+=15-workspace.el=, =21-dashboards.el=, =25-inbox-review.el=,
+=28-writing-projects.el=, =16-org-export.el= and =29-writing-export.el=,
+each with its own regexp for =^#+title:=. The names differ, so nothing
+collides, but it is the same duplication one step short of the failure
+above.
+
+* Maintenance (C-c n !)
+:PROPERTIES:
+:CUSTOM_ID: maintenance
+:END:
+
+Looking after the collection rather than writing in it: finding what the
+migration broke, and repairing it.
+
+Module: =modules/26-maintenance.el=
+
+** The menu
+
+| Key | Command | Does |
+|-----+---------+------|
+| =i= | =my/denote-check-identifiers= | notes sharing an identifier (27-denote-identifiers.el) |
+| =g= | =my/denote-check-signatures= | notes sharing a Folgezettel signature |
+| =b= | =my/denote-check-broken-links= | =denote:= links whose target does not exist |
+| =l= | =my/denote-find-self-links= | notes linking to their own identifier |
+| =k= | =my/maintenance-keyword-inventory= | every keyword with a usage count |
+| =z= | =my/maintenance-notes-without-keywords= | notes carrying no keywords |
+| =R= | =my/denote-change-identifier= | change this note's identifier *and repoint every link to it* |
+| =I= | =my/denote-fix-duplicates= | walk duplicate identifier groups, one confirmation each |
+| =K= | =my/maintenance-rename-keyword= | rename or remove one keyword across the collection |
+
+Lower case reads, upper case writes. Anything that renames files across
+the collection is on a capital so a mistyped key cannot start it.
+
+** Changing an identifier
+
+=R= is the answer to "this journal entry's time is wrong and I know what
+it should be". It verifies the new identifier is free in the silos,
+rewrites =#+identifier:=, renames the file, and *updates every =denote:=
+link pointing at it* across the whole notes tree, inbox included —
+links first, so an interruption leaves links pointing at a file that
+still exists.
+
+It accepts any valid identifier, not only the suggested next free one,
+so the remembered time can be typed directly.
+
+Denote will not do this itself. Its manual gives sample code for finding
+duplicate identifiers and states that, as an edge case, it is not part
+of the code base; and =denote-rename-file-using-front-matter= never
+changes an identifier, because Denote treats the file name as the source
+of truth for that field.
+
+** Renaming a keyword everywhere
+
+=K= asks for the keyword and its replacement, then opens a review list
+of every note that uses it. Nothing is written until a decision is made
+on a row.
+
+| Key | Effect |
+|-----+--------|
+| =RET= | preview the note in a side window, focus stays on the list |
+| =o= | step into the preview, where it scrolls normally (=q= returns) |
+| =y= | rename this note |
+| =n= | leave it alone |
+| =g= | redraw |
+| =q= | leave; unhandled notes keep their keyword |
+
+Focus stays on the list on =RET= for the same reason as in
+[[#inbox-review][Inbox Review]]: the decision keys live in the list buffer, and
+=view-mode= in the preview binds =n= to its own command. Press =o= when
+you want to read the note properly.
+
+Each row shows its state — pending, renamed, skipped — and the mode line
+counts what is left. Leaving part-way through is safe: every note is
+written and saved as it is handled, so there are never modified buffers
+waiting.
+
+An empty replacement removes the keyword. Renaming onto an *existing*
+keyword merges two spellings, which is why the replacement prompt
+completes over the keywords already in use.
+
+Only the keyword field is written — title, identifier and signature stay
+as they are.
+
+*Why a buffer and not a prompt.* The first version asked file by file
+with =read-multiple-choice=, offering =v= to view the note. That reads
+raw input events: every mouse movement redrew the prompt, and while it
+was reading, no other window received input — so the note it had just
+displayed could not be scrolled. A blocking prompt owns the input stream
+by definition and cannot be made to allow navigation.
+
+** Finding what needs renaming
+
+=k= lists every keyword with the number of notes using it, *sorted
+alphabetically rather than by frequency*: near duplicates are what a
+migrated collection accumulates, and =filozofia= directly above
+=flozofia= is what makes them visible. The count is the second signal,
+and keywords used once are marked with =·=. Each keyword is a button
+that starts a rename of it.
+
+** Scope: inbox yes, attachments no
+
+Everything here reads =my/denote--all-files= from
+=27-denote-identifiers.el=, which walks =my-notes-dir= directly and
+returns =.org= files only.
+
+*The staging inbox is included.* A keyword renamed everywhere except
+there would come back one note at a time as notes are filed — a failure
+surfacing weeks later, attached to nothing. Denote's own file listing
+would have excluded it, since =25-inbox-review.el= sets
+=denote-excluded-directories-regexp= to ="inbox"=.
+
+*Attachments are not.* A PDF or an image carries an identifier so links
+can reach it, but has no front matter and no keywords to review.
+
+** Why denote-explore is not used for keywords
+
+The first version of this module wrapped =denote-explore=, which does
+cover keywords. In this collection its writing commands produced a
+second file holding only front matter while leaving the original
+untouched, and carried out changes that had been declined at the prompt.
+
+Neither was reproducible from the outside and both may depend on the
+state of this particular tree, so this is not a verdict on the package —
+it is a decision about what can be vouched for with three thousand real
+notes on the other end of the command.
+
+** How a keyword is written
+
+Against Denote's *file-naming scheme*, not against its functions. Two
+attempts to call them failed on argument count —
+=denote-rename-file-keywords=, then =denote-rename-file= — because those
+signatures have changed across releases, and correcting a call only
+moves the failure to the next one.
+
+The scheme does not change; it is what Denote exists to promise:
+
+: IDENTIFIER[==SIGNATURE][--TITLE][__KEYWORD_KEYWORD].EXTENSION
+
+together with =#+filetags:  :one:two:= holding the same keywords.
+Changing a keyword means editing those two places, in that order: front
+matter first, file name second. Interrupted in between, the note has its
+new keywords and its old name — visible, and repaired by running the
+same rename again.
+
+*Nothing before the keyword field is touched.* Identifier, signature and
+title are carried across as text, so — unlike =denote-rename-file=,
+which rebuilds the whole name — no second change arrives alongside the
+one that was asked for.
+
+The command refuses rather than guesses in the two cases where guessing
+would lose work: a buffer with unsaved changes, and a destination name
+already taken.
+
+The edit goes to the *file*, not through whatever buffer is visiting it.
+A buffer can be read-only for reasons that have nothing to do with the
+file — =view-mode=, which the preview here turns on — and writing to a
+file should not need that buffer's permission. An open buffer is
+re-read afterwards with =revert-buffer=, preserving its modes and its
+read-only state.
+
+Keywords are lower-cased and underscores and spaces become hyphens.
+That is not Denote's full sluggification and does not try to be:
+keywords here are normally chosen from the completion list of those
+already in use.
+
+Keyword sorting is not lost with =denote-explore-sort-keywords= gone:
+Denote sorts keywords on every rename while =denote-sort-keywords= is
+non-nil, so the commands above maintain it note by note.
+
 * Global Keybindings
 :PROPERTIES:
 :CUSTOM_ID: global-keybindings
@@ -1288,6 +3015,11 @@ hand-editing either from memory.
 | C-c n z  | =my/zettelkasten-menu=        | =22-zettelkasten.el= (appended) |
 | C-c c    | =org-capture=                 | =06-capture.el=              |
 | C-c x    | =my/zotero-menu=              | =18-zotero-transient.el=     |
+| C-c b c  | =my/cite-check-keys=          | =17-bibliography.el=         |
+| C-c r s  | =my/readwise-sync=            | =24-readwise.el=             |
+| C-c r r  | =my/readwise-review=          | =24-readwise.el=             |
+| C-c r o  | =my/readwise-open-directory=  | =24-readwise.el=             |
+| C-c X    | =my/inbox-extract=            | =25-inbox-review.el= (inbox notes only) |
 | C-c p    | =my/org-export-to-pdf=        | =16-org-export.el=           |
 | C-c d f  | =denote-open-or-create=       | =08-keybindings.el=          |
 | C-c d l  | =denote-link=                 | =08-keybindings.el=          |
@@ -1325,6 +3057,8 @@ hand-editing either from memory.
 | C-s      | =save-buffer=                 | =02-editing.el= (rebind)     |
 | C-z      | =undo=                        | =02-editing.el= (rebind)     |
 | C-x C-b  | =ibuffer=                     | =02-editing.el=              |
+| C-x u    | =vundo=                       | =02-editing.el=              |
+| C-S-z    | =undo-redo=                   | =02-editing.el=              |
 | M-Q      | =my/unfill-region=            | =02-editing.el=              |
 | C-c o i  | =open-init-el-bottom-split=   | =08-keybindings.el=          |
 | C-c e b  | =eval-buffer=                 | =08-keybindings.el=          |

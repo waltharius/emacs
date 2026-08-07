@@ -186,6 +186,38 @@
 (setq global-auto-revert-non-file-buffers t)
 (setq auto-revert-verbose nil)
 
+;; POLLING vs FILE NOTIFICATION
+;; ---------------------------
+;; With `global-auto-revert-non-file-buffers' on, auto-revert polls every
+;; `auto-revert-interval' seconds (5 by default) and reverts Dired
+;; buffers, which re-runs `ls' on the directory and re-applies
+;; `denote-dired-mode' font-lock to every line.  In ~/notes/journal/
+;; that is several thousand long file names, twelve times a minute,
+;; whether or not anything changed.
+;;
+;; `auto-revert-avoid-polling' switches to kernel file-notification
+;; watches: buffers revert when a change is reported and stay idle
+;; otherwise.  Polling remains as a fallback on filesystems that do not
+;; support notification.  This matters more here than in most
+;; configurations because Syncthing writes into the notes tree from
+;; outside Emacs, so auto-revert is worth keeping -- just not on a timer.
+(setq auto-revert-avoid-polling t)
+
+;; Even with notifications, a very large Dired buffer is expensive to
+;; re-fontify, so do not re-read the directory merely because the buffer
+;; regained focus.
+(setq dired-auto-revert-buffer nil)
+
+;; ============================================================
+;; FONT-LOCK: defer highlighting of off-screen text
+;; ============================================================
+;; Notes are long and `org-hide-emphasis-markers' (11-org-appearance.el)
+;; plus the Denote name faces make fontification non-trivial.  Deferring
+;; it slightly means scrolling shows text immediately and highlights it a
+;; fraction of a second later, instead of blocking the scroll.
+
+(setq jit-lock-defer-time 0.05)
+
 ;; ============================================================
 ;; MISC IMPROVEMENTS
 ;; ============================================================
@@ -202,6 +234,55 @@
 (setq echo-keystrokes 0.1)           ; Show keystrokes immediately
 (setq undo-limit 80000000)           ; Large undo limit
 (setq undo-strong-limit 120000000)
+(setq undo-outer-limit 960000000)    ; Ceiling for a single huge change
+
+;; ============================================================
+;; UNDO: visualise the tree, and keep it across restarts
+;; ============================================================
+;; Emacs' built-in undo is already a tree: unlike the usual undo/redo
+;; found elsewhere, it can recover *any* previous buffer state, because
+;; undoing an undo is itself recorded rather than discarding the branch
+;; you undid.  What it lacks is a way to see that tree, and any memory
+;; of it after Emacs exits.  These two packages add exactly those,
+;; without replacing the undo system itself.
+;;
+;; That is the reason for choosing this pair over `undo-tree', which
+;; substitutes its own undo implementation.  Note also that undo-tree
+;; defines its own data structures and *cannot* be used together with
+;; undo-fu-session; the leftover ~/.emacs.d/undo-tree-history directory
+;; from an earlier configuration is inert and safe to delete.
+
+(use-package vundo
+  :ensure t
+  :bind ("C-x u" . vundo)              ; replaces the plain `undo' binding
+  :config
+  ;; Box-drawing characters instead of ASCII; the tree is much easier
+  ;; to read, and this frame already renders other non-ASCII glyphs.
+  (setq vundo-glyph-alist vundo-unicode-symbols)
+  (setq vundo-compact-display t))
+
+;; Redo, without changing what C-z does.  `undo-redo' only undoes
+;; undos and does not record itself as undoable, which is what makes
+;; stepping back and forth along one branch behave predictably.
+(global-set-key (kbd "C-S-z") 'undo-redo)
+
+(use-package undo-fu-session
+  :ensure t
+  :init
+  ;; Kept inside .emacs.d rather than next to the notes: this is
+  ;; machine-local state, and syncing it between devices would produce
+  ;; conflicts over files that are meaningless on the other machine.
+  (setq undo-fu-session-directory
+        (expand-file-name "undo-fu-session/" user-emacs-directory))
+  :config
+  ;; Buffers whose content is regenerated each time and whose undo
+  ;; history would be misleading if restored.
+  (setq undo-fu-session-incompatible-files
+        '("/COMMIT_EDITMSG\\'" "/git-rebase-todo\\'"))
+  ;; Undo data accumulates one file per edited file, indefinitely,
+  ;; unless capped.  Oldest are removed first.
+  (setq undo-fu-session-file-limit 2000)
+  (undo-fu-session-global-mode 1))
 
 ;; Confirm before quit
 (setq confirm-kill-emacs 'yes-or-no-p)

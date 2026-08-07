@@ -7,10 +7,250 @@
 ;; - Essay
 ;; - Well-being tracking
 ;;
+;; Keywords are read by `my/notes-read-keywords', defined below and
+;; also used by 06-capture.el and 24-readwise.el, so that every prompt
+;; for tags in this configuration completes against the same
+;; vocabulary and behaves the same way.  `my/denote-keywords-edit'
+;; applies the same prompt behaviour to Denote's own keyword command,
+;; which is what `C-c n d k' runs.
+;;
 ;; NOTE: denote-directory is now ~/notes/ (root) for better search
 ;;       Journal functions explicitly save to my-notes-journal
 
 ;;; Code:
+
+;; ============================================================
+;; KEYWORD PROMPT — shared by the note commands in this file
+;; ============================================================
+;; Tags used to be read here with `read-string' and split on spaces,
+;; which offered no completion at all.  With a few dozen keywords that
+;; was merely inconvenient; after the Obsidian migration it is a source
+;; of near-duplicates -- "filozofia" beside "flozofia", "kant" beside
+;; "kanta" -- that no later command can tell apart, because Denote
+;; treats each distinct string as its own keyword.
+;;
+;; `denote-keywords-prompt' is Denote's own prompt.  It completes
+;; against the vocabulary Denote infers from existing file names
+;; (`denote-infer-keywords' is t, set in 04-denote.el), reads entries
+;; separated by `crm-separator' (a comma, set in 01-ui.el), removes
+;; duplicates and returns a list.  Calling it rather than writing a
+;; private prompt means these commands and `denote-rename-file-keywords'
+;; behave identically, and keep behaving identically as Denote changes.
+;;
+;; Note the change of separator: tags are now typed comma-separated, as
+;; everywhere else in Denote, not space-separated.  A keyword may
+;; therefore contain a space, which the old prompt could not express.
+;;
+;; SUBMITTING WHAT WAS TYPED
+;;
+;; Vertico preselects the first matching candidate, and RET
+;; (`vertico-exit') submits the SELECTED CANDIDATE rather than the
+;; input.  A keyword that is a prefix of an existing one cannot then be
+;; created by typing it: "zuzi" preselects "zuzia" and RET files the
+;; note under "zuzia".  Only the element at point is completed, which
+;; is why putting the new keyword anywhere but last in the list used to
+;; be the way through.
+;;
+;; Vertico's documented answer is `M-RET' (`vertico-exit-input'), which
+;; submits the input as typed.  It works in every prompt and keeps
+;; working whatever is configured here.  `my/notes-keyword-preselect'
+;; makes it the behaviour of plain RET inside these prompts, by binding
+;; `vertico-preselect' around the call.  The binding is dynamic, so it
+;; is in force for the recursive minibuffer edit and for nothing else:
+;; no hook, no advice, no global state.
+;;
+;; The cost is one keystroke when reusing an existing keyword: one key
+;; steps onto the candidate, another inserts it.  Set
+;; `my/notes-keyword-preselect' to `first' to restore Vertico's default
+;; and go back to reaching for `M-RET'.
+;;
+;; KEYS INSIDE THESE PROMPTS
+;;
+;;   TAB       next candidate (first press leaves the input line)
+;;   S-TAB     previous candidate
+;;   ,         insert the highlighted candidate and start the next
+;;             keyword -- the fast way to pick several from the list
+;;   C-TAB     insert the highlighted candidate WITHOUT exiting, when
+;;             the separator is not wanted yet
+;;   RET       submit: the input when on the input line, the candidate
+;;             when one is selected
+;;   M-RET     submit the input regardless of selection (Vertico's own)
+;;
+;; TAB is Vertico's `vertico-insert' by default.  It is moved here
+;; because a list appearing under a half-typed word reads as something
+;; to step through, and TAB is the key hands reach for to do that.  The
+;; rebinding is confined to these prompts: file-name completion
+;; elsewhere keeps TAB as insert, where it matters most.
+;;
+;; Insertion first went to M-TAB, which was the obvious key and does not
+;; work: GNOME owns Alt-Tab as the window switcher, so the compositor
+;; consumes it and Emacs never sees the event.  The comma is the better
+;; key anyway -- in a list of keywords it already means "this one is
+;; finished", so completing to the highlighted candidate first is what
+;; it was going to be used for regardless.  On the input line, with
+;; nothing highlighted, it stays an ordinary comma.
+;;
+;; It is applied with `minibuffer-with-setup-hook', which is the
+;; built-in way to configure one minibuffer session.  The hook exists
+;; only for the duration of the call, exactly like the
+;; `vertico-preselect' binding -- it is not a hook added to
+;; `minibuffer-setup-hook' globally.  `:append' places it after
+;; Vertico's own setup so that the local map it installs is the one
+;; being extended.
+
+(defgroup my/notes nil
+  "Note creation commands."
+  :group 'convenience)
+
+(defcustom my/notes-keyword-preselect 'prompt
+  "Value bound to `vertico-preselect' during keyword prompts.
+
+`prompt' selects the input line, so RET submits what was typed and
+an existing keyword is taken with <down> RET, or with TAB to insert
+it without leaving the prompt.
+
+`first' restores Vertico's own behaviour, where RET submits the
+first matching candidate and `M-RET' is needed to submit the input
+as typed.
+
+Any other value `vertico-preselect' accepts is passed through
+unchanged.  Has no effect without Vertico."
+  :type '(choice (const :tag "Input line (RET is literal)" prompt)
+                 (const :tag "First candidate (Vertico default)" first)
+                 (const :tag "Only when nothing matches" no-match)
+                 (symbol :tag "Other `vertico-preselect' value"))
+  :group 'my/notes)
+
+(defcustom my/notes-keyword-tab-navigates t
+  "Non-nil means TAB steps down the candidate list in keyword prompts.
+
+TAB is then `vertico-next', S-TAB is `vertico-previous', and
+`vertico-insert' -- insert the selected candidate without exiting --
+moves to M-TAB.  Only keyword prompts are affected; every other
+minibuffer keeps Vertico's defaults.
+
+Set to nil to leave these prompts with Vertico's own bindings, where
+TAB inserts and the arrow keys navigate."
+  :type 'boolean
+  :group 'my/notes)
+
+;; Declared, not defined: `vertico-preselect' belongs to Vertico.  The
+;; declaration marks the symbol special for this file, so that the
+;; `let' below is a dynamic binding rather than a lexical one even when
+;; Vertico has not been loaded -- in which case the binding exists and
+;; nothing reads it.
+(defvar vertico-preselect)
+(defvar vertico-map)
+
+(defvar my/notes--completion-separator nil
+  "Separator character bound by `my/notes--completion-keys', or nil.")
+
+(defun my/notes-completion-separate ()
+  "Insert the highlighted candidate, then start the next entry.
+
+On the input line, with nothing highlighted, this is an ordinary
+separator character -- which is what typing a new keyword by hand
+needs.  With a candidate highlighted it completes to that candidate
+first, so choosing several existing keywords is: filter, TAB, comma,
+repeat.
+
+`vertico--index' is Vertico's own variable and no part of a public
+API.  When it is absent or negative this degrades to inserting the
+character, which is what the key does anyway, so a future Vertico that
+renames it costs a keystroke rather than breaking the prompt."
+  (interactive)
+  (when (and (fboundp 'vertico-insert)
+             (integerp (bound-and-true-p vertico--index))
+             (>= vertico--index 0))
+    (vertico-insert))
+  (insert (or (bound-and-true-p my/notes--completion-separator) ",")))
+
+(defun my/notes--completion-keys (&optional separator)
+  "Install candidate-stepping keys in the current minibuffer.
+
+Called from `minibuffer-with-setup-hook' at each prompt that wants
+them, never from `minibuffer-setup-hook' itself, so no other prompt can
+reach it.  Builds a child of whatever local map is in place -- which is
+Vertico's, since `:append' orders this after Vertico's setup -- and
+leaves everything it does not name alone.
+
+  TAB      next candidate
+  S-TAB    previous candidate
+  C-TAB    insert the highlighted candidate WITHOUT exiting
+
+SEPARATOR, when given, is a string bound to
+`my/notes-completion-separate', which does the same insertion and then
+starts the next entry.  Only prompts that read a separated list pass
+one; a prompt reading a single value must not, since the character has
+no special meaning there and may legitimately occur in the answer.
+
+NOT M-TAB.  That was the obvious key and it does not work: GNOME owns
+Alt-Tab as the window switcher, so the compositor consumes it and Emacs
+never sees the event."
+  (when (and my/notes-keyword-tab-navigates
+             (fboundp 'vertico-next))
+    (let ((map (make-sparse-keymap)))
+      (set-keymap-parent map (current-local-map))
+      ;; Both spellings of each key: a graphical frame sends the
+      ;; function-key form, a terminal the control-character form.
+      (define-key map (kbd "TAB")       #'vertico-next)
+      (define-key map (kbd "<tab>")     #'vertico-next)
+      (define-key map (kbd "S-TAB")     #'vertico-previous)
+      (define-key map (kbd "<backtab>") #'vertico-previous)
+      (define-key map (kbd "C-TAB")     #'vertico-insert)
+      (define-key map (kbd "<C-tab>")   #'vertico-insert)
+      (when separator
+        (setq-local my/notes--completion-separator separator)
+        (define-key map (kbd separator) #'my/notes-completion-separate))
+      (use-local-map map))))
+
+(defun my/notes-read-keywords (&optional prompt initial)
+  "Read keywords, completing against the keywords already in use.
+
+PROMPT replaces the default prompt text, INITIAL is inserted as
+initial minibuffer content.  Returns a list of strings, or nil when
+nothing was entered.
+
+Falls back to a plain space-separated string prompt if Denote is
+not available, so that note creation still works rather than
+failing on a missing function."
+  (if (fboundp 'denote-keywords-prompt)
+      (let* ((vertico-preselect my/notes-keyword-preselect)
+             (keywords (minibuffer-with-setup-hook
+                           (:append (lambda () (my/notes--completion-keys ",")))
+                         (denote-keywords-prompt prompt initial))))
+        ;; Older Denote sorts inside the prompt, newer exposes it
+        ;; separately; call it when present and take the result as-is
+        ;; otherwise.
+        (if (fboundp 'denote-keywords-sort)
+            (denote-keywords-sort keywords)
+          keywords))
+    (let ((input (read-string (format "%s (space-separated): "
+                                      (or prompt "Tags")))))
+      (unless (string-empty-p input)
+        (split-string input " " t)))))
+
+(defun my/denote-keywords-edit ()
+  "Add or change the keywords of a Denote file.
+
+`denote-rename-file-keywords' with `my/notes-keyword-preselect' in
+force, so that the keyword prompt behaves the same way here as in
+the note creation commands above.  Everything else -- which file is
+acted on, how front matter is rewritten, what is confirmed -- is
+Denote's and is deliberately not reimplemented.
+
+Both bindings cover every minibuffer entered by that command, which
+in practice is only the keyword prompt: `denote-rename-file-keywords'
+takes its file from the current buffer or from the Dired marks
+without asking."
+  (interactive)
+  (unless (fboundp 'denote-rename-file-keywords)
+    (user-error "Denote is not available"))
+  (let ((vertico-preselect my/notes-keyword-preselect))
+    (minibuffer-with-setup-hook
+        (:append (lambda () (my/notes--completion-keys ",")))
+      (call-interactively #'denote-rename-file-keywords))))
+
 
 ;; ============================================================
 ;; JOURNAL: Daily note
@@ -161,10 +401,7 @@
   You'll be asked which silo (journal/pks/docu) to save in."
   (interactive)
   (let* ((title (read-string "Title: "))
-         (keywords-string (read-string "Tags (space-separated): "))
-         (keywords (if (string-empty-p keywords-string)
-                       nil
-                     (split-string keywords-string " " t)))
+         (keywords (my/notes-read-keywords))
          (silo (completing-read "Save in: "
                                '("pks" "docu" "journal")
                                nil t "pks"))
@@ -189,8 +426,11 @@
   (interactive)
   (let* ((essay-title (read-string "Essay title: "))
          (title (format "ESEJ: %s" essay-title))
-         (project-tag (read-string "Project tag: "))
-         (tags (list "esej" "project" project-tag))
+         ;; Completed like any other keyword: the project tag is the
+         ;; one that must match an existing note's tag exactly, since
+         ;; it is what later gathers the essay's material.
+         (project-tags (my/notes-read-keywords "Project KEYWORDS"))
+         (tags (append '("esej" "project") project-tags))
          (denote-directory my-notes-pks))  ; Essays in pks silo
 
     (denote title tags)
@@ -281,6 +521,17 @@
 ;; ============================================================
 ;; MOVE NOTE BETWEEN SILOS
 ;; ============================================================
+;; Reads identifiers with `my/denote--file-identifier', which belongs to
+;; 27-denote-identifiers.el -- the module that owns identifier integrity
+;; and is also where 25-inbox-review.el gets it from.  A copy used to
+;; live here as well.  Two copies of a four-line function is not a
+;; maintenance cost worth mentioning, but two definitions of one symbol
+;; is: the later-loading module wins, silently, and the earlier one gets
+;; whatever behaviour that other module happened to give it.
+;;
+;; Resolution is at call time, so the load order does not matter; the
+;; guard in `my/denote-move-to-silo' turns a missing module into a
+;; sentence rather than a void-function backtrace.
 
 (defvar my/denote-silo-alist
   `(("journal" . ,my-notes-journal)
@@ -289,9 +540,6 @@
   "Alist of (NAME . DIRECTORY) for every Denote silo.
 Used by `my/denote-move-to-silo' to build its completion list.
 Add an entry here when a new silo is added to 00-core.el.")
-
-(defconst my/denote--identifier-regexp "\\`\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)"
-  "Match a Denote identifier at the start of a bare file name.")
 
 (defun my/denote--file-title (file)
   "Return the `#+title:' value of FILE, or nil if absent.
@@ -304,15 +552,14 @@ the top, so there is no reason to load a whole note from disk."
     (when (re-search-forward "^#\\+title:[ \t]+\\(.*?\\)[ \t]*$" nil t)
       (match-string-no-properties 1))))
 
-(defun my/denote--file-identifier (file)
-  "Return the Denote identifier of FILE, taken from its file name."
-  (let ((name (file-name-nondirectory file)))
-    (when (string-match my/denote--identifier-regexp name)
-      (match-string 1 name))))
-
-(defun my/denote--silo-files (dir)
+(defun my/denote--silo-note-files (dir)
   "Return the Denote files directly inside DIR.
-Non-recursive on purpose: the silos in this configuration are flat."
+Non-recursive on purpose: the silos in this configuration are flat.
+
+Named for what it returns rather than generically: 27-denote-identifiers.el
+has its own scan with a different shape and a different job, and the two
+carried the same name until one of them started being called with the
+wrong number of arguments."
   (when (file-directory-p dir)
     (directory-files dir t "\\`[0-9]\\{8\\}T[0-9]\\{6\\}")))
 
@@ -371,6 +618,8 @@ clash: two notes sharing an identifier make `denote:' links to that
 identifier ambiguous.  The retitling path exists to unblock the move;
 the duplicate identifier still needs sorting out afterwards."
   (interactive)
+  (unless (fboundp 'my/denote--file-identifier)
+    (user-error "27-denote-identifiers.el is not loaded"))
   (let ((file (buffer-file-name)))
     (unless file
       (user-error "This buffer is not visiting a file"))
@@ -396,7 +645,7 @@ the duplicate identifier still needs sorting out afterwards."
       (unless (file-directory-p target-dir)
         (user-error "Target silo does not exist: %s" target-dir))
 
-      (let* ((target-files (my/denote--silo-files target-dir))
+      (let* ((target-files (my/denote--silo-note-files target-dir))
              (title-matches
               (seq-filter (lambda (f)
                             (my/denote--titles-equal-p title
@@ -457,12 +706,6 @@ the duplicate identifier still needs sorting out afterwards."
               (message "Moved to %s: %s"
                        choice (file-name-nondirectory target)))))))))
 
-(with-eval-after-load 'org
-  (setq org-agenda-files
-        (list my-notes-journal
-              my-notes-pks
-              my-notes-docu
-              my-journal-captures)))
 
 ;; ============================================================
 ;; LINKED NOTE: Create new note with backlink to source
@@ -509,10 +752,7 @@ the duplicate identifier still needs sorting out afterwards."
 
     ;; --- Ask for parameters BEFORE touching windows ---
     (let* ((new-title       (read-string "New note title: "))
-           (keywords-string (read-string "Tags (space-separated): "))
-           (keywords        (if (string-empty-p keywords-string)
-                                nil
-                              (split-string keywords-string " " t)))
+           (keywords        (my/notes-read-keywords))
            (silo            (completing-read "Save in: "
                                             '("pks" "docu" "journal")
                                             nil t "pks"))

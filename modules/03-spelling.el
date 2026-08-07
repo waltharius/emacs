@@ -102,9 +102,17 @@
 ;;
 ;; Solution: while this flag is t, the flyspell-mode advice below
 ;; enables the mode variable but skips flyspell-mode-on (which is
-;; the function that actually starts the subprocess).  After
-;; desktop-restore completes, 15-workspace.el clears the flag and
-;; calls flyspell-mode-on on all open buffers.
+;; the function that actually starts the subprocess).  Once the session
+;; is up, the flag is cleared and flyspell-mode-on is called on every
+;; open buffer, which is the first moment Hunspell is allowed to start.
+;;
+;; That "once the session is up" moment comes from
+;; `my/desktop-after-startup-hook' (01-ui.el), which fires whether or not
+;; a desktop was restored.  This module registers itself at the bottom of
+;; this section.  It used to be 15-workspace.el that made the call, which
+;; meant that removing the dashboard module silently left spell checking
+;; disabled for the whole session.  Nothing outside this file decides
+;; when spelling starts any more.
 
 (defvar my/flyspell-desktop-restoring t
   "Non-nil during desktop-restore to prevent Hunspell from starting.
@@ -128,7 +136,7 @@ desktop-restore.  Pass through normally in all other cases."
 
 (defun my/flyspell--recheck-all-buffers ()
   "Clear the desktop-restore guard and activate flyspell on all live buffers.
-Called from `desktop-after-read-hook' in 15-workspace.el.
+Runs from `my/desktop-after-startup-hook'.
 This is the first moment Hunspell is allowed to start."
   (setq my/flyspell-desktop-restoring nil)
   ;; Remove the blocking advice — no longer needed after first restore.
@@ -142,6 +150,15 @@ This is the first moment Hunspell is allowed to start."
                    (derived-mode-p 'text-mode 'org-mode))
           ;; flyspell-mode-on starts the process and checks the buffer.
           (flyspell-mode-on))))))
+
+;; Unblock as soon as the session is ready.  `my/desktop-after-startup-hook'
+;; is defined in 01-ui.el, which init.el loads first; the guard keeps this
+;; working even if that module is ever absent, in which case spelling
+;; simply stays blocked until `my/flyspell--recheck-all-buffers' is run by
+;; hand -- which is visible, rather than silent.
+(if (boundp 'my/desktop-after-startup-hook)
+    (add-hook 'my/desktop-after-startup-hook #'my/flyspell--recheck-all-buffers)
+  (message "03-spelling: no `my/desktop-after-startup-hook'; Hunspell stays blocked"))
 
 ;; ============================================================
 ;; SAFE HELPER: Check if process is alive
