@@ -1,0 +1,8 @@
+.git
+elpa
+eln-cache
+backups
+autosaves
+undo-fu-session
+transient
+tramp
