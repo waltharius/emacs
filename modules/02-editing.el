@@ -284,6 +284,10 @@
   (setq undo-fu-session-file-limit 2000)
   (undo-fu-session-global-mode 1))
 
+;; Keep point at the same screen row when paging with PgUp/PgDn,
+;; so a full-screen scroll doesn't lose the cursor position.
+(setq scroll-preserve-screen-position t)
+
 ;; Confirm before quit
 (setq confirm-kill-emacs 'yes-or-no-p)
 
