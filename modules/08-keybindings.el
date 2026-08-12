@@ -359,6 +359,7 @@ Full descriptions of every command: C-c n h, or
 (global-set-key (kbd "C-c S") 'my/spell-add-previous-to-dict)
 (global-set-key (kbd "C-c m w") 'my/toggle-writeroom)
 (global-set-key (kbd "C-c m k") 'my/denote-keywords-edit)
+(global-set-key (kbd "C-c m c") 'my/notes-create-menu)
 
 (provide '08-keybindings)
 ;;; 08-keybindings.el ends here
