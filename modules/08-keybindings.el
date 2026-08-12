@@ -348,16 +348,5 @@ Full descriptions of every command: C-c n h, or
 
 (global-set-key (kbd "C-c h k") 'my/show-keybindings-help)
 
-;; ============================================================
-;; KEYBOARD MACRO TARGETS (NuPhy Air75 V2, layer 4)
-;; ============================================================
-;; Landing pad for the keyboard's macro keys. These bindings are not
-;; meant to be typed by hand — they exist so the firmware has a stable,
-;; collision-free target. Bypasses the transient menu on purpose:
-;; going through C-c n s leaves the menu open (:transient t).
-
-(global-set-key (kbd "C-c s") 'my/spell-correct-previous)
-(global-set-key (kbd "C-c S") 'my/spell-add-previous-to-dict)
-
 (provide '08-keybindings)
 ;;; 08-keybindings.el ends here
