@@ -252,9 +252,16 @@ Inbox (notes migrated from Obsidian):
 
 Spelling:
   C-;     - Correct word at point (needs flyspell on)
+  C-c s   - Correct previous misspelling  (also C-c n s, keeps menu open)
+  C-c S   - Add previous word to dict     (also C-c n a, keeps menu open)
   C-c f b - Check visible portion of buffer
-  (correct-previous / add-to-dict / check-full-buffer / toggle: only
-   via the C-c n menu, see below -- there is no C-c F prefix)
+  (check-full-buffer / toggle: only via the C-c n menu, see below --
+   there is no C-c F prefix)
+
+Menus and modes (C-c m ...):
+  C-c m c - Create submenu directly (skips C-c n)
+  C-c m w - Toggle centred writing mode (same as C-c n v w)
+  C-c m k - Modify keywords (duplicate of C-c d t)
 
 Rebound defaults (not the usual Emacs bindings!):
   C-a     - Select all      (mark-whole-buffer)
@@ -340,6 +347,25 @@ C-c x -- ZOTERO / BIBLIOGRAPHY MENU  (same as C-c n t z)
   R  Insert full bibliography    S  Insert short reference
   q  Quit
 
+NUPHY AIR75 V2 -- CAPS LOCK LAYER (layer 4, macros M0-M5)
+---------------------------------------------------------
+Hold Caps Lock and press one key. Each is a firmware macro that types
+one of the chords above -- nothing here is Emacs-side, so these do
+nothing on the ThinkPad's built-in keyboard.
+
+  M  Create submenu      (C-c m c)   F  Find/create note   (C-c d f)
+  S  Correct previous    (C-c s)     A  Add to dict        (C-c S)
+  W  Toggle writeroom    (C-c m w)   L  Insert link        (C-c d l)
+
+  Caps Lock  - holds layer 4, does NOT type capitals (use both Shifts)
+  Left Ctrl  - an ordinary Control key, unchanged
+
+The macros are stored in the keyboard's EEPROM, not in this repo, and
+cannot be read back from Emacs -- this table is the only record.
+Reset the keyboard to factory state with Fn + [.
+On NixOS the raw-HID access needed by usevia.app comes from
+modules/system/hardware/keyboard-qmk.nix in the nixos repo.
+
 Full descriptions of every command: C-c n h, or
 ~/.emacs.d/function_helper.org
 "))
@@ -349,17 +375,41 @@ Full descriptions of every command: C-c n h, or
 (global-set-key (kbd "C-c h k") 'my/show-keybindings-help)
 
 ;; ============================================================
-;; KEYBOARD MACRO TARGETS (NuPhy Air75 V2, layer 4)
+;; DIRECT BINDINGS FOR MENU-ONLY COMMANDS
 ;; ============================================================
-;; Landing pad for the keyboard's macro keys. These bindings are not
-;; meant to be typed by hand — they exist so the firmware has a stable,
-;; collision-free target. Bypasses the transient menu on purpose:
-;; going through C-c n s leaves the menu open (:transient t).
-(global-set-key (kbd "C-c s") 'my/spell-correct-previous)
-(global-set-key (kbd "C-c S") 'my/spell-add-previous-to-dict)
-(global-set-key (kbd "C-c m w") 'my/toggle-writeroom)
-(global-set-key (kbd "C-c m k") 'my/denote-keywords-edit)
-(global-set-key (kbd "C-c m c") 'my/notes-create-menu)
+;; Four of these commands previously existed only as suffixes inside a
+;; transient prefix, so the only way to reach them was to open a menu
+;; first. keyfreq (C-c a k) showed `my/spell-correct-previous' as the
+;; second most-invoked command in the whole configuration (1305 calls)
+;; with no binding of its own, and `my/spell-add-previous-to-dict'
+;; fourth (285) in the same situation — which is what prompted this.
+;;
+;; The two spelling ones matter for a second reason: their entries in
+;; `my/notes-menu' carry :transient t, so the menu stays open after the
+;; command runs and has to be dismissed with q. Reaching them directly
+;; skips that entirely — visible in keyfreq as `transient-quit-one'
+;; (1257 calls), a large part of which was that dismissal.
+;;
+;; These are ordinary bindings meant to be typed by hand. They are also
+;; the targets the NuPhy Air75 V2 macro keys send (see the KEYBOARD
+;; LAYER section in the help text below) — the keyboard needs a stable
+;; chord to aim at, but nothing here depends on that keyboard being
+;; attached, and everything works the same from the ThinkPad's built-in
+;; keyboard.
+;;
+;; Namespace: C-c s / C-c S are short because they are the most used.
+;; C-c m is a small grab-bag prefix ("menus and modes") for the rest.
+
+(global-set-key (kbd "C-c s") 'my/spell-correct-previous)   ; Correct previous word
+(global-set-key (kbd "C-c S") 'my/spell-add-previous-to-dict) ; Add previous to dict
+(global-set-key (kbd "C-c m w") 'my/toggle-writeroom)       ; Centred writing mode
+(global-set-key (kbd "C-c m c") 'my/notes-create-menu)      ; Create submenu directly
+
+;; Deliberate duplicate of C-c d t above: same command, reachable under
+;; both prefixes. C-c d t stays because it fits the Denote group; C-c m k
+;; exists so the keyboard's keyword macro sits in one namespace with the
+;; other macro targets. Change or drop either without touching the other.
+(global-set-key (kbd "C-c m k") 'my/denote-keywords-edit)   ; Modify keywords
 
 (provide '08-keybindings)
 ;;; 08-keybindings.el ends here

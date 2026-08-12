@@ -207,7 +207,12 @@ during development harmless."
     ("v" "View → center/writing/indent/emphasis"         my/notes-view-menu)
     ("t" "Tools → zotero/spelling"        my/notes-tools-menu)
     ;; "l" is reserved: 19-philosophy-notes.el appends it dynamically
-    ;; Quick correct access as this is most used functions for me
+    ;; Quick correct access as this is most used functions for me.
+    ;; Both also have direct global bindings in 08-keybindings.el
+    ;; (C-c s / C-c S) which skip this menu entirely. Kept here anyway:
+    ;; :transient t means the menu stays open, which is what you want
+    ;; when correcting several words in a row, whereas the direct
+    ;; bindings are for the single-fix case. Change one, check the other.
     ("s" "Correct previous"  my/spell-correct-previous  :transient t)
     ("a" "Add to dict"       my/spell-add-previous-to-dict :transient t)
     ]

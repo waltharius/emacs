@@ -7,6 +7,105 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-12 — The second most-used command had no binding
+
+### What the measurement said
+
+A new programmable keyboard was the occasion, but `keyfreq` (`C-c a k`)
+answered a different question than the one being asked. Counts over the
+whole logging period, `org-self-insert-command` aside:
+
+| command                         | calls | reachable by |
+|---------------------------------+-------+--------------|
+| `my/notes-menu`                 |  2939 | `C-c n`      |
+| `my/spell-correct-previous`     |  1305 | menu only    |
+| `transient-quit-one`            |  1257 | `q`          |
+| `denote-open-or-create`         |   293 | `C-c d f`    |
+| `my/spell-add-previous-to-dict` |   285 | menu only    |
+
+The second and fifth entries had no binding of their own. They existed
+only as suffixes inside `my/notes-menu`, so every one of those 1590
+invocations went `C-c n`, then `s` or `a`, and then — because both
+entries carry `:transient t` — left the menu open to be dismissed. The
+1257 `transient-quit-one` calls are largely that dismissal.
+
+That is a defect in this configuration, not in the keyboard, and it was
+worth fixing on its own terms: it applies just as much to the laptop's
+built-in keyboard, where there are no macros to hide it.
+
+### What was added
+
+Five bindings in `08-keybindings.el`:
+
+    C-c s    my/spell-correct-previous
+    C-c S    my/spell-add-previous-to-dict
+    C-c m c  my/notes-create-menu
+    C-c m w  my/toggle-writeroom
+    C-c m k  my/denote-keywords-edit
+
+`C-c s` and `C-c S` are short because they are the ones that are used;
+`C-c m` is a grab-bag prefix for the rest. All five were checked against
+every `global-set-key`/`define-key`/`:bind` in the repo before being
+taken — `C-c s`, `C-c S`, `C-c m` were free.
+
+The menu entries stay. `:transient t` is right when correcting several
+words in a row; the direct binding is right for one fix. Two paths to
+one command, each suited to a different case, is not drift as long as
+both are documented — which is why `12-transient.el` now carries a
+comment pointing at `08-keybindings.el` and vice versa.
+
+`C-c m k` is a deliberate duplicate of `C-c d t`. Both reach
+`my/denote-keywords-edit`; `C-c d t` fits the Denote group, `C-c m k`
+keeps the keyboard's macro targets in one namespace. Flagged in both
+files rather than silently tolerated, since an undocumented duplicate is
+exactly the kind of thing that later looks like a mistake.
+
+### What lives outside this repository
+
+Six macros on a momentary layer held by Caps Lock, typing the chords
+above. They are stored in the keyboard's EEPROM. Nothing about that is
+reproducible from a repository, it cannot be read back from Emacs, and
+the VIA configurator's "Save Current Layout" button does not work in
+this setup — so the table in `function_helper.org` and the copy in
+`my/show-keybindings-help` are the only written record. Factory reset
+(`Fn + [`) erases the lot.
+
+This is the opposite of how everything else here is managed and it is
+worth naming as a known weakness rather than pretending otherwise. The
+mitigation is only that the macros type ordinary chords: every command
+remains reachable, at more keystrokes, from any keyboard.
+
+### A design assumption that did not survive contact
+
+The first draft of the layer put a navigation cluster on the right hand
+— arrows on IJKL, word jumps on UO, Home/End, PgUp/PgDn — reasoning from
+the same `keyfreq` data, which showed mouse scrolling (59270 calls)
+outnumbering every keyboard cursor movement combined by a factor of
+three, and character-wise movement outnumbering word jumps ninety-nine
+to one.
+
+The diagnosis was right and the prescription was wrong. The Air75 V2 is
+a 75 % board: it has a real arrow cluster and dedicated navigation keys
+already, under the same hand. The layer was duplicating keys that were
+physically present. It was dropped. The reasoning would hold on a 60 %
+board, where those keys do not exist.
+
+### Lessons
+
+1. `keyfreq` is worth consulting before adding a binding and not only
+   before buying hardware. The most-used command in a configuration can
+   turn out to have no binding at all, and nothing in daily use makes
+   that obvious.
+2. `:transient t` is a cost as well as a convenience. It shows up in the
+   data as `transient-quit-one`, which is easy to read as noise.
+3. A layout borrowed from one form factor does not transfer to another.
+   Check which keys the board already has before mapping them again.
+4. Configuration held in device firmware is outside every guarantee this
+   repository otherwise makes. Write it down somewhere that is in the
+   repository, and say plainly that the record is manual.
+
+---
+
 ## Session 2026-08-03b — Rescaling is not compression, and a failure that said nothing
 
 ### What was reported, twice

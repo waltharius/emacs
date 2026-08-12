@@ -16,7 +16,9 @@ Main entry point for all note operations. Hierarchical structure:
 =h= Function Help. Also carries
 two top-level shortcuts duplicated from Tools → Spelling for the two
 most-used spelling commands: =s= Correct previous, =a= Add to dict
-(both =:transient t=, so the menu stays open after use).
+(both =:transient t=, so the menu stays open after use). Both also have
+direct global bindings that skip this menu entirely — =C-c s= and
+=C-c S=, see [[#global-keybindings][Global Keybindings]].
 
 =l=, =z= and =p= are not defined in =12-transient.el= itself: they are
 appended at load time by =19-philosophy-notes.el=,
@@ -3064,11 +3066,83 @@ hand-editing either from memory.
 | C-c e b  | =eval-buffer=                 | =08-keybindings.el=          |
 | C-c e r  | =eval-region=                 | =08-keybindings.el=          |
 | C-c h k  | =my/show-keybindings-help=    | =08-keybindings.el=          |
+| C-c s    | =my/spell-correct-previous=   | =08-keybindings.el=          |
+| C-c S    | =my/spell-add-previous-to-dict= | =08-keybindings.el=        |
+| C-c m c  | =my/notes-create-menu=        | =08-keybindings.el=          |
+| C-c m w  | =my/toggle-writeroom=         | =08-keybindings.el=          |
+| C-c m k  | =my/denote-keywords-edit=     | =08-keybindings.el= (duplicate of C-c d t) |
 
 *Note:* there is no =C-c F ...= spelling prefix — an earlier revision
 of this table and of =08-keybindings.el= documented one that was never
-actually bound anywhere. The real spelling commands beyond =C-;= and
-=C-c f b= (correct-previous, add-to-dict, check-full-buffer, toggle)
-only exist inside the transient menu — see [[#menu-spelling][Tools →
-Spelling]] above, or =C-c n s= / =C-c n a= for the two most-used ones
-as top-level shortcuts.
+actually bound anywhere.
+
+Of the spelling commands, =correct-previous= and =add-to-dict= now have
+direct bindings (=C-c s= and =C-c S=); =check-full-buffer= and =toggle=
+still exist only inside the transient menu — see
+[[#menu-spelling][Tools → Spelling]] above. The menu entries =C-c n s=
+and =C-c n a= remain as well: they carry =:transient t= and so leave
+the menu open, which suits correcting several words in a row, while the
+direct bindings suit a single fix.
+
+* NuPhy Air75 V2 — Caps Lock layer
+:PROPERTIES:
+:CUSTOM_ID: nuphy-layer
+:END:
+
+Six firmware macros on a momentary layer held by Caps Lock. They are
+stored in the keyboard's EEPROM and are *not* reproducible from any
+repository — this table is the only written record, so update it here
+whenever the layer changes.
+
+| Key | Types    | Command                          |
+|-----+----------+----------------------------------|
+| =M= | C-c m c  | =my/notes-create-menu=           |
+| =F= | C-c d f  | =denote-open-or-create=          |
+| =S= | C-c s    | =my/spell-correct-previous=      |
+| =A= | C-c S    | =my/spell-add-previous-to-dict=  |
+| =W= | C-c m w  | =my/toggle-writeroom=            |
+| =L= | C-c d l  | =denote-link=                    |
+
+Everything here is firmware: the macros type ordinary chords, so the
+same commands work identically from the ThinkPad's built-in keyboard,
+just with more keystrokes. Nothing in this configuration depends on the
+NuPhy being attached.
+
+** How the layer is triggered
+:PROPERTIES:
+:CUSTOM_ID: nuphy-layer-trigger
+:END:
+
+Caps Lock carries =MO(4)= on the Win base layer (layer 2 — the physical
+Win/Mac switch selects which layer is the base, so none of this is
+active in Mac mode). =MO()= emits no HID report at all, which is why
+the =ctrl:nocaps= XKB rule in the NixOS configuration never fires for
+this keyboard even though it is still set: there is no
+=KEY_CAPSLOCK= scancode for it to rewrite. The physical left Control is
+an ordinary Control key.
+
+The consequence on the ThinkPad's built-in keyboard, where =MO()=
+cannot exist, is that Caps Lock is a second Control there. Capital-lock
+itself is reached with both Shift keys together
+(=shift:both_capslock=).
+
+Raw HID access for the VIA web configurator comes from
+=modules/system/hardware/keyboard-qmk.nix= in the NixOS repository,
+scoped to USB vendor =19f5=. Factory reset is =Fn + [=, which clears
+every macro in the table above.
+
+** Why these six
+:PROPERTIES:
+:CUSTOM_ID: nuphy-layer-rationale
+:END:
+
+Chosen from =keyfreq= output (=C-c a k=) rather than by guesswork.
+=my/spell-correct-previous= was the second most-invoked command in the
+configuration and had no binding at all; =my/notes-menu= was first.
+
+An earlier draft of the layer also carried a navigation cluster
+(arrows, word jumps, Home/End, PgUp/PgDn on the right hand). It was
+dropped: the Air75 V2 is a 75 % board with a real arrow cluster and
+dedicated navigation keys, so the layer was duplicating keys that
+already exist under the same hand. That reasoning does not carry over
+to 60 % boards, where the cluster would be worth having.
