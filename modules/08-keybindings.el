@@ -356,10 +356,8 @@ Full descriptions of every command: C-c n h, or
 ;; collision-free target. Bypasses the transient menu on purpose:
 ;; going through C-c n s leaves the menu open (:transient t).
 
-(global-set-key (kbd "C-c m n") 'my/notes-menu)
-(global-set-key (kbd "C-c m p") 'my/spell-correct-previous)
-(global-set-key (kbd "C-c m d") 'my/spell-add-previous-to-dict)
-(global-set-key (kbd "C-c m f") 'denote-open-or-create)
+(global-set-key (kbd "C-c s") 'my/spell-correct-previous)
+(global-set-key (kbd "C-c S") 'my/spell-add-previous-to-dict)
 
 (provide '08-keybindings)
 ;;; 08-keybindings.el ends here
