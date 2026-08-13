@@ -7,6 +7,9 @@
  '(custom-safe-themes
    '("138ed99a323c1b93c52f4b3726caf2bc634b79a76fa63a3d3aff76394db5f28f"
      default))
+ '(display-battery-mode t)
+ '(display-line-numbers-type 'relative)
+ '(display-time-mode t)
  '(package-selected-packages nil)
  '(recentf-filename-handlers '(abbreviate-file-name))
  '(safe-local-variable-values
