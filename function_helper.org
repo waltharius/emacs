@@ -58,7 +58,17 @@ Function: =my/denote-base= | Module: =modules/05-notes.el=
 
 Opens today's journal. If it exists, appends a new timestamped heading
 (=* HH:MM=) at the bottom. If not, creates a new file in =~/notes/journal/=
-with front matter and =:well-being:= property.
+with front matter (=#+title:=, =#+date:=, =#+filetags:=, =#+identifier:=,
+=#+language:=, =#+schema:=) and an empty =* Metryki= headline.
+
+The metrics themselves are not written here — see [[#fn-my-journal-set-metrics][w — Metrics today]].
+Before 2026-08 this template emitted a =:PROPERTIES:= drawer holding
+=:well-being:= directly below the front matter. Org does not parse a
+property drawer in that position: a pre-headline property block must sit
+at the very top of the buffer with only comments above it, so those
+values were never properties at all and =org-entry-get= returned nil for
+them. Notes written that way are schema 0 and are migrated one at a time
+by =my/journal-set-metrics=.
 
 Function: =my/denote-journal= | Module: =modules/05-notes.el=
 
@@ -69,10 +79,76 @@ Function: =my/denote-journal= | Module: =modules/05-notes.el=
 
 Creates or opens a journal for an arbitrary date (backdating). Uses
 =org-read-date=. Existing journal gets a =* Uzupełnienie= heading with
-=:ADDED_AT:= / =:EVENT_DATE:= properties. New backdated files use
-=T000000= identifier.
+=:ADDED_AT:= / =:EVENT_DATE:= properties. New backdated files use a
+=T000000= identifier — a zeroed clock is this configuration's marker for
+"the time of day was not recorded", and journal notes are the only ones
+ever created that way, so no collision search is needed.
+
+File creation lives in =my/denote-journal--create-backdated=, which
+writes the file and returns its path without visiting it. That helper is
+also what =my/journal-set-metrics-for-date= calls when it is asked for a
+day that has no journal at all. It refuses to overwrite an existing
+file.
 
 Function: =my/denote-journal-date= | Module: =modules/05-notes.el=
+
+*** w — Metrics today
+:PROPERTIES:
+:CUSTOM_ID: fn-my-journal-set-metrics
+:END:
+
+Prompts, in order, for the metrics of the journal file in the current
+buffer and writes them into the property drawer under =* Metryki=.
+Fields are declared in =my/journal-metrics-fields=; as of schema 1 they
+are =WELLBEING= (1–10), =ALCOHOL_U= and =ILLNESS=. Deliberately short:
+everything WHOOP already records (sleep, caffeine, recovery, the
+behaviour checkboxes) is imported from its CSV export instead of being
+typed twice.
+
+Answering a prompt with =RET= accepts the pre-filled value: the current
+property, then the legacy value being migrated, then the field default
+(=0= for alcohol, =none= for illness). Answering =-= deletes the
+property. A blank value is never written — an absent property means "not
+measured" and must never be read as zero.
+
+Three properties are written without being asked for:
+
+- =METRICS_ADDED= — when the metrics were *first* recorded, never
+  refreshed on later edits. The indexer computes a lag against the day
+  in the file name from it.
+- =RECALLED= — =t= when =WELLBEING= is written for a day other than
+  today *and* the value differs from whatever was there before. Set
+  once, never unset. It exists to be filtered on, not weighted.
+- =NO_ENTRY_REASON= — offered only when the file has no prose (below
+  =my/journal-prose-threshold= characters outside the metrics subtree),
+  from =my/journal-no-entry-reasons=. Explanatory only: the word count
+  computed at index time stays authoritative for whether a day was
+  written up.
+
+On a schema 0 note the command also migrates: it seeds =WELLBEING= from
+the legacy =:well-being:= value, and only *after* the new drawer is
+written does it delete the legacy drawer and stamp =#+schema:=. Aborting
+with =C-g= at any prompt leaves the file untouched. Nothing is migrated
+in bulk; a note is rewritten only when it is deliberately opened.
+
+Function: =my/journal-set-metrics= | Module: =modules/05b-journal-metrics.el=
+
+*** W — Metrics for date
+:PROPERTIES:
+:CUSTOM_ID: fn-my-journal-set-metrics-for-date
+:END:
+
+Asks for a date with =org-read-date=, opens that day's journal and runs
+[[#fn-my-journal-set-metrics][w — Metrics today]] on it. If no journal exists for that day, offers to
+create one via =my/denote-journal--create-backdated=.
+
+Creating it is the point: a day rated with no prose is still a valid
+observation, and refusing to create the file would leave a hole in the
+series with no record of why it is there. The cursor is left at the end
+of the buffer afterwards, which is the cheapest available prompt to
+actually write the day up.
+
+Function: =my/journal-set-metrics-for-date= | Module: =modules/05b-journal-metrics.el=
 
 *** e — Essay
 :PROPERTIES:
@@ -275,9 +351,17 @@ without editing =12-transient.el=.
 
 Both dashboards read the Denote =#+identifier:= (=YYYYMMDDTHHMMSS=)
 from front matter, not the file name directly, and scan across all
-three silos. Journal notes are distinguished by the presence of the
-=:well-being:= property in the property drawer — this is the only
-marker separating journal notes from the rest.
+three silos. Journal notes are recognised by =my/dashboards--journal-p=
+from the =journal= Denote keyword in the file name, which costs no file
+access at all; a note whose name lost its keywords falls back to a
+content check for the =* Metryki= headline or the legacy
+=:well-being:= drawer.
+
+Until 2026-08 the only test was the =:well-being:= drawer. That marker
+is being retired: a note migrated to the metrics drawer no longer has
+it, so the old test would have quietly stopped recognising both migrated
+and newly created journals, and the dashboards would have shown them as
+ordinary notes.
 
 **** Layout: own tab, list left, note right
 
@@ -572,16 +656,6 @@ Function: =insert-current-time= | Module: =modules/05-notes.el=
 Inserts current date in =YYYY-MM-DD= format at point.
 
 Function: =insert-current-date= | Module: =modules/05-notes.el=
-
-*** w — Well-being
-:PROPERTIES:
-:CUSTOM_ID: fn-my-denote-set-wellbeing
-:END:
-
-Sets the =:well-being:= property (1–10) in the current journal note.
-Only works if the buffer's file path contains ="journal"=.
-
-Function: =my/denote-set-wellbeing= | Module: =modules/05-notes.el=
 
 *** i — Image from disk
 :PROPERTIES:

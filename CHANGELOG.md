@@ -7,6 +7,150 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-25 — A property drawer Org never read
+
+### What was wrong
+
+`my/denote-journal` wrote this into every new journal file:
+
+```org
+#+title:      2026-08-24 Journal
+#+date:       [2026-08-24 pon 09:12]
+#+filetags:   :journal:
+#+identifier: 20260824T091200
+:PROPERTIES:
+:well-being:
+:END:
+```
+
+That drawer is not a property drawer. The Org manual is explicit:
+a property block before the first headline must be at the top of the
+buffer with only comments above it. `#+title:` and the rest are
+keywords, not comments, so `org-entry-get` returned nil for
+`well-being`, `org-element` parsed the block as ordinary text, and
+`org-columns` and `org-ql` could not see it at all. It rendered
+correctly and meant nothing.
+
+252 of 3502 journal files carry a value in that position. Ten years of
+notes are meant to become a queryable series; a field the query layer
+cannot reach is not a field.
+
+### What replaced it
+
+Metrics now live in a real property drawer under a dedicated `* Metryki`
+headline. `modules/05b-journal-metrics.el` owns them:
+
+- `my/journal-set-metrics` (`C-c n c w`) — prompts for the fields
+  declared in `my/journal-metrics-fields` and writes the drawer.
+- `my/journal-set-metrics-for-date` (`C-c n c W`) — same, for a date
+  chosen with `org-read-date`, creating the journal file when the day
+  has none.
+
+Field set as of schema 1: `WELLBEING` (1–10), `ALCOHOL_U`, `ILLNESS`.
+Kept short on purpose. Everything WHOOP already records — sleep
+duration and efficiency, caffeine, recovery, the ~22 behaviour
+checkboxes — is imported from its CSV export rather than typed a second
+time, and the two axes considered for splitting well-being (anxiety,
+energy) were dropped: forcing a decomposition finer than the one the
+rater actually discriminates produces invented numbers, and one
+consistent indicator beats three uncertain ones.
+
+Missing and zero are kept distinct. `RET` accepts the field default,
+`-` deletes the property, and a blank value is never written. An absent
+property means "not measured" and is never to be read as zero.
+
+### Migration without a migration
+
+Nothing is rewritten in bulk. `my/journal-set-metrics` seeds `WELLBEING`
+from the legacy `:well-being:` value, writes the new drawer, and only
+then deletes the legacy drawer and stamps `#+schema:`. Aborting with
+`C-g` at any prompt leaves the file exactly as it was. A note is
+upgraded when it is deliberately opened and answered, and never
+otherwise.
+
+The 3250 files nobody ever touches stay untouched. Reading their legacy
+value is a regexp in the indexer, which is an operation that cannot lose
+data; rewriting 3502 files is one that can.
+
+### Recording how the number was arrived at
+
+Two properties are written without being asked for:
+
+- `METRICS_ADDED` — when metrics were *first* recorded, never refreshed.
+  The indexer derives a lag against the day in the file name.
+- `RECALLED` — `t` when `WELLBEING` is written for a day other than
+  today and the value differs from what was there before. Set once,
+  never unset.
+
+A day rated the same evening and a day reconstructed three weeks later
+are not the same measurement. The flag exists so that an analysis can
+exclude the second kind, not so that it can discount it: there is no
+ground truth here against which a decay curve could be fitted, so any
+"a 30-day recall is worth 0.7 of a same-day rating" weighting would be
+arithmetic invented to look rigorous.
+
+`METRICS_ADDED` overlaps with the `ADDED_AT` property that
+`my/denote-journal-date` already puts on `* Uzupełnienie`, but does not
+duplicate it: `ADDED_AT` exists only for backdated *prose*, and metrics
+can be added to a same-day file weeks after it was written.
+
+### A regression this would have caused
+
+`my/dashboards--journal-p` identified journal notes by searching the
+first 1200 bytes for `:well-being:`. Retiring that property would have
+made every migrated and every newly created journal invisible to both
+history dashboards — silently, since the predicate simply returns nil.
+
+It now tests the `journal` Denote keyword in the file name, parsed with
+a plain regexp so the predicate does not depend on which helper a given
+Denote version exposes, and costs no file access at all. The content
+check survives as a fallback for a note whose name lost its keywords,
+matching either the `* Metryki` headline or the legacy drawer.
+
+### Menu placement
+
+`m` and `M` were the obvious keys in the Create submenu and both were
+taken (`m` is Promote to note), so the two commands took `w` and `W`,
+appended after `J` by `my/transient-append` from within
+`with-eval-after-load '12-transient`. The module loads before
+`12-transient.el`, so the append cannot run at load time.
+
+The old Insert → `w` "Well-being" entry is gone along with
+`my/denote-set-wellbeing`, which edited a `:well-being:` line by regexp
+and would have reported "Could not find well-being property" on every
+new file.
+
+`my-journal-metrics-heading` and `my-journal-schema-version` moved to
+`00-core.el`. The journal template needs both, and a mandatory module
+must not depend on an optional one. `init.el` loads
+`05b-journal-metrics.el` with NOERROR, so deleting the file degrades to
+"no metrics commands, no menu entries" rather than aborting init partway
+through and leaving the rest of the configuration unloaded.
+
+### Files touched
+
+- `modules/00-core.el` — `my-journal-metrics-heading`,
+  `my-journal-schema-version`
+- `modules/05-notes.el` — journal template rewritten; new
+  `my/denote-journal--create-backdated` helper; `my/denote-set-wellbeing`
+  removed
+- `modules/05b-journal-metrics.el` — new module
+- `modules/12-transient.el` — Insert → `w` removed, `w`/`W` reserved in
+  Create
+- `modules/21-dashboards.el` — journal detection no longer depends on
+  `:well-being:`
+- `init.el` — optional load for `05b-journal-metrics.el`
+- `function_helper.org` — new entries under Create (`w`, `W`), Insert
+  `w` removed, journal and dashboard entries corrected
+
+### Lesson
+
+A field that renders correctly is not a field that parses correctly.
+Every metadata key added from here on gets checked once with
+`org-entry-get` on a real file before anything is built on top of it.
+
+---
+
 ## Session 2026-08-24 — Fetching a page title instead of typing one
 
 ### What was missing

@@ -5,9 +5,13 @@
 ;; find notes matching today's day-of-month across previous years,
 ;; or across every month where a note happens to exist on that day.
 ;;
-;; Journal notes are distinguished by the :well-being: property in
-;; the file's property drawer (this is the only marker that differs
-;; between journal notes and all other notes in this system).
+;; Journal notes are distinguished by the `journal' Denote keyword in
+;; the file name, with a content fallback for notes whose name has lost
+;; its keywords.  Until 2026-08 this test looked for a :well-being:
+;; property instead; that property is being retired by
+;; 05b-journal-metrics.el, and a note migrated to the metrics drawer no
+;; longer carries it, so the old test silently stopped recognising
+;; migrated and newly created journals.
 ;;
 ;; This menu is appended dynamically to the existing "Overview"
 ;; section of my/notes-find-menu (C-c n f), the same way
@@ -62,13 +66,31 @@
       (file-name-base file)))
 
 (defun my/dashboards--journal-p (file)
-  "Return non-nil when FILE contains the :well-being: property.
-This is the only marker distinguishing journal notes from the rest."
-  (with-temp-buffer
-    (insert-file-contents file nil 0 1200)
-    (let ((case-fold-search t))
-      (goto-char (point-min))
-      (re-search-forward "^[ \t]*:well-being:" nil t))))
+  "Return non-nil when FILE is a journal note.
+
+Primary test: the `journal\=' Denote keyword in the file name.  Every
+journal file created by `my/denote-journal\=' or
+`my/denote-journal-date\=' carries it, and reading it costs no file
+access at all.  The keyword segment is parsed here with a plain regexp
+rather than through a Denote helper, so this predicate does not depend
+on which helper names a given Denote version exposes.
+
+Fallback, for a note whose name lost its keywords in some earlier
+migration: the metrics headline (schema 1) or the legacy :well-being:
+drawer (schema 0, not yet migrated)."
+  (let* ((base (file-name-base file))
+         (keywords (when (string-match "__\\(.*\\)\\\'" base)
+                     (split-string (match-string 1 base) "_" t))))
+    (or (and keywords (member "journal" keywords) t)
+        (with-temp-buffer
+          (insert-file-contents file nil 0 1200)
+          (let ((case-fold-search t))
+            (goto-char (point-min))
+            (or (re-search-forward "^[ \t]*:well-being:" nil t)
+                (re-search-forward
+                 (format "^\\* %s[ \t]*$"
+                         (regexp-quote my-journal-metrics-heading))
+                 nil t)))))))
 
 (defun my/dashboards--identifier-date (identifier)
   "Parse IDENTIFIER (YYYYMMDDTHHMMSS) into a plist :year :month :day."

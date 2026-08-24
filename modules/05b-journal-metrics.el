@@ -43,6 +43,15 @@
 ;; redundant: ADDED_AT only exists for backdated *prose*, while metrics can
 ;; be added to a same-day file weeks after it was written.
 ;;
+;; RECALLED is set to t, once and never unset, when WELLBEING is written for
+;; a day other than today AND the value differs from whatever was there
+;; before (including the case where nothing was there).  Rating today's day
+;; is a judgement; supplying or revising a past day's value is a memory.
+;; The flag exists to be filtered on, not weighted: there is no ground truth
+;; against which a decay curve could be calibrated, so any "a 30-day recall
+;; is worth 0.7 of a same-day rating" arithmetic would be invented.  Either
+;; a value is a same-day judgement or it is not.
+;;
 ;; COMMANDS
 ;; --------
 ;;   M-x my/journal-set-metrics            (C-c n c w)  current buffer
@@ -220,6 +229,18 @@ metrics headline are excluded."
         (forward-line 1))
       count)))
 
+(defun my/journal--file-date ()
+  "Return the day the current journal file describes, as YYYY-MM-DD.
+Read from the file name rather than #+date:, because the file name is
+what the rest of this configuration treats as authoritative for journal
+notes.  Nil when the buffer is not a journal file."
+  (let ((name (and buffer-file-name
+                   (file-name-nondirectory buffer-file-name))))
+    (when (and name
+               (string-match "--\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)-journal"
+                             name))
+      (match-string 1 name))))
+
 ;; ============================================================
 ;; PROMPTING
 ;; ============================================================
@@ -271,19 +292,36 @@ note is upgraded simply by being touched."
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Not an Org buffer"))
-  (let* ((legacy (my/journal--legacy-wellbeing))
-         (prose  (>= (my/journal--prose-chars) my/journal-prose-threshold)))
+  (let* ((legacy    (my/journal--legacy-wellbeing))
+         (prose     (>= (my/journal--prose-chars) my/journal-prose-threshold))
+         (file-date (my/journal--file-date))
+         (today     (format-time-string "%Y-%m-%d"))
+         (wb-prior  nil)
+         (wb-answer nil))
     ;; All prompting happens first: aborting with C-g here leaves the file
     ;; exactly as it was, legacy drawer included.
     (save-excursion
       (my/journal--goto-metrics)
       (dolist (field my/journal-metrics-fields)
-        (let* ((key    (plist-get field :key))
-               (seed   (and legacy (string= key "WELLBEING") legacy))
-               (answer (my/journal--ask field seed)))
+        (let* ((key      (plist-get field :key))
+               (wellbeing (string= key "WELLBEING"))
+               (seed     (and legacy wellbeing legacy))
+               (prior    (or (org-entry-get (point) key) seed))
+               (answer   (my/journal--ask field seed)))
+          (when wellbeing
+            (setq wb-prior prior
+                  wb-answer answer))
           (if answer
               (org-entry-put (point) key answer)
             (org-entry-delete (point) key))))
+
+      ;; Set once, never unset: a value supplied or revised for a past day
+      ;; is a memory, and it stays one even if it is edited again later.
+      (when (and wb-answer
+                 file-date
+                 (not (string= file-date today))
+                 (not (equal wb-answer wb-prior)))
+        (org-entry-put (point) "RECALLED" "t"))
 
       (when (and (not prose)
                  (not (org-entry-get (point) "NO_ENTRY_REASON")))
