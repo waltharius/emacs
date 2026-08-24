@@ -7,6 +7,30 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-24 — Fetching a page title instead of typing one
+
+### What was missing
+
+Every Org link typed by hand needed a description someone had to write.
+For an external URL, that description is almost always the page's own
+title — information already sitting in the page's `<title>` tag,
+re-typed by hand every time a source was cited.
+
+### What was added
+
+`modules/32-web-links.el`. `use-package org-web-tools` (MELPA) pulls in
+the fetching logic rather than reimplementing an HTML-title parser.
+`my/insert-web-link` wraps `org-web-tools-insert-link-for-url`, appended
+as `u` in the Insert submenu (`C-c n i u`) through `my/transient-append`,
+so `12-transient.el` itself is untouched.
+
+### Files touched
+
+- `modules/32-web-links.el` — new module
+- `function_helper.org` — new entry under Insert (`u`)
+
+---
+
 ## Session 2026-08-12 — The second most-used command had no binding
 
 ### What the measurement said
@@ -15,13 +39,13 @@ A new programmable keyboard was the occasion, but `keyfreq` (`C-c a k`)
 answered a different question than the one being asked. Counts over the
 whole logging period, `org-self-insert-command` aside:
 
-| command                         | calls | reachable by |
+| command | calls | reachable by |
 |---------------------------------+-------+--------------|
-| `my/notes-menu`                 |  2939 | `C-c n`      |
-| `my/spell-correct-previous`     |  1305 | menu only    |
-| `transient-quit-one`            |  1257 | `q`          |
-| `denote-open-or-create`         |   293 | `C-c d f`    |
-| `my/spell-add-previous-to-dict` |   285 | menu only    |
+| `my/notes-menu` | 2939 | `C-c n` |
+| `my/spell-correct-previous` | 1305 | menu only |
+| `transient-quit-one` | 1257 | `q` |
+| `denote-open-or-create` | 293 | `C-c d f` |
+| `my/spell-add-previous-to-dict` | 285 | menu only |
 
 The second and fifth entries had no binding of their own. They existed
 only as suffixes inside `my/notes-menu`, so every one of those 1590

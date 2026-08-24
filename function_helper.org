@@ -732,6 +732,17 @@ again gives a better result, because the insertion path can choose the
 format.
 
 Function: =my/org-image-recompress-attachments= | Module: =modules/31-org-images.el=
+*** u — Web link (auto title)
+:PROPERTIES:
+:CUSTOM_ID: fn-my-insert-web-link
+:END:
+
+Fetches the page title for a URL and inserts an Org link
+[[URL][Title]] at point. Prompts for the URL; if the clipboard
+already contains one, org-web-tools offers it as default.
+
+Function: =my/insert-web-link= | Module: =modules/32-web-links.el=
+
 ** C-c n d — Document / File management
 :PROPERTIES:
 :CUSTOM_ID: menu-notes-doc
