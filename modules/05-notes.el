@@ -258,8 +258,14 @@ without asking."
 
 (defun my/denote-journal ()
   "Create or open today's journal note.
-  If journal exists, add new timestamped entry.
-  Journal files go to ~/notes/journal/"
+If the journal exists, append a new timestamped entry.
+Journal files go to ~/notes/journal/
+
+New files carry a `my-journal-metrics-heading' headline; the metrics
+themselves are filled in later by `my/journal-set-metrics' (C-c n c w),
+which lives in the optional 05b-journal-metrics.el.  The headline is
+emitted here regardless, so that a file created without that module
+still has the right shape."
   (interactive)
   (let* ((today (format-time-string "%Y-%m-%d"))
          (time-now (format-time-string "%H:%M"))
@@ -301,12 +307,14 @@ without asking."
         (insert (format "#+date:       [%s]\n" (format-time-string "%Y-%m-%d %a %H:%M")))
         (insert "#+filetags:   :journal:\n")
         (insert (format "#+identifier: %s\n" id))
-
-        ;; Well-being property
         (insert "#+language:   pl\n")
-        (insert (format "#+schema:     %d\n\n" my/journal-schema-version))
-        ;; Empty metrics headline, filled in later via my/journal-set-metrics.
-        (insert (format "* %s\n\n" my/journal-metrics-heading))
+        (insert (format "#+schema:     %d\n\n" my-journal-schema-version))
+
+        ;; Empty metrics headline; the drawer is written by
+        ;; `my/journal-set-metrics'.  No :PROPERTIES: block is emitted
+        ;; between the front matter and the first headline: Org does not
+        ;; parse a property drawer in that position.
+        (insert (format "* %s\n\n" my-journal-metrics-heading))
 
         ;; First entry
         (insert (format "* %s\n" time-now))
@@ -318,21 +326,56 @@ without asking."
 ;; JOURNAL: Specific date (for migration/backdating)
 ;; ============================================================
 
-(defun my/denote-journal-date ()
-  "Create or open journal for a specific date (for migrating old entries).
+(defun my/denote-journal--create-backdated (date encoded-time)
+  "Write a backdated journal file for DATE and return its path.
+DATE is \"YYYY-MM-DD\"; ENCODED-TIME is the matching Lisp timestamp.
+Does not visit the file -- callers decide whether to open it.
 
-  Behaviour:
-  - If a journal for the chosen date already exists: open it, append
-    a heading '* Uzupełnienie' with ADDED_AT and EVENT_DATE properties
-    at the bottom and place the cursor there - ready to write.
-  - If no journal exists for that date: create a new file.
-    The denote identifier uses T000000 (zeroed time) to signal that
-    the file was created retroactively. The first heading is also
-    '* Uzupełnienie' with properties."
+The identifier uses a zeroed clock (T000000), which is this
+configuration\='s marker for \"the time of day was not recorded\".  No
+collision search is done: journal files are the only notes ever created
+with a zeroed clock, and a same-date journal is found by the caller
+before this function is reached.  The one real risk -- silently
+overwriting an existing file -- is checked for explicitly."
+  (let* ((id       (format-time-string "%Y%m%dT000000" encoded-time))
+         (slug     (format "%s-journal" date))
+         (filename (format "%s--%s__journal.org" id slug))
+         (filepath (expand-file-name filename my-notes-journal))
+         (added-at (format-time-string "%Y-%m-%d %a %H:%M")))
+    (when (file-exists-p filepath)
+      (user-error "Plik %s już istnieje" filename))
+    (with-temp-file filepath
+      (insert (format "#+title:      %s Journal\n" date))
+      (insert (format "#+date:       %s\n"
+                      (format-time-string "[%Y-%m-%d %a]" encoded-time)))
+      (insert "#+filetags:   :journal:\n")
+      (insert (format "#+identifier: %s\n" id))
+      (insert "#+language:   pl\n")
+      (insert (format "#+schema:     %d\n\n" my-journal-schema-version))
+      (insert (format "* %s\n\n" my-journal-metrics-heading))
+      ;; The supplement heading carries the real write time, which is how
+      ;; this configuration has always recorded the gap between the day
+      ;; described and the day written up.
+      (insert "* Uzupełnienie\n")
+      (insert ":PROPERTIES:\n")
+      (insert (format ":ADDED_AT:   [%s]\n" added-at))
+      (insert (format ":EVENT_DATE: [%s]\n" date))
+      (insert ":END:\n\n"))
+    filepath))
+
+(defun my/denote-journal-date ()
+  "Create or open the journal for a specific date (backdating).
+
+Behaviour:
+- If a journal for the chosen date already exists: open it, append a
+  \='* Uzupełnienie\=' heading with ADDED_AT and EVENT_DATE at the bottom,
+  and place the cursor there - ready to write.
+- If no journal exists for that date: create one via
+  `my/denote-journal--create-backdated\=' and open it."
   (interactive)
-  (let* ((date-input    (org-read-date nil nil nil "Date: "))
-         (parsed-time   (org-parse-time-string date-input))
-         (encoded-time  (apply 'encode-time parsed-time))
+  (let* ((date-input     (org-read-date nil nil nil "Date: "))
+         (parsed-time    (org-parse-time-string date-input))
+         (encoded-time   (apply #'encode-time parsed-time))
          (date-formatted (format-time-string "%Y-%m-%d" encoded-time))
          (added-at-stamp (format-time-string "%Y-%m-%d %a %H:%M"))
          (journal-pattern (concat "--" date-formatted "-journal"))
@@ -367,29 +410,11 @@ without asking."
 
       ;; --------------------------------------------------------
       ;; No journal for that date - create a fresh backdated file
-      ;; ID uses T000000 to mark it as retroactively created.
       ;; --------------------------------------------------------
-      (let* ((id       (format-time-string "%Y%m%dT000000" encoded-time))
-             (slug     (format "%s-journal" date-formatted))
-             (filename (format "%s--%s__journal.org" id slug))
-             (filepath (expand-file-name filename my-notes-journal)))
-
+      (let ((filepath (my/denote-journal--create-backdated
+                       date-formatted encoded-time)))
         (find-file filepath)
-        (insert (format "#+title:      %s Journal\n" date-formatted))
-        (insert (format "#+date:       %s\n"
-                        (format-time-string "[%Y-%m-%d %a]" encoded-time)))
-        (insert "#+filetags:   :journal:\n")
-        (insert (format "#+identifier: %s\n" id))
-        (insert ":PROPERTIES:\n")
-        (insert ":well-being:  \n")
-        (insert ":END:\n\n")
-        ;; First heading carries the real creation timestamp in properties
-        (insert "* Uzupełnienie\n")
-        (insert ":PROPERTIES:\n")
-        (insert (format ":ADDED_AT:   [%s]\n" added-at-stamp))
-        (insert (format ":EVENT_DATE: [%s]\n" date-formatted))
-        (insert ":END:\n")
-        (save-buffer)
+        (goto-char (point-max))
         (message "Created backdated journal for %s (written %s)"
                  date-formatted added-at-stamp)))))
 
@@ -455,25 +480,6 @@ without asking."
     ;; Position cursor at Subject field
     (goto-char (point-min))
     (re-search-forward "^- Subject: " nil t)))
-
-;; ============================================================
-;; WELL-BEING: Set well-being score for journal
-;; ============================================================
-
-(defun my/denote-set-wellbeing ()
-  "Set well-being score (1-10) for current journal note."
-  (interactive)
-  (if (not (string-match-p "journal" (or (buffer-file-name) "")))
-      (message "This is not a journal note!")
-    (let ((score (read-number "Well-being score (1-10): " 5)))
-      (when (and (>= score 1) (<= score 10))
-        (save-excursion
-          (goto-char (point-min))
-          (if (re-search-forward ":well-being: *\\([0-9]*\\)" nil t)
-              (replace-match (number-to-string score) nil nil nil 1)
-            (message "Could not find well-being property"))
-          (save-buffer)
-          (message "Well-being set to %d" score))))))
 
 ;; ============================================================
 ;; HELPER: Insert current time (HH:MM)

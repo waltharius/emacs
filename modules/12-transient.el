@@ -5,7 +5,7 @@
 ;;
 ;;   C-c n c  — Create / Capture
 ;;   C-c n f  — Find (search & navigation)
-;;   C-c n i  — Insert (links, time, date, well-being)
+;;   C-c n i  — Insert (links, time, date)
 ;;   C-c n d  — Document / File management
 ;;   C-c n x  — eXport
 ;;   C-c n v  — View
@@ -28,6 +28,9 @@
 
 (transient-define-prefix my/notes-create-menu ()
   "Create notes and run captures."
+  ;; "w" and "W" are reserved: 05b-journal-metrics.el appends the two
+  ;; metrics commands after "J" dynamically, so that deleting that module
+  ;; leaves this menu valid instead of binding void commands.
   [["Create"
     ("n" "New note"       my/denote-base)
     ("j" "Journal today"  my/denote-journal)
@@ -64,14 +67,17 @@
 
 (transient-define-prefix my/notes-insert-menu ()
   "Insert links, dates, and content."
+  ;; The old ("w" "Well-being") entry is gone.  It edited the :well-being:
+  ;; line in a drawer that Org never parsed as properties, and that drawer
+  ;; is being retired.  Its replacement lives in the Create menu and is
+  ;; appended there by 05b-journal-metrics.el, so that removing the metrics
+  ;; module removes the menu entry with it.
   [["Link"
     ("l" "Insert link"  denote-link)
     ("L" "Linked note"  my/denote-linked-note)]
    ["Date & Time"
     ("h" "Time (HH:MM)"      insert-current-time)
     ("d" "Date (YYYY-MM-DD)" insert-current-date)]
-   ["Other"
-    ("w" "Well-being"  my/denote-set-wellbeing)]
    [("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================

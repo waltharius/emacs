@@ -48,6 +48,23 @@
   "Ideas capture file - thoughts and ideas worth developing later.
 Use C-c n c i to add entries, C-c n c m to promote to full Denote note.")
 
+;; JOURNAL METRICS: names shared by 05-notes.el and 05b-journal-metrics.el.
+;; They live here so that the journal template does not depend on the
+;; optional metrics module: 05b-journal-metrics.el can be deleted and the
+;; journal generator still works.
+(defvar my-journal-metrics-heading "Metryki"
+  "Headline under which daily journal metrics are stored.
+The metrics live in a property drawer below this headline.  A drawer
+placed after the front matter instead is NOT parsed by Org as properties:
+the manual requires a pre-headline property block to sit at the very top
+of the buffer with only comments above it.")
+
+(defvar my-journal-schema-version 1
+  "Value written as #+schema: into new journal files.
+An absent keyword means schema 0: a note from before the metrics drawer
+existed, whose well-being value, if any, sits in the unparsed legacy
+position and is only reachable by regexp.")
+
 ;; Agenda scans all three silos + captures file
 (defvar my-tasks-agenda-dirs
   (list my-notes-journal
