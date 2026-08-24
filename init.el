@@ -58,6 +58,7 @@
   (load (concat modules-dir "03b-fonts.el"))        ; Fonts (PlaypenSans for journals)
   (load (concat modules-dir "04-denote.el"))        ; Denote multi-silo
   (load (concat modules-dir "05-notes.el"))         ; Note functions
+  (load (concat modules-dir "05b-journal-metrics.el")) ; Metrics for journal entry for better LLM analysis
   (load (concat modules-dir "06-capture.el"))       ; Org-capture (SMART DATE!)
   (load (concat modules-dir "07-git.el"))           ; Git auto-commit
   (load (concat modules-dir "08-keybindings.el"))   ; Keybindings

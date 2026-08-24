@@ -303,9 +303,10 @@ without asking."
         (insert (format "#+identifier: %s\n" id))
 
         ;; Well-being property
-        (insert ":PROPERTIES:\n")
-        (insert ":well-being:  \n")
-        (insert ":END:\n\n")
+        (insert "#+language:   pl\n")
+        (insert (format "#+schema:     %d\n\n" my/journal-schema-version))
+        ;; Empty metrics headline, filled in later via my/journal-set-metrics.
+        (insert (format "* %s\n\n" my/journal-metrics-heading))
 
         ;; First entry
         (insert (format "* %s\n" time-now))
