@@ -89,6 +89,7 @@
   (load (concat modules-dir "29-writing-export.el")) ; ODT/DOCX export via ox-odt + LibreOffice
   (load (concat modules-dir "30-link-tooltips.el")) ; Cheap mouse tooltips over denote: links
   (load (concat modules-dir "31-org-images.el")) ; Image attachments (C-c n i i)
+  (load (concat modules-dir "32-web-links.el")) ; insert web link (C-c n i u)
   )
 
 (add-hook 'emacs-startup-hook
