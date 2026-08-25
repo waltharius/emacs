@@ -505,7 +505,7 @@ Behaviour:
 
 (defun my/denote-delete-note ()
   "Delete current note file and buffer.
-  Uses 'git rm' if file is tracked, otherwise regular delete."
+  Uses git rm if file is tracked, otherwise regular delete."
   (interactive)
   (let* ((file (buffer-file-name))
          (name (file-name-nondirectory file)))
