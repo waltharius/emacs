@@ -231,6 +231,69 @@ A #+wellbeing: line inside the prose is not a metric."
     (should (equal "en" (my/journal--keyword-get "language")))))
 
 ;; ============================================================
+;; THE BLANK LINE
+;; ============================================================
+
+(ert-deftest my/jm-test-gap-inserted-when-missing ()
+  (my/jm-test--with-journal
+      "#+title:      2026-08-24 Journal
+#+identifier: 20260824T091200
+* 09:12
+Coś tam.
+"
+    (should (my/journal--normalize-front-matter-gap))
+    (goto-char (point-min))
+    (should (re-search-forward "^#\\+identifier:.*\n\n\\* 09:12" nil t))))
+
+(ert-deftest my/jm-test-gap-collapsed-when-doubled ()
+  (my/jm-test--with-journal
+      "#+title:      2026-08-24 Journal
+#+identifier: 20260824T091200
+
+
+
+* 09:12
+Coś tam.
+"
+    (should (my/journal--normalize-front-matter-gap))
+    (goto-char (point-min))
+    (should (re-search-forward "^#\\+identifier:.*\n\n\\* 09:12" nil t))))
+
+(ert-deftest my/jm-test-gap-idempotent ()
+  "Already-correct files must not be rewritten: the batch command uses
+the return value to decide whether to touch the file at all."
+  (my/jm-test--with-journal my/jm-test--schema2
+    (should (null (my/journal--normalize-front-matter-gap)))))
+
+(ert-deftest my/jm-test-gap-ignores-files-without-front-matter ()
+  "Without the guard this would delete leading blanks from any file."
+  (with-temp-buffer
+    (insert "\n\n* Nagłówek\nTreść.\n")
+    (let ((before (buffer-string)))
+      (should (null (my/journal--normalize-front-matter-gap)))
+      (should (equal before (buffer-string))))))
+
+(ert-deftest my/jm-test-gap-after-schema0-migration ()
+  "Removing the legacy drawer takes its trailing blank line with it.
+This is the case that produced prose welded to the front matter."
+  (my/jm-test--with-journal my/jm-test--schema0
+    (should (my/journal--migrate-buffer))
+    (goto-char (point-min))
+    (should (re-search-forward "^#\\+wellbeing:.*\n\n\\* 09:12" nil t))))
+
+(ert-deftest my/jm-test-gap-after-set-metrics ()
+  (my/jm-test--with-journal my/jm-test--schema0
+    (my/jm-test--answering '(("wellbeing" . "7")
+                             ("alcohol_u" . "0")
+                             ("illness"   . "none"))
+      (my/journal-set-metrics))
+    (goto-char (point-min))
+    (should (re-search-forward "\n\n\\* 09:12" nil t))
+    ;; Exactly one blank line, not two.
+    (goto-char (point-min))
+    (should (null (re-search-forward "\n\n\n\\* 09:12" nil t)))))
+
+;; ============================================================
 ;; OLDER FORMATS
 ;; ============================================================
 
@@ -507,6 +570,7 @@ unambiguous at index time, an empty one is not."
   (should (commandp 'my/journal-set-metrics))
   (should (commandp 'my/journal-set-metrics-for-date))
   (should (commandp 'my/journal-migrate-metrics-format))
+  (should (commandp 'my/notes-normalize-front-matter-gap))
   (should (fboundp 'my/denote-journal--create-backdated))
   (should (fboundp 'my/note-add-front-matter-extras)))
 

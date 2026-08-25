@@ -45,6 +45,15 @@
 ;; The distinction matters most when backfilling: 0 alcohol units means
 ;; "I did not drink", no keyword means "I do not remember whether I did".
 ;;
+;; THE BLANK LINE
+;; --------------
+;; `my/journal--normalize-front-matter-gap' keeps exactly one empty line
+;; between the last front-matter keyword and the body.  It is needed
+;; because removing the schema 0 drawer takes its trailing blank line with
+;; it, which used to leave the first prose headline welded to the front
+;; matter.  Running it on every write means the file ends up right no
+;; matter which format it came from.
+;;
 ;; ATOMICITY
 ;; ---------
 ;; `my/journal-set-metrics' runs in three phases: read, prompt, write.
@@ -59,6 +68,8 @@
 ;;   my/journal-set-metrics-for-date    (C-c n c W)  pick a date
 ;;   my/journal-migrate-metrics-format               batch 1 -> 2, dry run
 ;;                                                   unless given a prefix
+;;   my/notes-normalize-front-matter-gap             batch blank-line fix,
+;;                                                   same dry-run rule
 ;;
 ;; Deleting this file is safe: init.el loads it with NOERROR, the journal
 ;; template in 05-notes.el does not depend on it, and the menu entries go
@@ -198,6 +209,28 @@ A nil value removes the keyword rather than blanking it."
         (if value
             (my/journal--keyword-put key value)
           (my/journal--keyword-delete key))))))
+
+(defun my/journal--normalize-front-matter-gap ()
+  "Leave exactly one empty line between the front matter and the body.
+Returns non-nil when the buffer was changed.
+
+Does nothing when the file has no front matter at all: without that
+guard the function would delete leading blank lines from an arbitrary
+file and insert one at the top, which is not a fix for anything."
+  (save-excursion
+    (goto-char (point-min))
+    (when (looking-at "^#\\+")
+      (let* ((start (my/journal--front-matter-end))
+             (end (progn (goto-char start)
+                         (skip-chars-forward " \t\n")
+                         (line-beginning-position)))
+             ;; No body: no separator to maintain, just trim the tail.
+             (want (if (>= end (point-max)) "" "\n")))
+        (unless (equal want (buffer-substring-no-properties start end))
+          (delete-region start end)
+          (goto-char start)
+          (insert want)
+          t)))))
 
 ;; ============================================================
 ;; SCHEMA
@@ -435,6 +468,7 @@ C-g leaves the file byte-identical."
       (my/journal--keyword-put "schema"
                                (number-to-string my-journal-schema-version))
       (my/journal--write-metrics answers)
+      (my/journal--normalize-front-matter-gap)
       (save-buffer)
       (message (if removed
                    (format "Metryki zapisane; usunięto %s"
@@ -491,6 +525,7 @@ when the buffer was changed."
       ;; empty metrics.
       (my/journal--write-metrics
        (seq-filter #'cdr values))
+      (my/journal--normalize-front-matter-gap)
       t)))
 
 ;;;###autoload
@@ -533,6 +568,43 @@ Commit or stash the notes repository before running this with WRITE."
       (display-buffer (current-buffer)))
     (message "%s %d/%d journal files"
              (if write "Converted" "Dry run:") changed scanned)))
+
+;;;###autoload
+(defun my/notes-normalize-front-matter-gap (&optional write)
+  "Put exactly one empty line after the front matter in every note.
+
+Covers all three silos, not just journals: the same rule reads well
+everywhere and the check is cheap.  Each file is read, fixed and written
+on its own, so a failure part-way through leaves the files already done
+in a good state rather than a half-written batch.
+
+Files that already have the right spacing are not rewritten at all,
+which keeps the modification times -- and the diff -- down to the files
+that actually needed it.
+
+Without a prefix argument this is a dry run.  With
+\\[universal-argument] it writes.  Commit or stash the notes repository
+first."
+  (interactive "P")
+  (let ((changed 0) (scanned 0) (names nil))
+    (dolist (dir (list my-notes-journal my-notes-pks my-notes-docu))
+      (dolist (file (directory-files dir t "\\.org\\'"))
+        (with-temp-buffer
+          (insert-file-contents file)
+          (setq scanned (1+ scanned))
+          (when (my/journal--normalize-front-matter-gap)
+            (setq changed (1+ changed))
+            (push (file-name-nondirectory file) names)
+            (when write
+              (write-region (point-min) (point-max) file nil 'quiet))))))
+    (with-current-buffer (get-buffer-create "*notes-normalization*")
+      (erase-buffer)
+      (insert (format "%s: %d of %d files\n\n"
+                      (if write "Fixed" "Would fix") changed scanned))
+      (dolist (name (nreverse names)) (insert name "\n"))
+      (display-buffer (current-buffer)))
+    (message "%s %d/%d notes"
+             (if write "Fixed" "Dry run:") changed scanned)))
 
 ;; ============================================================
 ;; TRANSIENT

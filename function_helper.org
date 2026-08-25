@@ -183,6 +183,30 @@ schema 1 files are touched, of which there are a handful.
 
 Function: =my/journal-migrate-metrics-format= | Module: =modules/05b-journal-metrics.el=
 
+*** M-x my/notes-normalize-front-matter-gap
+:PROPERTIES:
+:CUSTOM_ID: fn-my-notes-normalize-front-matter-gap
+:END:
+
+Puts exactly one empty line between the front matter and the body in
+every note across all three silos.
+
+Needed because removing the schema 0 drawer takes its trailing blank
+line with it, leaving the first prose headline welded to the last
+keyword. `my/journal-set-metrics` and the batch converter both call the
+same normalizer on write, so files touched from now on come out right;
+this command fixes the ones already converted.
+
+Each file is read, fixed and written on its own, so an interruption
+leaves the files already done in a good state rather than a half-written
+batch. Files that already have the right spacing are not rewritten at
+all, which keeps modification times and the diff down to what actually
+changed.
+
+Dry run without a prefix argument, =C-u= to write. Not on a key.
+
+Function: =my/notes-normalize-front-matter-gap= | Module: =modules/05b-journal-metrics.el=
+
 *** W — Metrics for date
 :PROPERTIES:
 :CUSTOM_ID: fn-my-journal-set-metrics-for-date

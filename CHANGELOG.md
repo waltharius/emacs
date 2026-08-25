@@ -92,6 +92,25 @@ opportunistic, because reading their legacy value is a regexp in the
 indexer, an operation that cannot lose data, while rewriting them is one
 that can.
 
+### The blank line the migration ate
+
+`my/journal--legacy-drawer-bounds` swallows one trailing blank line so
+that removing a drawer from the middle of a file leaves no gap. When the
+drawer is the last thing before the first headline, that blank line is
+the separator between front matter and body, and converting a schema 0
+note welded the first prose headline to the last keyword.
+
+Rather than special-casing the bounds, `my/journal--normalize-front-matter-gap`
+runs on every write and enforces one empty line after the front matter,
+so a file comes out right regardless of which format it arrived in. It
+is a no-op on correct files and returns nil, which is what the batch
+command uses to avoid rewriting them.
+
+`my/notes-normalize-front-matter-gap` applies it across all three silos,
+one file at a time, dry run unless given a prefix. It guards on the file
+actually having front matter: without that check it would strip leading
+blank lines from any file it was pointed at.
+
 ### Auto-commit split
 
 `my/auto-commit-all` no longer commits the configuration repository;
