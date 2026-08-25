@@ -136,18 +136,21 @@ means "I do not remember whether I did".
 
 Three keywords are written without being asked for:
 
-- =#+metrics_added:= — when the metrics were *first* recorded, never
-  refreshed on later edits. The indexer computes a lag against the day
-  in the file name from it.
+- =#+metrics_added:= — the day the metrics were *first* recorded, never
+  refreshed on later edits. Date only, no clock time: the indexer
+  computes a lag in days from it, and a minute resolution is finer than
+  the unit of analysis. A few files from the first version still carry
+  a time; the parser takes the date part, so they need no rewriting.
 - =#+recalled:= — =t= when well-being is written for a day other than
   today *and* the value differs from whatever was there before. Set
   once, never unset. It exists to be filtered on, not weighted: nothing
   here could calibrate a decay curve for recalled ratings.
-- =#+no_entry_reason:= — offered only when the file has no prose (below
-  =my/journal-prose-threshold= characters), from
-  =my/journal-no-entry-reasons=. Explanatory only: the word count
-  computed at index time stays authoritative for whether a day was
-  written up.
+- =#+no_entry_reason:= — offered only for a day *other than today* that
+  has no prose (below =my/journal-prose-threshold= characters), from
+  =my/journal-no-entry-reasons=. Today's entry is never missing: the day
+  is not over, and the question is absurd on a journal created seconds
+  ago. Explanatory only in any case — the word count computed at index
+  time stays authoritative for whether a day was written up.
 
 *Three phases: read, prompt, write.* Existing values are gathered first,
 then every prompt is answered into memory, and only then is the buffer
@@ -182,6 +185,27 @@ convert in =*journal-migration*= and writes nothing. =C-u= writes.
 schema 1 files are touched, of which there are a handful.
 
 Function: =my/journal-migrate-metrics-format= | Module: =modules/05b-journal-metrics.el=
+
+*** M-x my/journal-metrics-reminder
+:PROPERTIES:
+:CUSTOM_ID: fn-my-journal-metrics-reminder
+:END:
+
+Says in the echo area that today's journal has no well-being recorded
+yet, and returns non-nil when it did. Called by [[#fn-my-denote-journal][j — Journal today]] when
+appending to an existing entry, in place of its usual confirmation
+message; guarded with =fboundp=, so removing the metrics module removes
+the nudge.
+
+Deliberately not a prompt, and deliberately not on the path that creates
+the file. =WELLBEING= is defined as an assessment of the whole day made
+in the evening; asking for it at the top of the morning entry would
+reliably produce a morning mood wearing a whole-day label, and binding
+it to =C-c n c j= would re-ask on every append during the day. A message
+that appears when you come back to the file later costs nothing and
+arrives at roughly the right time.
+
+Function: =my/journal-metrics-reminder= | Module: =modules/05b-journal-metrics.el=
 
 *** M-x my/notes-normalize-front-matter-gap
 :PROPERTIES:

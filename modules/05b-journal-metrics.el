@@ -66,6 +66,8 @@
 ;; --------
 ;;   my/journal-set-metrics             (C-c n c w)  current buffer
 ;;   my/journal-set-metrics-for-date    (C-c n c W)  pick a date
+;;   my/journal-metrics-reminder                     echo-area nudge,
+;;                                                   called from 05-notes.el
 ;;   my/journal-migrate-metrics-format               batch 1 -> 2, dry run
 ;;                                                   unless given a prefix
 ;;   my/notes-normalize-front-matter-gap             batch blank-line fix,
@@ -441,7 +443,11 @@ C-g leaves the file byte-identical."
              (answer (my/journal--ask field (cdr (assoc key existing)))))
         (push (cons key answer) answers)))
 
-    (when (and (not prose)
+    ;; Only ever asked about a past day.  Today's entry is not missing --
+    ;; the day is not over, and the question makes no sense at all when
+    ;; the journal was created seconds ago and is about to be written in.
+    (when (and past-day
+               (not prose)
                (not (my/journal--existing "no_entry_reason")))
       (let ((reason (string-trim
                      (completing-read "Brak wpisu, powód (RET = pomiń): "
@@ -456,10 +462,12 @@ C-g leaves the file byte-identical."
       (when (and wb past-day (not (equal wb wb-prior)))
         (push (cons "recalled" "t") answers)))
 
-    ;; Records the first write, never refreshed.
+    ;; Records the first write, never refreshed.  Date only: the field
+    ;; exists so the indexer can compute a lag in days, and a clock time
+    ;; is finer than the unit of analysis -- "entry at 18:21, metrics at
+    ;; 18:22" is noise dressed as precision.
     (unless (my/journal--existing "metrics_added")
-      (push (cons "metrics_added"
-                  (format-time-string "[%Y-%m-%d %a %H:%M]"))
+      (push (cons "metrics_added" (format-time-string "[%Y-%m-%d %a]"))
             answers))
 
     ;; --- write phase ---
@@ -568,6 +576,23 @@ Commit or stash the notes repository before running this with WRITE."
       (display-buffer (current-buffer)))
     (message "%s %d/%d journal files"
              (if write "Converted" "Dry run:") changed scanned)))
+
+;;;###autoload
+(defun my/journal-metrics-reminder ()
+  "Note in the echo area that today's journal still has no well-being.
+Returns non-nil when it said something, so the caller can decide whether
+its own message is still worth showing.
+
+A message rather than a prompt, and only when appending to an entry that
+already exists, so it lands later in the day than the moment of sitting
+down to write.  `WELLBEING' is defined as an assessment of the whole day
+made in the evening; asking for it at the top of the morning entry would
+reliably produce a morning mood wearing a whole-day label."
+  (when (and (derived-mode-p 'org-mode)
+             (equal (my/journal--file-date) (format-time-string "%Y-%m-%d"))
+             (null (my/journal--existing "wellbeing")))
+    (message "Wpis dodany.  Metryki na dziś jeszcze puste - C-c n c w")
+    t))
 
 ;;;###autoload
 (defun my/notes-normalize-front-matter-gap (&optional write)

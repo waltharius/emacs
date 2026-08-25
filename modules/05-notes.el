@@ -292,7 +292,10 @@ sync."
           (goto-char (point-max))
           (insert "\n\n")
           (insert (format "* %s\n" time-now))
-          (message "Added entry to journal"))
+          ;; Optional module: without it, just the plain confirmation.
+          (unless (and (fboundp 'my/journal-metrics-reminder)
+                       (my/journal-metrics-reminder))
+            (message "Added entry to journal")))
 
       ;; Create new journal
       (let* ((id (format-time-string "%Y%m%dT%H%M%S"))

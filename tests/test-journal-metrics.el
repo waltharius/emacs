@@ -105,15 +105,22 @@ The name carries both markers real journal files have.  Bound to `file'."
            (kill-buffer buf)))
        (ignore-errors (delete-file file)))))
 
+(defvar my/jm-test--asked-for-reason nil
+  "Set by the stub when the no-entry-reason prompt is reached.")
+
 (defmacro my/jm-test--answering (answers &rest body)
-  "Run BODY with `my/journal--ask' returning values from ANSWERS."
+  "Run BODY with `my/journal--ask' returning values from ANSWERS.
+Records in `my/jm-test--asked-for-reason' whether the free-standing
+`completing-read' -- the no-entry-reason prompt -- was reached."
   (declare (indent 1) (debug t))
-  `(cl-letf (((symbol-function 'my/journal--ask)
-              (lambda (field &optional _existing)
-                (cdr (assoc (plist-get field :key) ,answers))))
-             ((symbol-function 'completing-read) (lambda (&rest _) ""))
-             ((symbol-function 'y-or-n-p) (lambda (&rest _) t)))
-     ,@body))
+  `(let ((my/jm-test--asked-for-reason nil))
+     (cl-letf (((symbol-function 'my/journal--ask)
+                (lambda (field &optional _existing)
+                  (cdr (assoc (plist-get field :key) ,answers))))
+               ((symbol-function 'completing-read)
+                (lambda (&rest _) (setq my/jm-test--asked-for-reason t) ""))
+               ((symbol-function 'y-or-n-p) (lambda (&rest _) t)))
+       ,@body)))
 
 ;; ============================================================
 ;; THE CENTRAL CLAIM
@@ -494,21 +501,30 @@ metrics headline before prompting and failed here."
       (my/journal-set-metrics))
     (should (equal "t" (my/journal--keyword-get "recalled")))))
 
-(ert-deftest my/jm-test-metrics-added-not-refreshed ()
+(ert-deftest my/jm-test-metrics-added-is-date-only ()
+  "No clock time: the field feeds a lag measured in days, and a minute
+resolution is finer than the unit of analysis."
   (my/jm-test--with-journal my/jm-test--schema2
     (my/jm-test--answering '(("wellbeing" . "6")
                              ("alcohol_u" . "0")
                              ("illness"   . "none"))
       (my/journal-set-metrics))
-    (let ((first (my/journal--keyword-get "metrics_added")))
-      (should first)
-      (sleep-for 1)
-      (my/jm-test--answering '(("wellbeing" . "8")
-                               ("alcohol_u" . "2")
-                               ("illness"   . "mild"))
-        (my/journal-set-metrics))
-      (should (equal first (my/journal--keyword-get "metrics_added")))
-      (should (equal "8" (my/journal--keyword-get "wellbeing"))))))
+    (should (string-match-p "\\`\\[[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} [^]0-9]+\\]\\'"
+                            (my/journal--keyword-get "metrics_added")))))
+
+(ert-deftest my/jm-test-metrics-added-not-refreshed ()
+  "The stamp records the first write.  Seeded with an old date, because
+two writes on the same day would now produce the same string and the
+assertion would pass without testing anything."
+  (my/jm-test--with-journal my/jm-test--schema2
+    (my/journal--keyword-put "metrics_added" "[2020-01-01 śro]")
+    (my/jm-test--answering '(("wellbeing" . "8")
+                             ("alcohol_u" . "2")
+                             ("illness"   . "mild"))
+      (my/journal-set-metrics))
+    (should (equal "[2020-01-01 śro]"
+                   (my/journal--keyword-get "metrics_added")))
+    (should (equal "8" (my/journal--keyword-get "wellbeing")))))
 
 (ert-deftest my/jm-test-nil-answer-removes-keyword ()
   "\"-\" removes the keyword rather than blanking it: an absent keyword is
@@ -531,6 +547,55 @@ unambiguous at index time, an empty one is not."
       (my/journal-set-metrics))
     (goto-char (point-min))
     (should (null (search-forward "* Metryki" nil t)))))
+
+(ert-deftest my/jm-test-no-entry-reason-not-asked-for-today ()
+  "Creating today's journal and immediately recording metrics must not
+ask why there is no entry: there is one, and it is being written."
+  (let ((today (format-time-string "%Y-%m-%d")))
+    (let ((file (make-temp-file
+                 "jmtest-" nil (format "--%s-journal__journal.org" today)
+                 (format "#+title:      %s Journal\n#+identifier: 20260825T182145\n#+language:   pl\n#+schema:     2\n\n* 18:21\n" today))))
+      (unwind-protect
+          (with-current-buffer (find-file-noselect file)
+            (my/jm-test--answering '(("wellbeing" . "6")
+                                     ("alcohol_u" . "0")
+                                     ("illness"   . "none"))
+              (my/journal-set-metrics)
+              (should (null my/jm-test--asked-for-reason)))
+            (should (null (my/journal--keyword-get "no_entry_reason"))))
+        (let ((buf (get-file-buffer file)))
+          (when buf (with-current-buffer buf (set-buffer-modified-p nil))
+                (kill-buffer buf)))
+        (ignore-errors (delete-file file))))))
+
+(ert-deftest my/jm-test-no-entry-reason-asked-for-past-day ()
+  "A past day with nothing written is genuinely a missing entry."
+  (my/jm-test--with-journal my/jm-test--metrics-only
+    (my/jm-test--answering '(("wellbeing" . "6")
+                             ("alcohol_u" . "0")
+                             ("illness"   . "none"))
+      (my/journal-set-metrics)
+      (should my/jm-test--asked-for-reason))))
+
+(ert-deftest my/jm-test-reminder-fires-only-when-needed ()
+  (let ((today (format-time-string "%Y-%m-%d")))
+    (let ((file (make-temp-file
+                 "jmtest-" nil (format "--%s-journal__journal.org" today)
+                 (format "#+title:      %s Journal\n#+identifier: 20260825T182145\n#+schema:     2\n\n* 18:21\n" today))))
+      (unwind-protect
+          (with-current-buffer (find-file-noselect file)
+            (should (my/journal-metrics-reminder))
+            (my/journal--keyword-put "wellbeing" "6")
+            (should (null (my/journal-metrics-reminder))))
+        (let ((buf (get-file-buffer file)))
+          (when buf (with-current-buffer buf (set-buffer-modified-p nil))
+                (kill-buffer buf)))
+        (ignore-errors (delete-file file))))))
+
+(ert-deftest my/jm-test-reminder-silent-on-past-day ()
+  "Yesterday's journal is not today's missing rating."
+  (my/jm-test--with-journal my/jm-test--schema2
+    (should (null (my/journal-metrics-reminder)))))
 
 ;; ============================================================
 ;; JOURNAL DETECTION
@@ -571,6 +636,7 @@ unambiguous at index time, an empty one is not."
   (should (commandp 'my/journal-set-metrics-for-date))
   (should (commandp 'my/journal-migrate-metrics-format))
   (should (commandp 'my/notes-normalize-front-matter-gap))
+  (should (commandp 'my/journal-metrics-reminder))
   (should (fboundp 'my/denote-journal--create-backdated))
   (should (fboundp 'my/note-add-front-matter-extras)))
 

@@ -7,6 +7,51 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-25 (evening) — Three small corrections
+
+### The no-entry prompt fired on today's entry
+
+Creating a journal at 18:21 and recording metrics at 18:22 asked why
+there was no entry. The prose check runs before you have written
+anything, so a freshly created file always looks like a day that was
+never written up.
+
+The condition gained `past-day`. Today is never a missing entry: the day
+is not over, and on a file created seconds ago the question is absurd.
+`C-c n c W` on a past date with no prose still asks, which is the case
+the field was added for.
+
+### metrics_added lost its clock
+
+`[2026-08-25 wto 18:22]` next to an entry timestamped 18:21 carries no
+information. The field feeds `lag_days`, measured in days; a minute
+resolution is finer than the unit of analysis and reads as noise dressed
+as precision. Now `[2026-08-25 wto]`.
+
+The handful of files with the old form are left alone — the parser takes
+the date part either way, and a second whole-tree rewrite to normalise a
+cosmetic difference is not worth the diff.
+
+### Metrics are not bound to journal creation
+
+Considered and rejected: prompting for metrics from `C-c n c j`.
+
+`j` is used several times a day to append entries, so it would re-ask on
+every append — friction at exactly the moment of sitting down to write.
+Worse, it inverts the order. `WELLBEING` is defined as an assessment of
+the whole day made in the evening; asking for it while creating the
+morning entry would reliably produce a morning mood wearing a whole-day
+label, and quietly change what a decade-long series means.
+
+Instead `my/journal-metrics-reminder` prints a line in the echo area
+when `j` appends to an entry that already exists and today's well-being
+is still empty. A message, not a prompt; only on the append path, so it
+arrives later in the day; and it costs nothing to ignore. `05-notes.el`
+calls it behind `fboundp`, so deleting the metrics module deletes the
+nudge with it.
+
+---
+
 ## Session 2026-08-25 (later) — Metrics as keywords, and a menu chain I broke
 
 ### The regression from the previous commit
