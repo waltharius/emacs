@@ -326,7 +326,7 @@ Commit your notes before heavy first use."
 ;; ============================================================
 
 (with-eval-after-load '12-transient
-  (my/transient-append 'my/notes-insert-menu "w"
+  (my/transient-append 'my/notes-insert-menu "d"
                        '("t" "Transclusion →" my/transclusion-menu)))
 
 ;; ============================================================

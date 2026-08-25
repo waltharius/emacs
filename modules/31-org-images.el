@@ -775,11 +775,11 @@ Run after Org has created the previews; the overlays it makes carry
 ;; ============================================================
 ;; MENU
 ;; ============================================================
-;; Appended to the Insert submenu after "w" (Well-being).  Skipped
+;; Appended to the Insert submenu after "d".  Skipped
 ;; without complaint when 12-transient.el is not loaded.
 
 (with-eval-after-load '12-transient
-  (my/transient-append 'my/notes-insert-menu "w"
+  (my/transient-append 'my/notes-insert-menu "d"
                        '("i" "Image from disk" my/org-image-insert))
   (my/transient-append 'my/notes-insert-menu "i"
                        '("I" "Attachments folder" my/org-image-attachments-dired)))
