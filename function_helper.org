@@ -49,6 +49,19 @@ Creates a plain Denote note. Prompts for title, keywords and silo
 keywords already in use and takes entries separated by commas — see
 [[#keyword-prompts][Keyword Prompts]].
 
+Afterwards =my/note-add-front-matter-extras= appends =#+language: pl=
+and =#+schema:= to the front matter Denote generated. Denote's own four
+lines are left to Denote: overriding =denote-org-front-matter= would put
+this configuration on the hook for keeping that format string in step
+with upstream, whereas Denote's rename and refresh functions rewrite
+their own lines individually and leave unknown keywords alone.
+
+=#+language:= is written as =pl= without asking. A note in another
+language is not rare enough to justify a prompt on every creation and
+not common enough to be worth getting wrong by default; the indexer
+verifies the declared language against a detector and logs
+disagreements, which is the right place for that check.
+
 Function: =my/denote-base= | Module: =modules/05-notes.el=
 
 *** j — Journal today
@@ -58,17 +71,25 @@ Function: =my/denote-base= | Module: =modules/05-notes.el=
 
 Opens today's journal. If it exists, appends a new timestamped heading
 (=* HH:MM=) at the bottom. If not, creates a new file in =~/notes/journal/=
-with front matter (=#+title:=, =#+date:=, =#+filetags:=, =#+identifier:=,
-=#+language:=, =#+schema:=) and an empty =* Metryki= headline.
+with front matter only: =#+title:=, =#+date:=, =#+filetags:=,
+=#+identifier:=, =#+language:=, =#+schema:=.
 
-The metrics themselves are not written here — see [[#fn-my-journal-set-metrics][w — Metrics today]].
-Before 2026-08 this template emitted a =:PROPERTIES:= drawer holding
-=:well-being:= directly below the front matter. Org does not parse a
-property drawer in that position: a pre-headline property block must sit
-at the very top of the buffer with only comments above it, so those
-values were never properties at all and =org-entry-get= returned nil for
-them. Notes written that way are schema 0 and are migrated one at a time
-by =my/journal-set-metrics=.
+No metrics and no placeholder for them — see [[#fn-my-journal-set-metrics][w — Metrics today]]. There
+have been three formats:
+
+- *Schema 0*, before 2026-08: a =:PROPERTIES:= drawer holding
+  =:well-being:= directly below the front matter. Org does not parse a
+  property drawer in that position — a pre-headline property block must
+  sit at the very top of the buffer with only comments above it — so
+  those values were never properties and =org-entry-get= returned nil.
+- *Schema 1*, for about a day: a drawer under a =* Metryki= headline.
+  Parsed correctly, but it put a second =:PROPERTIES:= block in files
+  that already had one under =* Uzupełnienie=, and a duplicated metrics
+  block appeared in practice.
+- *Schema 2*, current: front-matter keywords. A keyword name is unique
+  in the file and has no positional rules.
+
+All three are readable; only schema 2 is written.
 
 Function: =my/denote-journal= | Module: =modules/05-notes.el=
 
@@ -97,41 +118,70 @@ Function: =my/denote-journal-date= | Module: =modules/05-notes.el=
 :CUSTOM_ID: fn-my-journal-set-metrics
 :END:
 
-Prompts, in order, for the metrics of the journal file in the current
-buffer and writes them into the property drawer under =* Metryki=.
-Fields are declared in =my/journal-metrics-fields=; as of schema 1 they
-are =WELLBEING= (1–10), =ALCOHOL_U= and =ILLNESS=. Deliberately short:
-everything WHOOP already records (sleep, caffeine, recovery, the
-behaviour checkboxes) is imported from its CSV export instead of being
-typed twice.
+Prompts for the metrics of the journal file in the current buffer and
+writes them as front-matter keywords. Fields are declared in
+=my/journal-metrics-fields=; as of schema 2 they are =#+wellbeing:=
+(1–10), =#+alcohol_u:= and =#+illness:=. Deliberately short: everything
+WHOOP already records (sleep, caffeine, recovery, the behaviour
+checkboxes) is imported from its CSV export instead of being typed
+twice.
 
-Answering a prompt with =RET= accepts the pre-filled value: the current
-property, then the legacy value being migrated, then the field default
-(=0= for alcohol, =none= for illness). Answering =-= deletes the
-property. A blank value is never written — an absent property means "not
-measured" and must never be read as zero.
+Answering a prompt with =RET= accepts the pre-filled value: whatever is
+already recorded in any of the three formats, then the field default
+(=0= for alcohol, =none= for illness). Answering =-= removes the
+keyword. A blank value is never written — an absent keyword means "not
+measured" and must never be read as zero. The distinction earns its keep
+when backfilling: =#+alcohol_u: 0= means "I did not drink", no keyword
+means "I do not remember whether I did".
 
-Three properties are written without being asked for:
+Three keywords are written without being asked for:
 
-- =METRICS_ADDED= — when the metrics were *first* recorded, never
+- =#+metrics_added:= — when the metrics were *first* recorded, never
   refreshed on later edits. The indexer computes a lag against the day
   in the file name from it.
-- =RECALLED= — =t= when =WELLBEING= is written for a day other than
+- =#+recalled:= — =t= when well-being is written for a day other than
   today *and* the value differs from whatever was there before. Set
-  once, never unset. It exists to be filtered on, not weighted.
-- =NO_ENTRY_REASON= — offered only when the file has no prose (below
-  =my/journal-prose-threshold= characters outside the metrics subtree),
-  from =my/journal-no-entry-reasons=. Explanatory only: the word count
+  once, never unset. It exists to be filtered on, not weighted: nothing
+  here could calibrate a decay curve for recalled ratings.
+- =#+no_entry_reason:= — offered only when the file has no prose (below
+  =my/journal-prose-threshold= characters), from
+  =my/journal-no-entry-reasons=. Explanatory only: the word count
   computed at index time stays authoritative for whether a day was
   written up.
 
-On a schema 0 note the command also migrates: it seeds =WELLBEING= from
-the legacy =:well-being:= value, and only *after* the new drawer is
-written does it delete the legacy drawer and stamp =#+schema:=. Aborting
-with =C-g= at any prompt leaves the file untouched. Nothing is migrated
-in bulk; a note is rewritten only when it is deliberately opened.
+*Three phases: read, prompt, write.* Existing values are gathered first,
+then every prompt is answered into memory, and only then is the buffer
+touched — so =C-g= at any point leaves the file byte-identical. The
+schema 1 implementation created its headline before prompting and did
+not have this property.
+
+A note in an older format is converted on the way through: the existing
+value seeds the prompt, and the write phase removes the =* Metryki=
+subtree or the legacy drawer and stamps =#+schema:=. Nothing is migrated
+in bulk by this command — see [[#fn-my-journal-migrate-metrics-format][my/journal-migrate-metrics-format]] for that.
 
 Function: =my/journal-set-metrics= | Module: =modules/05b-journal-metrics.el=
+
+*** M-x my/journal-migrate-metrics-format
+:PROPERTIES:
+:CUSTOM_ID: fn-my-journal-migrate-metrics-format
+:END:
+
+Batch conversion of journal files from schema 0 or 1 to keywords. Not on
+a key: it is run once, deliberately, with the notes repository clean.
+
+Pure format translation — every value is carried across unchanged and
+nothing is invented, so it needs no prompting. A file whose legacy
+drawer was empty becomes a file with no metrics keywords, not one with
+empty ones.
+
+Without a prefix argument it is a *dry run*: it lists what it would
+convert in =*journal-migration*= and writes nothing. =C-u= writes.
+=C-u C-u= additionally converts schema 0 notes — that is the
+3500-file case and produces one very large commit, so by default only
+schema 1 files are touched, of which there are a handful.
+
+Function: =my/journal-migrate-metrics-format= | Module: =modules/05b-journal-metrics.el=
 
 *** W — Metrics for date
 :PROPERTIES:
@@ -140,7 +190,9 @@ Function: =my/journal-set-metrics= | Module: =modules/05b-journal-metrics.el=
 
 Asks for a date with =org-read-date=, opens that day's journal and runs
 [[#fn-my-journal-set-metrics][w — Metrics today]] on it. If no journal exists for that day, offers to
-create one via =my/denote-journal--create-backdated=.
+create one via =my/denote-journal--create-backdated=. This is also the
+way an old entry is upgraded to the current format while its well-being
+value is being reviewed.
 
 Creating it is the point: a day rated with no prose is still a valid
 observation, and refusing to create the file would leave a hole in the
@@ -354,8 +406,8 @@ from front matter, not the file name directly, and scan across all
 three silos. Journal notes are recognised by =my/dashboards--journal-p=
 from the =journal= Denote keyword in the file name, which costs no file
 access at all; a note whose name lost its keywords falls back to a
-content check for the =* Metryki= headline or the legacy
-=:well-being:= drawer.
+content check for any of the three metrics formats — =#+wellbeing:=,
+the =* Metryki= headline, or the legacy =:well-being:= drawer.
 
 Until 2026-08 the only test was the =:well-being:= drawer. That marker
 is being retired: a note migrated to the metrics drawer no longer has

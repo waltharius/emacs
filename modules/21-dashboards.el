@@ -76,8 +76,9 @@ rather than through a Denote helper, so this predicate does not depend
 on which helper names a given Denote version exposes.
 
 Fallback, for a note whose name lost its keywords in some earlier
-migration: the metrics headline (schema 1) or the legacy :well-being:
-drawer (schema 0, not yet migrated)."
+migration: any of the three metrics formats -- the #+wellbeing: keyword
+(schema 2), the metrics headline (schema 1) or the legacy :well-being:
+drawer (schema 0)."
   (let* ((base (file-name-base file))
          (keywords (when (string-match "__\\(.*\\)\\\'" base)
                      (split-string (match-string 1 base) "_" t))))
@@ -86,7 +87,8 @@ drawer (schema 0, not yet migrated)."
           (insert-file-contents file nil 0 1200)
           (let ((case-fold-search t))
             (goto-char (point-min))
-            (or (re-search-forward "^[ \t]*:well-being:" nil t)
+            (or (re-search-forward "^#\\+wellbeing:" nil t)
+                (re-search-forward "^[ \t]*:well-being:" nil t)
                 (re-search-forward
                  (format "^\\* %s[ \t]*$"
                          (regexp-quote my-journal-metrics-heading))

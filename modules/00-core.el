@@ -53,17 +53,20 @@ Use C-c n c i to add entries, C-c n c m to promote to full Denote note.")
 ;; optional metrics module: 05b-journal-metrics.el can be deleted and the
 ;; journal generator still works.
 (defvar my-journal-metrics-heading "Metryki"
-  "Headline under which daily journal metrics are stored.
-The metrics live in a property drawer below this headline.  A drawer
-placed after the front matter instead is NOT parsed by Org as properties:
-the manual requires a pre-headline property block to sit at the very top
-of the buffer with only comments above it.")
+  "Name of the schema 1 metrics headline.
+No longer written: metrics are front-matter keywords as of schema 2.
+The name is kept so that 05b-journal-metrics.el and 21-dashboards.el can
+still recognise and convert the files that briefly used it.")
 
-(defvar my-journal-schema-version 1
-  "Value written as #+schema: into new journal files.
-An absent keyword means schema 0: a note from before the metrics drawer
-existed, whose well-being value, if any, sits in the unparsed legacy
-position and is only reachable by regexp.")
+(defvar my-journal-schema-version 2
+  "Value written as #+schema: into new notes.
+  0  no keyword: pre-2026-08 journal, :well-being: in a drawer below the
+     front matter, which Org never parsed as properties at all.
+  1  metrics in a property drawer under a `my-journal-metrics-heading\='
+     headline.  Short-lived; a second drawer in a file that already had
+     one under * Uzupełnienie, which proved ambiguous in practice.
+  2  metrics as front-matter keywords.  Current.
+All three are readable; only 2 is written.")
 
 ;; Agenda scans all three silos + captures file
 (defvar my-tasks-agenda-dirs

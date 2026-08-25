@@ -261,11 +261,11 @@ without asking."
 If the journal exists, append a new timestamped entry.
 Journal files go to ~/notes/journal/
 
-New files carry a `my-journal-metrics-heading' headline; the metrics
-themselves are filled in later by `my/journal-set-metrics' (C-c n c w),
-which lives in the optional 05b-journal-metrics.el.  The headline is
-emitted here regardless, so that a file created without that module
-still has the right shape."
+Metrics are not written here.  They are front-matter keywords added
+later by `my/journal-set-metrics' (C-c n c w) from the optional
+05b-journal-metrics.el, so a file created without that module is simply
+a journal with no metrics yet -- there is no placeholder to keep in
+sync."
   (interactive)
   (let* ((today (format-time-string "%Y-%m-%d"))
          (time-now (format-time-string "%H:%M"))
@@ -310,12 +310,6 @@ still has the right shape."
         (insert "#+language:   pl\n")
         (insert (format "#+schema:     %d\n\n" my-journal-schema-version))
 
-        ;; Empty metrics headline; the drawer is written by
-        ;; `my/journal-set-metrics'.  No :PROPERTIES: block is emitted
-        ;; between the front matter and the first headline: Org does not
-        ;; parse a property drawer in that position.
-        (insert (format "* %s\n\n" my-journal-metrics-heading))
-
         ;; First entry
         (insert (format "* %s\n" time-now))
 
@@ -352,7 +346,6 @@ overwriting an existing file -- is checked for explicitly."
       (insert (format "#+identifier: %s\n" id))
       (insert "#+language:   pl\n")
       (insert (format "#+schema:     %d\n\n" my-journal-schema-version))
-      (insert (format "* %s\n\n" my-journal-metrics-heading))
       ;; The supplement heading carries the real write time, which is how
       ;; this configuration has always recorded the gap between the day
       ;; described and the day written up.
@@ -440,7 +433,43 @@ Behaviour:
     (let ((denote-directory target-dir))
       (if (string-empty-p title)
           (denote nil keywords)
-        (denote title keywords)))))
+        (denote title keywords)))
+    (my/note-add-front-matter-extras)))
+
+(defun my/note-add-front-matter-extras ()
+  "Add #+language: and #+schema: to the current note's front matter.
+
+Denote owns the four lines it generates, so rather than overriding
+`denote-org-front-matter' -- which would put this configuration on the
+hook for keeping that format string in step with Denote -- the two extra
+keywords are appended afterwards.  Denote's rename and refresh functions
+rewrite their own lines individually and leave unknown keywords alone.
+
+#+language: is written as pl without asking.  A note in another language
+is not rare enough to be worth a prompt on every creation and not common
+enough to be worth getting wrong by default; the indexer verifies the
+declared language against a detector and logs disagreements, which is
+the right place for that check.
+
+#+schema: records which generation of this template produced the file,
+so the indexer can tell them apart without guessing from content."
+  (when (and buffer-file-name (derived-mode-p 'org-mode))
+    (save-excursion
+      (goto-char (point-min))
+      (let ((case-fold-search t)
+            (end (save-excursion
+                   (goto-char (point-min))
+                   (while (looking-at "^#\\+") (forward-line 1))
+                   (point))))
+        (unless (save-excursion (re-search-forward "^#\\+language:" end t))
+          (goto-char end)
+          (insert "#+language:   pl\n")
+          (setq end (point)))
+        (unless (save-excursion (goto-char (point-min))
+                                (re-search-forward "^#\\+schema:" end t))
+          (goto-char end)
+          (insert (format "#+schema:     %d\n" my-journal-schema-version)))))
+    (save-buffer)))
 
 ;; ============================================================
 ;; ESSAY: Writing project
@@ -505,7 +534,7 @@ Behaviour:
 
 (defun my/denote-delete-note ()
   "Delete current note file and buffer.
-  Uses git rm if file is tracked, otherwise regular delete."
+  Uses 'git rm' if file is tracked, otherwise regular delete."
   (interactive)
   (let* ((file (buffer-file-name))
          (name (file-name-nondirectory file)))

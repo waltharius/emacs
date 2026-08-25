@@ -76,12 +76,24 @@
 ;; AUTO-COMMIT: Combined function
 ;; ============================================================
 
+(defvar my/auto-commit-config-enabled nil
+  "When nil, `my/auto-commit-all\=' leaves the Emacs configuration repo alone.
+
+Disabled 2026-08.  Notes are a working log and an \"Auto-commit: <date>\"
+on exit is an accurate description of what happened to them.  Config
+changes are deliberate and each one has a reason worth writing down; an
+auto-commit on exit buries that reason and, worse, silently absorbs
+half-finished edits into the history.  `my/commit-config-now\=' still
+commits by hand, and set this to t to restore the old behaviour.")
+
 (defun my/auto-commit-all ()
-  "Auto-commit both notes and config."
+  "Auto-commit notes, and the config only when explicitly enabled."
   (interactive)
   (my/auto-commit-notes)
-  (my/auto-commit-emacs-config)
-  (message "Auto-commit: done (notes + config)"))
+  (when my/auto-commit-config-enabled
+    (my/auto-commit-emacs-config))
+  (message "Auto-commit: done (notes%s)"
+           (if my/auto-commit-config-enabled " + config" "")))
 
 ;; Prevent double commits
 (defvar my/auto-commit-done nil

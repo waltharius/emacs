@@ -1,65 +1,68 @@
 ;;; 05b-journal-metrics.el --- Structured daily metrics for journal notes -*- lexical-binding: t; -*-
 ;;; Commentary:
-;; Daily metrics live in a property drawer under the headline named by
-;; `my-journal-metrics-heading' (00-core.el), NOT in a drawer placed after
-;; the front matter.  Per the Org manual, a property block before the first
-;; headline must sit at the very top of the buffer with only comments above
-;; it, so the drawer emitted by the pre-2026-08 journal template was never
-;; parsed as properties at all.  Notes written that way are schema 0 and are
-;; migrated opportunistically -- see "Legacy migration" below.
+;; Daily metrics are stored as front-matter keywords at the top of the
+;; journal file:
 ;;
-;; WHAT LIVES HERE AND WHAT DOES NOT
-;; ---------------------------------
-;; Only fields that WHOOP cannot supply.  Sleep duration and efficiency,
-;; caffeine, recovery and the behaviour checkboxes come from the WHOOP CSV
-;; export (journal_entries.csv, physiological_cycles.csv); steps come from
-;; Samsung Health.  Duplicating them by hand would cost a daily tax and buy
-;; a second, worse copy.
+;;     #+identifier: 20260111T000000
+;;     #+language:   pl
+;;     #+schema:     2
+;;     #+wellbeing:  6
+;;     #+alcohol_u:  0
+;;     #+illness:    none
+;;     #+recalled:   t
+;;     #+metrics_added: [2026-08-25 wto 03:26]
+;;
+;; WHY KEYWORDS AND NOT A PROPERTY DRAWER
+;; --------------------------------------
+;; Org parses a property drawer before the first headline only when it is
+;; at the very top of the buffer with nothing but comments above it, which
+;; would mean putting it above #+title: and fighting Denote's front-matter
+;; tooling.  The alternative was a "* Metryki" headline, which worked but
+;; put a second :PROPERTIES: drawer in a file that already has one under
+;; "* Uzupełnienie" -- an ambiguity that produced a duplicated metrics
+;; block in practice.  A keyword name is unique in the file, has no
+;; positional rules, and is trivial for the external indexer to parse.
+;;
+;; The cost is real: org-set-property, org-columns and org-ql do not see
+;; keywords.  That is acceptable here because the query layer is an
+;; external DuckDB index, and editing goes through the commands below.
+;;
+;; SCHEMA VERSIONS
+;; ---------------
+;;   0  no #+schema:.  :well-being: in a drawer under the front matter,
+;;      which Org never parsed at all.  Read by regexp.
+;;   1  metrics in a property drawer under a "* Metryki" headline.
+;;      Short-lived; converted by `my/journal-migrate-metrics-format'.
+;;   2  metrics as front-matter keywords.  Current.
+;; All three are readable; only 2 is written.
 ;;
 ;; MISSING VS. ZERO
 ;; ----------------
 ;;   RET   -> accept the field default (an explicit 0 / none), or, when the
-;;            field has no default, leave the property absent.
-;;   "-"   -> delete the property: "this was not recorded".
-;; A blank property value is never written.  An absent property means no
-;; measurement; it must never be read as zero.
+;;            field has no default, write nothing.
+;;   "-"   -> remove the keyword: "this was not recorded".
+;; An absent keyword means no measurement.  It must never be read as zero.
+;; The distinction matters most when backfilling: 0 alcohol units means
+;; "I did not drink", no keyword means "I do not remember whether I did".
 ;;
-;; LEGACY MIGRATION
-;; ----------------
-;; `my/journal-set-metrics' upgrades the file it touches: it seeds WELLBEING
-;; from the old :well-being: value, writes the new drawer, then deletes the
-;; legacy drawer and stamps #+schema:.  Nothing is migrated in bulk; a note
-;; is only rewritten when you deliberately open it and answer the prompts,
-;; and aborting with C-g leaves the file untouched.
-;;
-;; MEASUREMENT LAG
-;; ---------------
-;; METRICS_ADDED records when the metrics were FIRST written.  A day rated
-;; the same evening and a day reconstructed three weeks later are not the
-;; same measurement: recalled affect flattens towards how you feel now.  The
-;; indexer computes lag_days from METRICS_ADDED against the date in the file
-;; name, so analyses can restrict themselves to lag <= 1 when that matters.
-;; This overlaps with ADDED_AT on the '* Uzupełnienie' heading but is not
-;; redundant: ADDED_AT only exists for backdated *prose*, while metrics can
-;; be added to a same-day file weeks after it was written.
-;;
-;; RECALLED is set to t, once and never unset, when WELLBEING is written for
-;; a day other than today AND the value differs from whatever was there
-;; before (including the case where nothing was there).  Rating today's day
-;; is a judgement; supplying or revising a past day's value is a memory.
-;; The flag exists to be filtered on, not weighted: there is no ground truth
-;; against which a decay curve could be calibrated, so any "a 30-day recall
-;; is worth 0.7 of a same-day rating" arithmetic would be invented.  Either
-;; a value is a same-day judgement or it is not.
+;; ATOMICITY
+;; ---------
+;; `my/journal-set-metrics' runs in three phases: read, prompt, write.
+;; Nothing is inserted before every prompt has been answered, so C-g at any
+;; point leaves the buffer byte-identical.  (The previous version created
+;; the "* Metryki" headline before prompting and did not have this
+;; property.)
 ;;
 ;; COMMANDS
 ;; --------
-;;   M-x my/journal-set-metrics            (C-c n c w)  current buffer
-;;   M-x my/journal-set-metrics-for-date   (C-c n c W)  pick a date
+;;   my/journal-set-metrics             (C-c n c w)  current buffer
+;;   my/journal-set-metrics-for-date    (C-c n c W)  pick a date
+;;   my/journal-migrate-metrics-format               batch 1 -> 2, dry run
+;;                                                   unless given a prefix
 ;;
 ;; Deleting this file is safe: init.el loads it with NOERROR, the journal
-;; template in 05-notes.el does not depend on it, and the two menu entries
-;; are added through `my/transient-append', which degrades quietly.
+;; template in 05-notes.el does not depend on it, and the menu entries go
+;; through `my/transient-append', which degrades quietly.
 
 ;;; Code:
 
@@ -67,8 +70,6 @@
 (require 'seq)
 (require 'subr-x)
 
-;; 05-notes.el is always loaded first by init.el; declared to keep the
-;; byte-compiler quiet about the backdating helper.
 (declare-function my/denote-journal--create-backdated "05-notes" (date encoded-time))
 
 ;; ============================================================
@@ -76,39 +77,127 @@
 ;; ============================================================
 
 (defvar my/journal-metrics-skip-marker "-"
-  "Input that explicitly deletes a property instead of setting it.")
+  "Input that removes the keyword instead of setting it.")
 
 (defvar my/journal-prose-threshold 20
   "Minimum number of prose characters for a day to count as written up.
-Below this the day is treated as metrics-only and NO_ENTRY_REASON is
-offered.  Headlines, front matter, property drawers and the metrics
-subtree never count towards the total.")
+Below this the day is metrics-only and NO_ENTRY_REASON is offered.
+Front matter, headline lines and property drawers never count.")
 
 (defvar my/journal-no-entry-reasons
   '("busy" "travel" "low" "forgot" "other")
-  "Allowed values for NO_ENTRY_REASON.
-Only asked for on days that have no prose.  Purely explanatory: the word
-count computed at index time stays authoritative for whether a day was
-written up, so a stale value here is harmless.")
+  "Allowed values for the no_entry_reason keyword.
+Explanatory only: the word count computed at index time stays
+authoritative for whether a day was written up, so a stale value here
+after prose is added later is harmless.")
 
 (defvar my/journal-metrics-fields
-  '((:key "WELLBEING"
+  '((:key "wellbeing"
      :prompt "Samopoczucie 1-10"
      :values ("1" "2" "3" "4" "5" "6" "7" "8" "9" "10")
      :default nil)
-    (:key "ALCOHOL_U"
+    (:key "alcohol_u"
      :prompt "Alkohol (U, 1 U = 10 g etanolu; piwo 0.5 l 5% = 2)"
      :values nil
      :default "0"
      :number t)
-    (:key "ILLNESS"
+    (:key "illness"
      :prompt "Zdrowie"
      :values ("none" "mild" "significant")
      :default "none"))
   "Fields prompted for, in order.
 Deliberately short: every field is a tax paid daily, and a field that
-stops being filled in produces gaps that are worse than never having
-had it.  Add one only after the current set has survived a few weeks.")
+stops being filled in leaves gaps worse than never having had it.")
+
+(defvar my/journal-metrics-keyword-order
+  '("wellbeing" "alcohol_u" "illness" "recalled" "no_entry_reason"
+    "metrics_added")
+  "Order in which metrics keywords are written into the front matter.
+Keeps diffs stable: without a fixed order, re-running the command would
+reshuffle lines and every commit would look like a rewrite.")
+
+(defconst my/journal--front-matter-column 14
+  "Column at which front-matter values are aligned, matching Denote.")
+
+;; ============================================================
+;; FRONT-MATTER KEYWORDS
+;; ============================================================
+;; Read and write go through the same regexp so the two can never
+;; disagree.  `org-collect-keywords' would do the reading, but it gives no
+;; buffer positions, and a second mechanism for writing is exactly how the
+;; :well-being: drawer came to be readable by eye and by nothing else.
+
+(defun my/journal--front-matter-end ()
+  "Return the position just after the last front-matter keyword line."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((end (point-min)))
+      (while (looking-at "^#\\+")
+        (forward-line 1)
+        (setq end (point)))
+      end)))
+
+(defun my/journal--keyword-bounds (key)
+  "Return (BEG . END) of the whole line defining KEY, or nil.
+END includes the newline."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t)
+          (limit (my/journal--front-matter-end)))
+      (when (re-search-forward (format "^#\\+%s:" (regexp-quote key)) limit t)
+        (cons (line-beginning-position) (line-beginning-position 2))))))
+
+(defun my/journal--keyword-get (key)
+  "Return the value of front-matter keyword KEY as a trimmed string, or nil.
+An empty value reads as nil: a keyword with nothing after the colon is
+not a measurement."
+  (let ((bounds (my/journal--keyword-bounds key)))
+    (when bounds
+      (save-excursion
+        (goto-char (car bounds))
+        (when (looking-at (format "^#\\+%s:[ \t]*\\(.*?\\)[ \t]*$"
+                                  (regexp-quote key)))
+          (let ((value (match-string-no-properties 1)))
+            (unless (string-empty-p value) value)))))))
+
+(defun my/journal--keyword-line (key value)
+  "Return the front-matter line for KEY and VALUE, Denote-aligned."
+  (let* ((prefix (format "#+%s:" key))
+         (pad (max 1 (- my/journal--front-matter-column (length prefix)))))
+    (concat prefix (make-string pad ?\s) value "\n")))
+
+(defun my/journal--keyword-delete (key)
+  "Remove the front-matter line defining KEY, if present."
+  (let ((bounds (my/journal--keyword-bounds key)))
+    (when bounds
+      (delete-region (car bounds) (cdr bounds))
+      t)))
+
+(defun my/journal--keyword-put (key value)
+  "Set front-matter keyword KEY to VALUE.
+Replaces the line in place when the keyword exists, so that the order in
+`my/journal-metrics-keyword-order' is preserved once established.  A new
+keyword is appended after the last front-matter line."
+  (let ((bounds (my/journal--keyword-bounds key))
+        (line (my/journal--keyword-line key value)))
+    (save-excursion
+      (if bounds
+          (progn
+            (delete-region (car bounds) (cdr bounds))
+            (goto-char (car bounds))
+            (insert line))
+        (goto-char (my/journal--front-matter-end))
+        (insert line)))))
+
+(defun my/journal--write-metrics (values)
+  "Write VALUES, an alist of keyword to string or nil, in canonical order.
+A nil value removes the keyword rather than blanking it."
+  (dolist (key my/journal-metrics-keyword-order)
+    (when (assoc key values)
+      (let ((value (cdr (assoc key values))))
+        (if value
+            (my/journal--keyword-put key value)
+          (my/journal--keyword-delete key))))))
 
 ;; ============================================================
 ;; SCHEMA
@@ -116,38 +205,24 @@ had it.  Add one only after the current set has survived a few weeks.")
 
 (defun my/journal--schema ()
   "Return the buffer's #+schema: value as a number, 0 when absent."
-  (save-excursion
-    (goto-char (point-min))
-    (if (re-search-forward "^#\\+schema:[ \t]*\\([0-9]+\\)" nil t)
-        (string-to-number (match-string 1))
-      0)))
+  (let ((value (my/journal--keyword-get "schema")))
+    (if value (string-to-number value) 0)))
 
-(defun my/journal--ensure-schema ()
-  "Write #+schema: into the front matter when it is absent.
-Placed after #+identifier: when that exists, otherwise after the last
-front-matter keyword."
-  (save-excursion
-    (goto-char (point-min))
-    (unless (re-search-forward "^#\\+schema:" nil t)
-      (goto-char (point-min))
-      (if (re-search-forward "^#\\+identifier:.*$" nil t)
-          (progn
-            (end-of-line)
-            (insert (format "\n#+schema:     %d" my-journal-schema-version)))
-        (goto-char (point-min))
-        (while (looking-at "^#\\+")
-          (forward-line 1))
-        (insert (format "#+schema:     %d\n" my-journal-schema-version))))))
+(defun my/journal--ensure-language ()
+  "Write #+language: pl when the keyword is absent.
+Only ever added, never corrected: the indexer verifies the declared
+language against a detector and logs disagreements, which is the right
+place for that check."
+  (unless (my/journal--keyword-get "language")
+    (my/journal--keyword-put "language" "pl")))
 
 ;; ============================================================
-;; LEGACY DRAWER (schema 0)
+;; OLDER FORMATS
 ;; ============================================================
 
 (defun my/journal--legacy-drawer-bounds ()
-  "Return (BEG . END) of the legacy property drawer, or nil.
-The legacy drawer is the one the old journal template wrote between the
-front matter and the first headline.  END swallows one trailing blank
-line so that removing the drawer does not leave a gap."
+  "Return (BEG . END) of the schema 0 drawer below the front matter, or nil.
+END swallows one trailing blank line so removal leaves no gap."
   (save-excursion
     (goto-char (point-min))
     (let ((limit (or (save-excursion
@@ -164,47 +239,72 @@ line so that removing the drawer does not leave a gap."
             (cons beg (min (point) limit))))))))
 
 (defun my/journal--legacy-wellbeing ()
-  "Return the legacy :well-being: value as a string, or nil."
+  "Return the schema 0 :well-being: value as a string, or nil."
   (let ((bounds (my/journal--legacy-drawer-bounds)))
     (when bounds
       (save-excursion
         (goto-char (car bounds))
         (when (re-search-forward "^[ \t]*:well-being:[ \t]*\\([0-9]+\\)"
                                  (cdr bounds) t)
-          (match-string 1))))))
+          (match-string-no-properties 1))))))
 
-(defun my/journal--drop-legacy-drawer ()
-  "Delete the legacy drawer.  Return non-nil when something was removed."
-  (let ((bounds (my/journal--legacy-drawer-bounds)))
+(defun my/journal--metrics-heading-bounds ()
+  "Return (BEG . END) of the schema 1 \"* Metryki\" subtree, or nil.
+END swallows trailing blank lines up to the next headline."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((re (format "^\\* %s[ \t]*$"
+                      (regexp-quote my-journal-metrics-heading))))
+      (when (re-search-forward re nil t)
+        (let ((beg (line-beginning-position)))
+          (forward-line 1)
+          (if (re-search-forward "^\\*+ " nil t)
+              (goto-char (match-beginning 0))
+            (goto-char (point-max)))
+          (cons beg (point)))))))
+
+(defun my/journal--heading-property (key)
+  "Return property KEY from the schema 1 metrics subtree, or nil.
+KEY is the lower-case keyword name; the drawer used upper case."
+  (let ((bounds (my/journal--metrics-heading-bounds)))
     (when bounds
-      (delete-region (car bounds) (cdr bounds))
-      t)))
-
-;; ============================================================
-;; METRICS DRAWER
-;; ============================================================
-
-(defun my/journal--goto-metrics ()
-  "Move point onto the metrics headline, creating it if absent.
-The headline is inserted above the first existing headline so that it
-stays at the top while timestamped entries accumulate at the end."
-  (goto-char (point-min))
-  (let ((re (format "^\\* %s[ \t]*$"
-                    (regexp-quote my-journal-metrics-heading))))
-    (if (re-search-forward re nil t)
-        (beginning-of-line)
-      (goto-char (point-min))
-      (if (re-search-forward "^\\*+ " nil t)
-          (beginning-of-line)
-        (goto-char (point-max))
-        (unless (bolp) (insert "\n")))
       (save-excursion
-        (insert (format "* %s\n\n" my-journal-metrics-heading))))))
+        (goto-char (car bounds))
+        (when (re-search-forward
+               (format "^[ \t]*:%s:[ \t]*\\(.*?\\)[ \t]*$" (upcase key))
+               (cdr bounds) t)
+          (let ((value (match-string-no-properties 1)))
+            (unless (string-empty-p value) value)))))))
+
+(defun my/journal--existing (key)
+  "Return the current value of metric KEY from whichever format is present.
+Keywords win, then the schema 1 drawer, then the schema 0 drawer."
+  (or (my/journal--keyword-get key)
+      (my/journal--heading-property key)
+      (and (string= key "wellbeing") (my/journal--legacy-wellbeing))))
+
+(defun my/journal--purge-old-formats ()
+  "Remove the schema 0 drawer and the schema 1 metrics subtree.
+Returns a list of what was removed, for the echo-area message."
+  (let (removed)
+    (when (my/journal--metrics-heading-bounds)
+      (let ((bounds (my/journal--metrics-heading-bounds)))
+        (delete-region (car bounds) (cdr bounds))
+        (push my-journal-metrics-heading removed)))
+    (when (my/journal--legacy-drawer-bounds)
+      (let ((bounds (my/journal--legacy-drawer-bounds)))
+        (delete-region (car bounds) (cdr bounds))
+        (push ":well-being:" removed)))
+    removed))
+
+;; ============================================================
+;; PROSE
+;; ============================================================
 
 (defun my/journal--prose-chars ()
-  "Return the number of prose characters outside the metrics subtree.
-Front matter, headline lines, property drawers and everything under the
-metrics headline are excluded."
+  "Return the number of prose characters in the buffer.
+Front matter, headline lines, property drawers and the schema 1 metrics
+subtree are excluded."
   (save-excursion
     (goto-char (point-min))
     (let ((metrics-re (format "^\\* %s[ \t]*$"
@@ -231,9 +331,8 @@ metrics headline are excluded."
 
 (defun my/journal--file-date ()
   "Return the day the current journal file describes, as YYYY-MM-DD.
-Read from the file name rather than #+date:, because the file name is
-what the rest of this configuration treats as authoritative for journal
-notes.  Nil when the buffer is not a journal file."
+Read from the file name, which is what the rest of this configuration
+treats as authoritative for journal notes.  Nil outside a journal file."
   (let ((name (and buffer-file-name
                    (file-name-nondirectory buffer-file-name))))
     (when (and name
@@ -254,17 +353,16 @@ notes.  Nil when the buffer is not a journal file."
       (string-match-p "\\`[0-9]+\\(\\.[0-9]+\\)?\\'" answer))
      (t t))))
 
-(defun my/journal--ask (field &optional seed)
-  "Prompt for FIELD.  Return a string, or nil meaning \"delete it\".
-The pre-filled answer is the current property value, then SEED (used to
-carry a legacy value across), then the field default."
-  (let* ((key      (plist-get field :key))
-         (values   (plist-get field :values))
-         (existing (or (org-entry-get (point) key) seed))
-         (def      (or existing (plist-get field :default)))
-         (prompt   (format "%s%s: "
-                           (plist-get field :prompt)
-                           (if def (format " [%s]" def) "")))
+(defun my/journal--ask (field &optional existing)
+  "Prompt for FIELD.  Return a string, or nil meaning \"remove it\".
+EXISTING is the value already recorded in any of the supported formats;
+it is offered as the answer, falling back to the field default."
+  (let* ((key    (plist-get field :key))
+         (values (plist-get field :values))
+         (def    (or existing (plist-get field :default)))
+         (prompt (format "%s%s: "
+                         (plist-get field :prompt)
+                         (if def (format " [%s]" def) "")))
          answer)
     (catch 'done
       (while t
@@ -284,65 +382,63 @@ carry a legacy value across), then the field default."
 
 ;;;###autoload
 (defun my/journal-set-metrics ()
-  "Prompt for the metrics of the journal file in the current buffer.
-Re-running the command edits the existing values rather than clearing
-them.  On a schema 0 note the legacy :well-being: value is offered as the
-default for WELLBEING and the legacy drawer is removed afterwards, so a
-note is upgraded simply by being touched."
+  "Record the metrics of the journal file in the current buffer.
+
+Three phases.  Read: gather what is already recorded, in whichever of
+the three formats the file uses.  Prompt: ask for everything, keeping
+the answers in memory.  Write: purge older formats, write the keywords,
+save.  Nothing touches the buffer until every prompt is answered, so
+C-g leaves the file byte-identical."
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Not an Org buffer"))
-  (let* ((legacy    (my/journal--legacy-wellbeing))
-         (prose     (>= (my/journal--prose-chars) my/journal-prose-threshold))
-         (file-date (my/journal--file-date))
+  (let* ((file-date (my/journal--file-date))
          (today     (format-time-string "%Y-%m-%d"))
-         (wb-prior  nil)
-         (wb-answer nil))
-    ;; All prompting happens first: aborting with C-g here leaves the file
-    ;; exactly as it was, legacy drawer included.
-    (save-excursion
-      (my/journal--goto-metrics)
-      (dolist (field my/journal-metrics-fields)
-        (let* ((key      (plist-get field :key))
-               (wellbeing (string= key "WELLBEING"))
-               (seed     (and legacy wellbeing legacy))
-               (prior    (or (org-entry-get (point) key) seed))
-               (answer   (my/journal--ask field seed)))
-          (when wellbeing
-            (setq wb-prior prior
-                  wb-answer answer))
-          (if answer
-              (org-entry-put (point) key answer)
-            (org-entry-delete (point) key))))
+         (past-day  (and file-date (not (string= file-date today))))
+         (prose     (>= (my/journal--prose-chars) my/journal-prose-threshold))
+         (existing  (mapcar (lambda (field)
+                              (let ((key (plist-get field :key)))
+                                (cons key (my/journal--existing key))))
+                            my/journal-metrics-fields))
+         (answers   nil))
 
-      ;; Set once, never unset: a value supplied or revised for a past day
-      ;; is a memory, and it stays one even if it is edited again later.
-      (when (and wb-answer
-                 file-date
-                 (not (string= file-date today))
-                 (not (equal wb-answer wb-prior)))
-        (org-entry-put (point) "RECALLED" "t"))
+    ;; --- prompt phase: no buffer modification below this line ---
+    (dolist (field my/journal-metrics-fields)
+      (let* ((key (plist-get field :key))
+             (answer (my/journal--ask field (cdr (assoc key existing)))))
+        (push (cons key answer) answers)))
 
-      (when (and (not prose)
-                 (not (org-entry-get (point) "NO_ENTRY_REASON")))
-        (let ((reason (string-trim
-                       (completing-read "Brak wpisu, powód (RET = pomiń): "
-                                        my/journal-no-entry-reasons nil nil))))
-          (unless (string-empty-p reason)
-            (org-entry-put (point) "NO_ENTRY_REASON" reason))))
+    (when (and (not prose)
+               (not (my/journal--existing "no_entry_reason")))
+      (let ((reason (string-trim
+                     (completing-read "Brak wpisu, powód (RET = pomiń): "
+                                      my/journal-no-entry-reasons nil nil))))
+        (unless (string-empty-p reason)
+          (push (cons "no_entry_reason" reason) answers))))
 
-      ;; Written once, never refreshed: this is when the metrics were first
-      ;; recorded, not when they were last edited.
-      (unless (org-entry-get (point) "METRICS_ADDED")
-        (org-entry-put (point) "METRICS_ADDED"
-                       (format-time-string "[%Y-%m-%d %a %H:%M]"))))
+    ;; Set once, never unset: a value supplied or revised for a past day
+    ;; is a memory, and stays one even if edited again later.
+    (let ((wb (cdr (assoc "wellbeing" answers)))
+          (wb-prior (cdr (assoc "wellbeing" existing))))
+      (when (and wb past-day (not (equal wb wb-prior)))
+        (push (cons "recalled" "t") answers)))
 
-    ;; Migration, only once the new drawer is safely in place.
-    (let ((upgraded (my/journal--drop-legacy-drawer)))
-      (my/journal--ensure-schema)
+    ;; Records the first write, never refreshed.
+    (unless (my/journal--existing "metrics_added")
+      (push (cons "metrics_added"
+                  (format-time-string "[%Y-%m-%d %a %H:%M]"))
+            answers))
+
+    ;; --- write phase ---
+    (let ((removed (my/journal--purge-old-formats)))
+      (my/journal--ensure-language)
+      (my/journal--keyword-put "schema"
+                               (number-to-string my-journal-schema-version))
+      (my/journal--write-metrics answers)
       (save-buffer)
-      (message (if upgraded
-                   "Metryki zapisane; stary drawer :well-being: usunięty"
+      (message (if removed
+                   (format "Metryki zapisane; usunięto %s"
+                           (string-join removed ", "))
                  "Metryki zapisane")))))
 
 (defun my/journal--file-for-date (date)
@@ -357,9 +453,9 @@ note is upgraded simply by being touched."
 (defun my/journal-set-metrics-for-date ()
   "Ask for a date and record that day's metrics, creating the file if needed.
 A day rated with no prose is still a valid observation: refusing to
-create the file would leave a hole in the series with no explanation of
-why it is there.  The cursor is left at the end of the buffer, which is
-the cheapest available prompt to actually write the day up."
+create the file would leave a hole in the series with no record of why
+it is there.  The cursor is left at the end of the buffer afterwards,
+which is the cheapest available prompt to write the day up."
   (interactive)
   (let* ((date-input (org-read-date nil nil nil "Data: "))
          (encoded    (apply #'encode-time (org-parse-time-string date-input)))
@@ -374,12 +470,75 @@ the cheapest available prompt to actually write the day up."
     (goto-char (point-max))))
 
 ;; ============================================================
+;; BATCH FORMAT MIGRATION
+;; ============================================================
+
+(defun my/journal--migrate-buffer ()
+  "Convert the current buffer from schema 0 or 1 to keywords.
+Pure format translation: no value is invented, changed or dropped, so
+this needs no prompting and is safe to run unattended.  Returns non-nil
+when the buffer was changed."
+  (let ((values (mapcar (lambda (key) (cons key (my/journal--existing key)))
+                        my/journal-metrics-keyword-order)))
+    (when (or (my/journal--metrics-heading-bounds)
+              (my/journal--legacy-drawer-bounds))
+      (my/journal--purge-old-formats)
+      (my/journal--ensure-language)
+      (my/journal--keyword-put "schema"
+                               (number-to-string my-journal-schema-version))
+      ;; Only write keys that actually had a value: a file with an empty
+      ;; legacy drawer becomes a file with no metrics, not a file with
+      ;; empty metrics.
+      (my/journal--write-metrics
+       (seq-filter #'cdr values))
+      t)))
+
+;;;###autoload
+(defun my/journal-migrate-metrics-format (&optional write include-schema-0)
+  "Convert journal files from the older metrics formats to keywords.
+
+Without a prefix argument this is a dry run: it reports what it would do
+and changes nothing.  With \\[universal-argument] it writes.  With
+\\[universal-argument] \\[universal-argument] it also converts schema 0
+notes, which is the 3500-file case and produces a very large commit --
+by default only schema 1 files are touched, since those were created by
+this configuration over a single day and are few.
+
+Commit or stash the notes repository before running this with WRITE."
+  (interactive (list (and current-prefix-arg t)
+                     (equal current-prefix-arg '(16))))
+  (let ((changed 0)
+        (scanned 0)
+        (names nil))
+    (dolist (file (directory-files my-notes-journal t "\\.org\\'"))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (org-mode)
+        (setq scanned (1+ scanned))
+        (let ((schema-1 (my/journal--metrics-heading-bounds))
+              (schema-0 (my/journal--legacy-drawer-bounds)))
+          (when (or schema-1 (and schema-0 include-schema-0))
+            (when (my/journal--migrate-buffer)
+              (setq changed (1+ changed))
+              (push (file-name-nondirectory file) names)
+              (when write
+                (write-region (point-min) (point-max) file nil 'quiet)))))))
+    (with-current-buffer (get-buffer-create "*journal-migration*")
+      (erase-buffer)
+      (insert (format "%s: %d of %d files\n\n"
+                      (if write "Converted" "Would convert")
+                      changed scanned))
+      (dolist (name (nreverse names))
+        (insert name "\n"))
+      (display-buffer (current-buffer)))
+    (message "%s %d/%d journal files"
+             (if write "Converted" "Dry run:") changed scanned)))
+
+;; ============================================================
 ;; TRANSIENT
 ;; ============================================================
 ;; 12-transient.el loads after this module, so the entries are added when
-;; (and if) it provides itself.  `my/transient-append' already degrades on
-;; a missing prefix, anchor or duplicate key; the `fboundp' guard covers
-;; the case where 12-transient.el has been replaced by something else.
+;; (and if) it provides itself.
 
 (with-eval-after-load '12-transient
   (when (fboundp 'my/transient-append)

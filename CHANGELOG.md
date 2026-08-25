@@ -7,6 +7,138 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-25 (later) — Metrics as keywords, and a menu chain I broke
+
+### The regression from the previous commit
+
+Removing the Insert menu's `w` entry took four other entries with it.
+`20-transclusion.el`, `31-org-images.el` and `32-web-links.el` anchored
+their own suffixes to it in a chain — `w` → `t`, `w` → `i` → `I` → `u` —
+and `my/transient-append` did exactly what it is for: reported and
+skipped rather than signalling.
+
+```
+transient: my/notes-insert-menu has no 'w' to append after, skipping 't'
+transient: my/notes-insert-menu has no 'w' to append after, skipping 'i'
+transient: my/notes-insert-menu has no 'i' to append after, skipping 'I'
+transient: my/notes-insert-menu has no 'I' to append after, skipping 'u'
+```
+
+Transclusion, image insertion, the attachments folder and web links all
+vanished from `C-c n i`. The commands still worked under `M-x`, which is
+why this is the kind of breakage that survives a week unnoticed.
+
+Both anchors moved to `d` (Insert date), which is defined in
+`12-transient.el` itself and is not going anywhere. The lesson is not
+"do not remove menu entries" but "before removing one, grep for it as an
+anchor" — a suffix key is part of the interface between modules, not a
+private detail of the menu.
+
+### Why keywords replaced the headline
+
+Schema 1 lasted about a day. The `* Metryki` headline parsed correctly,
+but it put a second `:PROPERTIES:` drawer into files that already had one
+under `* Uzupełnienie`, and a file did appear with the full metrics set
+written into both. The exact sequence was never reproduced, which is its
+own argument: a design where the write target has to be located by
+searching for a headline can put data in the wrong drawer, and a design
+with one uniquely named keyword per metric cannot.
+
+Schema 2 stores metrics as front-matter keywords:
+
+```org
+#+identifier: 20260111T000000
+#+language:   pl
+#+schema:     2
+#+wellbeing:  6
+#+alcohol_u:  0
+#+illness:    none
+#+metrics_added: [2026-08-25 wto 03:26]
+```
+
+The remaining alternative — a true file-level property drawer — has to
+sit above `#+title:` with only comments above it, which fights Denote's
+front-matter tooling for the sake of an Org property API that this setup
+does not use: the query layer is an external DuckDB index, and editing
+goes through `my/journal-set-metrics`. `org-set-property`, `org-columns`
+and `org-ql` are given up knowingly.
+
+Read and write both go through one regexp over the region above the first
+headline. Two mechanisms for one format is how `:well-being:` came to be
+readable by eye and by nothing else.
+
+### Atomicity, this time actually
+
+The schema 1 command created its headline before the first prompt, so
+`C-g` left a modified buffer. Claiming otherwise in the previous entry
+was wrong; the ERT test written to prove it aborted on the `quit` signal
+instead of failing, because `ignore-errors` does not catch `quit`.
+
+`my/journal-set-metrics` now runs read → prompt → write, with no buffer
+modification before the last phase, and the test uses `condition-case`
+with a `quit` handler.
+
+### Batch conversion
+
+`my/journal-migrate-metrics-format` converts schema 0 and 1 files to
+keywords. It is a pure translation — every value carried across
+unchanged, nothing invented, an empty legacy drawer becoming no metrics
+rather than empty metrics — so it needs no prompting and is idempotent.
+
+Dry run by default, `C-u` to write, `C-u C-u` to include schema 0. The
+default scope is schema 1 only: those are the handful of files this
+configuration created in one day. The 3500 schema 0 files stay
+opportunistic, because reading their legacy value is a regexp in the
+indexer, an operation that cannot lose data, while rewriting them is one
+that can.
+
+### Auto-commit split
+
+`my/auto-commit-all` no longer commits the configuration repository;
+`my/auto-commit-config-enabled` defaults to nil. Notes are a working log
+and "Auto-commit: <date>" describes what happened to them accurately.
+Configuration changes are deliberate, each has a reason worth writing
+down, and an exit-hook commit both buries that reason and silently
+absorbs half-finished edits. `my/commit-config-now` is unchanged.
+
+### Also
+
+- `my/denote-base` gained `my/note-add-front-matter-extras`, which adds
+  `#+language: pl` and `#+schema:` after Denote has written its own four
+  lines. Overriding `denote-org-front-matter` was rejected: it would make
+  this configuration responsible for tracking that format string
+  upstream, while Denote's rename and refresh functions already leave
+  unknown keywords alone.
+- `my/dashboards--journal-p` gained `#+wellbeing:` to its content
+  fallback, so all three formats are recognised.
+- `my-journal-schema-version` is 2. `my-journal-metrics-heading` is kept
+  purely so the schema 1 files can still be found and converted.
+
+### Files touched
+
+- `modules/00-core.el` — schema version 2, all three formats documented
+- `modules/05-notes.el` — no metrics headline in either journal
+  template; `my/note-add-front-matter-extras`
+- `modules/05b-journal-metrics.el` — rewritten around keywords; three
+  phases; batch migration command
+- `modules/07-git.el` — `my/auto-commit-config-enabled`
+- `modules/20-transclusion.el`, `modules/31-org-images.el` — anchors
+  moved from `w` to `d`
+- `modules/21-dashboards.el` — `#+wellbeing:` in the content fallback
+- `tests/test-journal-metrics.el` — rewritten; `quit` handled correctly;
+  new cases for keyword mechanics, conversion, and the Insert menu chain
+- `function_helper.org`
+
+### Lesson
+
+Two of the three defects this session were in things asserted rather than
+checked: that removing a menu entry was local, and that a command was
+atomic. The tests that would have caught both were cheap. The one that
+existed for atomicity was written to pass rather than to fail, which is
+worse than not having it.
+
+---
+
 ## Session 2026-08-25 — A property drawer Org never read
 
 ### What was wrong
