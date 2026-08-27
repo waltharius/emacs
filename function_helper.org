@@ -525,10 +525,16 @@ Module: =modules/21-dashboards.el=
 
 **** This Day in History (years)
 
-| Key | Function                                     | Description                                    |
-|-----+----------------------------------------------+------------------------------------------------|
-| t   | =my/dashboards-open-this-day-history=          | All silos: same month/day, previous years only |
-| j   | =my/dashboards-open-this-day-history-journals= | Same, journals only                            |
+| Key | Function                                     | Description                                        |
+|-----+----------------------------------------------+----------------------------------------------------|
+| t   | =my/dashboards-open-this-day-history=          | All silos: chosen day of the current month, previous years only |
+| j   | =my/dashboards-open-this-day-history-journals= | Same, journals only                                |
+
+Only the day is asked for; the month stays the current one, so =t= with
+=14= answers "what was written on the 14th of this month, in earlier
+years". The exclusion of the current year is unchanged, which means a
+note written on that day *this* year does not appear — the view is
+about earlier years by definition.
 
 **** This Day, Every Month
 
@@ -537,9 +543,10 @@ Module: =modules/21-dashboards.el=
 | m   | =my/dashboards-open-same-day-every-month=          | All silos: chosen day-of-month, any month, any year |
 | M   | =my/dashboards-open-same-day-every-month-journals= | Same, journals only                                 |
 
-Both prompt for the day of the month first. =RET= on an empty prompt
-uses today's day, which is what the two commands did before the prompt
-existed, so the habitual keystroke sequence is unchanged.
+Both prompt for the day of the month first, as the =t= / =j= pair
+above does. =RET= on an empty prompt uses today's day, which is what
+all four commands did before the prompt existed, so the habitual
+keystroke sequence is unchanged.
 
 Validation covers the range 1–31 and nothing else: non-numeric input
 and a number outside that range raise a =user-error=, while a day that
@@ -556,6 +563,7 @@ notes to exist for a specific month — it collects whatever notes exist
 for the chosen day across any month/year combination.
 
 Functions: =my/dashboards--read-day-of-month=,
+=my/dashboards--collect-this-day-history=,
 =my/dashboards--collect-same-day-every-month= |
 Module: =modules/21-dashboards.el=
 

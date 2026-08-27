@@ -5,9 +5,11 @@
 ;; find notes matching today's day-of-month across previous years,
 ;; or across every month where a note happens to exist on that day.
 ;;
-;; The "every month" pair prompts for the day of the month, defaulting
-;; to today's, so an arbitrary day can be reviewed without waiting for
-;; the calendar to come round to it.
+;; All four commands prompt for the day of the month, defaulting to
+;; today's, so an arbitrary day can be reviewed without waiting for the
+;; calendar to come round to it.  Only the day is asked for: the "years"
+;; pair keeps the current month, the "every month" pair spans all of
+;; them, exactly as before.
 ;;
 ;; Journal notes are distinguished by the `journal' Denote keyword in
 ;; the file name, with a content fallback for notes whose name has lost
@@ -154,10 +156,15 @@ error."
 ;; FILTERS
 ;; ============================================================
 
-(defun my/dashboards--collect-this-day-history (&optional journals-only)
-  "Return notes from today's month/day in previous years, newest first.
-When JOURNALS-ONLY is non-nil, keep only journal notes."
-  (pcase-let* ((`(,month ,day) (my/dashboards--today-month-day))
+(defun my/dashboards--collect-this-day-history (&optional journals-only day)
+  "Return notes from DAY of today's month in previous years, newest first.
+DAY defaults to today's day of the month, which is the only value this
+function used before the day became selectable.  When JOURNALS-ONLY is
+non-nil, keep only journal notes."
+  ;; Assumption: only the day is selectable; the month stays the current
+  ;; one, because a day of month is the single value the prompt reads.
+  (pcase-let* ((`(,month ,today-day) (my/dashboards--today-month-day))
+               (target-day (or day today-day))
                (current-year (nth 5 (decode-time (current-time))))
                (entries (delq nil (mapcar #'my/dashboards--entry
                                            (my/dashboards--all-note-files)))))
@@ -165,7 +172,7 @@ When JOURNALS-ONLY is non-nil, keep only journal notes."
      (seq-filter
       (lambda (e)
         (and (= (plist-get e :month) month)
-             (= (plist-get e :day) day)
+             (= (plist-get e :day) target-day)
              (< (plist-get e :year) current-year)
              (or (not journals-only) (plist-get e :journal))))
       entries)
@@ -336,18 +343,24 @@ previewed notes."
 ;; INTERACTIVE COMMANDS
 ;; ============================================================
 
-(defun my/dashboards-open-this-day-history ()
-  "Open the newest note from today's month/day in previous years."
-  (interactive)
+(defun my/dashboards-open-this-day-history (day)
+  "Open the newest note from DAY of today's month in previous years.
+
+Interactively, prompts for DAY; RET without input uses today's day of
+the month."
+  (interactive (list (my/dashboards--read-day-of-month)))
   (my/dashboards--open-first-and-show-nav
-   (my/dashboards--collect-this-day-history nil)
+   (my/dashboards--collect-this-day-history nil day)
    "This Day in History — all notes"))
 
-(defun my/dashboards-open-this-day-history-journals ()
-  "Open the newest journal note from today's month/day in previous years."
-  (interactive)
+(defun my/dashboards-open-this-day-history-journals (day)
+  "Open the newest journal note from DAY of today's month in previous years.
+
+Interactively, prompts for DAY; RET without input uses today's day of
+the month."
+  (interactive (list (my/dashboards--read-day-of-month)))
   (my/dashboards--open-first-and-show-nav
-   (my/dashboards--collect-this-day-history t)
+   (my/dashboards--collect-this-day-history t day)
    "This Day in History — journals"))
 
 (defun my/dashboards-open-same-day-every-month (day)

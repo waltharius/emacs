@@ -11,16 +11,16 @@ introducing regressions, hook races, or dependency conflicts.
 
 ### The day-of-month dashboards were stuck on today
 
-`C-c n f h m` and `M` collected notes whose day-of-month matched the
-current day. That is the right default and the wrong only option: the
-view is useful precisely when looking back at a day that is not today,
-and the alternative was waiting a month for the calendar to come round
-to it.
+All four commands under `C-c n f h` collected notes whose day-of-month
+matched the current day. That is the right default and the wrong only
+option: the view is useful precisely when looking back at a day that is
+not today, and the alternative was waiting a month for the calendar to
+come round to it.
 
-`my/dashboards--read-day-of-month` now supplies the number. `RET` on an
-empty prompt returns `(nth 3 (decode-time))`, so the existing keystroke
-sequence produces the existing result and nothing about the habit
-changes.
+`my/dashboards--read-day-of-month` now supplies the number to `t`, `j`,
+`m` and `M` alike. `RET` on an empty prompt returns
+`(nth 3 (decode-time))`, so the existing keystroke sequence produces the
+existing result and nothing about the habit changes.
 
 Validation stops at the range. Non-numeric input and anything outside
 1–31 raise a `user-error`; 30 February does not. Rejecting it would
@@ -28,11 +28,17 @@ require deciding which year the day is being asked about, and the query
 spans every year on purpose — a day that no month has simply matches
 nothing, which is the accurate answer rather than a failure.
 
-`my/dashboards--collect-same-day-every-month` gained an optional `DAY`
-argument defaulting to today, which keeps the old zero-argument call
-valid. Filtering, sorting, the exclusion of today's own date and the
-`*Note History*` layout are untouched: the only thing that changed is
-where the number comes from.
+Only the day is read. The "years" pair keeps the current month, so `t`
+with `14` asks what was written on the 14th of this month in earlier
+years; the "every month" pair spans all months as it did. Prompting for
+a month as well would be a second decision, and neither view was asking
+for one.
+
+Both collectors gained an optional `DAY` argument defaulting to today,
+which keeps their old zero-argument calls valid. Filtering, sorting, the
+exclusion of the current year in one and of today's own date in the
+other, and the `*Note History*` layout are untouched: the only thing
+that changed is where the number comes from.
 
 ### Hub notes
 
