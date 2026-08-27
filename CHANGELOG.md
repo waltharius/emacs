@@ -7,6 +7,90 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-28 — A day worth asking for, and hub notes
+
+### The day-of-month dashboards were stuck on today
+
+`C-c n f h m` and `M` collected notes whose day-of-month matched the
+current day. That is the right default and the wrong only option: the
+view is useful precisely when looking back at a day that is not today,
+and the alternative was waiting a month for the calendar to come round
+to it.
+
+`my/dashboards--read-day-of-month` now supplies the number. `RET` on an
+empty prompt returns `(nth 3 (decode-time))`, so the existing keystroke
+sequence produces the existing result and nothing about the habit
+changes.
+
+Validation stops at the range. Non-numeric input and anything outside
+1–31 raise a `user-error`; 30 February does not. Rejecting it would
+require deciding which year the day is being asked about, and the query
+spans every year on purpose — a day that no month has simply matches
+nothing, which is the accurate answer rather than a failure.
+
+`my/dashboards--collect-same-day-every-month` gained an optional `DAY`
+argument defaulting to today, which keeps the old zero-argument call
+valid. Filtering, sorting, the exclusion of today's own date and the
+`*Note History*` layout are untouched: the only thing that changed is
+where the number comes from.
+
+### Hub notes
+
+New module `33-denote-hubs.el` and one command, `my/denote-add-to-hub`
+(`C-c n i H`). It appends
+
+```org
+- [[denote:IDENTIFIER][TITLE]] — description
+```
+
+to a hub note, where identifier and title belong to the note in the
+current buffer.
+
+A hub is an ordinary Denote note with the `hub` keyword in the
+`__keyword` component of its file name. That choice is what makes the
+candidate scan free: `denote-directory-files` filtered through
+`denote-extract-keywords-from-path` reads file names and opens nothing,
+the same reasoning that put the `journal` keyword test ahead of the
+content fallback in `my/dashboards--journal-p`. A `#+hub:` front-matter
+keyword would have read every note in the collection on every
+invocation to answer a question the file name already answers. It also
+means `denote-rename-file` is the whole promotion and demotion
+mechanism, with no second record to drift.
+
+The link description is the `#+title:` value verbatim.
+`denote-get-link-description` was available and was not used: it
+composes signature and title itself, which would print the signature
+twice for notes that already carry it in the title, and this
+collection has such notes.
+
+Choosing `[Nowy HUB]` — pinned last by declaring `identity` as the
+completion table's sort function, since otherwise the frontend files it
+somewhere alphabetical — creates the hub in `my/denote-hub-directory`
+(pks) with only a title prompt. Every remaining prompt is answered
+before `denote` is called, so `C-g` partway through leaves no half-built
+note on disk.
+
+A hub already open in a buffer is written to there and left open; one
+that was not open is visited, written, saved and killed. Trailing
+whitespace is stripped before the entry is inserted rather than assumed
+absent, so the separator is exactly one blank line regardless of how the
+file ended.
+
+The menu entry anchors on `L`, which `12-transient.el` defines itself.
+Anchoring on a key contributed by another optional module is what cost
+the Insert menu four entries in August; the anchor is part of the
+interface between modules, and only keys owned by the menu's own file
+are safe ones.
+
+`my/denote-hub--*` deliberately does not overlap with
+`my/writing--hub-*` in `28-writing-projects.el`. Those hubs are
+scaffolding files under `~/projects/`, not Denote notes, and the shared
+English word is the only thing the two have in common — the
+`my/denote--silo-files` collision earlier this year came from exactly
+this kind of near-miss.
+
+---
+
 ## Session 2026-08-25 (evening) — Three small corrections
 
 ### The no-entry prompt fired on today's entry

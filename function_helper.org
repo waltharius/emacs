@@ -532,14 +532,32 @@ Module: =modules/21-dashboards.el=
 
 **** This Day, Every Month
 
-| Key | Function                                         | Description                                       |
-|-----+--------------------------------------------------+---------------------------------------------------|
-| m   | =my/dashboards-open-same-day-every-month=          | All silos: same day-of-month, any month, any year |
-| M   | =my/dashboards-open-same-day-every-month-journals= | Same, journals only                               |
+| Key | Function                                         | Description                                        |
+|-----+--------------------------------------------------+----------------------------------------------------|
+| m   | =my/dashboards-open-same-day-every-month=          | All silos: chosen day-of-month, any month, any year |
+| M   | =my/dashboards-open-same-day-every-month-journals= | Same, journals only                                 |
+
+Both prompt for the day of the month first. =RET= on an empty prompt
+uses today's day, which is what the two commands did before the prompt
+existed, so the habitual keystroke sequence is unchanged.
+
+Validation covers the range 1–31 and nothing else: non-numeric input
+and a number outside that range raise a =user-error=, while a day that
+some month does not have — 30 February, 31 April — is accepted and
+simply matches nothing in those months. Treating it as an error would
+mean deciding which years the day is being asked about, and the query
+deliberately spans all of them.
+
+Only the source of the day changed. Filtering, sorting and the layout
+of =*Note History*= are the same code as before.
 
 *Note:* "Every Month" excludes today's own date and does not require
-notes to exist for a specific month — it collects whatever day-21
-(or current day) notes exist across any month/year combination.
+notes to exist for a specific month — it collects whatever notes exist
+for the chosen day across any month/year combination.
+
+Functions: =my/dashboards--read-day-of-month=,
+=my/dashboards--collect-same-day-every-month= |
+Module: =modules/21-dashboards.el=
 
 Functions: =my/dashboards-open-this-day-history=,
 =my/dashboards-open-this-day-history-journals=,
@@ -552,7 +570,11 @@ Module: =modules/21-dashboards.el=
 :CUSTOM_ID: menu-notes-insert
 :END:
 
-Insert links, timestamps, and other content at point.
+Insert links, timestamps, and other content at point. =t=, =i=, =I=,
+=u= and =H= are appended dynamically by =20-transclusion.el=,
+=31-org-images.el=, =32-web-links.el= and =33-denote-hubs.el=; =H= is
+the one entry that writes into another file rather than at point.
+
 Module: =modules/12-transient.el=
 
 *** t — Transclusion submenu
@@ -916,6 +938,85 @@ Fetches the page title for a URL and inserts an Org link
 already contains one, org-web-tools offers it as default.
 
 Function: =my/insert-web-link= | Module: =modules/32-web-links.el=
+
+*** H — Add to HUB
+:PROPERTIES:
+:CUSTOM_ID: fn-my-denote-add-to-hub
+:END:
+
+Appends a link to the *current* note at the end of a hub note. The only
+entry in this menu that writes into a file other than the current
+buffer, and the only one that inserts nowhere near point.
+
+A hub is an ordinary Denote note carrying the =hub= keyword in the
+=__keyword= component of its file name. Its body is a plain Org list:
+
+: - [[denote:20260202T110000][1a2 Zwykła notatka]] — why it belongs here
+
+Three prompts in the ordinary case: which hub, then a one-line
+description for the entry. Choosing =[Nowy HUB]= — always the last
+candidate — asks instead for the new hub's title, a one-line
+description of the hub itself, and then the entry description; the
+description becomes the first line of the new note's body and the entry
+goes one blank line below it.
+
+Function: =my/denote-add-to-hub= | Module: =modules/33-denote-hubs.el=
+
+**** What the link description is
+
+The =#+title:= value of the source note, verbatim. A note whose title
+already begins with its Folgezettel signature contributes that
+signature; a note without one gets nothing added. Denote's own
+=denote-get-link-description= is deliberately *not* used here, because
+it composes signature and title itself and would double the signature
+on notes that carry it in the title.
+
+**** Why hubs are found by keyword
+
+=my/denote-hub-files= filters =denote-directory-files= through
+=denote-extract-keywords-from-path=. Both read file names only, so
+deciding whether a note is a hub costs no file access at all — the same
+reasoning as =my/dashboards--journal-p=. A content scan for something
+like a =#+hub:= keyword would open every note in the collection on
+every invocation.
+
+Because the keyword lives in the file name, =denote-rename-file= is
+what promotes an existing note to a hub or demotes it back, and no
+separate bookkeeping exists to fall out of step.
+
+**** Buffer handling
+
+A hub already open in a buffer is written to in that buffer and left
+open. A hub that was not open is visited with =find-file-noselect=,
+written, saved and killed again, so browsing hubs from the prompt does
+not accumulate buffers.
+
+The separator is normalised rather than assumed: trailing whitespace at
+the end of the hub is removed before the entry is inserted, so the
+result is exactly one blank line whatever the file happened to end
+with.
+
+**** Configuration
+
+| Variable                  | Default            | Effect                                |
+|---------------------------+--------------------+---------------------------------------|
+| =my/denote-hub-keyword=   | ="hub"=            | Keyword identifying a hub note        |
+| =my/denote-hub-directory= | =my-notes-pks=     | Silo new hubs are created in          |
+| =my/denote-hub-new-label= | ="[Nowy HUB]"=     | Label of the create-a-new-hub choice  |
+
+New hubs go to the pks silo without asking, since the specified
+creation flow prompts for a title only. Set =my/denote-hub-directory=
+to =my-notes-docu= or =my-notes-journal= to change that.
+
+**** Not the same thing as a writing-project hub
+
+=28-writing-projects.el= also has hubs: scaffolding files under
+=~/projects/= that hold tasks, clock entries and materials sections for
+one deadline. Those are not Denote notes and are not found by keyword.
+The two live in separate namespaces — =my/writing--hub-*= there,
+=my/denote-hub--*= here — because a shared prefix is exactly how two
+modules end up redefining each other's helpers (see the
+=my/denote--silo-files= collision in the change log).
 
 ** C-c n d — Document / File management
 :PROPERTIES:

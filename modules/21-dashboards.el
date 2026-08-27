@@ -5,6 +5,10 @@
 ;; find notes matching today's day-of-month across previous years,
 ;; or across every month where a note happens to exist on that day.
 ;;
+;; The "every month" pair prompts for the day of the month, defaulting
+;; to today's, so an arbitrary day can be reviewed without waiting for
+;; the calendar to come round to it.
+;;
 ;; Journal notes are distinguished by the `journal' Denote keyword in
 ;; the file name, with a content fallback for notes whose name has lost
 ;; its keywords.  Until 2026-08 this test looked for a :well-being:
@@ -26,6 +30,7 @@
 (require 'org)
 (require 'button)
 (require 'calendar)
+(require 'subr-x)
 (require 'transient)
 
 (defgroup my-dashboards nil
@@ -122,6 +127,29 @@ drawer (schema 0)."
   (let ((now (decode-time (current-time))))
     (list (nth 4 now) (nth 3 now))))
 
+(defun my/dashboards--read-day-of-month ()
+  "Read a day of the month from the minibuffer and return it as a number.
+
+Empty input returns today's day, so RET keeps the behaviour the
+command had before this prompt existed.
+
+Only the range 1-31 is enforced.  A day that no month of a given year
+actually has, such as 30 February, is a legal answer: the filters below
+simply find nothing for it, which is the honest result rather than an
+error."
+  (let* ((default (nth 3 (decode-time)))
+         (input (string-trim
+                 (read-string
+                  (format "Day of month (1-31, default %d): " default)))))
+    (if (string-empty-p input)
+        default
+      (unless (string-match-p "\\`[0-9]+\\'" input)
+        (user-error "Not a number: %s" input))
+      (let ((day (string-to-number input)))
+        (unless (<= 1 day 31)
+          (user-error "Day of month out of range (1-31): %d" day))
+        day))))
+
 ;; ============================================================
 ;; FILTERS
 ;; ============================================================
@@ -143,13 +171,14 @@ When JOURNALS-ONLY is non-nil, keep only journal notes."
       entries)
      (lambda (a b) (> (plist-get a :year) (plist-get b :year))))))
 
-(defun my/dashboards--collect-same-day-every-month (&optional journals-only)
-  "Return notes whose day-of-month matches today, across every month
-and year, excluding today's own date. When JOURNALS-ONLY is non-nil,
-keep only journal notes. Sorted newest year first, then newest
-month first."
+(defun my/dashboards--collect-same-day-every-month (&optional journals-only day)
+  "Return notes whose day-of-month matches DAY, across every month
+and year, excluding today's own date. DAY defaults to today's day of
+the month, which is the only value this function used before the day
+became selectable. When JOURNALS-ONLY is non-nil, keep only journal
+notes. Sorted newest year first, then newest month first."
   (let* ((today (decode-time (current-time)))
-         (target-day (nth 3 today))
+         (target-day (or day (nth 3 today)))
          (current-month (nth 4 today))
          (current-year (nth 5 today))
          (entries (delq nil (mapcar #'my/dashboards--entry
@@ -321,20 +350,26 @@ previewed notes."
    (my/dashboards--collect-this-day-history t)
    "This Day in History — journals"))
 
-(defun my/dashboards-open-same-day-every-month ()
-  "Open the most recent note whose day-of-month matches today,
-across every month and year."
-  (interactive)
+(defun my/dashboards-open-same-day-every-month (day)
+  "Open the most recent note whose day-of-month matches DAY,
+across every month and year.
+
+Interactively, prompts for DAY; RET without input uses today's day of
+the month."
+  (interactive (list (my/dashboards--read-day-of-month)))
   (my/dashboards--open-first-and-show-nav
-   (my/dashboards--collect-same-day-every-month nil)
+   (my/dashboards--collect-same-day-every-month nil day)
    "This Day, Every Month — all notes"))
 
-(defun my/dashboards-open-same-day-every-month-journals ()
+(defun my/dashboards-open-same-day-every-month-journals (day)
   "Open the most recent journal note whose day-of-month matches
-today, across every month and year."
-  (interactive)
+DAY, across every month and year.
+
+Interactively, prompts for DAY; RET without input uses today's day of
+the month."
+  (interactive (list (my/dashboards--read-day-of-month)))
   (my/dashboards--open-first-and-show-nav
-   (my/dashboards--collect-same-day-every-month t)
+   (my/dashboards--collect-same-day-every-month t day)
    "This Day, Every Month — journals"))
 
 ;; ============================================================

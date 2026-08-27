@@ -94,6 +94,7 @@
   (load (concat modules-dir "30-link-tooltips.el")) ; Cheap mouse tooltips over denote: links
   (load (concat modules-dir "31-org-images.el")) ; Image attachments (C-c n i i)
   (load (concat modules-dir "32-web-links.el")) ; insert web link (C-c n i u)
+  (load (concat modules-dir "33-denote-hubs.el")) ; Hub notes (C-c n i H)
   )
 
 (add-hook 'emacs-startup-hook
