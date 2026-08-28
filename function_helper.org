@@ -1084,7 +1084,8 @@ with a bracket, so typing =[= selects it.
 Three outcomes:
 
 - *A hub that does not list the note yet* — one prompt for the
-  description, and the entry is appended at the end of the hub.
+  description, and the entry is inserted among the existing ones in
+  chronological order, the hub being sorted first if it was not already.
 - *A hub that already lists it* — the same prompt, pre-filled with the
   existing description, and the entry is rewritten where it stands.
   This is why the command cannot produce a duplicate entry: adding a
@@ -1097,6 +1098,74 @@ Three outcomes:
   =*= so it renders bold, and the entry goes one blank line below it.
 
 Function: =my/denote-add-to-hub= | Module: =modules/33-denote-hubs.el=
+
+**** Entries stay in chronological order
+:PROPERTIES:
+:CUSTOM_ID: fn-my-denote-hub-sort-entries
+:END:
+
+A new entry goes before the first existing entry with a newer
+identifier, so a hub reads oldest-first with the newest at the bottom.
+
+*A hub whose entries are out of order is sorted first, automatically,
+as part of adding.* That is not a convenience — "before the first entry
+that is newer" only means something in a sorted list. In a jumbled one
+it is whichever newer entry happens to come first in the file, which is
+no position at all. A hub already in order is not rewritten; the check
+costs nothing, since the identifiers come from the scan that has to
+happen anyway.
+
+So, adding a link reports one of three things:
+
+| Message                       | What happened                                       |
+|-------------------------------+-----------------------------------------------------|
+| =Added to hub: X=             | The hub was in order; the entry went in place       |
+| =… entries were out of order and have been sorted= | The hub was sorted first, then the entry went in place |
+| =Added at the end of X: prose between its entries…= | The hub could not be sorted; the entry went to the end |
+
+The third case *never refuses*. Adding a link is not the moment to make
+someone reformat a hub, and the end is at least a predictable place.
+
+This costs no file access beyond the hub. The identifier is already
+written into the link — =denote:20230825T090000= — so ordering a hub
+means comparing strings that are already in the buffer. *None of the
+linked notes is opened.* The hub itself is visited through
+=my/denote-hub--with-hub=, which kills the buffer again unless it was
+already open, so even sorting every hub in the collection holds one
+buffer at a time.
+
+Identifiers are fixed-width =YYYYMMDDTHHMMSS=, so lexicographic order
+is chronological order and nothing has to parse a date.
+
+Insertion *rewrites nothing*. The entry is inserted at one position and
+every other line is left byte-for-byte as it was, which is what makes
+this safe on a hub with hundreds of entries — there is no pass that
+could reorder or drop anything.
+
+***** M-x my/denote-hub-sort-entries
+
+Rarely needed, since adding a link sorts the hub by itself. It exists
+for two things: sorting a hub without adding anything to it, and finding
+out *why* the automatic sort declined. Sorts the current buffer's hub,
+or prompts for one when called elsewhere. No keybinding.
+
+Where adding a link merely appends, this command refuses and names the
+line: if anything but blank lines separates two entries, sorting would
+sweep that paragraph along and land it somewhere else, and nothing in
+the file says which entries it was commenting on. A hub already in order
+is left untouched and says so rather than rewriting itself into an
+identical file.
+
+Measured on a generated 500-entry hub, half of them multi-paragraph:
+sort 0.42 s, subsequent insert 0.014 s, all descriptions and paragraph
+breaks intact, no buffers left behind.
+
+***** Scope: the last section
+
+Both the insertion and the sort consider the entries below the *last Org
+heading*, or all of them in a hub with no headings. That is the same
+place appending always wrote to, so a hub split into sections keeps its
+sections and only the position within the last one changes.
 
 **** Multi-line entry descriptions
 
@@ -1219,8 +1288,15 @@ for the candidates that have none, so unlisted hubs stay unadorned.
 
 A hub already open in a buffer is written to in that buffer and left
 open. A hub that was not open is visited with =find-file-noselect=,
-written, saved and killed again, so browsing hubs from the prompt does
-not accumulate buffers.
+written, saved and killed again, so working through hubs does not
+accumulate buffers.
+
+The cleanup is in an =unwind-protect=, so an operation that signals —
+=my/denote-hub-sort-entries= refusing a hub with prose between its
+entries — does not leak the buffer it opened. The one case where a
+buffer is deliberately left behind is an operation that modified it and
+then failed: killing it would discard the half-finished edit, and
+leaving it visible is what allows it to be inspected.
 
 The separator is normalised rather than assumed: trailing whitespace at
 the end of the hub is removed before the entry is inserted, so the

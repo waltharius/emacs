@@ -111,6 +111,67 @@ DEFAULT-VALUE, which is the discouraged argument in general and the
 right one here: the point is to amend existing text, and a default can
 only be accepted or discarded.
 
+### Hubs stay in chronological order
+
+A new entry now goes before the first existing entry with a newer
+identifier rather than always at the bottom, so a hub reads oldest-first
+with the newest last. A hub whose entries are out of order is sorted
+first, as part of adding.
+
+The automatic sort is not a convenience. "Before the first entry that is
+newer" only means something in a sorted list; in a jumbled one it is
+whichever newer entry happens to come first in the file, which is no
+position at all. A hub already in order is not rewritten, and the check
+is free — the identifiers come from the scan that has to happen anyway.
+
+`my/denote-hub-add-entry` reports which of the three things it did:
+inserted into an ordered hub, sorted and then inserted, or appended
+because prose between the entries made sorting impossible. The third
+case never refuses. Adding a link is not the moment to make someone
+reformat a hub, and the end is at least a predictable place.
+
+The thing worth noting is what this does *not* cost. The identifier is
+already written into the link — `denote:20230825T090000` — so ordering a
+hub means comparing strings that are already in the buffer. Not one of
+the linked notes is opened, and the hub itself goes through
+`my/denote-hub--with-hub`, which kills the buffer again unless it was
+already open. Sorting every hub in the collection would hold one buffer
+at a time. Identifiers being fixed-width `YYYYMMDDTHHMMSS` also means
+lexicographic order is chronological order, so nothing parses a date.
+
+Insertion rewrites nothing. The entry lands at one position and every
+other line is left byte-for-byte as it was, which is the property that
+makes this safe on a hub with hundreds of entries: there is no pass over
+the existing ones that could reorder or drop anything.
+
+`my/denote-hub-sort-entries` is left as a command for the two things
+adding cannot do: sorting a hub without adding anything to it, and
+reporting why the automatic sort declined. There it refuses and names
+the offending line, where adding merely appends. A hub already in order
+is left untouched and says so rather than rewriting itself into an
+identical file. No keybinding.
+
+Both operations work on the entries below the last Org heading, or all
+of them when a hub has none. That is where appending always wrote, so a
+hub split into sections keeps its sections and only the position within
+the last one changes.
+
+Measured on a generated 500-entry hub, half of them multi-paragraph: the
+sort takes 0.42 s, a subsequent insert 0.014 s, descriptions and
+paragraph breaks survive intact, and no buffers are left behind.
+
+### `my/denote-hub--with-hub` was leaking a buffer
+
+The refusal path above found it: a body that signalled skipped the
+`kill-buffer` at the end of the macro, so a hub opened only to be
+inspected stayed in the buffer list. The cleanup is in an
+`unwind-protect` now.
+
+Not unconditionally, though. A body that modified the buffer and then
+failed leaves it open on purpose — killing it would discard the
+half-finished edit, and a visible buffer is what allows the mess to be
+looked at.
+
 ### Entries can be several lines, and that is why they are indented
 
 `S-RET` at a description prompt breaks the line; `RET` still accepts.

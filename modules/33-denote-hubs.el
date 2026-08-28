@@ -7,8 +7,10 @@
 ;;
 ;;   - [[denote:20260828T101500][Title of the note]] — why it is here
 ;;
-;; One command, `my/denote-add-to-hub', appends the note in the current
+;; One command, `my/denote-add-to-hub', adds the note in the current
 ;; buffer to a hub of one's choosing, creating the hub first when asked.
+;; Entries are kept in identifier order, oldest first: a hub out of order
+;; is sorted on the way, before the new entry is placed.
 ;; Its prompt puts the hubs that already list the note at the top, with
 ;; the description they give it shown beside them, so choosing one of
 ;; those edits that description in place instead of adding the note a
@@ -329,18 +331,30 @@ those up is the author\'s business."
   "Run BODY in a buffer visiting FILE with point restored, then save it.
 
 A buffer already visiting FILE is reused and left open; a buffer opened
-here is killed again afterwards, so browsing hubs from a prompt does not
-accumulate buffers for hubs that were not being edited."
+here is killed again afterwards, so working through hubs does not
+accumulate buffers for hubs that were not being edited.
+
+The value of BODY is returned, which is how `my/denote-hub-add-entry\'
+reports what it had to do to the hub before inserting.
+
+The cleanup runs through `unwind-protect\', so a BODY that signals --
+`my/denote-hub-sort-entries\' refuses a hub with prose between its
+entries -- does not leak the buffer it opened.  The one case where the
+buffer is deliberately left behind is a BODY that modified it and then
+failed: killing it would discard the half-finished edit, and leaving it
+visible is what lets it be inspected."
   (declare (indent 1) (debug (form body)))
   `(let* ((my-hub--file ,file)
           (my-hub--existing (find-buffer-visiting my-hub--file))
           (my-hub--buffer (or my-hub--existing
                               (find-file-noselect my-hub--file))))
-     (with-current-buffer my-hub--buffer
-       (save-excursion ,@body)
-       (save-buffer))
-     (unless my-hub--existing
-       (kill-buffer my-hub--buffer))))
+     (unwind-protect
+         (with-current-buffer my-hub--buffer
+           (prog1 (save-excursion ,@body)
+             (save-buffer)))
+       (unless (or my-hub--existing
+                   (buffer-modified-p my-hub--buffer))
+         (kill-buffer my-hub--buffer)))))
 
 (defun my/denote-hub--append (file text)
   "Append TEXT at the end of FILE, one blank line below its content."
@@ -366,6 +380,193 @@ the hub or leave the tail of the old one behind."
           (delete-region (point) (my/denote-hub--entry-end))
           (insert entry))
       (user-error "Entry for %s is no longer in %s" identifier file))))
+
+;; ============================================================
+;; ENTRY ORDER
+;; ============================================================
+;; Entries are kept in identifier order, oldest at the top, so a hub
+;; reads as a chronology and a new entry lands where it belongs rather
+;; than always at the bottom.  Adding an entry sorts the hub first when
+;; it is not already sorted, since "before the first entry that is
+;; newer" only means anything in a sorted list; a hub already in order
+;; is left untouched.
+;;
+;; This costs no file access beyond the hub itself.  The identifier is
+;; already written into the link -- `denote:20230825T090000' -- so
+;; ordering the entries of a hub means comparing strings that are
+;; already in the buffer.  None of the linked notes is opened, and the
+;; hub is visited through `my/denote-hub--with-hub', which kills the
+;; buffer again unless it was already open.  Sorting every hub in the
+;; collection would still hold one buffer at a time.
+;;
+;; Identifiers are fixed-width YYYYMMDDTHHMMSS, so lexicographic order
+;; is chronological order and no date parsing is needed.
+;;
+;; SCOPE: the entries considered are those below the last Org heading,
+;; or all of them in a hub with no headings.  That is the same place
+;; appending has always written to, so a hub split into sections keeps
+;; its sections; only the position within the last one changes.
+
+(defun my/denote-hub--entry-identifier (entry)
+  "Return the Denote identifier that the first line of ENTRY links to.
+Nil when the line has no `denote:' link, which is how a hand-written
+list item that is not an entry gets left out of the ordering."
+  (when (and entry (string-match "denote:\\([^]:[]+\\)" entry))
+    (match-string 1 entry)))
+
+(defun my/denote-hub--section-start ()
+  "Return the position where the last section of the current hub begins.
+The line after the last Org heading, or `point-min' when there is none."
+  (save-excursion
+    (goto-char (point-max))
+    (if (re-search-backward "^\\*+ " nil t)
+        (line-beginning-position 2)
+      (point-min))))
+
+(defun my/denote-hub--entry-positions ()
+  "Return (IDENTIFIER BEG END) for each entry of the current hub's last section.
+In file order.  BEG is the start of the entry's first line, END the end
+of its last, as `my/denote-hub--entry-end' determines it."
+  (save-excursion
+    (goto-char (my/denote-hub--section-start))
+    (let ((result nil))
+      (while (re-search-forward "^- +\\[\\[denote:\\([^]:[]+\\)" nil t)
+        (let* ((identifier (match-string-no-properties 1))
+               (beg (line-beginning-position))
+               (end (progn (goto-char beg) (my/denote-hub--entry-end))))
+          (push (list identifier beg end) result)
+          (goto-char end)))
+      (nreverse result))))
+
+(defun my/denote-hub--sorted-p (entries)
+  "Return non-nil when ENTRIES are already in identifier order.
+Cheap: the identifiers were collected by the same scan that produced
+ENTRIES, so checking costs no reading and a hub already in order is
+never rewritten."
+  (let ((identifiers (mapcar #'car entries)))
+    (equal identifiers (sort (copy-sequence identifiers) #'string<))))
+
+(defun my/denote-hub--prose-between (entries)
+  "Return the line number of the first non-blank text between ENTRIES, or nil.
+
+Sorting rewrites the whole run of entries, so a paragraph written
+between two of them would be swept along and end up somewhere else.
+Nothing in the file says which entries it was commenting on, so the
+only honest answers are to leave the hub alone or to refuse -- which of
+the two is the caller's decision."
+  (let ((cursor (nth 1 (car entries)))
+        (found nil))
+    (dolist (entry entries found)
+      (unless found
+        (let ((gap (buffer-substring-no-properties cursor (nth 1 entry))))
+          (unless (string-match-p "\\`[ \t\n]*\\'" gap)
+            (setq found (line-number-at-pos cursor))))
+        (setq cursor (nth 2 entry))))))
+
+(defun my/denote-hub--sort-region (entries)
+  "Rewrite ENTRIES of the current buffer in identifier order, oldest first.
+Returns how many were rewritten.  The caller has already established
+that nothing but blank lines separates them."
+  (let* ((beg (nth 1 (car entries)))
+         (end (nth 2 (car (last entries))))
+         (texts (mapcar (lambda (entry)
+                          (cons (car entry)
+                                (buffer-substring-no-properties
+                                 (nth 1 entry) (nth 2 entry))))
+                        entries))
+         (sorted (sort (copy-sequence texts)
+                       (lambda (a b) (string< (car a) (car b))))))
+    (delete-region beg end)
+    (goto-char beg)
+    (insert (mapconcat #'cdr sorted "\n\n"))
+    (length entries)))
+
+(defun my/denote-hub-add-entry (file entry identifier)
+  "Insert ENTRY into FILE at the position IDENTIFIER belongs to.
+
+Puts the hub's existing entries in order first when they are not in it
+already, because inserting \"before the first entry that is newer\" only
+means anything in a sorted list: in a jumbled one it is whichever newer
+entry happens to come first in the file, which is no position at all.
+A hub already in order is not rewritten -- the check costs nothing,
+since the identifiers come from the scan that has to happen anyway.
+
+Returns what it had to do:
+
+  `inserted' -- the hub was in order, the entry went in place
+  `sorted'   -- the hub was out of order, was sorted, then the entry
+                went in place
+  `appended' -- the hub could not be sorted because prose sits between
+                its entries, so the entry went to the end
+
+The last case never refuses.  Adding a link is not the moment to make
+someone reformat a hub, and the end is at least a predictable place;
+`my/denote-hub-sort-entries' will name the offending line when asked."
+  (my/denote-hub--with-hub file
+    (let ((entries (my/denote-hub--entry-positions))
+          (status 'inserted))
+      (when (and (cdr entries) (not (my/denote-hub--sorted-p entries)))
+        (if (my/denote-hub--prose-between entries)
+            (setq status 'appended)
+          (my/denote-hub--sort-region entries)
+          ;; Positions are stale after the rewrite.
+          (setq entries (my/denote-hub--entry-positions))
+          (setq status 'sorted)))
+      (let ((successor (unless (eq status 'appended)
+                         (seq-find (lambda (e) (string< identifier (car e)))
+                                   entries))))
+        (if successor
+            (progn
+              (goto-char (nth 1 successor))
+              (insert entry "\n\n"))
+          (goto-char (point-max))
+          ;; Trailing whitespace is removed first so the separator is
+          ;; exactly one blank line, whatever the file happened to end
+          ;; with.
+          (skip-chars-backward " \t\n")
+          (delete-region (point) (point-max))
+          (insert "\n\n" entry "\n")))
+      status)))
+
+(defun my/denote-hub-sort-entries (&optional file)
+  "Put the entries of a hub in identifier order, oldest first.
+
+FILE defaults to the hub in the current buffer; called from anywhere
+else, it prompts for one.  Only the entries below the last Org heading
+are touched.
+
+Rarely needed: `my/denote-add-to-hub' does this by itself before
+inserting.  This command exists to sort a hub without adding anything to
+it, and to report the reason when the automatic sort declines -- prose
+between two entries, whose line number it names.  There it refuses,
+where adding a link merely appends."
+  (interactive)
+  (let ((file (or file
+                  (and (buffer-file-name)
+                       (my/denote-hub--hub-p (buffer-file-name))
+                       (buffer-file-name))
+                  (let ((candidates (mapcar (lambda (f)
+                                              (cons (my/denote-hub--title f) f))
+                                            (my/denote-hub-files))))
+                    (unless candidates (user-error "No hub notes found"))
+                    (cdr (assoc (completing-read "Sort HUB: " candidates nil t)
+                                candidates))))))
+    (my/denote-hub--with-hub file
+      (let ((entries (my/denote-hub--entry-positions)))
+        (cond
+         ((< (length entries) 2)
+          (message "Nothing to sort in %s" (my/denote-hub--title file)))
+         ((my/denote-hub--sorted-p entries)
+          (message "%s is already in order (%d entries)"
+                   (my/denote-hub--title file) (length entries)))
+         ((my/denote-hub--prose-between entries)
+          (user-error "Text between entries on line %d of %s; sort it by hand"
+                      (my/denote-hub--prose-between entries)
+                      (my/denote-hub--title file)))
+         (t
+          (message "Sorted %d entries in %s"
+                   (my/denote-hub--sort-region entries)
+                   (my/denote-hub--title file))))))))
 
 ;; ============================================================
 ;; THE HUB PROMPT
@@ -471,14 +672,18 @@ than recorded in the note, so there is nothing to keep in step and
 nothing that can go stale.
 
 Choosing a hub that does not list the note yet asks for a description
-and appends
+and inserts
 
   - [[denote:IDENTIFIER][TITLE]] — DESCRIPTION
 
-at the end of it.  IDENTIFIER and TITLE belong to the current note, and
-TITLE is its `#+title:' value verbatim: a note whose title already
-contains its signature contributes it, and no signature is added to a
-note that has none.
+among its entries, before the first one with a newer identifier, so the
+hub stays in chronological order with the newest at the bottom.  A hub
+whose entries are out of order is sorted first, so the position means
+something; a hub already in order is not rewritten.  IDENTIFIER and
+TITLE belong to the current note, and TITLE is its
+`#+title:' value verbatim: a note whose title already contains its
+signature contributes it, and no signature is added to a note that has
+none.
 
 The description may run to several lines: S-RET breaks the line at the
 prompt, RET accepts.  Continuation lines are indented on the way in and
@@ -535,8 +740,15 @@ entry goes one blank line under it."
                         identifier title
                         (my/denote-hub--read-description
                          "Entry description (S-RET for a new line): "))))
-            (my/denote-hub--append hub entry)
-            (message "Added to hub: %s" (my/denote-hub--title hub))))
+            (pcase (my/denote-hub-add-entry hub entry identifier)
+              ('sorted
+               (message "Added to hub: %s (its entries were out of order and have been sorted)"
+                        (my/denote-hub--title hub)))
+              ('appended
+               (message "Added at the end of %s: prose between its entries prevents sorting, see my/denote-hub-sort-entries"
+                        (my/denote-hub--title hub)))
+              (_
+               (message "Added to hub: %s" (my/denote-hub--title hub))))))
          ;; New hub.  Every prompt is answered before anything is
          ;; created, so C-g leaves no half-built note behind.
          (t
