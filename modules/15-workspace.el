@@ -5,24 +5,28 @@
 ;; Replaces dired-sidebar (which conflicted with transient menus).
 ;;
 ;; FEATURES:
-;;   1. Custom notes dashboard  - Full buffer with clickable titles,
-;;                                grouped by silo, recency, and tags.
-;;                                Opens in its own named tab on startup.
+;;   1. Custom notes dashboard  - Clickable titles grouped into sections,
+;;                                sections arranged into side-by-side
+;;                                columns, in its own named tab.
 ;;   2. Denote-explore          - Tag stats and network (on demand)
 ;;
-;; WHAT THIS MODULE NO LONGER DOES:
-;;   - Unblocking Hunspell after session restore.  That is 03-spelling.el,
-;;     which registers itself on `my/desktop-after-startup-hook'.
-;;   - Deciding when startup has finished.  That is 01-ui.el, which owns
-;;     the session and publishes the hook above.
-;;   - Placing the Denote backlinks buffer in a side window.  That is one
-;;     Denote variable and lives in 04-denote.el; it was never a panel
-;;     belonging to this dashboard.
+;; SECTIONS AND COLUMNS:
+;;   Sections are data: `my/dashboard-sections' maps a symbol to the
+;;   function that renders it, and `my/dashboard-columns' says which
+;;   sections go in which column.  Adding a section or moving one is an
+;;   edit to a list, not to the renderer.
+;;
+;;   Each column is a separate window in the dashboard tab, so the
+;;   columns scroll independently.  Two columns rather than three is a
+;;   width decision: a column narrower than about sixty characters
+;;   truncates ordinary note titles, and three columns on a 130-column
+;;   frame leave twenty-three characters for a title.
 ;;
 ;; SORTING STRATEGY:
 ;;   - Recently Modified section : by mtime (what you edited last)
-;;   - Journal section           : by creation date from identifier, last 10
+;;   - Journal section           : by creation date from identifier
 ;;   - PKS / Docu sections       : by mtime (what you edited last)
+;;   - Hub / Zettel sections     : by mtime (what you edited last)
 ;;   - Tag popup                 : by creation date from identifier, newest first
 ;;                                 Files without identifier (captures.org) sort last.
 ;;
@@ -31,7 +35,13 @@
 ;;   C-c w x  - Show tag statistics (also C-c n f t)
 ;;   C-c w r  - Jump to random note (also C-c n f r)
 ;;   g        - Refresh dashboard (inside dashboard buffer)
-;;   q        - Bury dashboard
+;;   q        - Close the columns and bury the dashboard
+;;
+;; RELATED MODULE:
+;;   33-denote-hubs.el owns what counts as a hub note.  The Hub section
+;;   calls `my/denote-hub-files' when that module is loaded and falls
+;;   back to its own file-name scan when it is not, so neither module
+;;   requires the other.
 ;;
 ;; HOW TO REVERT:
 ;;   Remove (load ... "15-workspace.el") from init.el.  Nothing else
@@ -161,36 +171,88 @@ TITLE falls back to the file base name, TAGS to nil, on any error."
        (sort dated (lambda (a b) (my/denote-identifier< b a)))
        undated))))
 
-(defun my/denote-recently-modified (days)
-  "Return .org files across all silos modified within DAYS, newest first.
+(defun my/denote--all-silo-files ()
+  "Return every .org file in the silos listed in `my-tasks-agenda-dirs'.
 
-Uses `my-tasks-agenda-dirs' from 00-core.el so that any new silo
-added there is automatically included here too.  Entries that are
-files rather than directories (e.g. captures.org) are skipped."
-  (let ((cutoff (time-subtract (current-time) (days-to-time days)))
-        (result '()))
-    (dolist (dir my-tasks-agenda-dirs)
+Uses that list from 00-core.el so a silo added there is picked up by
+every section built on this helper.  Entries of the list that are files
+rather than directories (captures.org) are skipped, which is what each
+collector here did separately before."
+  (let (result)
+    (dolist (dir my-tasks-agenda-dirs result)
       (when (file-directory-p dir)
-        (dolist (f (directory-files dir t "\.org$" t))
-          (when (time-less-p cutoff (nth 5 (file-attributes f)))
-            (push f result)))))
-    (sort result
-          (lambda (a b)
-            (time-less-p (nth 5 (file-attributes b))
-                         (nth 5 (file-attributes a)))))))
+        (setq result (nconc result (directory-files dir t "\\.org\\'" t)))))))
+
+(defun my/denote--sort-by-mtime (files)
+  "Return FILES sorted newest-modified first.
+FILES is copied first: `sort' is destructive and the caller's list may
+be one of the shared collectors' return values."
+  (sort (copy-sequence files)
+        (lambda (a b)
+          (time-less-p (nth 5 (file-attributes b))
+                       (nth 5 (file-attributes a))))))
+
+(defun my/denote-recently-modified (days)
+  "Return .org files across all silos modified within DAYS, newest first."
+  (let ((cutoff (time-subtract (current-time) (days-to-time days))))
+    (my/denote--sort-by-mtime
+     (seq-filter (lambda (f)
+                   (time-less-p cutoff (nth 5 (file-attributes f))))
+                 (my/denote--all-silo-files)))))
+
+;; ============================================================
+;; COLLECTORS: hub notes and Folgezettel notes
+;; ============================================================
+
+(defun my/denote--filename-keywords (file)
+  "Return the Denote keywords in FILE's name as a list of strings.
+Parsed from the `__keyword_keyword' component with a plain regexp, so
+the collectors below do not depend on which helper names a given Denote
+version exposes."
+  (let ((base (file-name-base file)))
+    (when (string-match "__\\(.*\\)\\'" base)
+      (split-string (match-string 1 base) "_" t))))
+
+(defun my/denote-hub-notes ()
+  "Return hub notes across every silo, newest-modified first.
+
+What counts as a hub is owned by 33-denote-hubs.el, so
+`my/denote-hub-files' is used when that module is loaded.  The fallback
+scans file names for the same keyword, which keeps this section working
+without it.  Resolution happens at call time, so the load order of the
+two modules does not matter."
+  (my/denote--sort-by-mtime
+   (if (fboundp 'my/denote-hub-files)
+       (my/denote-hub-files)
+     (let ((keyword (if (boundp 'my/denote-hub-keyword)
+                        my/denote-hub-keyword
+                      "hub")))
+       (seq-filter (lambda (f)
+                     (member keyword (my/denote--filename-keywords f)))
+                   (my/denote--all-silo-files))))))
+
+(defun my/denote-signature-notes ()
+  "Return notes carrying a Denote signature, newest-modified first.
+
+The filter is a regexp over file names, so only the notes that survive
+it are ever asked for their modification time -- which is what keeps
+this section cheap across a collection of several thousand files."
+  (my/denote--sort-by-mtime
+   (seq-filter #'my/denote-file-signature (my/denote--all-silo-files))))
+
 
 (defun my/denote-all-tags ()
   "Return alist of (tag . files) sorted by usage count descending.
 
-Uses `my-tasks-agenda-dirs' from 00-core.el so that any new silo
-added there is automatically picked up in the Tags section too.
-Entries that are files rather than directories are skipped."
+The one collector here that opens every file rather than reading names
+only, because a tag lives in the front matter.  It is what makes a
+dashboard refresh cost seconds on a large collection; the hub and
+signature sections added beside it are name-only scans and cost
+nothing by comparison."
   (let ((tag-map (make-hash-table :test 'equal)))
-    (dolist (dir my-tasks-agenda-dirs)
-      (when (file-directory-p dir)
-        (dolist (f (directory-files dir t "\.org$" t))
-          (dolist (tag (my/denote-file-tags f))
-            (puthash tag (cons f (gethash tag tag-map '())) tag-map)))))
+    (dolist (f (my/denote--all-silo-files))
+      (dolist (tag (my/denote-file-tags f))
+        (puthash tag (cons f (gethash tag tag-map '())) tag-map)))
     (let ((pairs '()))
       (maphash (lambda (tag files) (push (cons tag files) pairs)) tag-map)
       (sort pairs (lambda (a b) (> (length (cdr a)) (length (cdr b))))))))
@@ -243,6 +305,53 @@ the tags stay readable, they just stop lining up.")
 The Journal and Documentation sections are already labelled as such,
 so repeating the silo tag on every line of them is noise that only
 pushes the informative tags further right.")
+
+;; ============================================================
+;; SECTION SIZE LIMITS
+;; ============================================================
+
+(defgroup my/dashboard nil
+  "The Notes Dashboard: sections, limits and column layout."
+  :group 'convenience)
+
+(defcustom my/dashboard-recent-days 10
+  "Age in days of the oldest file the Recently Modified section shows."
+  :type 'integer
+  :group 'my/dashboard)
+
+(defcustom my/dashboard-recent-limit 20
+  "Maximum number of lines in the Recently Modified section, or nil for all.
+
+The section answers \"what have I been working on\", and modification
+time stops witnessing that after a bulk operation: rewriting front
+matter across the collection stamps every file with the same afternoon
+and buries the answer under thousands of lines.
+
+A cap is the honest fix rather than a workaround, because there is no
+cheap substitute for the signal.  The date of the last commit touching
+a file would be the real answer, but that is one git subprocess per
+file and this collection has thousands of them, on every refresh.  When
+the cap hides entries, the section says how many."
+  :type '(choice integer (const :tag "No limit" nil))
+  :group 'my/dashboard)
+
+(defcustom my/dashboard-journal-limit 10
+  "Maximum number of lines in the Journal section."
+  :type 'integer
+  :group 'my/dashboard)
+
+(defcustom my/dashboard-silo-limit 20
+  "Maximum number of lines in the PKS, Documentation, Hub and Zettel sections.
+One value for the four because they are the same kind of list -- the
+most recently touched notes of a set -- and four separate options would
+be four things to keep in step for no gain."
+  :type 'integer
+  :group 'my/dashboard)
+
+(defcustom my/dashboard-tag-limit 30
+  "Maximum number of tags listed in the Tags section."
+  :type 'integer
+  :group 'my/dashboard)
 
 (defun my/dashboard-insert-file-link (file &optional date-source)
   "Insert a clickable line for FILE: date, signature, title, tags.
@@ -344,60 +453,253 @@ without any manual setup."
     (display-buffer buf '(display-buffer-below-selected (window-height . 0.4)))))
 
 ;; ============================================================
+;; DASHBOARD: Sections
+;; ============================================================
+;; Each section is a function that inserts its own header and body into
+;; the current buffer.  They are registered as data in
+;; `my/dashboard-sections' and arranged by `my/dashboard-columns', so
+;; adding a section or moving one between columns is an edit to a list,
+;; not to the renderer.
+
+(defun my/dashboard--insert-capped (files limit &optional date-source)
+  "Insert clickable lines for the first LIMIT of FILES.
+LIMIT nil means all of them.  When entries are left out, a dimmed line
+says how many, because a list silently truncated to a round number is
+indistinguishable from a list that happens to be that long.
+DATE-SOURCE is passed through to `my/dashboard-insert-file-link'."
+  (let* ((total (length files))
+         (shown (if limit (seq-take files limit) files)))
+    (dolist (f shown)
+      (my/dashboard-insert-file-link f date-source))
+    (when (> total (length shown))
+      (insert (propertize (format "  ... and %d more\n"
+                                  (- total (length shown)))
+                          'face '(:foreground "#888888"))))))
+
+(defun my/dashboard--section-recent ()
+  "Insert the Recently Modified section."
+  (my/dashboard-insert-section-header
+   (format "Recently Modified  (last %d days)" my/dashboard-recent-days))
+  (let ((recent (my/denote-recently-modified my/dashboard-recent-days)))
+    (if recent
+        (my/dashboard--insert-capped recent my/dashboard-recent-limit)
+      (insert (format "  (no files modified in the last %d days)\n"
+                      my/dashboard-recent-days)))))
+
+(defun my/dashboard--section-journal ()
+  "Insert the Journal section, newest created first."
+  (my/dashboard-insert-section-header
+   (format "Journal  [%s]" (abbreviate-file-name my-notes-journal)))
+  (my/dashboard--insert-capped
+   (my/denote-org-files-in-by-id my-notes-journal)
+   my/dashboard-journal-limit 'id))
+
+(defun my/dashboard--section-pks ()
+  "Insert the PKS section, newest modified first."
+  (my/dashboard-insert-section-header
+   (format "PKS -- Personal Knowledge  [%s]" (abbreviate-file-name my-notes-pks)))
+  (my/dashboard--insert-capped
+   (my/denote-org-files-in my-notes-pks) my/dashboard-silo-limit))
+
+(defun my/dashboard--section-docu ()
+  "Insert the Documentation section, newest modified first."
+  (my/dashboard-insert-section-header
+   (format "Documentation  [%s]" (abbreviate-file-name my-notes-docu)))
+  (my/dashboard--insert-capped
+   (my/denote-org-files-in my-notes-docu) my/dashboard-silo-limit))
+
+(defun my/dashboard--section-hub ()
+  "Insert the Hub section: notes carrying the hub keyword, any silo."
+  (my/dashboard-insert-section-header "HUB  (notes tagged :hub:)")
+  (let ((hubs (my/denote-hub-notes)))
+    (if hubs
+        (my/dashboard--insert-capped hubs my/dashboard-silo-limit)
+      (insert "  (no hub notes yet)\n"))))
+
+(defun my/dashboard--section-zettel ()
+  "Insert the Zettelkasten section: notes carrying a Denote signature."
+  (my/dashboard-insert-section-header "Zettelkasten  (notes with a signature)")
+  (let ((zettel (my/denote-signature-notes)))
+    (if zettel
+        (my/dashboard--insert-capped zettel my/dashboard-silo-limit)
+      (insert "  (no notes with a signature yet)\n"))))
+
+(defun my/dashboard--section-tags ()
+  "Insert the Tags section: most used tags, clickable."
+  (my/dashboard-insert-section-header "Tags  (click to list notes)")
+  (dolist (pair (seq-take (my/denote-all-tags) my/dashboard-tag-limit))
+    (my/dashboard-insert-tag-line (car pair) (cdr pair))))
+
+(defvar my/dashboard-sections
+  '((recent  . my/dashboard--section-recent)
+    (journal . my/dashboard--section-journal)
+    (pks     . my/dashboard--section-pks)
+    (docu    . my/dashboard--section-docu)
+    (hub     . my/dashboard--section-hub)
+    (zettel  . my/dashboard--section-zettel)
+    (tags    . my/dashboard--section-tags))
+  "Alist of (SYMBOL . FUNCTION) for every available dashboard section.
+FUNCTION takes no arguments and inserts the whole section, header
+included, into the current buffer.  A symbol named in
+`my/dashboard-columns' but missing here renders as a visible complaint
+rather than an error, so a typo costs one line and not the dashboard.")
+
+(defcustom my/dashboard-columns
+  '((recent journal docu)
+    (pks hub zettel tags))
+  "Dashboard sections, grouped into side-by-side columns.
+
+One list per column, left to right; each holds symbols from
+`my/dashboard-sections'.  The columns are separate windows in the
+dashboard tab, so they scroll independently and an unbalanced split
+costs nothing but empty space.
+
+Two columns rather than three is a width decision, not a preference.
+The line format is two spaces, a ten-character date, a five-character
+signature field and the title, so a column narrower than about sixty
+characters truncates ordinary titles.  On a 130-column frame two
+columns leave roughly sixty-six characters each; three leave
+twenty-three, which is not enough for a title like \"Chrześcijaństwo -
+religia niewolników\".
+
+Tags are dropped from note lines whenever there is more than one
+column: they start at `my/dashboard-tag-column' and no split column is
+that wide.  They stay reachable through the Tags section.
+
+A single column, `((recent journal pks docu tags))', restores the
+pre-2026-08 layout including per-line tags."
+  :type '(repeat (repeat symbol))
+  :group 'my/dashboard)
+
+;; ============================================================
+;; DASHBOARD: Major mode
+;; ============================================================
+
+(defvar my/dashboard-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "g") #'my/open-notes-dashboard)
+    (define-key map (kbd "q") #'my/dashboard-quit)
+    map)
+  "Keymap for `my/dashboard-mode'.")
+
+(define-derived-mode my/dashboard-mode special-mode "Notes Dashboard"
+  "Major mode for the Notes Dashboard columns.
+
+Derived from `special-mode', which supplies the read-only buffer that
+was previously arranged by hand with `read-only-mode' and
+`local-set-key'.  One mode for every column is what keeps the two
+buffers behaving identically.
+
+Lines are truncated rather than wrapped: a title too long for a narrow
+column is cut at the window edge instead of folding onto a second line
+and breaking the alignment of everything below it.
+
+\\{my/dashboard-mode-map}"
+  (setq truncate-lines t))
+
+(defun my/dashboard-quit ()
+  "Leave the dashboard: one window again, dashboard buffer buried.
+`bury-buffer' on its own would dismiss only the column point happens to
+be in and leave the others on screen."
+  (interactive)
+  (delete-other-windows)
+  (bury-buffer))
+
+;; ============================================================
 ;; DASHBOARD: Main render function
 ;; ============================================================
 
-(defun my/render-notes-dashboard ()
-  "Render the notes dashboard into `my/dashboard-buffer-name'."
-  (let ((buf (get-buffer-create my/dashboard-buffer-name)))
+(defun my/dashboard--column-buffer-name (index)
+  "Return the buffer name of dashboard column INDEX, counting from 1.
+Column 1 keeps the historical `my/dashboard-buffer-name', so anything
+that refers to the dashboard by name still finds it."
+  (if (= index 1)
+      my/dashboard-buffer-name
+    (format "*Notes Dashboard %d*" index)))
+
+(defun my/dashboard--kill-stale-column-buffers (columns)
+  "Kill column buffers left over from a layout wider than COLUMNS.
+Narrowing `my/dashboard-columns' would otherwise leave the discarded
+columns in the buffer list, still showing whatever they last held."
+  (dolist (buf (buffer-list))
+    (let ((name (buffer-name buf)))
+      (when (and name
+                 (string-match "\\`\\*Notes Dashboard \\([0-9]+\\)\\*\\'" name)
+                 (> (string-to-number (match-string 1 name)) columns))
+        (kill-buffer buf)))))
+
+(defun my/dashboard--render-column (sections index total)
+  "Render SECTIONS into the buffer for column INDEX of TOTAL, and return it."
+  (let ((buf (get-buffer-create (my/dashboard--column-buffer-name index))))
     (with-current-buffer buf
-      (let ((inhibit-read-only t))
+      (let ((inhibit-read-only t)
+            ;; Per-line tags need `my/dashboard-tag-column' and no split
+            ;; column is that wide, so they are shown only when the
+            ;; dashboard is a single column.
+            (my/dashboard-show-tags (and my/dashboard-show-tags (= total 1))))
+        (my/dashboard-mode)
         (erase-buffer)
+        (when (= index 1)
+          (insert "\n")
+          (insert (propertize "  Notes Dashboard\n"
+                              'face '(:weight bold :height 1.3)))
+          (insert (propertize
+                   (format "  %s\n"
+                           (format-time-string "Refreshed: %Y-%m-%d %H:%M"))
+                   'face '(:foreground "#888888"))))
+        (dolist (section sections)
+          (let ((fn (alist-get section my/dashboard-sections)))
+            (if (functionp fn)
+                (funcall fn)
+              (my/dashboard-insert-section-header
+               (format "Unknown section: %s" section)))))
         (insert "\n")
-        (insert (propertize "  Notes Dashboard\n"
-                            'face '(:weight bold :height 1.3)))
-        (insert (propertize (format "  %s\n"
-                                   (format-time-string "Refreshed: %Y-%m-%d %H:%M"))
-                            'face '(:foreground "#888888")))
-        (my/dashboard-insert-section-header "Recently Modified  (last 10 days)")
-        (let ((recent (my/denote-recently-modified 10)))
-          (if recent
-              (dolist (f recent) (my/dashboard-insert-file-link f))
-            (insert "  (no files modified in the last 10 days)\n")))
-        (my/dashboard-insert-section-header
-         (format "Journal  [%s]" (abbreviate-file-name my-notes-journal)))
-        (dolist (f (seq-take (my/denote-org-files-in-by-id my-notes-journal) 10))
-          (my/dashboard-insert-file-link f 'id))
-        (my/dashboard-insert-section-header
-         (format "PKS -- Personal Knowledge  [%s]" (abbreviate-file-name my-notes-pks)))
-        (dolist (f (seq-take (my/denote-org-files-in my-notes-pks) 20))
-          (my/dashboard-insert-file-link f))
-        (my/dashboard-insert-section-header
-         (format "Documentation  [%s]" (abbreviate-file-name my-notes-docu)))
-        (dolist (f (seq-take (my/denote-org-files-in my-notes-docu) 20))
-          (my/dashboard-insert-file-link f))
-        (my/dashboard-insert-section-header "Tags  (click to list notes)")
-        (dolist (pair (seq-take (my/denote-all-tags) 30))
-          (my/dashboard-insert-tag-line (car pair) (cdr pair)))
-        (insert "\n")
-        (insert (propertize
-                 "  g = refresh  |  C-c d b = backlinks  |  C-c w r = random note  |  q = bury\n"
-                 'face '(:foreground "#888888")))
-        (read-only-mode 1)
-        (local-set-key (kbd "g") #'my/open-notes-dashboard)
-        (local-set-key (kbd "q") #'bury-buffer)
+        (when (= index total)
+          (insert (propertize
+                   "  g = refresh  |  q = close  |  C-c w r = random note\n"
+                   'face '(:foreground "#888888"))))
         (goto-char (point-min))))
     buf))
+
+(defun my/render-notes-dashboard ()
+  "Render every column of `my/dashboard-columns' and return their buffers.
+The buffers are returned left to right; arranging them into windows is
+`my/open-notes-dashboard''s job."
+  (let* ((columns (or my/dashboard-columns '((recent journal pks docu tags))))
+         (total (length columns))
+         (index 0))
+    (prog1 (mapcar (lambda (sections)
+                     (setq index (1+ index))
+                     (my/dashboard--render-column sections index total))
+                   columns)
+      (my/dashboard--kill-stale-column-buffers total))))
 
 ;; ============================================================
 ;; DASHBOARD: Open in named tab
 ;; ============================================================
 
 (defun my/open-notes-dashboard ()
-  "Open or refresh the Notes Dashboard in its own named tab."
+  "Open or refresh the Notes Dashboard in its own named tab.
+
+The tab is reset to a single window before the columns are split off,
+so the layout is the same whatever the tab held before -- the same
+reasoning as `my/dashboards--show-navigation' in 21-dashboards.el.
+Point ends up in the leftmost column."
   (interactive)
   (my/fixed-tab-goto my/dashboard-tab-name)
-  (switch-to-buffer (my/render-notes-dashboard)))
+  (let ((buffers (my/render-notes-dashboard)))
+    (switch-to-buffer (car buffers))
+    (delete-other-windows)
+    ;; Each split is taken from the window just created, so the columns
+    ;; end up in the order of `my/dashboard-columns' rather than
+    ;; reversed, which is what repeatedly splitting the first window
+    ;; would give.
+    (let ((window (selected-window)))
+      (dolist (buf (cdr buffers))
+        (setq window (split-window window nil 'right))
+        (set-window-buffer window buf)))
+    (balance-windows)
+    (car buffers)))
 
 ;; ============================================================
 ;; STARTUP: Open Dashboard once the session is ready

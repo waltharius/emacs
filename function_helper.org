@@ -364,17 +364,61 @@ Function: =denote-backlinks= (Denote package)
 :END:
 
 Opens the notes overview dashboard in its own tab-bar tab named
-"Dashboard", creating the tab if it does not exist. Sections: Recently
-Modified (last 10 days), Journal, PKS, Documentation, and a clickable
-Tags list.
+"Dashboard", creating the tab if it does not exist. Seven sections
+arranged into side-by-side columns; each column is a separate window,
+so they scroll independently.
+
+Default layout:
+
+| Column | Sections                              |
+|--------+---------------------------------------|
+| left   | Recently Modified, Journal, Documentation |
+| right  | PKS, HUB, Zettelkasten, Tags          |
+
+**** Sections are data
+
+=my/dashboard-sections= maps a symbol to the function that renders the
+section; =my/dashboard-columns= says which symbols go in which column.
+Rearranging the dashboard is an edit to a list of lists, not to the
+renderer:
+
+#+begin_src emacs-lisp
+;; back to the single wide column of the old layout, tags on lines
+(setq my/dashboard-columns '((recent journal pks docu tags)))
+#+end_src
+
+A symbol named in =my/dashboard-columns= but absent from
+=my/dashboard-sections= renders as a visible "Unknown section" header
+rather than signalling, so a typo costs one line and not the dashboard.
+Column buffers left over from a wider layout are killed on refresh.
+
+**** Why two columns and not three
+
+The line format is two spaces, a ten-character date, a five-character
+signature field and the title — nineteen characters before the title
+starts. On a ~130-column frame three columns leave about twenty-three
+characters for the title, which truncates ordinary entries like
+"Chrześcijaństwo - religia niewolników". Two leave about sixty-six,
+which is comfortable.
+
+Lines are truncated rather than wrapped (=truncate-lines= is set by
+=my/dashboard-mode=): a title too long for its column is cut at the
+window edge instead of folding onto a second line and breaking the
+alignment of everything below it. The full path is in the tooltip.
+
+Per-line tags are dropped whenever there is more than one column. They
+start at =my/dashboard-tag-column= (92) and no split column is that
+wide; they remain reachable through the Tags section. A one-column
+layout gets them back automatically.
 
 **** Line format
 
 : <date>  <signature>  <title>                    :tag:tag:
 
-- *Date* is modification time for Recently Modified, PKS and Docu; for
-  Journal and tag popups it is the creation date parsed from the
-  Denote identifier, since chronological order is what matters there.
+- *Date* is modification time for Recently Modified, PKS, Docu, HUB and
+  Zettelkasten; for Journal and tag popups it is the creation date
+  parsed from the Denote identifier, since chronological order is what
+  matters there.
 - *Signature* is the Folgezettel component of the file name (see
   [[#menu-zettelkasten][Zettelkasten]]), padded to
   =my/dashboard-signature-width= so that titles line up in sections
@@ -382,31 +426,88 @@ Tags list.
   leave it blank.
 - *Title* comes from =#+title:= in the front matter.
 - *Tags* come from =#+filetags:=, shown from column
-  =my/dashboard-tag-column= onwards.
+  =my/dashboard-tag-column= onwards, and only in a one-column layout.
 
 Date, signature and title form the clickable region; tags sit outside
 it so they can keep their own dimmed face rather than inheriting the
-button's.
+button's. Clicking opens the note in a new tab, unchanged by the column
+layout.
+
+**** The HUB and Zettelkasten sections
+
+*HUB* lists notes carrying the =hub= keyword in their file name, across
+every silo. What counts as a hub is owned by =33-denote-hubs.el= (see
+[[#fn-my-denote-add-to-hub][Add to HUB]]), so the section calls
+=my/denote-hub-files= when that module is loaded and falls back to its
+own file-name scan when it is not. Resolution happens at call time, so
+the load order of the two modules does not matter and neither requires
+the other.
+
+*Zettelkasten* lists notes carrying a Denote signature — the =...==SIG--=
+component — sorted by modification time. The filter is a regexp over
+file names, so only the notes that pass it are ever asked for their
+modification time, which is what keeps the section cheap across
+thousands of files.
+
+Both are name-only scans and cost nothing measurable. The section that
+does cost is *Tags*: a tag lives in the front matter, so
+=my/denote-all-tags= opens every file in the collection on every
+refresh. That is unchanged, and it is what a slow refresh is.
+
+**** Recently Modified is capped
+
+=my/dashboard-recent-limit= (20) bounds the section; when entries are
+hidden, a dimmed line says how many, so a truncated list is never
+mistaken for a short one.
+
+The cap is the fix rather than a workaround. Modification time stops
+witnessing "what have I been working on" after a bulk operation:
+rewriting front matter across the collection stamps every file with the
+same afternoon and buries the answer under thousands of lines. The date
+of the last commit touching a file would be the honest signal, but that
+is one =git= subprocess per file, on every refresh, across thousands of
+files. Set the variable to nil to remove the cap.
 
 **** Tuning
 
-| Variable                       | Default              | Effect                             |
-|--------------------------------+----------------------+------------------------------------|
-| =my/dashboard-signature-width= | 5                    | Width reserved for the signature   |
-| =my/dashboard-show-tags=       | =t=                  | Whether tags are shown at all      |
-| =my/dashboard-tag-column=      | 92                   | Column where the tag list starts   |
-| =my/dashboard-hidden-tags=     | =("journal" "docu")= | Tags suppressed as uninformative   |
+| Variable                       | Default              | Effect                                   |
+|--------------------------------+----------------------+------------------------------------------|
+| =my/dashboard-columns=         | two columns          | Which sections go in which column         |
+| =my/dashboard-recent-days=     | 10                   | Age of the oldest file in Recently Modified |
+| =my/dashboard-recent-limit=    | 20                   | Cap on Recently Modified (nil = no cap)  |
+| =my/dashboard-journal-limit=   | 10                   | Cap on the Journal section               |
+| =my/dashboard-silo-limit=      | 20                   | Cap on PKS, Docu, HUB and Zettelkasten   |
+| =my/dashboard-tag-limit=       | 30                   | Cap on the Tags section                  |
+| =my/dashboard-signature-width= | 5                    | Width reserved for the signature         |
+| =my/dashboard-show-tags=       | =t=                  | Tags on lines (one-column layouts only)  |
+| =my/dashboard-tag-column=      | 92                   | Column where the tag list starts         |
+| =my/dashboard-hidden-tags=     | =("journal" "docu")= | Tags suppressed as uninformative         |
+
+One =my/dashboard-silo-limit= covers four sections because they are the
+same kind of list — the most recently touched notes of a set — and four
+separate options would be four things to keep in step for no gain.
 
 =my/dashboard-hidden-tags= exists because the Journal and Documentation
 sections are already labelled: repeating =:journal:= on every line of
 the Journal section adds nothing and pushes the informative tags
 further right.
 
-=my/dashboard-tag-column= is a fixed column rather than a
-window-relative one because the buffer is rendered before it is
-displayed, so window width is not reliably known at render time. A
-title running past that column gets two spaces before its tags instead
-— the tags stay readable, they just stop lining up.
+**** Keys inside the dashboard
+
+=my/dashboard-mode= derives from =special-mode=, which supplies the
+read-only buffer that used to be arranged by hand with
+=read-only-mode= and =local-set-key=. One mode for every column is what
+keeps the columns behaving identically.
+
+| Key   | Effect                                          |
+|-------+-------------------------------------------------|
+| =g=   | Refresh: re-render every column, rebuild layout |
+| =q=   | Close the columns and bury the dashboard        |
+| =RET= | Open the note or tag on the current line        |
+
+=q= is =my/dashboard-quit=, not =bury-buffer=: burying alone would
+dismiss only the column point happens to be in and leave the others on
+screen.
 
 **** Performance note
 
@@ -417,8 +518,10 @@ which extracts both from a single 800-byte read. The two single-purpose
 helpers remain for callers that need only one of the values.
 
 Functions: =my/open-notes-dashboard=, =my/render-notes-dashboard=,
-=my/dashboard-insert-file-link=, =my/denote-file-metadata=,
-=my/denote-file-signature= | Module: =modules/15-workspace.el=
+=my/dashboard--render-column=, =my/dashboard-insert-file-link=,
+=my/denote-file-metadata=, =my/denote-file-signature=,
+=my/denote-hub-notes=, =my/denote-signature-notes= |
+Module: =modules/15-workspace.el=
 
 *** t — Tag stats
 :PROPERTIES:

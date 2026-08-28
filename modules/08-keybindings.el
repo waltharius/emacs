@@ -105,7 +105,7 @@
 ;; C-c w d = open notes dashboard
 ;; C-c w x = notes explore (tag stats)
 ;; C-c w r = random note
-;; Inside the *Notes Dashboard* buffer only: g = refresh, q = bury
+;; Inside the *Notes Dashboard* buffers only: g = refresh, q = close
 
 ;; ============================================================
 ;; TYPING ANALYTICS (already defined in 14-typing-analytics.el)
@@ -228,7 +228,7 @@ Workspace / Dashboards:
   C-c w d - Open notes dashboard
   C-c w x - Tag stats (notes explore)
   C-c w r - Random note
-  (inside *Notes Dashboard*: g = refresh, q = bury)
+  (inside *Notes Dashboard*: g = refresh, q = close)
 
 Typing Analytics:
   C-c a k - Command frequency stats (keyfreq)

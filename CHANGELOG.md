@@ -7,7 +7,7 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
-## Session 2026-08-28 — A day worth asking for, and hub notes
+## Session 2026-08-28 — A day worth asking for, hub notes, and a dashboard in columns
 
 ### The day-of-month dashboards were stuck on today
 
@@ -94,6 +94,87 @@ scaffolding files under `~/projects/`, not Denote notes, and the shared
 English word is the only thing the two have in common — the
 `my/denote--silo-files` collision earlier this year came from exactly
 this kind of near-miss.
+
+### The dashboard grew sections and lost a monolith
+
+`my/render-notes-dashboard` was one function that inserted five
+hard-coded sections with hard-coded limits into one buffer. Adding a
+section meant editing it; rearranging meant editing it; and the
+"Recently Modified" list had no cap at all.
+
+Sections are now data. `my/dashboard-sections` maps a symbol to the
+function that renders it, `my/dashboard-columns` says which symbols go
+in which column, and the renderer walks the second list looking things
+up in the first. A symbol with no entry renders as an "Unknown section"
+header instead of signalling, so a typo in a customised layout costs one
+line rather than the dashboard.
+
+Two new sections came out of that: HUB, listing notes with the `hub`
+keyword across every silo, and Zettelkasten, listing notes with a Denote
+signature. Both filter on file names, so neither opens a file. The
+section that does open files is Tags, which has to — a tag lives in the
+front matter — and it is what a slow refresh actually is. Worth knowing
+before blaming the new sections.
+
+The HUB section calls `my/denote-hub-files` from `33-denote-hubs.el`
+when that module is loaded and falls back to its own keyword scan when
+it is not. Resolution at call time means the load order does not matter
+and neither module requires the other, which is the same arrangement
+`05-notes.el` has with `27-denote-identifiers.el`.
+
+### Why the columns are two and not three
+
+Three was the request. The line format spends nineteen characters
+before the title starts — two spaces, a ten-character date, a
+five-character signature field — and a 130-column frame split three ways
+leaves twenty-three characters for a title. "Chrześcijaństwo - religia
+niewolników" does not survive that. Two columns leave about sixty-six,
+which is comfortable, and the third column's contents were merged into
+the second.
+
+Columns are separate windows rather than text columns inside one buffer.
+Text columns would need every line padded to a fixed width and would
+scroll as one; windows scroll independently and need no padding at all.
+It also disposes of a limitation documented in this file: the renderer
+no longer has to guess the width it will be displayed at, because lines
+are truncated at the window edge by `truncate-lines` instead of being
+aligned to a fixed column.
+
+Per-line tags are the casualty. They start at column 92 and no split
+column is that wide, so they are shown only when the layout has one
+column — which `(setq my/dashboard-columns '((recent journal pks docu
+tags)))` restores in full, including the tags.
+
+### The cap on Recently Modified
+
+After the front-matter rewrite across the collection, every file carried
+the same mtime and the section listed thousands of lines. The section
+asks "what have I been working on"; mtime stopped answering it.
+
+`my/dashboard-recent-limit` (20) bounds the list and a dimmed line
+reports how many entries were hidden, so a truncated list is never
+mistaken for a short one. The cap is the fix rather than a workaround,
+because the honest signal is not affordable: the date of the last commit
+touching a file would be right, and it is one `git` subprocess per file
+across thousands of files on every refresh.
+
+The other hard-coded numbers became named options at the same time —
+`my/dashboard-recent-days`, `my/dashboard-journal-limit`,
+`my/dashboard-silo-limit`, `my/dashboard-tag-limit`. One value covers
+PKS, Docu, HUB and Zettelkasten: they are the same kind of list, and
+four options would be four things to keep in step for no gain.
+
+### `my/dashboard-mode`
+
+The dashboard buffer used to be fundamental-mode with `read-only-mode`
+and two `local-set-key` calls. With more than one buffer that stops
+being an arrangement and becomes a thing to repeat, so it is a mode
+derived from `special-mode` now. `q` became `my/dashboard-quit`, because
+`bury-buffer` dismisses only the column point happens to be in and
+leaves the others on screen.
+
+`08-keybindings.el` had two comments describing `q` as "bury". Both now
+say "close".
 
 ---
 
