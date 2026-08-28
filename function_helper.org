@@ -1064,14 +1064,73 @@ A hub is an ordinary Denote note carrying the =hub= keyword in the
 
 : - [[denote:20260202T110000][1a2 Zwykła notatka]] — why it belongs here
 
-Three prompts in the ordinary case: which hub, then a one-line
-description for the entry. Choosing =[Nowy HUB]= — always the last
-candidate — asks instead for the new hub's title, a one-line
-description of the hub itself, and then the entry description; the
-description becomes the first line of the new note's body and the entry
-goes one blank line below it.
+The prompt lists every hub, with the ones that already link to this
+note *at the top* and the description they currently give it shown
+beside them:
+
+: HUB A (20260101T100000)    already listed: bo pasuje do tematu
+: HUB B (20260101T110000)    already listed
+: HUB C (20260101T120000)
+: [Nowy HUB]
+
+So the answer to "is this note already filed somewhere, and under what
+note to self" arrives before the decision rather than after it.
+
+Three outcomes:
+
+- *A hub that does not list the note yet* — one prompt for the
+  description, and the entry is appended at the end of the hub.
+- *A hub that already lists it* — the same prompt, pre-filled with the
+  existing description, and the line is rewritten where it stands. This
+  is why the command cannot produce a duplicate entry: adding a note
+  twice is not one of the outcomes. A hub that already contains a
+  duplicate (from before this behaviour existed) is refused with a
+  count, rather than having one of the two lines picked arbitrarily.
+- *=[Nowy HUB]=* — always the last candidate. Asks for the new hub's
+  title, a one-line description of the hub itself, and then the entry
+  description; the hub description becomes the first line of the new
+  note's body and the entry goes one blank line below it.
 
 Function: =my/denote-add-to-hub= | Module: =modules/33-denote-hubs.el=
+
+**** M-x my/denote-hub-list-for-note
+:PROPERTIES:
+:CUSTOM_ID: fn-my-denote-hub-list-for-note
+:END:
+
+Reports in the echo area which hubs list the current note and with what
+description, one line each. The same information the prompt above shows
+beside its candidates; this command exists for asking the question on
+its own, without intending to add anything. No keybinding.
+
+**** Membership is derived, not stored
+
+A note is in a hub because the hub links to it. That link is the only
+record, and there is deliberately no =#+hubs:= field in the note.
+
+A field would be a second copy of one fact, and the two would drift the
+first time a line was deleted from a hub by hand — the note would go on
+claiming membership that no longer exists. It is the same reason Denote
+itself stores no backlinks in front matter and greps for them instead,
+and the same reason the =hub= keyword lives in the file name: one
+mechanism, nothing to keep in step.
+
+The cost is that the question has to be answered by reading, and
+=my/denote-hub-membership= pays it by reading only the hub notes — tens
+of files, not the collection. =denote-get-backlinks= would answer the
+membership question too, but it greps the whole notes tree and returns
+only the file name, and the description lives in the line.
+
+A live buffer visiting a hub wins over the copy on disk, so a hub being
+edited reports what it currently says rather than what was last saved.
+
+**** Parsing an existing entry
+
+The description is taken as everything after the closing brackets of
+the link, with a leading dash or em dash removed. Deliberately liberal:
+what is in the file is whatever was written there, possibly edited by
+hand since, and an entry that does not match the exact output format is
+still worth reading rather than reporting as absent.
 
 **** What the link description is
 
@@ -1094,6 +1153,15 @@ every invocation.
 Because the keyword lives in the file name, =denote-rename-file= is
 what promotes an existing note to a hub or demotes it back, and no
 separate bookkeeping exists to fall out of step.
+
+**** How the prompt is ordered and annotated
+
+Two pieces of completion metadata. =identity= as the
+=display-sort-function= keeps the order the command builds — already
+listed first, then the rest, then =[Nowy HUB]= — which the completion
+frontend would otherwise re-sort alphabetically. The
+=annotation-function= reads a hash of candidate to text and returns nil
+for the candidates that have none, so unlisted hubs stay unadorned.
 
 **** Buffer handling
 

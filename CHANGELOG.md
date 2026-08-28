@@ -76,11 +76,48 @@ somewhere alphabetical — creates the hub in `my/denote-hub-directory`
 before `denote` is called, so `C-g` partway through leaves no half-built
 note on disk.
 
+The prompt also answers "is this note already filed somewhere, and under
+what note to self". Hubs that already link to the note sort to the top
+and carry an annotation with the description they currently give it,
+read from the hub's own entry line. That is one hash for the sort order
+and one for the annotations, both fed to `completing-read` through
+completion metadata.
+
+Membership is derived, not stored. A `#+hubs:` field in the note was
+considered and rejected: it is a second copy of one fact, and deleting a
+line from a hub by hand would leave the note claiming a membership that
+no longer exists. Denote makes the same call about backlinks, which are
+grepped rather than recorded. The cost is a read, and
+`my/denote-hub-membership` pays it by reading only the hub notes — tens
+of files, not the collection. `denote-get-backlinks` would answer the
+question too, but it greps the whole tree and returns only file names,
+and the description lives in the line.
+
+Choosing a hub that already lists the note now re-asks for the
+description with the current one filled in and rewrites that line in
+place, rather than appending a second entry. Duplicates therefore stop
+being possible to create; a hub that already contains one is refused
+with a count rather than having one of its two lines picked
+arbitrarily. `read-string` is given an INITIAL-INPUT rather than a
+DEFAULT-VALUE, which is the discouraged argument in general and the
+right one here: the point is to amend existing text, and a default can
+only be accepted or discarded.
+
+The entry parser is liberal — everything after the link's closing
+brackets, minus a leading dash of any kind. What is in the file is
+whatever was written there, possibly edited by hand since, and an entry
+that does not match the exact output format is still worth reading
+rather than reporting as absent.
+
+`my/denote-hub-list-for-note` answers the same question on its own, for
+when nothing is being added. No keybinding; it is an `M-x` command.
+
 A hub already open in a buffer is written to there and left open; one
-that was not open is visited, written, saved and killed. Trailing
-whitespace is stripped before the entry is inserted rather than assumed
-absent, so the separator is exactly one blank line regardless of how the
-file ended.
+that was not open is visited, written, saved and killed. That dance is
+`my/denote-hub--with-hub` now rather than being written out twice, since
+appending and rewriting in place both need it. Trailing whitespace is
+stripped before an entry is appended rather than assumed absent, so the
+separator is exactly one blank line regardless of how the file ended.
 
 The menu entry anchors on `L`, which `12-transient.el` defines itself.
 Anchoring on a key contributed by another optional module is what cost
