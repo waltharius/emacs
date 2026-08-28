@@ -124,11 +124,32 @@ disk, so an unsaved title change is picked up."
 ;; than the whole collection, which is what makes it affordable on
 ;; every invocation of `my/denote-add-to-hub'.  `denote-get-backlinks'
 ;; would also answer it, but it greps the entire notes tree and returns
-;; only the file, not the line -- and the line is where the description
-;; lives.
+;; only the file, not the entry -- and the entry is where the
+;; description lives.
+;;
+;; AN ENTRY IS ONE ORG LIST ITEM, possibly several lines long:
+;;
+;;   - [[denote:20230825T...][2023-08-25 Journal]] — first paragraph
+;;     of the description, wrapped by hand
+;;
+;;     second paragraph
+;;
+;; Continuation lines are indented by `my/denote-hub-entry-indent'.
+;; That is not cosmetic.  Org ends a list item at the first non-blank
+;; line in column zero, so an unindented continuation line after a blank
+;; line is a separate paragraph that merely looks attached -- it would
+;; export outside the list, and this code would have no way of telling
+;; where one entry stops and the next author's prose begins.  Indented,
+;; the extent of an entry is unambiguous and editing one in place is
+;; safe.
 
 (defconst my/denote-hub-entry-separator " — "
   "String written between a hub entry's link and its description.")
+
+(defconst my/denote-hub-entry-indent "  "
+  "Indentation of the continuation lines of a multi-line hub entry.
+Two spaces, so that the text lines up under the first line's text
+rather than under its bullet.")
 
 (defun my/denote-hub--file-contents (file)
   "Insert the contents of FILE into the current buffer.
@@ -138,38 +159,90 @@ edited reports what it currently says rather than what was last saved."
       (insert-buffer-substring buffer)
     (insert-file-contents file)))
 
-(defun my/denote-hub--entry-description (line)
-  "Return the description part of hub entry LINE, or nil when it has none.
+(defun my/denote-hub--blank-line-p ()
+  "Return non-nil when the current line holds nothing but whitespace."
+  (looking-at-p "[ \t]*$"))
+
+(defun my/denote-hub--entry-end ()
+  "Return the end position of the hub entry whose first line holds point.
+
+The entry runs to the last indented line that still belongs to it.  It
+stops at the first non-blank line in column zero -- the next entry, a
+heading, or ordinary prose -- and at a second consecutive blank line,
+which is where Org ends a plain list regardless of indentation.
+Trailing blank lines are left out, so replacing an entry does not eat
+the space below it."
+  (save-excursion
+    (beginning-of-line)
+    (let ((end (line-end-position))
+          (blanks 0))
+      (forward-line 1)
+      (catch 'done
+        (while (not (eobp))
+          (cond
+           ((my/denote-hub--blank-line-p)
+            (setq blanks (1+ blanks))
+            (when (> blanks 1) (throw 'done nil)))
+           ((looking-at-p "[ \t]")
+            (setq blanks 0)
+            (setq end (line-end-position)))
+           (t (throw 'done nil)))
+          (forward-line 1)))
+      end)))
+
+(defun my/denote-hub--entry-description (entry)
+  "Return the description part of hub ENTRY text, or nil when it has none.
+
+ENTRY may span several lines; the indentation added when it was written
+is removed again, so what comes back is what was typed at the prompt.
 
 Liberal on purpose.  What is in the file is whatever was written there,
 possibly edited by hand since: everything after the closing brackets of
-the link counts as the description, with a leading dash or em dash
+the link counts as the description, with a leading dash of any kind
 removed."
-  (when (and line (string-match "\\]\\][ \t]*\\(.*\\)\\'" line))
-    (let ((rest (string-trim
-                 (replace-regexp-in-string
-                  "\\`[-–—][ \t]*" "" (string-trim (match-string 1 line))))))
-      (unless (string-empty-p rest) rest))))
+  (when entry
+    (let* ((lines (split-string entry "\n"))
+           (first (car lines))
+           (head (when (string-match "\\]\\][ \t]*\\(.*\\)\\'" first)
+                   (string-trim
+                    (replace-regexp-in-string
+                     "\\`[-–—][ \t]*" "" (string-trim (match-string 1 first))))))
+           (rest (mapcar (lambda (line)
+                           (replace-regexp-in-string "\\`[ \t]\\{1,2\\}" "" line))
+                         (cdr lines)))
+           (text (string-trim-right (string-join (cons (or head "") rest) "\n"))))
+      (unless (string-empty-p (string-trim text)) text))))
+
+(defun my/denote-hub--first-line (text)
+  "Return the first line of TEXT, marked with an ellipsis when more follows.
+Used where a description has to fit on one line: a completion annotation
+or an echo-area report."
+  (when text
+    (let ((lines (split-string text "\n" t "[ \t]*")))
+      (if (cdr lines)
+          (concat (car lines) " …")
+        (car lines)))))
 
 (defun my/denote-hub--entries (hub identifier)
-  "Return the lines of HUB that link to IDENTIFIER, in file order.
-More than one line means the note was added to that hub twice."
+  "Return the full text of every entry in HUB linking to IDENTIFIER.
+More than one means the note was added to that hub twice."
   (let ((needle (concat "denote:" identifier))
-        (lines nil))
+        (entries nil))
     (with-temp-buffer
       (my/denote-hub--file-contents hub)
       (goto-char (point-min))
       (while (search-forward needle nil t)
-        (push (buffer-substring-no-properties
-               (line-beginning-position) (line-end-position))
-              lines)
-        ;; Move past this line so a second link on it does not report
-        ;; the same entry twice.
-        (forward-line 1)))
-    (nreverse lines)))
+        (beginning-of-line)
+        (let ((end (my/denote-hub--entry-end)))
+          (push (buffer-substring-no-properties (point) end) entries)
+          ;; Continue past the whole entry, so a second link inside it
+          ;; does not report it twice.
+          (goto-char end)
+          (forward-line 1))))
+    (nreverse entries)))
 
 (defun my/denote-hub-membership (&optional file)
-  "Return an alist of (HUB-FILE . ENTRY-LINES) for hubs that list FILE.
+  "Return an alist of (HUB-FILE . ENTRIES) for hubs that list FILE.
 FILE defaults to the file of the current buffer.  Hubs that do not
 mention it are absent from the result, so a nil return means the note
 belongs to no hub."
@@ -179,11 +252,14 @@ belongs to no hub."
                          (user-error "Not a Denote note (no identifier in the file name)")))
          (result nil))
     (dolist (hub (my/denote-hub-files) (nreverse result))
-      (when-let* ((lines (my/denote-hub--entries hub identifier)))
-        (push (cons hub lines) result)))))
+      (when-let* ((entries (my/denote-hub--entries hub identifier)))
+        (push (cons hub entries) result)))))
 
 (defun my/denote-hub-list-for-note ()
   "Report in the echo area which hubs list the current note, and how.
+
+Only the first line of each description is shown, since a multi-line one
+would push the rest out of the echo area.
 
 The same information appears beside the candidates of
 `my/denote-add-to-hub'; this command exists for the times when the
@@ -195,7 +271,8 @@ question is asked on its own, without intending to add anything."
                 (lambda (cell)
                   (format "%s: %s"
                           (my/denote-hub--title (car cell))
-                          (or (my/denote-hub--entry-description (cadr cell))
+                          (or (my/denote-hub--first-line
+                               (my/denote-hub--entry-description (cadr cell)))
                               "(no description)")))
                 membership "\n"))
     (message "This note is not listed in any hub")))
@@ -204,14 +281,49 @@ question is asked on its own, without intending to add anything."
 ;; WRITING INTO A HUB
 ;; ============================================================
 
+(defun my/denote-hub--indent-continuation (description)
+  "Return DESCRIPTION with every line after the first indented.
+Blank lines are left genuinely blank rather than filled with the
+indentation, which is what Org wants inside a list item and what keeps
+the file free of trailing whitespace."
+  (let ((lines (split-string description "\n")))
+    (concat
+     (car lines)
+     (mapconcat (lambda (line)
+                  (concat "\n"
+                          (if (string-empty-p (string-trim line))
+                              ""
+                            (concat my/denote-hub-entry-indent line))))
+                (cdr lines) ""))))
+
 (defun my/denote-hub--entry (identifier title description)
   "Return the hub list item linking to IDENTIFIER and shown as TITLE.
-DESCRIPTION follows an em dash.  Assumption: an empty description
-produces the link alone rather than a trailing dash."
-  (if (string-empty-p description)
-      (format "- [[denote:%s][%s]]" identifier title)
-    (format "- [[denote:%s][%s]]%s%s"
-            identifier title my/denote-hub-entry-separator description)))
+
+DESCRIPTION follows an em dash and may span several lines; its
+continuation lines are indented so the whole thing stays one Org list
+item.  Assumption: an empty description produces the link alone rather
+than a trailing dash.
+
+The description is inserted as typed.  Emphasis is the author\'s
+business here, unlike a hub\'s own description -- see
+`my/denote-hub--bold'."
+  (let ((description (string-trim-right description)))
+    (if (string-empty-p (string-trim description))
+        (format "- [[denote:%s][%s]]" identifier title)
+      (format "- [[denote:%s][%s]]%s%s"
+              identifier title my/denote-hub-entry-separator
+              (my/denote-hub--indent-continuation description)))))
+
+(defun my/denote-hub--bold (text)
+  "Return TEXT wrapped in Org emphasis markers, or TEXT if it already is.
+Applied to a hub\'s own description, which is a heading for everything
+below it and reads as one.  Entry descriptions are left alone: marking
+those up is the author\'s business."
+  (let ((text (string-trim text)))
+    (cond
+     ((string-empty-p text) text)
+     ((and (string-prefix-p "*" text) (string-suffix-p "*" text)) text)
+     (t (format "*%s*" text)))))
 
 (defmacro my/denote-hub--with-hub (file &rest body)
   "Run BODY in a buffer visiting FILE with point restored, then save it.
@@ -241,14 +353,17 @@ accumulate buffers for hubs that were not being edited."
     (insert "\n\n" text "\n")))
 
 (defun my/denote-hub--replace-entry (file identifier entry)
-  "Replace the line of FILE linking to IDENTIFIER with ENTRY.
-The line is rewritten where it stands, so an entry keeps its position in
-the hub when its description is edited."
+  "Replace the entry of FILE linking to IDENTIFIER with ENTRY.
+
+The whole entry goes, continuation lines included, and ENTRY is written
+where it stood, so editing a description does not move the entry down
+the hub or leave the tail of the old one behind."
   (my/denote-hub--with-hub file
     (goto-char (point-min))
     (if (search-forward (concat "denote:" identifier) nil t)
         (progn
-          (delete-region (line-beginning-position) (line-end-position))
+          (beginning-of-line)
+          (delete-region (point) (my/denote-hub--entry-end))
           (insert entry))
       (user-error "Entry for %s is no longer in %s" identifier file))))
 
@@ -256,12 +371,38 @@ the hub when its description is edited."
 ;; THE HUB PROMPT
 ;; ============================================================
 
-(defun my/denote-hub--annotation (lines)
+(defvar my/denote-hub-description-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map minibuffer-local-map)
+    (define-key map (kbd "S-<return>") #'my/denote-hub-minibuffer-newline)
+    (define-key map (kbd "M-<return>") #'my/denote-hub-minibuffer-newline)
+    map)
+  "Keymap for the description prompts of `my/denote-add-to-hub'.
+Like `minibuffer-local-map' but with a way to break the line, since RET
+has to keep meaning \"done\".  `C-q C-j' does the same thing with no
+binding at all and works on a terminal, where S-RET and RET arrive as
+the same key.")
+
+(defun my/denote-hub-minibuffer-newline ()
+  "Insert a newline in the minibuffer instead of accepting the input."
+  (interactive)
+  (insert "\n"))
+
+(defun my/denote-hub--read-description (prompt &optional initial)
+  "Read a possibly multi-line description with PROMPT and INITIAL contents.
+S-RET breaks the line, RET accepts.  Trailing whitespace is dropped, so
+a stray line break at the end does not become part of the entry."
+  (string-trim-right
+   (read-from-minibuffer prompt initial my/denote-hub-description-map)))
+
+(defun my/denote-hub--annotation (entries)
   "Return the text shown beside a hub that already lists the note.
-LINES are its entry lines there, so the description in the first one is
-what the annotation reports."
-  (let ((description (my/denote-hub--entry-description (car lines)))
-        (count (length lines)))
+ENTRIES are its entry texts there, so the first line of the first
+description is what the annotation reports -- an annotation has one line
+to work with."
+  (let ((description (my/denote-hub--first-line
+                      (my/denote-hub--entry-description (car entries))))
+        (count (length entries)))
     (propertize
      (concat "  already listed"
              (when description (concat ": " description))
@@ -272,9 +413,9 @@ what the annotation reports."
   "Return a completion table over CANDIDATES with ANNOTATIONS beside them.
 
 Two pieces of metadata do the work.  `identity' as the sort function
-keeps the given order, which is what puts the hubs already listing the
-note at the top and `my/denote-hub-new-label' at the bottom; without it
-the completion frontend files them alphabetically.  The annotation
+keeps the given order, which is what puts `my/denote-hub-new-label'
+first and the hubs already listing the note next; without it the
+completion frontend files them alphabetically.  The annotation
 function reads ANNOTATIONS, a hash of candidate to text, and returns nil
 for candidates that have none."
   (lambda (string predicate action)
@@ -289,10 +430,16 @@ for candidates that have none."
 (defun my/denote-hub--prompt-data (membership)
   "Return (CANDIDATES FILES ANNOTATIONS) for the hub prompt.
 
-CANDIDATES are labels in display order: hubs that already list the note
-first, then the rest, then `my/denote-hub-new-label'.  FILES maps a
-label to its hub file, ANNOTATIONS maps a label to the text shown beside
-it.  MEMBERSHIP is the return value of `my/denote-hub-membership'."
+CANDIDATES are labels in display order: `my/denote-hub-new-label'
+first, then the hubs that already list the note, then the rest.  FILES
+maps a label to its hub file, ANNOTATIONS maps a label to the text shown
+beside it.  MEMBERSHIP is the return value of
+`my/denote-hub-membership'.
+
+Creating a hub comes first because the list only grows, and scrolling
+past a hundred hubs to reach it would be the one operation that gets
+harder the longer the system is used.  It is also the only candidate
+starting with a bracket, so typing `[' selects it."
   (let* ((hubs (my/denote-hub-files))
          (listed (seq-filter (lambda (f) (assoc f membership)) hubs))
          (rest (seq-remove (lambda (f) (assoc f membership)) hubs))
@@ -307,7 +454,7 @@ it.  MEMBERSHIP is the return value of `my/denote-hub-membership'."
         (puthash label file files)
         (when-let* ((entry (assoc file membership)))
           (puthash label (my/denote-hub--annotation (cdr entry)) annotations))))
-    (list (nreverse (cons my/denote-hub-new-label labels))
+    (list (cons my/denote-hub-new-label (nreverse labels))
           files annotations)))
 
 ;; ============================================================
@@ -317,13 +464,14 @@ it.  MEMBERSHIP is the return value of `my/denote-hub-membership'."
 (defun my/denote-add-to-hub ()
   "Add a link to the current note to a hub note, or edit an existing one.
 
-The prompt lists every hub, with the ones that already link to this note
-at the top and their current description shown beside them.  Membership
-is read from the hubs themselves rather than recorded in the note, so
-there is nothing to keep in step and nothing that can go stale.
+The prompt offers `my/denote-hub-new-label' first, then the hubs that
+already link to this note, with their current description shown beside
+them, then the rest.  Membership is read from the hubs themselves rather
+than recorded in the note, so there is nothing to keep in step and
+nothing that can go stale.
 
-Choosing a hub that does not list the note yet asks for a one-line
-description and appends
+Choosing a hub that does not list the note yet asks for a description
+and appends
 
   - [[denote:IDENTIFIER][TITLE]] — DESCRIPTION
 
@@ -332,15 +480,22 @@ TITLE is its `#+title:' value verbatim: a note whose title already
 contains its signature contributes it, and no signature is added to a
 note that has none.
 
+The description may run to several lines: S-RET breaks the line at the
+prompt, RET accepts.  Continuation lines are indented on the way in and
+de-indented on the way out, so the entry stays one Org list item and the
+prompt still shows what was typed.  The text is inserted as written --
+marking it up is the author's business.
+
 Choosing a hub that already lists the note re-asks for the description
-with the current one filled in, and rewrites that line where it stands.
+with the current one filled in, and rewrites the entry where it stands.
 This is how a duplicate entry is avoided: adding a note twice is not
 something the command can do.
 
 Choosing `my/denote-hub-new-label' creates a note in
 `my/denote-hub-directory' with the hub keyword and the title given at
 the prompt.  Its own one-line description becomes the first line of the
-body, and the link entry goes one blank line below it."
+body, in bold, since it is a heading for everything below it; the link
+entry goes one blank line under it."
   (interactive)
   (let ((file (buffer-file-name)))
     (unless file
@@ -364,11 +519,11 @@ body, and the link entry goes one blank line below it."
           (when (cdr entries)
             (user-error "%s lists this note %d times; fix it by hand first"
                         (my/denote-hub--title hub) (length entries)))
-          ;; INITIAL-INPUT rather than DEFAULT-VALUE: the point of this
-          ;; prompt is to edit the existing text, and a default can only
-          ;; be accepted or discarded, not amended.
-          (let ((description (read-string
-                              "Entry description: "
+          ;; INITIAL-CONTENTS rather than a default value: the point of
+          ;; this prompt is to amend existing text, and a default can
+          ;; only be accepted or discarded.
+          (let ((description (my/denote-hub--read-description
+                              "Entry description (S-RET for a new line): "
                               (or (my/denote-hub--entry-description (car entries))
                                   ""))))
             (my/denote-hub--replace-entry
@@ -377,7 +532,9 @@ body, and the link entry goes one blank line below it."
          ;; An existing hub that does not list the note yet.
          (hub
           (let ((entry (my/denote-hub--entry
-                        identifier title (read-string "Entry description: "))))
+                        identifier title
+                        (my/denote-hub--read-description
+                         "Entry description (S-RET for a new line): "))))
             (my/denote-hub--append hub entry)
             (message "Added to hub: %s" (my/denote-hub--title hub))))
          ;; New hub.  Every prompt is answered before anything is
@@ -386,9 +543,15 @@ body, and the link entry goes one blank line below it."
           (let ((hub-title (string-trim (read-string "New HUB title: "))))
             (when (string-empty-p hub-title)
               (user-error "A hub needs a title"))
-            (let* ((hub-description (read-string "HUB description: "))
+            ;; The hub's own description stays a single line on purpose:
+            ;; it is wrapped in Org emphasis markers, which do not carry
+            ;; across a blank line.
+            (let* ((hub-description (my/denote-hub--bold
+                                     (read-string "HUB description: ")))
                    (entry (my/denote-hub--entry
-                           identifier title (read-string "Entry description: ")))
+                           identifier title
+                           (my/denote-hub--read-description
+                            "Entry description (S-RET for a new line): ")))
                    ;; `denote' returns the path of the note it created
                    ;; and visits it.  Assumption: the new hub is left
                    ;; open, which is Denote's own behaviour and the
@@ -396,7 +559,9 @@ body, and the link entry goes one blank line below it."
                    (new-hub (let ((denote-directory my/denote-hub-directory))
                               (denote hub-title (list my/denote-hub-keyword)))))
               (my/denote-hub--append
-               new-hub (concat hub-description "\n\n" entry))
+               new-hub (if (string-empty-p hub-description)
+                           entry
+                         (concat hub-description "\n\n" entry)))
               (message "Created hub: %s" hub-title)))))))))
 
 ;; ============================================================

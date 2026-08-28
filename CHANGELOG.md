@@ -69,12 +69,20 @@ composes signature and title itself, which would print the signature
 twice for notes that already carry it in the title, and this
 collection has such notes.
 
-Choosing `[Nowy HUB]` — pinned last by declaring `identity` as the
+Choosing `[Nowy HUB]` — pinned *first* by declaring `identity` as the
 completion table's sort function, since otherwise the frontend files it
 somewhere alphabetical — creates the hub in `my/denote-hub-directory`
-(pks) with only a title prompt. Every remaining prompt is answered
-before `denote` is called, so `C-g` partway through leaves no half-built
-note on disk.
+(pks) with only a title prompt. Creating a hub belongs at the top
+because the list only grows: scrolling past a hundred hubs to reach it
+would be the one operation that gets harder the longer the system is
+used. It is also the only candidate starting with a bracket, so typing
+`[` selects it. Every remaining prompt is answered before `denote` is
+called, so `C-g` partway through leaves no half-built note on disk.
+
+A new hub's own description is wrapped in `*` on the way in. It is a
+heading for everything below it and reads as one. Entry descriptions are
+not touched — marking those up is the author's business, and a hub
+description already wrapped in `*` is left alone rather than doubled.
 
 The prompt also answers "is this note already filed somewhere, and under
 what note to self". Hubs that already link to the note sort to the top
@@ -103,11 +111,44 @@ DEFAULT-VALUE, which is the discouraged argument in general and the
 right one here: the point is to amend existing text, and a default can
 only be accepted or discarded.
 
+### Entries can be several lines, and that is why they are indented
+
+`S-RET` at a description prompt breaks the line; `RET` still accepts.
+(`M-RET` too, and `C-q C-j` with no binding at all, which is what works
+on a terminal where `S-RET` and `RET` arrive as the same key.) The
+prompt is `read-from-minibuffer` with a keymap deriving from
+`minibuffer-local-map` rather than `read-string`.
+
+The interesting part is what a multi-line description does to the file.
+Written flush left, a second paragraph under an entry is not part of it:
+Org ends a plain list item at the first non-blank line in column zero,
+so the paragraph merely looks attached, exports outside the list, and
+leaves this code no way to tell where one entry stops and the next piece
+of prose begins. Replacing an entry would then either truncate it or eat
+what follows.
+
+Continuation lines are therefore indented by two spaces, making the
+entry one Org list item with an unambiguous extent. The indentation goes
+in when the entry is written and comes off when it is read back, so the
+prompt shows what was typed and a description round-trips unchanged
+through write and re-edit.
+
+`my/denote-hub--entry-end` implements the extent: an entry runs to the
+last indented line belonging to it, stopping at the first non-blank line
+in column zero or at a second consecutive blank line, which is Org's own
+rule for terminating a list. Trailing blank lines are excluded, so
+replacing an entry does not eat the space below it.
+`my/denote-hub--replace-entry` deletes that extent rather than one line.
+
+Anywhere a description has to fit on one line — the completion
+annotation, the echo-area report — only its first line is shown, with an
+ellipsis when more follows.
+
 The entry parser is liberal — everything after the link's closing
-brackets, minus a leading dash of any kind. What is in the file is
-whatever was written there, possibly edited by hand since, and an entry
-that does not match the exact output format is still worth reading
-rather than reporting as absent.
+brackets, minus a leading dash of any kind, minus the indentation. What
+is in the file is whatever was written there, possibly edited by hand
+since, and an entry that does not match the exact output format is still
+worth reading rather than reporting as absent.
 
 `my/denote-hub-list-for-note` answers the same question on its own, for
 when nothing is being added. No keybinding; it is an `M-x` command.

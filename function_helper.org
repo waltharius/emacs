@@ -1064,34 +1064,81 @@ A hub is an ordinary Denote note carrying the =hub= keyword in the
 
 : - [[denote:20260202T110000][1a2 Zwykła notatka]] — why it belongs here
 
-The prompt lists every hub, with the ones that already link to this
-note *at the top* and the description they currently give it shown
-beside them:
+The prompt offers =[Nowy HUB]= first, then the hubs that already link
+to this note with the description they currently give it, then the
+rest:
 
+: [Nowy HUB]
 : HUB A (20260101T100000)    already listed: bo pasuje do tematu
 : HUB B (20260101T110000)    already listed
 : HUB C (20260101T120000)
-: [Nowy HUB]
 
 So the answer to "is this note already filed somewhere, and under what
 note to self" arrives before the decision rather than after it.
+
+Creating a hub comes first because the list only grows: scrolling past
+a hundred hubs to reach it would be the one operation that gets harder
+the longer the system is used. It is also the only candidate starting
+with a bracket, so typing =[= selects it.
 
 Three outcomes:
 
 - *A hub that does not list the note yet* — one prompt for the
   description, and the entry is appended at the end of the hub.
 - *A hub that already lists it* — the same prompt, pre-filled with the
-  existing description, and the line is rewritten where it stands. This
-  is why the command cannot produce a duplicate entry: adding a note
-  twice is not one of the outcomes. A hub that already contains a
+  existing description, and the entry is rewritten where it stands.
+  This is why the command cannot produce a duplicate entry: adding a
+  note twice is not one of the outcomes. A hub that already contains a
   duplicate (from before this behaviour existed) is refused with a
-  count, rather than having one of the two lines picked arbitrarily.
-- *=[Nowy HUB]=* — always the last candidate. Asks for the new hub's
-  title, a one-line description of the hub itself, and then the entry
-  description; the hub description becomes the first line of the new
-  note's body and the entry goes one blank line below it.
+  count, rather than having one of the two entries picked arbitrarily.
+- *=[Nowy HUB]=* — asks for the new hub's title, a one-line description
+  of the hub itself, and then the entry description. The hub
+  description becomes the first line of the new note's body, wrapped in
+  =*= so it renders bold, and the entry goes one blank line below it.
 
 Function: =my/denote-add-to-hub= | Module: =modules/33-denote-hubs.el=
+
+**** Multi-line entry descriptions
+
+=S-RET= at an entry description prompt breaks the line; =RET= still
+accepts. =M-RET= does the same, and =C-q C-j= works with no binding at
+all — which matters on a terminal, where =S-RET= and =RET= arrive as
+the same key. The minibuffer grows to fit.
+
+Continuation lines are written *indented by two spaces*:
+
+#+begin_src org
+- [[denote:20230825T090000][2023-08-25 Journal]] — „Ponieważ życie nie ma
+  żadnego sensu trzeba sobie wybrać jakiś."
+
+  „Im więcej dowiaduję się na jakiś temat, tym mniej chętnie przyjmuję
+  skrajne stanowiska."
+#+end_src
+
+The indentation is structural, not cosmetic. Org ends a plain list item
+at the first non-blank line in column zero, so an unindented
+continuation line after a blank line is a *separate paragraph that
+merely looks attached*: it exports outside the list, folds separately,
+and gives this code no way to tell where one entry stops and the next
+piece of prose begins. Indented, the extent of an entry is unambiguous,
+which is what makes editing one in place safe.
+
+The indentation is added on the way in and removed on the way out, so
+the prompt shows what was typed, not what is in the file. A description
+round-trips unchanged through write and re-edit.
+
+The hub's own description stays one line by design: it is wrapped in
+Org emphasis markers, and those do not carry across a blank line.
+
+An entry ends at the first non-blank line in column zero, or at a second
+consecutive blank line — Org's own rule for terminating a list. Trailing
+blank lines are excluded, so replacing an entry does not eat the space
+below it or swallow the entry that follows.
+
+Entry descriptions are inserted verbatim. Emphasis there is the author's
+business; only the hub description is marked up automatically, because
+it is a heading for everything under it and reads as one. A hub
+description already wrapped in =*= is left alone rather than doubled.
 
 **** M-x my/denote-hub-list-for-note
 :PROPERTIES:
@@ -1127,10 +1174,15 @@ edited reports what it currently says rather than what was last saved.
 **** Parsing an existing entry
 
 The description is taken as everything after the closing brackets of
-the link, with a leading dash or em dash removed. Deliberately liberal:
-what is in the file is whatever was written there, possibly edited by
-hand since, and an entry that does not match the exact output format is
-still worth reading rather than reporting as absent.
+the link, with a leading dash of any kind removed, plus every
+continuation line de-indented. Deliberately liberal: what is in the file
+is whatever was written there, possibly edited by hand since, and an
+entry that does not match the exact output format is still worth reading
+rather than reporting as absent.
+
+Where a description has to fit on one line — a completion annotation,
+the echo-area report of =my/denote-hub-list-for-note= — only its first
+line is shown, followed by an ellipsis when more follows.
 
 **** What the link description is
 
@@ -1157,8 +1209,8 @@ separate bookkeeping exists to fall out of step.
 **** How the prompt is ordered and annotated
 
 Two pieces of completion metadata. =identity= as the
-=display-sort-function= keeps the order the command builds — already
-listed first, then the rest, then =[Nowy HUB]= — which the completion
+=display-sort-function= keeps the order the command builds — =[Nowy
+HUB]=, then already listed, then the rest — which the completion
 frontend would otherwise re-sort alphabetically. The
 =annotation-function= reads a hash of candidate to text and returns nil
 for the candidates that have none, so unlisted hubs stay unadorned.
