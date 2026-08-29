@@ -105,6 +105,10 @@
   ;; Degrades on its own if 05b-journal-metrics.el or 21-dashboards.el
   ;; are absent -- see the header of the module.
   (load (concat modules-dir "35-journal-gaps.el") t) ; Journal gaps (C-c n f j)
+  ;; Optional (NOERROR): summary statistics for the collection.  Reads
+  ;; helpers from 26 and 27 and signals a readable error if either is
+  ;; missing, rather than measuring nothing and reporting zero.
+  (load (concat modules-dir "36-notes-stats.el") t) ; Statistics (C-c n f s)
   )
 
 (add-hook 'emacs-startup-hook

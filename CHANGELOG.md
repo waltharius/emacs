@@ -7,6 +7,96 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-30 (later) — A statistics dashboard
+
+### New module: 36-notes-stats.el
+
+`C-c n f s` (also `C-c w s`) reports collection size per silo, journal
+coverage and streaks, keyword distribution, growth per month, and —
+on demand — word, link and orphan counts.
+
+### Two tiers, and the split is the design
+
+Everything on the opening screen comes from **file names and
+`file-attributes` alone**. No note is read. Denote puts the date, the
+title and the keywords in the name, so counts, sizes, keyword
+frequencies, the month histogram and the whole journal-coverage
+section are already there. One `directory-files-recursively` and the
+report is up.
+
+The second tier — words, links, orphans — opens every file. It runs
+only on `c`, shows a progress reporter, and caches until asked again.
+Keeping it off the opening path is what makes the dashboard something
+to glance at rather than something to wait for.
+
+### Three slow spellings, rewritten before they shipped
+
+All three would have been correct and unusable at three thousand
+notes:
+
+- `file-attributes` is a system call, and sizes were wanted in three
+  places. Sorting the file list to find the largest note would have
+  called it twice per comparison — on the order of a hundred thousand
+  stat calls for one number. Sizes are computed once into a hash and
+  the largest is found with a single pass.
+- The journal metrics line looks up one file per day. `seq-find` over
+  the whole list per day is fine once and quadratic over a year: 365 ×
+  3700 regexp matches. The dates are mapped to files once instead.
+- `(apply #'+ ...)` over three thousand sizes is close enough to the
+  limit on argument count to be worth not finding out. A `dolist`
+  accumulator instead.
+
+None of this was visible from the output. It is the kind of thing that
+only shows up as "why is this taking four seconds", by which point the
+cause is three functions away.
+
+### What is delegated
+
+denote-explore already draws keyword bar charts, a link network and
+lists of isolated notes; `26-maintenance.el` already finds duplicates,
+broken links and keyword inventories. None of it is reimplemented. **A
+dashboard says how many; a drill-down says which.**
+
+`e` lists every `denote-explore-` command actually present, built by
+completion over the obarray rather than from a hardcoded list. A
+command renamed or added upstream appears without editing this module,
+and one that is removed stops being offered. Same reasoning as
+filtering the theme lists through `custom-available-themes`: a name
+that no longer exists should disappear, not signal.
+
+### Two link counts that are not the same
+
+`Link to nothing` counts notes with no outgoing `denote:` link.
+`Nothing links to` counts notes no other note points at.
+
+A reference note may legitimately have no outgoing links. A note
+nothing points at is reachable only by search, which is a different
+kind of note from one that is part of the structure. Only the second
+is a problem, and only when it is not deliberate. Collapsing the two
+into one "orphans" figure would have hidden that.
+
+### Which statistics were included
+
+Singletons, notes with no keywords, orphans and journal coverage are
+there because they are the ones worth acting on. A statistic nobody
+would change their behaviour over is a statistic not worth computing,
+and each one that gets computed makes the ones that matter harder to
+see.
+
+### Hard dependencies signal
+
+`27-denote-identifiers.el` supplies the file list and
+`26-maintenance.el` parses the keyword field; without either, the
+module raises a readable error rather than measuring nothing and
+reporting zero. A zero that is believed is worse than an error that is
+not.
+
+Soft dependencies degrade: without `34-appearance.el` the bars render
+in `default`, without `35-journal-gaps.el` the metrics line is
+omitted, without denote-explore the `e` key says so.
+
+---
+
 ## Session 2026-08-30 — Reporting the days that are not there
 
 ### New module: 35-journal-gaps.el

@@ -3905,6 +3905,113 @@ been written rather than to how many days are covered.
 | =05-notes.el= | a missing day can be opened but not created |
 | =21-dashboards.el= | the report opens in the current window instead of the History tab, and the menu entry is skipped |
 
+* Notes statistics (C-c n f s)
+:PROPERTIES:
+:CUSTOM_ID: notes-stats
+:END:
+
+One screen answering "how big is this thing, and is it healthy".
+
+Module: =modules/36-notes-stats.el= | also =C-c w s=
+
+** Two tiers
+
+Everything on the opening screen is computed from *file names and
+=file-attributes= alone*. Not one note is read. That is possible
+because Denote puts the date, the title and the keywords in the name,
+so counts, sizes, keyword frequencies, growth per month and the entire
+journal-coverage section are already there for the taking. One
+=directory-files-recursively= and the report is up.
+
+The second tier — words, links, orphans — has to open every file. It
+runs only on =c=, shows a progress reporter, and caches its result
+until asked again. *Keeping it off the opening path is what makes this
+something to glance at rather than something to wait for.*
+
+** What is on the screen
+
+| Section | Contents |
+|---------+----------|
+| Collection | notes, total size, average note, largest note |
+| Silos | notes and bytes per silo, each as a share of the whole |
+| Journal | first entry, days elapsed, days covered, coverage %, longest and current streak, days missing metrics |
+| Keywords | distinct, assignments, per-note average, singletons, notes with none, top 12 with bars |
+| Growth | notes created per month for the last 12, with bars, plus the busiest month ever |
+| Content | words, links, notes linking to nothing, notes nothing links to — after =c= |
+
+** Keys
+
+| Key | Effect |
+|-----+--------|
+| =g= | rebuild the fast tier |
+| =c= | read every note and fill in the Content section |
+| =e= | run a =denote-explore-= command, chosen by completion |
+| =q= | quit |
+
+** Two link counts that are not the same
+
+=Link to nothing= counts notes with no outgoing =denote:= link.
+=Nothing links to= counts notes that no other note points at.
+
+A reference note may legitimately have no outgoing links. A note
+nothing points at is one that nothing will ever lead you back to —
+reachable only by search, which is a different kind of note from one
+that is part of the structure. Only the second is a problem, and only
+when it is not deliberate.
+
+** What is delegated
+
+denote-explore already draws keyword bar charts, a link network and
+lists of isolated notes; [[#maintenance][Maintenance]] already finds duplicates,
+broken links and keyword inventories. None of it is reimplemented
+here. *A dashboard says how many; a drill-down says which.*
+
+=e= lists every =denote-explore-= command actually present, built by
+completion over the obarray rather than from a hardcoded list — so a
+command renamed or added upstream appears without editing this module,
+and one that is removed simply stops being offered. That is the same
+reasoning as the theme lists filtered through
+=custom-available-themes=: a name that no longer exists should
+disappear, not signal.
+
+** Why these numbers and not others
+
+Singletons, notes with no keywords, orphans and journal coverage are
+reported because they are the ones worth acting on. *A statistic
+nobody would change their behaviour over is a statistic not worth
+computing*, and every one that gets computed makes the ones that
+matter harder to see.
+
+** Cost, and what was done about it
+
+Three naive spellings would each have been slow at this scale, and all
+three were rewritten:
+
+- =file-attributes= is a system call. Sizes are computed once into a
+  hash. Sorting the file list to find the largest note would have
+  called it twice per comparison — roughly a hundred thousand stat
+  calls for one number.
+- The journal metrics line looks up a file per day. Scanning the whole
+  list per day is fine once and quadratic over a year; the dates are
+  mapped to files once instead.
+- =(apply #\='+ ...)= over three thousand sizes is close enough to the
+  limit on argument count to be worth not finding out. A =dolist=
+  accumulator instead.
+
+** Degradation
+
+| Missing | Effect |
+|---------+--------|
+| =27-denote-identifiers.el= | hard error: there is no file list to measure |
+| =26-maintenance.el= | hard error: the keyword field is parsed there and must be parsed once |
+| =34-appearance.el= | bars and headings render in =default= |
+| =35-journal-gaps.el= | the metrics line is omitted |
+| =denote-explore= | =e= says so |
+
+The two hard dependencies signal a readable error rather than
+measuring nothing and reporting zero, which is the failure that would
+be believed.
+
 * Capture Filing
 :PROPERTIES:
 :CUSTOM_ID: capture-filing
@@ -4352,6 +4459,8 @@ hand-editing either from memory.
 | C-c u C  | =my/theme-classify=           | =09-theme.el=                |
 | C-c u R  | =my/theme-repair=             | =09-theme.el=                |
 | C-c n f j | =my/journal-gaps=            | =35-journal-gaps.el=         |
+| C-c n f s | =my/notes-stats=             | =36-notes-stats.el=          |
+| C-c w s  | =my/notes-stats=              | =36-notes-stats.el=          |
 | C-c u p  | =my/toggle-spacious-padding=  | =34-appearance.el=           |
 | C-c u f  | =my/font-size-adjust=         | =03b-fonts.el= (all frames)  |
 | C-c u s  | =my/text-scale-save-to-note=  | =03b-fonts.el=               |
