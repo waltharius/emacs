@@ -91,9 +91,15 @@ All three are readable; only 2 is written.")
   "Autosave directory for other files.")
 
 ;; TEXT WRAPPING: Fill column for normal notes
-(defvar my-fill-column 80
+(defvar my-fill-column 95
   "Default text wrapping column for notes.
-Documentation notes (:docu: tag) use 100 instead.")
+Notes tagged `:docu:' use `my/fill-column-docu' (10-visual-fill.el).
+
+The unit is CHARACTERS of the buffer's default face, not pixels.  A
+silo whose body font is proportional (see `my/font-silo-styles' in
+03b-fonts.el) renders the same number narrower than a monospaced one,
+so pks and docu at the same value do not produce the same column.
+Raised from 80 for that reason.")
 
 ;; DENOTE KEYWORDS: Base list (Denote will add more automatically)
 (defvar my-denote-keywords

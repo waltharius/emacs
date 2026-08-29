@@ -140,10 +140,26 @@
 ;;     with `org-tags-column' at 0 the tags sit next to the headline
 ;;     text, which makes the wrap rare rather than impossible.
 
+;; A NOTE ON `:demand t' AND `add-hook' IN `:config'
+;; -------------------------------------------------
+;; NOT `:hook (org-mode . org-modern-mode)', which is the obvious
+;; spelling and is unsafe here.  `:hook' registers the function
+;; whether or not the package was actually installed.  If the install
+;; fails -- a stale package archive is enough -- `org-mode-hook' ends
+;; up holding a void function, and every Org buffer then signals on
+;; entry.  An error inside a mode hook aborts `run-mode-hooks' before
+;; it reaches `after-change-major-mode-hook', which is what turns
+;; font-lock on, so the buffer opens with NO fontification at all: no
+;; clickable links, no heading faces, literal `*' markers.  A cosmetic
+;; package taking Org down with it is not an acceptable failure mode.
+;;
+;; `:demand t' plus `add-hook' in `:config' inverts that.  `:config'
+;; runs only if the package loaded, so a failed install leaves
+;; `org-mode-hook' untouched and costs nothing but the missing bullets.
+
 (use-package org-modern
   :ensure t
-  :hook ((org-mode . org-modern-mode)
-         (org-agenda-finalize . org-modern-agenda))
+  :demand t
   :custom
   ;; Stars as bullets, matching the previous org-bullets sequence.
   ;; The package default is `fold', which turns stars into fold
@@ -176,7 +192,9 @@
   ;; empty space between headline and label.  Column 0 puts the label
   ;; directly after the text.
   (setq org-tags-column 0
-        org-auto-align-tags nil))
+        org-auto-align-tags nil)
+  (add-hook 'org-mode-hook #'org-modern-mode)
+  (add-hook 'org-agenda-finalize-hook #'org-modern-agenda))
 
 ;; ============================================================
 ;; LINE SPACING (More breathing room)

@@ -83,9 +83,9 @@ Notes inside a silo override it per buffer, see `my/font-silo-styles'.
 NOT the journal handwriting family; that is a silo entry."
   :type 'string :group 'my/fonts)
 
-(defcustom my/font-default-height 120
+(defcustom my/font-default-height 130
   "Height of the `default' face, in units of 1/10 pt.
-120 means 12 pt.  This is the only absolute height in the
+130 means 13 pt.  This is the only absolute height in the
 configuration; every other face is relative to it, which is what lets
 `text-scale-adjust' and `default-text-scale-mode' (34-appearance.el)
 scale a buffer coherently instead of moving one face out from under
@@ -101,7 +101,7 @@ the others."
    (list my-notes-journal
          :family "Playpen Sans Hebrew" :body 'proportional :height 1.05)
    (list my-notes-pks
-         :family "Source Sans 3"       :body 'proportional :height 1.0)
+         :family "Source Sans 3"       :body 'proportional :height 1.15)
    (list my-notes-docu
          :family "JetBrains Mono"      :body 'monospace    :height 1.0))
   "How each silo is set, as a list of (DIRECTORY . PLIST).

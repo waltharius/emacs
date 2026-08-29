@@ -100,10 +100,17 @@
   :config
   (setq xref-show-xrefs-function #'consult-xref
         xref-show-definitions-function #'consult-xref)
-  ;; Preview on demand rather than on every candidate: the sources
-  ;; include note files, and previewing each one while arrowing
-  ;; through a long list opens a buffer per candidate.
-  (setq consult-preview-key "M-.")) 
+  ;; Preview after a pause, not on every keystroke.  The sources
+  ;; include note files, so previewing on each candidate opens a buffer
+  ;; per candidate while arrowing through a long list.  With a debounce,
+  ;; scrolling past a candidate costs nothing and stopping on one for
+  ;; half a second shows it.
+  ;;
+  ;; `any' means any key can trigger the preview; the debounce is what
+  ;; makes that affordable.  Raise 0.5 if scrolling still feels heavy,
+  ;; or replace the whole value with "M-." for preview strictly on
+  ;; demand.
+  (setq consult-preview-key '(:debounce 0.5 any)))
 
 ;; Enable completion-read-multiple with comma separator
 (setq crm-separator ",")
@@ -360,6 +367,28 @@ Use \\[my/desktop-show-protected] to see the outcome before it happens."
   (add-to-list 'desktop-modes-not-to-save 'nov-mode)
   ;; Layer 1: trim buffer list before every save
   (add-hook 'desktop-save-hook #'my/desktop-trim-buffers)
+
+  ;; CHROME SURVIVES A DESKTOP RESTORE, AND HAS TO BE PUT BACK
+  ;; --------------------------------------------------------
+  ;; `desktop-restore-frames' is t by default, and the frameset it
+  ;; saves includes `tool-bar-lines' and `vertical-scroll-bars'.
+  ;; Restoring the frameset therefore re-applies whatever those were
+  ;; when the desktop was last saved -- which, for a desktop written
+  ;; before the tool bar was turned off, means the tool bar comes back
+  ;; on every start and `(tool-bar-mode -1)' at the top of this file
+  ;; appears to do nothing.  Frameset restore overrides
+  ;; `default-frame-alist' too, so setting the parameters there is not
+  ;; a fix either.
+  ;;
+  ;; Re-asserting after the restore is.  This runs once, after the
+  ;; frameset is in place, and is a no-op when the modes are already
+  ;; off.
+  (defun my/restore-chrome-preferences ()
+    "Re-apply chrome settings that a desktop frameset restore overrode."
+    (tool-bar-mode -1)
+    (scroll-bar-mode -1))
+  (add-hook 'desktop-after-read-hook #'my/restore-chrome-preferences)
+
   (desktop-save-mode 1))
 
 ;; ============================================================

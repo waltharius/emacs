@@ -218,61 +218,39 @@
          ("C-c u t" . modus-themes-toggle)))
 
 ;; ============================================================
-;; RESIDUAL FACES: what the overrides cannot reach
+;; WHY THERE IS NO RUNTIME FACE BLOCK HERE ANY MORE
 ;; ============================================================
-;; Deliberately short.  Anything that can be said as a palette override
-;; belongs above; this function exists for the cases where a face needs
-;; an attribute that is not a colour mapping, or belongs to a package
-;; the themes do not cover.
+;; An earlier revision ran `custom-set-faces' from
+;; `modus-themes-after-load-theme-hook' to set four faces the palette
+;; overrides did not reach: org-quote, denote-faces-date,
+;; org-property-value, org-special-keyword.
 ;;
-;; `modus-themes-with-colors' binds every palette name of the ACTIVE
-;; theme, so `bg-dim' below is a light gray in modus-operandi-tinted
-;; and a dark one in modus-vivendi-tinted, from the same line of code.
+;; That was a mistake, and it is the likely reason colours differed
+;; between the light theme at startup and the light theme after a
+;; toggle.  `custom-set-faces' writes the `user' theme -- the same
+;; mechanism that made dark mode impossible from custom.el, only now
+;; written from code and therefore invisible in any file.  Once
+;; written, those four faces outrank whatever theme is loaded.  As
+;; long as the hook fires on every load the values are refreshed and
+;; nothing shows; the moment one load happens without the hook -- the
+;; first one at startup, before the hook is even attached -- the
+;; `user' theme keeps a value from the other palette and the two
+;; directions of the toggle stop agreeing.
 ;;
-;; `custom-set-faces' at runtime is the documented mechanism here (see
-;; the "Add padding to the mode line" section of the Modus manual), not
-;; `set-face-attribute'.  The difference matters: `set-face-attribute'
-;; changes only the frames that already exist, so a frame created later
-;; by `my/detach-buffer-to-frame' (23-fixed-tabs.el) would recompute
-;; its faces from the theme and show a different result.  That
-;; discrepancy is exactly the bug 11-org-appearance.el documents.
-
-(defun my/theme--custom-faces (&rest _)
-  "Apply the faces that palette overrides cannot express.
-Run from `modus-themes-after-load-theme-hook', so it re-applies after
-every toggle.  Takes and ignores arguments so that it can also be used
-with `enable-theme-functions' if needed."
-  (when (fboundp 'modus-themes-with-colors)
-    (modus-themes-with-colors
-      (custom-set-faces
-       ;; Quotations: a proportional face and a nuanced background.
-       ;; The typeface part is why this is not a palette override --
-       ;; the palette has no say over font families.  Inheriting
-       ;; `variable-pitch' is what makes a quotation render in the
-       ;; handwriting family inside a journal, the text sans in pks and
-       ;; the monospaced family in docu, since 03b-fonts.el remaps that
-       ;; face per silo rather than globally.
-       `(org-quote ((,c :inherit variable-pitch
-                        :background ,bg-dim
-                        :slant italic
-                        :extend t)))
-       ;; Denote's file-name components in Dired and in prompts.  The
-       ;; themes cover Denote, but the date component was pinned to
-       ;; "dark magenta" in custom.el and is restated here so the
-       ;; intent survives rather than reverting silently.
-       `(denote-faces-date ((,c :foreground ,magenta-faint)))
-       ;; Property drawer values: dimmer than the keys, and monospaced
-       ;; regardless of the surrounding buffer font.
-       `(org-property-value ((,c :inherit fixed-pitch :foreground ,fg-alt)))
-       `(org-special-keyword ((,c :inherit fixed-pitch :height 0.85 :foreground ,fg-dim)))))))
-
-(add-hook 'modus-themes-after-load-theme-hook #'my/theme--custom-faces)
-
-;; The hook does not fire for the load performed inside the
-;; `use-package' form above when this file is evaluated a second time
-;; during development, and on a cold start the function is defined
-;; after that load.  Calling it once here makes both paths agree.
-(my/theme--custom-faces)
+;; None of the four was necessary:
+;;
+;;   org-quote            Modus styles it, and `modus-themes-italic-
+;;                        constructs' already makes it italic.
+;;   denote-faces-date    Modus covers Denote's faces.
+;;   org-property-value   `modus-themes-mixed-fonts' already gives it
+;;   org-special-keyword  `fixed-pitch'.
+;;
+;; If a face ever genuinely needs an attribute no palette override can
+;; express, prefer a `defface' that INHERITS from a face the theme
+;; styles -- see the shared faces in 34-appearance.el.  An inheriting
+;; face follows the theme for free and writes nothing to the `user'
+;; theme.  Reach for `custom-set-faces' only when inheritance cannot
+;; work, and then know that the result is permanent.
 
 (provide '09-theme)
 ;;; 09-theme.el ends here

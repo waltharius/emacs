@@ -20,6 +20,16 @@
 ;; PACKAGE: load visual-fill-column
 ;; ============================================================
 
+(defcustom my/fill-column-docu 100
+  "Text column width for notes tagged `:docu:'.
+Separate from `my-fill-column' because docu notes hold command lines
+and code that read badly when wrapped early.
+
+The value is in CHARACTERS of the buffer's default face, not in
+pixels, so a buffer using a proportional face renders the same number
+narrower.  See the comment in `my/visual-fill-notes-setup'."
+  :type 'integer :group 'convenience)
+
 (use-package visual-fill-column
   :ensure t
   :config
@@ -58,12 +68,23 @@ Files outside `my-notes-dir':
           (when (bound-and-true-p visual-fill-column-mode)
             (visual-fill-column-mode -1))
         ;; Inside ~/notes/ -> centered column
+        ;;
+        ;; WIDTH IS A CHARACTER COUNT, AND CHARACTERS DIFFER IN WIDTH
+        ;; ---------------------------------------------------------
+        ;; visual-fill-column turns `visual-fill-column-width' into
+        ;; margins by multiplying it by the width of one character in
+        ;; the buffer's default face.  A buffer running a proportional
+        ;; face (any silo whose `:body' is `proportional' in
+        ;; 03b-fonts.el) has a narrower average character than one
+        ;; running JetBrains Mono, so the SAME number yields a NARROWER
+        ;; column.  That is why a docu note at 100 and a pks note at 80
+        ;; differ by much more than the 20 columns suggest.
         (let ((is-docu nil))
           (save-excursion
             (goto-char (point-min))
             (when (re-search-forward "^#\\+filetags:.*:docu:" nil t)
               (setq is-docu t)))
-          (let ((width (if is-docu 100 my-fill-column)))
+          (let ((width (if is-docu my/fill-column-docu my-fill-column)))
             (setq fill-column                          width)
             (setq-local visual-fill-column-width       width)
             (setq-local visual-fill-column-center-text t))
