@@ -65,6 +65,79 @@
 ;; whole configuration sits in `:config' ahead of the load call rather
 ;; than being split across `:init' and `:custom'.
 
+;; ============================================================
+;; REMEMBERING WHICH THEME WAS ACTIVE
+;; ============================================================
+;; The choice is written to a one-line file and read back at startup.
+;; Deliberately NOT stored through `custom-set-variables' (which would
+;; put it in custom.el, the file this session emptied on purpose) and
+;; NOT through the desktop (which is the thing that has been failing).
+;; One fact, one small file, no dependency on anything else working.
+
+(defcustom my/theme-state-file (locate-user-emacs-file "theme-state.el")
+  "File holding the name of the theme that was last active."
+  :type 'file :group 'faces)
+
+(defun my/theme--save-state (&rest _)
+  "Record the active theme in `my/theme-state-file'."
+  (when-let* ((theme (car custom-enabled-themes)))
+    (with-temp-file my/theme-state-file
+      (prin1 theme (current-buffer)))))
+
+(defun my/theme--read-state ()
+  "Return the remembered theme, or nil.
+Returns nil rather than signalling on a missing, empty or corrupt
+file, and refuses any value that is not one of the two themes the
+toggle knows about -- a stale name from an uninstalled theme would
+otherwise abort init."
+  (when (file-readable-p my/theme-state-file)
+    (with-temp-buffer
+      (insert-file-contents my/theme-state-file)
+      (let ((theme (ignore-errors (read (current-buffer)))))
+        (and (symbolp theme)
+             (memq theme modus-themes-to-toggle)
+             theme)))))
+
+(defun my/theme-load (theme)
+  "Load THEME through the Modus API, falling back to `load-theme'.
+`modus-themes-load-theme' is preferred because it runs
+`modus-themes-after-load-theme-hook', which is what re-applies fonts
+\(03b-fonts.el) and records the choice."
+  (if (fboundp 'modus-themes-load-theme)
+      (modus-themes-load-theme theme)
+    (load-theme theme :no-confirm)))
+
+(defun my/theme-reload ()
+  "Load the active theme again.
+
+Needed after a desktop restore, and useful by hand.
+
+WHY A RESTORED SESSION NEEDS THIS
+---------------------------------
+`desktop-save-mode' saves a frameset, and a frameset carries frame
+parameters -- among them `background-color', `foreground-color' and
+`cursor-color'.  Restoring it re-applies the colours from whenever the
+desktop was last written, on top of whatever theme init had already
+loaded.  The frame then shows one theme's background under the other
+theme's faces: dark canvas, light-theme text, or the reverse.  That is
+the \"broken\" startup, and it is the same failure as the tool bar
+coming back (see the desktop block in 01-ui.el) -- a frameset
+overriding a setting made earlier in init.
+
+It also explains why the appearance repaired itself the moment
+anything reloaded the theme.  Loading a theme reassigns the frame
+colour parameters, which is exactly what the stale frameset had got
+wrong.
+
+The alternative would be to filter those three parameters out of
+`frameset-filter-alist' so the frameset never carries them.  Reloading
+is chosen instead because it is one call, it needs no knowledge of
+which parameters a future Emacs might add, and it doubles as the point
+where the remembered theme is applied."
+  (interactive)
+  (my/theme-load (or (car custom-enabled-themes)
+                     (car modus-themes-to-toggle))))
+
 (use-package modus-themes
   :ensure t
   :config
@@ -203,16 +276,23 @@
           ,@modus-themes-preset-overrides-faint))
 
   ;; ----------------------------------------------------------
-  ;; Load
+  ;; Load, and keep the choice
   ;; ----------------------------------------------------------
-  ;; `modus-themes-load-theme' rather than `load-theme': it runs
-  ;; `modus-themes-after-load-theme-hook', which is what
-  ;; `my/theme--custom-faces' below hangs on.  Guarded because the
-  ;; function arrived in version 4; the fallback loses the hook but
-  ;; still produces a themed session rather than an init error.
-  (if (fboundp 'modus-themes-load-theme)
-      (modus-themes-load-theme (car modus-themes-to-toggle))
-    (load-theme (car modus-themes-to-toggle) :no-confirm))
+  ;; The remembered theme, or the light one on a first run.  Before
+  ;; this, startup always loaded `(car modus-themes-to-toggle)', so a
+  ;; session left in dark came back light -- the toggle worked but did
+  ;; not persist, which is not what a toggle is for.
+  (my/theme-load (or (my/theme--read-state)
+                     (car modus-themes-to-toggle)))
+
+  ;; Record on every load, including the ones the toggle performs.
+  (add-hook 'modus-themes-after-load-theme-hook #'my/theme--save-state)
+
+  ;; And load again once the desktop's frameset is in place, because
+  ;; the frameset brings stale frame colours with it.  See the doc
+  ;; string of `my/theme-reload'.  Harmless when no desktop is
+  ;; restored: the hook simply never runs.
+  (add-hook 'desktop-after-read-hook #'my/theme-reload)
 
   :bind (("<f5>" . modus-themes-toggle)
          ("C-c u t" . modus-themes-toggle)))

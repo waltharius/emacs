@@ -349,6 +349,13 @@ Use \\[my/desktop-show-protected] to see the outcome before it happens."
       (dolist (buf to-kill)
         (kill-buffer buf)))))
 
+(defun my/restore-chrome-preferences ()
+  "Re-apply chrome settings that a desktop frameset restore overrode.
+Run from `desktop-after-read-hook'; a no-op when the modes are already
+off, so it is safe to call at any time."
+  (tool-bar-mode -1)
+  (scroll-bar-mode -1))
+
 (use-package desktop
   :ensure nil
   :init
@@ -357,7 +364,23 @@ Use \\[my/desktop-show-protected] to see the outcome before it happens."
         desktop-base-lock-name      "desktop.lock"
         desktop-path               (list desktop-dirname)
         desktop-save               t
-        desktop-load-locked-desktop t
+        ;; `check-pid' rather than t.
+        ;;
+        ;; desktop.el writes a lock file naming the PID that owns the
+        ;; session.  With t, a locked desktop is LOADED without asking
+        ;; -- but on exit `desktop-save' still finds the lock held by
+        ;; another PID and declines to overwrite it.  A session that
+        ;; died without releasing its lock (a crash, a kill -9, an init
+        ;; that errored badly enough to be killed) therefore leaves
+        ;; every later session reading the same frozen state and
+        ;; writing nothing back: new tabs open, and are gone after a
+        ;; restart.
+        ;;
+        ;; `check-pid' loads the desktop when the owning process is no
+        ;; longer running, and takes ownership, so the next save
+        ;; succeeds.  A genuinely concurrent second Emacs is still
+        ;; refused, which is the case the lock exists for.
+        desktop-load-locked-desktop 'check-pid
         ;; Layer 2: only 10 buffers block startup, rest load in background
         desktop-restore-eager      10)
   :config
@@ -380,16 +403,50 @@ Use \\[my/desktop-show-protected] to see the outcome before it happens."
   ;; `default-frame-alist' too, so setting the parameters there is not
   ;; a fix either.
   ;;
-  ;; Re-asserting after the restore is.  This runs once, after the
-  ;; frameset is in place, and is a no-op when the modes are already
-  ;; off.
-  (defun my/restore-chrome-preferences ()
-    "Re-apply chrome settings that a desktop frameset restore overrode."
-    (tool-bar-mode -1)
-    (scroll-bar-mode -1))
+  ;; Re-asserting after the restore is.  `my/restore-chrome-preferences'
+  ;; is defined at top level below, not here, so that the pre-commit
+  ;; grep for duplicate top-level definitions can see it.
   (add-hook 'desktop-after-read-hook #'my/restore-chrome-preferences)
 
   (desktop-save-mode 1))
+
+;; ============================================================
+;; SAVING THE SESSION BY HAND, AND SEEING WHY IT FAILED
+;; ============================================================
+;; `desktop-save-mode' writes the session from `kill-emacs-hook', where
+;; a failure is close to invisible: the message scrolls past as the
+;; frame disappears, and the next start quietly restores whatever was
+;; last written successfully.  This command runs the same save with
+;; errors reported, which turns "the session is not being saved" from a
+;; guess into a one-line answer.
+
+(defun my/desktop-force-save ()
+  "Save the desktop now, reporting success or the reason for failure.
+Takes over the lock if the owning process is gone."
+  (interactive)
+  (condition-case err
+      (progn
+        (desktop-save desktop-dirname t)
+        (message "Desktop saved to %s (%d file buffers, %d tabs)"
+                 desktop-dirname
+                 (length (seq-filter #'buffer-file-name (buffer-list)))
+                 (length (tab-bar-tabs))))
+    (error (message "Desktop save FAILED: %s" (error-message-string err)))))
+
+(defun my/desktop-status ()
+  "Report who owns the desktop lock and when the desktop was last written."
+  (interactive)
+  (let* ((file  (expand-file-name desktop-base-file-name desktop-dirname))
+         (owner (ignore-errors (desktop-owner desktop-dirname))))
+    (message "Desktop: %s | last written %s | lock owner %s (this Emacs is %d)"
+             (if (file-exists-p file) "present" "MISSING")
+             (if (file-exists-p file)
+                 (format-time-string "%F %T"
+                                     (file-attribute-modification-time
+                                      (file-attributes file)))
+               "-")
+             (or owner "none")
+             (emacs-pid))))
 
 ;; ============================================================
 ;; STARTUP: one hook, one firing
