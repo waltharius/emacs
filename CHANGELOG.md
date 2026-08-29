@@ -78,6 +78,29 @@ without `21-dashboards.el` the report opens in the current window and
 the menu entry is skipped. The menu anchor is `h` (History), so the
 two dated views sit next to each other.
 
+### Two things the static checks did not catch
+
+`string>=` does not exist in Emacs Lisp. There is `string<`, `string=`
+and `string>`, and no `=` variants of the inequalities. The call read
+as obvious and was `void-function` the first time the report ran.
+Replaced with `(not (string< ...))`; both dates are ISO, so a lexical
+comparison is a chronological one.
+
+`encode-time` was called with six positional arguments. That form has
+been obsolete since Emacs 27, still works today, and is exactly the
+kind of call that stops working on an upgrade. Replaced with the
+decoded-time list form, matching `05-notes.el` and
+`05b-journal-metrics.el`, which had it right already. The new helper
+also encodes midday rather than midnight, so a daylight-saving
+transition cannot move a backdated note into the adjacent day.
+
+Neither was reachable by the pre-commit checks: paren balance, the
+duplicate-definition grep and the undefined-`my/`-symbol scan all
+passed. They only look at symbols this configuration defines. **A call
+to a standard function that does not exist, or exists in an obsolete
+form, is invisible to all three** — those need byte-compilation, or
+running the command.
+
 ### consult preview back on demand
 
 `consult-preview-key` returns to `"M-."` from `(:debounce 0.5 any)`.

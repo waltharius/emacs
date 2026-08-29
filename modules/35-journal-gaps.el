@@ -183,7 +183,13 @@ the answer."
              (weekday (format-time-string "%a" time))
              (file (gethash date files)))
         ;; Nothing was missed before the series began.
-        (when (or (null earliest) (string>= date earliest))
+        ;;
+        ;; `(not (string< ...))' rather than a `string>=': Emacs Lisp
+        ;; has `string<', `string=' and `string>' and no `=' variants
+        ;; of the inequalities, so `string>=' reads as obvious and is
+        ;; `void-function' at runtime.  Both dates are ISO, so a
+        ;; lexical comparison is a chronological one.
+        (when (or (null earliest) (not (string< date earliest)))
           (cond
            ((null file)
             (push (list date weekday 'no-entry "" nil) records))
@@ -215,6 +221,24 @@ the answer."
 ;; THE BUFFER
 ;; ============================================================
 
+(defun my/journal-gaps--encode (date)
+  "Return DATE (YYYY-MM-DD) as a time value, at midday.
+
+The decoded-time LIST form of `encode-time', matching 05-notes.el and
+05b-journal-metrics.el.  The six-positional-argument form reads more
+naturally and has been obsolete since Emacs 27; it still works today
+and is exactly the kind of call that stops working on an upgrade.
+
+Midday rather than midnight so that a daylight-saving transition
+cannot move the timestamp into the previous or next day.  The hour is
+never displayed -- journal identifiers are T000000 -- so nothing else
+depends on it."
+  (encode-time (list 0 0 12
+                     (string-to-number (substring date 8 10))
+                     (string-to-number (substring date 5 7))
+                     (string-to-number (substring date 0 4))
+                     nil -1 nil)))
+
 (defun my/journal-gaps--date-at-point ()
   "Return the date on the current line, or signal."
   (or (tabulated-list-get-id)
@@ -233,10 +257,7 @@ the file was absent."
       (unless (fboundp 'my/denote-journal--create-backdated)
         (user-error "05-notes.el is not loaded; cannot create a backdated note"))
       (setq file (my/denote-journal--create-backdated
-                  date (encode-time 0 0 12
-                                    (string-to-number (substring date 8 10))
-                                    (string-to-number (substring date 5 7))
-                                    (string-to-number (substring date 0 4))))))
+                  date (my/journal-gaps--encode date))))
     (find-file file)))
 
 (defun my/journal-gaps-fill ()
