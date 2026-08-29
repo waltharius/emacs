@@ -105,7 +105,24 @@ otherwise abort init."
 \(03b-fonts.el) and records the choice."
   (if (fboundp 'modus-themes-load-theme)
       (modus-themes-load-theme theme)
-    (load-theme theme :no-confirm)))
+    (load-theme theme :no-confirm))
+  ;; spacious-padding (34-appearance.el) computes its mode-line and
+  ;; border faces from the palette that was current when it was
+  ;; enabled.  Since the theme now loads AFTER that module, and again
+  ;; on every toggle, the mode has to be re-asserted afterwards or the
+  ;; hairline mode line keeps the previous theme's colour.  Enabling an
+  ;; already-enabled `spacious-padding-mode' is how the package itself
+  ;; expects to be refreshed, so this is idempotent rather than a
+  ;; toggle.  Guarded: 34-appearance.el is optional.
+  (when (bound-and-true-p spacious-padding-mode)
+    (spacious-padding-mode 1)))
+
+(defun my/theme--startup-load ()
+  "Load the remembered theme, once, at the end of startup.
+Falls back to the first entry of `modus-themes-to-toggle' when nothing
+was remembered -- a first run, or a state file that has been deleted."
+  (my/theme-load (or (my/theme--read-state)
+                     (car modus-themes-to-toggle))))
 
 (defun my/theme-reload ()
   "Load the active theme again.
@@ -140,6 +157,36 @@ where the remembered theme is applied."
 
 (use-package modus-themes
   :ensure t
+  ;; `:demand t' IS THE WHOLE FIX -- do not remove it.
+  ;;
+  ;; `:bind' at the bottom of this form makes `use-package' DEFER the
+  ;; package: it writes autoloads for `modus-themes-toggle' and waits
+  ;; for something to call one before loading `modus-themes' itself.
+  ;; Deferring is the right default for a package whose commands are
+  ;; the point, and exactly wrong for a theme, because everything below
+  ;; lives in `:config' -- and `:config' runs only after the package
+  ;; loads.
+  ;;
+  ;; Without `:demand t', a fresh Emacs starts with NO theme enabled:
+  ;; `custom-enabled-themes' is empty, none of the options below have
+  ;; been set, and neither hook has been added.  The frame still looks
+  ;; roughly right because the desktop frameset restores
+  ;; `background-color' from the last session, which is why the failure
+  ;; reads as "the theme loaded badly" rather than "no theme loaded".
+  ;;
+  ;; Pressing <f5> then triggers the autoload: `modus-themes' loads,
+  ;; `:config' finally runs, and the session repairs itself in one
+  ;; step.  Opening the View transient did the same thing for the same
+  ;; reason -- it is the only transient in the configuration that names
+  ;; `modus-themes-toggle' as a suffix, and transient resolves an
+  ;; autoloaded suffix command while building the menu.  That is why
+  ;; ONE menu appeared to fix the appearance and the others did not.
+  ;;
+  ;; Same class of mistake as the `:hook' on org-modern in
+  ;; 11-org-appearance.el: `use-package' keyword implies deferral,
+  ;; deferral means `:config' may never run, and the symptom surfaces
+  ;; far from the cause.
+  :demand t
   :config
 
   ;; ----------------------------------------------------------
@@ -276,23 +323,38 @@ where the remembered theme is applied."
           ,@modus-themes-preset-overrides-faint))
 
   ;; ----------------------------------------------------------
-  ;; Load, and keep the choice
+  ;; Load LAST, not here
   ;; ----------------------------------------------------------
-  ;; The remembered theme, or the light one on a first run.  Before
-  ;; this, startup always loaded `(car modus-themes-to-toggle)', so a
-  ;; session left in dark came back light -- the toggle worked but did
-  ;; not persist, which is not what a toggle is for.
-  (my/theme-load (or (my/theme--read-state)
-                     (car modus-themes-to-toggle)))
+  ;; The options above are set at module position 09.  The theme
+  ;; itself is loaded from `emacs-startup-hook', which is the last
+  ;; point in startup: after init.el has loaded modules 10 through 34,
+  ;; and after `after-init-hook', where `desktop-save-mode' restores
+  ;; the frameset.
+  ;;
+  ;; A theme is the last word on how a face looks, so it should get
+  ;; the last word chronologically too.  Loading it at 09 put it
+  ;; BEFORE two dozen modules that define faces, enable minor modes
+  ;; that build faces from the current palette, and -- in the case of
+  ;; spacious-padding (34-appearance.el) -- rewrite frame parameters.
+  ;; It also put it before the desktop frameset, which carries
+  ;; `background-color', `foreground-color' and `font' from whenever
+  ;; the session was last written.  Loading last makes the theme the
+  ;; final assignment rather than one of several competing ones.
+  ;;
+  ;; This is why the appearance repaired itself the moment anything
+  ;; reloaded the theme, and why loading it at 09 and then again on
+  ;; `desktop-after-read-hook' was not enough: the second load still
+  ;; happened before `emacs-startup-hook', so whatever ran later got
+  ;; the last word again.
+  ;;
+  ;; NOT `after-init-hook': that is where the desktop restore itself
+  ;; runs, and hook order within it is not something this module
+  ;; should have to reason about.  `emacs-startup-hook' runs strictly
+  ;; after all of `after-init-hook'.
+  (add-hook 'emacs-startup-hook #'my/theme--startup-load)
 
   ;; Record on every load, including the ones the toggle performs.
   (add-hook 'modus-themes-after-load-theme-hook #'my/theme--save-state)
-
-  ;; And load again once the desktop's frameset is in place, because
-  ;; the frameset brings stale frame colours with it.  See the doc
-  ;; string of `my/theme-reload'.  Harmless when no desktop is
-  ;; restored: the hook simply never runs.
-  (add-hook 'desktop-after-read-hook #'my/theme-reload)
 
   :bind (("<f5>" . modus-themes-toggle)
          ("C-c u t" . modus-themes-toggle)))
@@ -331,6 +393,38 @@ where the remembered theme is applied."
 ;; face follows the theme for free and writes nothing to the `user'
 ;; theme.  Reach for `custom-set-faces' only when inheritance cannot
 ;; work, and then know that the result is permanent.
+
+;; ============================================================
+;; DIAGNOSTIC
+;; ============================================================
+;; For the case where the frame looks wrong until something reloads
+;; the theme.  Run it, note the output, do whatever makes the
+;; appearance snap into place, run it again, and compare the two
+;; lines.  Whichever field changed is the one being set behind the
+;; theme's back.
+;;
+;; `background-color' as a FRAME PARAMETER and the background of the
+;; `default' FACE are two different things that normally agree.  When
+;; they disagree, something has written the frame parameter directly
+;; -- a frameset restore is the usual culprit -- and the frame shows
+;; that colour under faces computed from the theme.
+
+(defun my/theme-debug ()
+  "Report the state that decides how the frame looks.
+Output goes to the echo area and to *Messages*."
+  (interactive)
+  (message
+   (concat
+    "theme=%s | frame-bg=%s | default-face-bg=%s | frame-font=%s\n"
+    "variable-pitch=%s | default-height=%s | padding=%s | org-modern=%s")
+   (or (car custom-enabled-themes) "NONE")
+   (frame-parameter nil 'background-color)
+   (face-attribute 'default :background nil t)
+   (or (frame-parameter nil 'font) "-")
+   (face-attribute 'variable-pitch :family nil t)
+   (face-attribute 'default :height nil t)
+   (if (bound-and-true-p spacious-padding-mode) "on" "off")
+   (if (fboundp 'org-modern-mode) "loaded" "MISSING")))
 
 (provide '09-theme)
 ;;; 09-theme.el ends here
