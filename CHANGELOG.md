@@ -7,6 +7,302 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-29 — A theme that can be switched, and a font that stays in its lane
+
+### The dark theme was blocked by custom.el, not by the theme
+
+`09-theme.el` carried a comment explaining that dark mode was
+unusable and that restoring it would be "a real piece of work". The
+work turned out to be deletion. `custom.el` held a `custom-set-faces`
+block pinning about twenty Org faces to literal light colours —
+`org-block` on `#fef8e0`, `org-link` on `#555555`, `org-quote` on
+`#f9f9f9`. `custom-set-faces` writes the `user` theme, which outranks
+every other theme by design, so `modus-vivendi-tinted` loaded
+correctly and was then overwritten face by face.
+
+That block is now empty and the settings it held are expressed once,
+in `09-theme.el`, in three layers that do not overlap:
+
+- colour as `modus-themes-common-palette-overrides`, using palette
+  names (`bg-yellow-nuanced`, `blue-warmer`) that each theme resolves
+  to its own value, so one override is correct in both;
+- heading size, weight and typeface as `modus-themes-headings`, which
+  is where they always belonged — the heights in `custom.el` were
+  silently beating the ones `09-theme.el` already declared, making
+  that declaration documentation of an intent that never took effect;
+- a four-face residue in `my/theme--custom-faces`, run from
+  `modus-themes-after-load-theme-hook` so it survives a toggle.
+
+`<f5>` and `C-c u t` switch between `modus-operandi-tinted` and
+`modus-vivendi-tinted`.
+
+Roughly two thirds of the deleted block needed no replacement at all.
+Twelve of the specs existed to add `:inherit fixed-pitch` to tables,
+blocks, inline code, verbatim text, checkboxes and meta lines —
+which is precisely what `modus-themes-mixed-fonts` does, and it was
+already set to `t` three files earlier.
+
+### Two settings in 09-theme.el had stopped meaning anything
+
+`modus-themes-org-blocks` was removed from the package in version
+4.4.0. It had been setting a variable no code reads. Block appearance
+is now the `bg-prose-block-contents` / `bg-prose-block-delimiter` /
+`fg-prose-block-delimiter` overrides.
+
+`modus-themes-headings` no longer takes a `rainbow` property in
+version 5; per-level colour moved to `fg-heading-N` in the overrides,
+which also reaches backgrounds and overlines. The three `rainbow`
+entries were inert.
+
+### Fonts: one global face for three jobs
+
+`03b-fonts.el` set the global `variable-pitch` face to Playpen Sans
+Hebrew, on the understanding that journals were the only place a
+proportional font appeared. They were not. `modus-themes-headings`
+asks for `variable-pitch` at levels 1–3 and `org-quote` inherits it,
+so a documentation note, a thesis chapter and a source note all
+rendered their headings and quotations as handwriting.
+
+`variable-pitch` is now a neutral text sans for the session
+(`my/font-variable-pitch`, default Source Sans 3), and the silo
+overrides it per buffer through `my/font-silo-styles`:
+
+| Silo | `:family` | `:body` |
+|---|---|---|
+| `journal/` | Playpen Sans Hebrew | `proportional` |
+| `pks/` | Source Sans 3 | `proportional` |
+| `docu/` | JetBrains Mono | `monospace` |
+
+Both halves of an entry act on the same face. The family is remapped
+onto `variable-pitch` buffer-locally, and `:body proportional`
+additionally enables `variable-pitch-mode`, which makes `default`
+inherit `variable-pitch` there. So the family reaches headings and
+quotations in every silo and body text only where asked. `docu` is
+the case that earns the distinction: the family *is* the monospaced
+one, so the whole buffer is machine-set, while `pks` sets the same
+structure in a text sans.
+
+Journal entries keep the handwriting for body text as well, which is
+what they had. An intermediate revision of this work dropped the
+`variable-pitch-mode` call on the reasoning that a journal only wanted
+handwritten *headings*; that was wrong about the intent and is
+reverted.
+
+Silo matching is by directory prefix against the silo variables in
+`00-core.el`, not by substring. The old test searched for `journal`
+anywhere in the path and matched
+`~/notes/pks/20260101T090000--journal-app.org`.
+
+The remap cookie is kept in a buffer-local variable and removed before
+a new one is added. `org-mode-hook` runs again on `revert-buffer` and
+after `denote-rename-file` moves a note between silos, and stacked
+relative remaps compose rather than override — the visible result
+would otherwise depend on how many times the hook had run.
+
+`my/journal-font-setup` also dropped a third redundant
+`visual-line-mode` call; that mode is enabled by `02-editing.el` and
+`10-visual-fill.el`.
+
+`my/fonts-apply` is on `modus-themes-after-load-theme-hook`, because
+a theme reassigns `default` when it loads and a toggle would
+otherwise reset the font.
+
+**PDF export is untouched and unaffected.** Faces are a screen
+concern; `my/org-export-to-pdf` emits LaTeX for lualatex, and the
+journal font in a PDF comes from `\setmainfont{Playpen Sans Hebrew}`
+in the `journal-article` class (`my/--latex-preamble`,
+`16-org-export.el`). Worth noting that the two mechanisms select on
+different criteria — screen font by directory, LaTeX class by the
+`:journal:` filetag. They agree for journals; `pks` and `docu` both
+still export through `article`, so there is nothing yet to disagree
+about.
+
+### The mode line was declared twice
+
+`01-ui.el` and `13-centered-writing.el` each ran
+`setq-default mode-line-format` with near-identical values. Load
+order decided which held, and since `13` loads later, editing the
+format in `01-ui.el` had no visible effect.
+
+`01-ui.el` is now the sole owner. `13-centered-writing.el`
+contributes its `W` indicator through `mode-line-misc-info`, the same
+seam `my/desktop-keep-buffer-mode-line` already used. Deleting the
+module now removes one indicator rather than reverting the mode line
+to a stale copy of itself.
+
+Both indicators also stopped naming colours. The word count was
+literal `"purple"` and the writing indicator literal `"black"` — the
+latter invisible against a dark mode line. They are now
+`my/modeline-word-count` and `my/writing-mode-indicator`, faces that
+inherit and specify nothing.
+
+### Nine hex colours in the dashboards
+
+`15-workspace.el` passed literal `#2aa198`, `#859900` and `#888888`
+to `propertize` in seven places. Correct under one theme, muddy under
+the other, and findable only by grepping for hex digits.
+
+They are six named faces defined in `34-appearance.el`:
+`my/dashboard-title`, `-section`, `-note`, `-tag-button`, `-tags`,
+`-hint`. Each inherits from a face the theme styles (`link`, `shadow`,
+`bold`), so they follow the toggle without knowing what a palette is.
+The faces live in the new module rather than in `15-workspace.el` so
+that neither module needs the other: an undefined face renders as
+`default` rather than signalling.
+
+### New module: 34-appearance.el
+
+The cosmetic layer, loaded last and with `NOERROR`. Removing it
+leaves a working but plainer configuration.
+
+`spacious-padding` supplies the frame border, window dividers, fringe
+widths and a hairline mode line. This is the single largest visual
+change in the session and the one that costs the least: it is
+entirely presentational and toggles off with `C-c u p` when screen
+space is tight.
+
+`lin` remaps the current-line highlight in list buffers only.
+`global-hl-line-mode` (02-editing.el) gives every buffer the same
+highlight at the same intensity, but the line means different things
+in different places: a position reminder in a note, and the selection
+itself in the inbox review queue, the maintenance reports, the
+Readwise lists and the dashboards.
+
+`pulsar` pulses the destination line after a jump. Navigation here is
+mostly jumps — a `denote:` link, a backlink, a dashboard entry — each
+landing point in a window that has just been redrawn.
+
+`default-text-scale` for whole-session sizing, alongside the built-in
+per-buffer `text-scale-adjust`. Bound under a new `C-c u` prefix.
+
+The View menu (`C-c n v`) gains `t` for the theme toggle and `p` for
+padding, through `my/transient-append`. `T` was checked and rejected:
+`30-link-tooltips.el` already appends there, and `my/transient-append`
+skips an already-bound key *silently*, so the collision would have
+produced an entry that was simply missing with nothing said about it.
+
+### org-bullets replaced by org-modern
+
+`org-bullets` styled headline stars. `org-modern` styles the same
+stars plus tags, TODO keywords, priorities, timestamps and table
+rules, using text properties rather than character composition, so
+the styled text stays editable and searchable. It is on GNU ELPA.
+
+Two of its features are off on purpose. `org-modern-block-name` would
+fight `prettify-symbols-alist` in `01-ui.el`, which maps `#+begin_src`
+to a lambda and `#+begin_quote` to a balloon by a different mechanism;
+running both leaves the delimiter half-replaced, and the prettify
+mapping is what the existing notes were written against.
+`org-modern-block-fringe` draws its bracket in the fringe, which
+`10-visual-fill.el` places inside the margins of a centred column and
+`34-appearance.el` widens — the bracket would float at an
+unpredictable distance from what it brackets. The block background
+from `09-theme.el` marks blocks instead.
+
+`org-tags-column` is now 0 and `org-auto-align-tags` nil. With tags
+rendered as labels, a right-aligned tag column becomes a gap between
+the headline and its label.
+
+### consult was installed but never started
+
+`04-denote.el` declares `consult-denote` with `:after (denote
+consult)`, which defers the entire body until both features are
+provided. `denote` loads eagerly; `consult` did not, because nothing
+required it — `package.el` installed it as a dependency and left it
+on disk. `(consult-denote-mode 1)` therefore did not run at startup,
+and the Denote sources it adds to `consult-buffer` were absent until
+some consult command happened to load the package.
+`consult-denote-grep` still worked through its own autoload, which is
+why this was invisible.
+
+`01-ui.el` now declares `consult` with `:demand t`, alongside the
+rest of the completion stack it already owns. Bindings are sparse and
+were checked against what is taken: `C-s` is `save-buffer`
+(02-editing.el) and `C-x C-b` is `ibuffer`, so the usual
+`C-s` → `consult-line` binding is not used. `C-x b`, `M-g g`,
+`M-g i` and `M-s l` were free.
+
+`consult-preview-key` is `M-.` rather than the default. The sources
+include note files, and previewing on every candidate opens a buffer
+per candidate while arrowing through a long list.
+
+### Tool bar and scroll bar off
+
+Two elements neither of which is ever clicked here: a row of icons
+for commands this configuration reaches through `C-c n`, and a bar
+duplicating a percentage the mode line already shows. Both consumed
+space the centred text column then had to give back.
+
+The menu bar stays. It is the only surface that lists what a mode can
+do without knowing a key for it, which is a different argument from
+the one against the tool bar and comes out the other way.
+
+### Rejected
+
+- **doom-modeline** — would require rebuilding the word-count and pin
+  segments as doom segments, and its icon-heavy look pulls against the
+  direction taken here. `spacious-padding`'s hairline mode line
+  reaches the same impression by removing weight rather than adding it.
+- **centaur-tabs** — buffer tabs, competing with the workspace model
+  `23-fixed-tabs.el` builds on `tab-bar`, where a tab is a place.
+  `tab-bar` is restyled through palette overrides instead.
+- **modern-tab-bar** — the right tool (SVG rendering of the existing
+  `tab-bar`, no API change) but distributed on neither GNU ELPA nor
+  MELPA, so `:ensure t` against it would fail at startup.
+- **beacon** — overlaps `pulsar` and configures itself with a literal
+  hex colour, the exact pattern this session removed.
+- **mini-frame** — child frames are the least reliable part of the
+  Wayland/PGTK path, and it would sit between `which-key` and every
+  transient menu in the configuration. High blast radius for a
+  cosmetic gain.
+- **all-the-icons** — superseded by `nerd-icons`, which needs a single
+  font rather than several. Neither is installed: nothing in this
+  session needs icons, and both require a font installed through the
+  NixOS configuration rather than from inside Emacs.
+
+### Lessons
+
+- `custom-set-faces` writes the `user` theme, which outranks every
+  real theme. A face pinned there cannot be overridden by any theme,
+  which makes `custom.el` the first place to look when a theme
+  "does not work" rather than the last place to touch.
+- Heights and weights are theme-neutral; colours are not. A face spec
+  mixing them is portable in one half and broken in the other, which
+  is why the two ended up in different layers.
+- A face that inherits needs no theme hook. Every hex colour removed
+  this session became an inheriting `defface`, and none of them
+  required registering anything on `modus-themes-after-load-theme-hook`.
+- `use-package` `:after` on a package nothing requires defers the body
+  indefinitely. The failure is silent and partial: autoloaded commands
+  from the deferred package still work, so only the `:config` side
+  effects go missing.
+- `my/transient-append` skipping an already-bound key silently is the
+  right behaviour for re-evaluation during development and the wrong
+  one for a genuine collision. Check the target menu for the key, and
+  check every module that appends to it, not just the file that
+  defines it.
+- `set-face-attribute` changes realised attributes on existing frames
+  only; a frame created later recomputes from the theme. Runtime face
+  changes that must survive `my/detach-buffer-to-frame` go through
+  `custom-set-faces`, not `set-face-attribute`.
+
+### To verify after this change
+
+- The fringe widths in `spacious-padding-widths` add to the margins
+  visual-fill-column already creates for a centred note. If notes read
+  as too narrow, lower `:fringe-width` before touching `my-fill-column`.
+- Source Sans 3 must be installed before `pks` notes look right;
+  Emacs falls back silently rather than erroring. Check with
+  `C-u C-x =` over a heading.
+- `docu` reuses `my/font-default` so that nothing new has to be
+  installed. A condensed technical sans in `:family` there would make
+  the silo visibly distinct while keeping the body monospaced.
+- `org-modern` labels depend on `line-spacing`, which
+  `11-org-appearance.el` sets to 0.2, inside the 0.1–0.4 range
+  upstream recommends. Raising it will misalign the labels.
+
+---
+
 ## Session 2026-08-28 — A day worth asking for, hub notes, and a dashboard in columns
 
 ### The day-of-month dashboards were stuck on today

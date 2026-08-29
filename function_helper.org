@@ -1485,9 +1485,23 @@ Function: =my/org-export-pdf-by-all-keywords= | Module: =modules/16-org-export.e
 :END:
 
 Toggle visual appearance settings for comfortable writing.
-=T= is not defined in =12-transient.el=: it is appended at load time by
-=30-link-tooltips.el= through =my/transient-append=, so removing that
-module leaves the rest of the submenu intact.
+
+Three entries are not defined in =12-transient.el=: they are appended at
+load time through =my/transient-append=, so removing the module that
+contributes one leaves the rest of the submenu intact.
+
+| Key | Contributed by |
+|-----+----------------|
+| =T= Link tooltips | =30-link-tooltips.el= |
+| =t= Theme light/dark | =34-appearance.el= |
+| =p= Padding | =34-appearance.el= |
+
+=t= and =T= are different entries. =my/transient-append= skips an
+already-bound key *silently*, which is right for re-evaluating a module
+during development and wrong for a genuine collision: the entry simply
+does not appear and nothing is said about it. Before appending here,
+check the key against this table as well as against
+=12-transient.el= itself.
 
 Module: =modules/12-transient.el= / =modules/13-centered-writing.el=
 
@@ -1537,6 +1551,28 @@ for =identifier=, =path= or =default=. See [[#link-tooltips][Link Tooltips]] for
 default is not =path=.
 
 Function: =my/link-tooltip-set-style= | Module: =modules/30-link-tooltips.el=
+
+*** t — Theme light/dark
+:PROPERTIES:
+:CUSTOM_ID: fn-modus-themes-toggle
+:END:
+
+Switches between =modus-operandi-tinted= (light) and
+=modus-vivendi-tinted= (dark). Also =<f5>= and =C-c u t=. See
+[[#theme][Theme]] for what survives the switch and how.
+
+Function: =modus-themes-toggle= | Module: =modules/09-theme.el=
+
+*** p — Padding
+:PROPERTIES:
+:CUSTOM_ID: fn-my-toggle-spacious-padding
+:END:
+
+Turns =spacious-padding-mode= on or off: frame border, window dividers,
+fringe margins and the hairline mode line. Worth turning off when screen
+space is tight. Also =C-c u p=. See [[#appearance][Appearance layer]].
+
+Function: =my/toggle-spacious-padding= | Module: =modules/34-appearance.el=
 
 ** C-c n t — Tools
 :PROPERTIES:
@@ -3144,88 +3180,393 @@ same cost described in [[#link-tooltips][Link Tooltips]] and the same measuremen
 :END:
 
 Where the appearance of Org text is decided, and why it is decided in
-exactly one place.
+exactly one place per kind of decision.
 
-** The rule
+** The rule: three layers, no overlap
 
-*custom.el owns every Org face.* Set colours, weights and inheritance
-with =M-x customize-face=; no module calls =set-face-attribute= on an
-Org face any more.
+There is no single owner of "Org appearance". There are three, split by
+*what kind of attribute* is being set, because the three behave
+differently when the theme changes.
 
-=03b-fonts.el= owns the three *base* faces those Org faces inherit
-from — =default=, =fixed-pitch= (JetBrains Mono) and =variable-pitch=
-(Playpen Sans Hebrew) — and the per-buffer choice between them, which is
-what makes journal notes handwritten. Changing the handwriting font
-there changes every face that inherits =variable-pitch=.
+| Layer | Owns | Where |
+|-------+------+-------|
+| Colour | every foreground and background | =modus-themes-common-palette-overrides= in =09-theme.el= |
+| Size, weight, typeface of headings | =org-level-0..8= and the agenda headings | =modus-themes-headings= in =09-theme.el= |
+| Font families | =default=, =fixed-pitch=, =variable-pitch= | =03b-fonts.el= |
+| The residue | a handful of faces no override reaches | =my/theme--custom-faces= in =09-theme.el= |
+
+The split is not arbitrary. A *height* means the same thing under a
+light and a dark theme; a *colour* does not. A face spec that mixes them
+— which is what =custom.el= used to hold — is portable in one half and
+broken in the other.
+
+*Do not put Org faces in custom.el.* =M-x customize-face= writes there
+and its result will beat =09-theme.el= for that face, which is fine for
+trying something out and wrong as a resting place. Move anything worth
+keeping into =09-theme.el= and delete it from =custom.el=.
+
+** Why colour is a palette override and not a hex value
+
+A palette override names an entry, not a value:
+
+#+begin_src elisp
+(fg-heading-1 blue-warmer)
+(bg-prose-block-contents bg-yellow-nuanced)
+#+end_src
+
+Each theme decides what =blue-warmer= is for itself, so one line is
+correct in =modus-operandi-tinted= and in =modus-vivendi-tinted= alike.
+Writing ="#354fcf"= there would pin the light value into both.
+
+The base of the override list is =modus-themes-preset-overrides-faint=,
+a preset the package ships: toned-down greys, desaturated accents,
+several grey backgrounds removed. That is where the pastel register
+comes from. The explicit entries above the =,@= splice refine it.
+
+To audition a different register, swap the preset for
+=modus-themes-preset-overrides-cooler= or =...-warmer=, or drop it and
+keep only the explicit entries. *Reload the theme afterwards* — press
+=<f5>= twice. Overrides take effect when a theme loads, not when they
+are assigned.
+
+=M-x modus-themes-list-colors-current= shows every palette entry with a
+preview, and =C-u= on it shows the semantic mappings, which is what an
+override targets.
+
+** Fonts: three base faces, one per-silo override
+
+=03b-fonts.el= sets three faces for the whole session:
+
+| Variable | Default | Face |
+|----------+---------+------|
+| =my/font-default= | JetBrains Mono | =default= and =fixed-pitch= |
+| =my/font-variable-pitch= | Source Sans 3 | =variable-pitch= |
+| =my/font-default-height= | 120 (= 12 pt) | absolute height of =default= |
+
+=my/font-default-height= is the only absolute height in the
+configuration. Every other face is relative (=1.0=), which is what lets
+=text-scale-adjust= and =default-text-scale-mode= scale a buffer
+coherently instead of moving one face out from under the others.
+
+*** Per silo
+
+=my/font-silo-styles= gives each silo a family and says whether body
+text is proportional:
+
+| Silo | =:family= | =:body= | Reads as |
+|------+-----------+---------+----------|
+| =journal/= | Playpen Sans Hebrew | =proportional= | handwriting, body included |
+| =pks/= | Source Sans 3 | =proportional= | a book page |
+| =docu/= | JetBrains Mono | =monospace= | a manual, uniformly machine-set |
+
+Both halves act on the *same face*. =:family= is remapped onto
+=variable-pitch= buffer-locally, and =:body proportional= additionally
+turns on =variable-pitch-mode=, which makes =default= inherit
+=variable-pitch= in that buffer. So the family reaches headings and
+quotations in every silo, and body text only where the silo asks.
+
+That is what makes =docu= work: the family is the monospaced one, so
+headings, body and code are all machine-set, while a =pks= note sets
+the identical structure in a text sans.
+
+=:height= is a relative float compensating for the fact that a
+proportional face at the same nominal size usually reads smaller than a
+monospaced one.
+
+*** Why =variable-pitch= and not a new face
+
+Because Modus already routes everything through it.
+=modus-themes-headings= asks for =variable-pitch= at every level,
+=org-quote= inherits it, and =modus-themes-mixed-fonts= keeps tables,
+blocks and inline code on =fixed-pitch= regardless. Remapping one face
+redresses a whole buffer, and a source block inside a handwritten
+journal entry stays monospaced without anything saying so.
+
+*** Matching is by directory prefix
+
+Against the *start* of the visited file name, using the silo variables
+from =00-core.el=. The previous test was a substring search for
+=journal= anywhere in the path, which matched
+=~/notes/pks/20260101T090000--journal-app.org=.
+
+A note in no listed silo — the =~/notes/= root, =captures.org= — keeps
+the session defaults.
+
+*** This has no effect on exported PDFs
+
+Faces are a screen concern. =my/org-export-to-pdf= emits LaTeX and
+hands it to lualatex, which knows nothing about faces. The journal font
+in a PDF comes from =\setmainfont{Playpen Sans Hebrew}= in the
+=journal-article= class built by =my/--latex-preamble=
+(=16-org-export.el=).
+
+Note the two different criteria: the screen font is chosen by
+*directory*, the LaTeX class by the =:journal:= *filetag*. For journal
+notes they agree, because journal notes carry that tag. For =pks= and
+=docu= there is nothing to disagree about yet — both export through
+=article=. Giving them distinct PDF fonts means adding classes in
+=16-org-export.el=, not editing =my/font-silo-styles=.
+
+*** An uninstalled family fails silently
+
+Emacs falls back rather than signalling, so a typo produces a
+wrong-looking session, not an error. Check with =C-u C-x == over the
+text in question, or =M-x describe-font=.
 
 ** What used to go wrong
 
-=11-org-appearance.el= called =set-face-attribute= with
-=:foreground 'unspecified= on seven Org faces, under a comment claiming
-this left the colour "to inherit from custom.el". It does the opposite:
-=unspecified= *erases* the attribute. A colour set with
-=customize-face= applied for the rest of that session and was wiped at
-the next start, every time.
+*Every heading in every note was handwritten.* =03b-fonts.el= set the
+*global* =variable-pitch= face to Playpen Sans Hebrew, on the
+understanding that journals were the only place a proportional font
+appeared. They were not: =modus-themes-headings= asks for
+=variable-pitch= at levels 1–3 and =org-quote= inherits it. A
+documentation note and a thesis chapter rendered their headings as
+handwriting. The fix is to make the global face a neutral text sans
+and remap it per silo, which is what =my/font-silo-styles= does.
 
-It also produced the impression that *each file looked different*. It
+*Dark mode was blocked by custom.el, not by the theme.*
+=custom-set-faces= writes the =user= theme, which outranks every real
+theme by design. About twenty Org faces were pinned there to literal
+light colours — =org-block= on =#fef8e0=, =org-link= on =#555555= — so
+=modus-vivendi-tinted= loaded correctly and was then overwritten face by
+face. Roughly two thirds of those specs needed no replacement at all:
+twelve existed only to add =:inherit fixed-pitch=, which is exactly what
+=modus-themes-mixed-fonts= does and it was already enabled.
+
+*=11-org-appearance.el= erased attributes it claimed to preserve.* It
+called =set-face-attribute= with =:foreground 'unspecified= on seven Org
+faces, under a comment saying this left the colour to =custom.el=. It
+does the opposite: =unspecified= *erases* the attribute.
+
+That also produced the impression that *each file looked different*. It
 did not — each *frame* did. =set-face-attribute= alters the realised
-faces of existing frames; a new frame recomputes its faces from the
+faces of frames that already exist; a new frame recomputes from the
 theme and =custom-set-faces=, where the erasure does not appear. A note
 opened with =C-c n v f= (detach to frame) therefore showed the theme's
 colours while the same note in the main frame showed none.
+
+This is why =my/theme--custom-faces= uses =custom-set-faces= at runtime
+rather than =set-face-attribute=: the former reaches frames made later.
+
+*Two settings had stopped meaning anything.*
+=modus-themes-org-blocks= was removed from the package in version 4.4.0
+and had been setting a variable no code reads; block appearance is now
+the =bg-prose-block-*= overrides. =modus-themes-headings= no longer takes
+a =rainbow= property in version 5; per-level colour is =fg-heading-N= in
+the overrides, which also reaches backgrounds and overlines.
 
 Two further traps worth remembering:
 
 - =~code~= is =org-code= and ~=verbatim=~ is =org-verbatim= — *two
   different faces*. A difference between them reads like a per-document
   quirk until you notice which marker was used.
-- =custom.el= and the module disagreed about =org-block=: Georgia in one,
-  monospace in the other. The winner depended on how old the frame was.
+- Quote blocks only get the =org-quote= face when
+  =org-fontify-quote-and-verse-blocks= is non-nil, which =01-ui.el= sets.
 
-** Current settings
+** org-modern
 
-| Face | Look | Applies to |
-|------+------+------------|
-| =org-quote= | journal handwriting font, italic, 1.1 | =#+begin_quote= blocks |
-| =org-block= | monospace, cream background | =#+begin_src=, =#+begin_example= |
-| =org-verbatim= | purple, *not* bold | ~=text=~ |
-| =org-code= | dark green, not bold | =~text~= |
-| =org-table=, =org-meta-line=, =org-checkbox=, =org-link=, =org-special-keyword= | monospace | structure that must stay aligned |
+=11-org-appearance.el= runs =org-modern= (GNU ELPA), replacing
+=org-bullets=. It styles headline stars, tags, TODO keywords,
+priorities, timestamps and table rules using text properties rather than
+character composition, so the styled text stays editable and searchable.
 
-=org-quote= inherits =variable-pitch= rather than naming a font, so a
-quotation is set in the same hand as a journal entry in *every* note,
-not only in journals. =org-block= inherits =fixed-pitch=, so source
-blocks stay monospace even inside a journal.
+Two features are off *on purpose*, and turning either on needs a
+matching change elsewhere:
 
-=org-verbatim= deliberately has *no* =:foreground=: the purple comes
-from =modus-operandi-tinted= itself. =org-code= is pinned to
-=dark green= because the theme offers nothing like it.
+- =org-modern-block-name= is nil. =01-ui.el= maps =#+begin_src= to a
+  lambda and =#+begin_quote= to a balloon through
+  =prettify-symbols-alist=; org-modern styles the same lines by a
+  different mechanism, and running both leaves the delimiter
+  half-replaced. To go the other way, remove the four =#+begin=/=#+end=
+  pairs from =prettify-symbols-alist= first — one or the other, never
+  both.
+- =org-modern-block-fringe= is nil. The bracket is drawn in the fringe,
+  which =10-visual-fill.el= places inside the margins of a centred
+  column and =34-appearance.el= widens for padding; it would float at an
+  unpredictable distance from what it brackets. The block background
+  from =09-theme.el= marks blocks instead.
 
-Quote blocks are only given the =org-quote= face when
-=org-fontify-quote-and-verse-blocks= is non-nil, which =01-ui.el= sets.
+=org-tags-column= is 0 and =org-auto-align-tags= nil: with tags rendered
+as labels, a right-aligned column becomes a gap between headline and
+label.
 
-** Theme
+Labels depend on =line-spacing=, which =11-org-appearance.el= sets to
+0.2 — inside the 0.1–0.4 range upstream recommends. Raising it
+misaligns them.
 
-Light only: =modus-operandi-tinted=, loaded by =09-theme.el=. There is
-no dark command and no toggle.
+** Theme and switching
 
-Dark mode cannot work while custom.el pins Org faces to literal light
-colours such as =#fef8e0=, because =custom-set-faces= outranks a theme.
-Making it work means moving those colours into
-=modus-themes-common-palette-overrides=, which names palette entries
-that each theme resolves for itself — a real piece of work, not a
-toggle.
-
-=modus-themes-headings= still sets heading colour and variable pitch,
-but custom.el's =org-level-1..8= heights outrank the sizes given there.
-Change heading sizes in custom.el.
+Two themes, one switch: =modus-operandi-tinted= (light, ochre base) and
+=modus-vivendi-tinted= (dark, night sky). See [[#theme][Theme (F5 / C-c u t)]].
 
 ** If a colour looks wrong
 
 With point on the text, =C-u C-x == names every face at that position.
-=M-x describe-face= then shows where the face got its attributes. If a
-face differs between two frames, that is the symptom described above and
-means something has started calling =set-face-attribute= again.
+=M-x describe-face= then shows where the face got its attributes — in
+particular whether the =user= theme (that is, =custom.el=) is
+involved, which is the first thing to check when a theme "does not
+work".
+
+If a face differs between two frames, that is the symptom described
+above and means something has started calling =set-face-attribute=
+again.
+
+* Theme (F5 / C-c u t)
+:PROPERTIES:
+:CUSTOM_ID: theme
+:END:
+
+Light and dark, switchable.
+
+Module: =modules/09-theme.el=
+
+** Switching
+
+| Key | Command |
+|-----+---------|
+| =<f5>= | =modus-themes-toggle= |
+| =C-c u t= | =modus-themes-toggle= |
+| =C-c n v t= | same, from the View menu |
+
+=modus-themes-to-toggle= names the pair. =M-x modus-themes-select= picks
+any Modus theme from the minibuffer without changing the pair, which is
+the way to try one before committing to it.
+
+=modus-themes-disable-other-themes= is =t=, so loading one disables the
+other. Without it Emacs blends them, which never looks like either.
+
+** What survives a toggle, and how
+
+A theme reassigns every face it covers when it loads. Anything set
+outside the theme therefore has to be re-applied afterwards, and
+=modus-themes-after-load-theme-hook= is where that happens. Two
+functions are on it:
+
+- =my/fonts-apply= (=03b-fonts.el=) — the three base font faces, because
+  =default= is one of the faces a theme reassigns.
+- =my/theme--custom-faces= (=09-theme.el=) — =org-quote=,
+  =denote-faces-date=, =org-property-value=, =org-special-keyword=.
+
+Everything else needs no hook. *A face that inherits follows the theme
+for free*, which is why the dashboard faces and the mode-line indicator
+faces are =defface= declarations inheriting from =link=, =shadow= and
+=bold= rather than entries in that function.
+
+Keep =my/theme--custom-faces= short. A face belongs there only when it
+needs an attribute a palette override cannot express — a font family, a
+slant — or belongs to a package the themes do not cover.
+
+** Editing colour
+
+See [[#org-faces][Org Faces and Fonts]] for the palette-override mechanism and the
+=faint= preset the list is built on. In brief: name palette entries, not
+hex values, and reload the theme (=<f5>= twice) after changing anything.
+
+* Appearance layer (C-c u)
+:PROPERTIES:
+:CUSTOM_ID: appearance
+:END:
+
+The cosmetic layer. Nothing here changes what a command does; removing
+=34-appearance.el= from =init.el= leaves a working but plainer Emacs. It
+is loaded last and with =NOERROR= for that reason.
+
+Module: =modules/34-appearance.el=
+
+** Keybindings
+
+| Key | Command | Effect |
+|-----+---------+--------|
+| =C-c u t= | =modus-themes-toggle= | light ↔ dark (also =<f5>=) |
+| =C-c u p= | =my/toggle-spacious-padding= | padding on/off |
+| =C-c u += | =text-scale-increase= | this buffer only |
+| =C-c u -= | =text-scale-decrease= | this buffer only |
+| =C-c u 0= | =my/text-scale-reset= | this buffer back to default |
+| =C-M-== | =default-text-scale-increase= | every buffer, every frame |
+| =C-M--= | =default-text-scale-decrease= | every buffer, every frame |
+
+Two scopes on purpose: =text-scale-*= resizes the current buffer, which
+suits a long reading session in one note; =default-text-scale-*= changes
+the height of the =default= face, which suits tired eyes at the end of a
+day. visual-fill-column recomputes its margins from the scaled size, so
+a centred column stays centred at either.
+
+The View menu (=C-c n v=) gains =t= (theme) and =p= (padding) through
+=my/transient-append=. Text scaling is deliberately *not* in that menu:
+a transient closes and reopens around each invocation, which is the
+wrong shape for a key pressed repeatedly.
+
+** spacious-padding
+
+Frame border, window dividers, fringes as page margins, and a mode line
+drawn as a hairline overline instead of a filled bar. This is the
+largest visual change in the layer and the cheapest — it is entirely
+presentational.
+
+*Check this against notes.* visual-fill-column centres note text by
+widening the window margins, and with
+=visual-fill-column-fringes-outside-margins= nil the fringes sit between
+margin and text. The =:fringe-width= here therefore *adds* to the gap on
+both sides of a centred column. If notes read as too narrow, lower
+=:fringe-width= in =spacious-padding-widths= before touching
+=my-fill-column=.
+
+=C-c u p= turns the whole thing off when screen space is tight — a
+laptop panel, or four windows open.
+
+** lin
+
+=02-editing.el= enables =global-hl-line-mode=, giving every buffer the
+same highlight at the same intensity. The line means two different
+things, though: a reminder of where point is in a note, and *the
+selection itself* in the inbox review queue (=25-inbox-review.el=), the
+maintenance reports (=26-maintenance.el=), the Readwise lists
+(=24-readwise.el=) and the dashboards.
+
+=lin= remaps the highlight face buffer-locally in the modes named by
+=lin-mode-hooks= — =tabulated-list-mode-hook= covers all four of those —
+and leaves prose buffers to =hl-line= as the theme styles it.
+
+** pulsar
+
+A brief pulse on the line point just landed on. Navigation here is
+mostly jumps — a =denote:= link, a backlink, a dashboard entry, a search
+hit — each of which puts point somewhere in a window that has just been
+redrawn.
+
+Emacs has no animation engine. This is a timer redrawing one line's
+background a few times, and that is the honest ceiling: nothing in this
+layer offers transitions, blur or sliding panels, because the display
+engine does not have them.
+
+** Shared faces
+
+Six faces the dashboards use instead of hex values in =propertize=:
+=my/dashboard-title=, =-section=, =-note=, =-tag-button=, =-tags=,
+=-hint=. Two more for the mode line, defined where their segment is:
+=my/modeline-word-count= (=01-ui.el=) and =my/writing-mode-indicator=
+(=13-centered-writing.el=).
+
+All eight inherit and name no colour of their own. A literal
+='(:foreground "#888888")= in a =propertize= call is correct under one
+theme and muddy under the other, and can only be found later by grepping
+for hex digits; a named face is greppable, appears in
+=M-x list-faces-display=, and can be customised without editing code.
+
+The dashboard faces live in =34-appearance.el= rather than in
+=15-workspace.el= so that neither module needs the other — an undefined
+face renders as =default= rather than signalling.
+
+** What was considered and rejected
+
+| Package | Why not |
+|---------+---------|
+| =doom-modeline= | would need the word-count and pin segments rebuilt as doom segments; icon-heavy look pulls against this direction |
+| =centaur-tabs= | buffer tabs, competing with the workspace model =23-fixed-tabs.el= builds on =tab-bar= |
+| =modern-tab-bar= | the right tool, but on neither GNU ELPA nor MELPA — =:ensure t= would fail at startup |
+| =beacon= | overlaps =pulsar=, and configures itself with a literal hex colour |
+| =mini-frame= | child frames are the least reliable part of Wayland/PGTK, and it would sit between which-key and every transient menu |
+| =all-the-icons= | superseded by =nerd-icons=; neither installed, both need a font added through the NixOS configuration |
 
 * Capture Filing
 :PROPERTIES:
@@ -3664,6 +4005,28 @@ hand-editing either from memory.
 | C-c m c  | =my/notes-create-menu=        | =08-keybindings.el=          |
 | C-c m w  | =my/toggle-writeroom=         | =08-keybindings.el=          |
 | C-c m k  | =my/denote-keywords-edit=     | =08-keybindings.el= (duplicate of C-c d t) |
+| <f5>     | =modus-themes-toggle=         | =09-theme.el=                |
+| C-c u t  | =modus-themes-toggle=         | =09-theme.el=                |
+| C-c u p  | =my/toggle-spacious-padding=  | =34-appearance.el=           |
+| C-c u +  | =text-scale-increase=         | =34-appearance.el= (this buffer) |
+| C-c u -  | =text-scale-decrease=         | =34-appearance.el= (this buffer) |
+| C-c u 0  | =my/text-scale-reset=         | =34-appearance.el=           |
+| C-M-=    | =default-text-scale-increase= | =34-appearance.el= (all frames) |
+| C-M--    | =default-text-scale-decrease= | =34-appearance.el= (all frames) |
+| C-x b    | =consult-buffer=              | =01-ui.el=                   |
+| M-g g    | =consult-goto-line=           | =01-ui.el=                   |
+| M-g i    | =consult-imenu=               | =01-ui.el=                   |
+| M-s l    | =consult-line=                | =01-ui.el=                   |
+
+*On the consult bindings:* the usual setup rebinds =C-s= to
+=consult-line=. It is not done here — =C-s= is =save-buffer= — and
+=C-x C-b= is =ibuffer=, so =consult-buffer= took the free =C-x b=
+instead. Buffer-local search is =M-s l=; searching across notes stays
+=consult-denote-grep= (=C-c n f g=).
+
+*On the =C-c u= prefix:* "u" for UI. It was the only free single letter
+in the =C-c= space that suggested the right thing; =C-c v= is git,
+=C-c w= is workspace, =C-c t= is tabs.
 
 *Note:* there is no =C-c F ...= spelling prefix — an earlier revision
 of this table and of =08-keybindings.el= documented one that was never
