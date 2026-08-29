@@ -105,12 +105,78 @@
 ;; Show inline images by default
 (setq org-startup-with-inline-images t)
 
-;; Prettier bullet points (● instead of -)
-(use-package org-bullets
+;; ============================================================
+;; ORG-MODERN: headline stars, tags, keywords, timestamps, tables
+;; ============================================================
+;; Replaces org-bullets, which only styled headline stars.  org-modern
+;; is on GNU ELPA, styles the same stars plus tags, TODO keywords,
+;; priorities, timestamps and table rules, and does it with text
+;; properties rather than character composition -- so the styled text
+;; stays editable and searchable.
+;;
+;; WHAT IS DELIBERATELY TURNED OFF, AND WHY
+;; ----------------------------------------
+;; `org-modern-block-name' is nil.  01-ui.el maps #+begin_src to a
+;; lambda and #+begin_quote to a speech balloon through
+;; `prettify-symbols-alist'.  org-modern styles those same lines by a
+;; different mechanism (font-lock and display properties), and running
+;; both leaves the delimiter half-replaced.  The prettify mapping is
+;; older, is what the notes were written against, and wins.  To go the
+;; other way instead, drop the four #+begin/#+end pairs from
+;; `prettify-symbols-alist' in 01-ui.el and set this to t here --
+;; but do one or the other, never both.
+;;
+;; `org-modern-block-fringe' is nil.  The block bracket is drawn in the
+;; fringe, and 10-visual-fill.el places the fringes inside the margins
+;; of a centred text column while 34-appearance.el widens them for
+;; padding.  The bracket then floats at an unpredictable distance from
+;; the text it brackets.  The block background from 09-theme.el marks
+;; blocks instead.
+;;
+;; KNOWN INTERACTIONS (documented upstream, both apply here)
+;;   - `org-indent-mode' disables the fringe bracket.  It is off by
+;;     default in this configuration anyway.
+;;   - `visual-line-mode' can wrap headline tags.  It is on in notes;
+;;     with `org-tags-column' at 0 the tags sit next to the headline
+;;     text, which makes the wrap rare rather than impossible.
+
+(use-package org-modern
   :ensure t
-  :hook (org-mode . org-bullets-mode)
+  :hook ((org-mode . org-modern-mode)
+         (org-agenda-finalize . org-modern-agenda))
+  :custom
+  ;; Stars as bullets, matching the previous org-bullets sequence.
+  ;; The package default is `fold', which turns stars into fold
+  ;; indicators -- a different idea, and a visible behaviour change.
+  (org-modern-star 'replace)
+  (org-modern-replace-stars "●○◈◇✳")
+  (org-modern-hide-stars 'leading)
+
+  ;; Labels: tags, keywords and dates as pills.  These rely on the box
+  ;; text property and on `line-spacing', which the hook below sets to
+  ;; 0.2 -- inside the 0.1-0.4 range upstream recommends.
+  (org-modern-tag t)
+  (org-modern-todo t)
+  (org-modern-priority t)
+  (org-modern-timestamp t)
+  (org-modern-table t)
+  (org-modern-horizontal-rule t)
+
+  ;; See the note above before changing either of these.
+  (org-modern-block-name nil)
+  (org-modern-block-fringe nil)
+
+  ;; Checkboxes keep their plain rendering: 02b-bold-marker.el and the
+  ;; capture templates both produce checkbox lists, and a replaced
+  ;; glyph there changes column widths in files that already exist.
+  (org-modern-checkbox nil)
+  (org-modern-list '((?+ . "▸") (?- . "–") (?* . "•")))
   :config
-  (setq org-bullets-bullet-list '("●" "○" "●" "○" "●" "○" "●")))
+  ;; Tags render as labels, so the right-aligned tag column becomes
+  ;; empty space between headline and label.  Column 0 puts the label
+  ;; directly after the text.
+  (setq org-tags-column 0
+        org-auto-align-tags nil))
 
 ;; ============================================================
 ;; LINE SPACING (More breathing room)
@@ -178,7 +244,7 @@ Toggle: C-c n E  (in notes transient menu)"
 ;; - Journal notes: Playpen Sans Hebrew (handwriting)
 ;; - Other notes: JetBrains Mono (monospace)
 ;; - Code/tables: Always monospace (enforced above via :inherit fixed-pitch)
-;; Pretty bullets: ● ○ ● ○
+;; Pretty bullets, tag/TODO/date labels: org-modern (see above)
 ;;
 ;; INDENTATION:
 ;; - Default: OFF (better for older notes)
