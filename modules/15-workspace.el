@@ -278,7 +278,7 @@ and creates it when it is missing.")
   "Insert a styled section TITLE line."
   (insert "\n")
   (insert (propertize (concat "  " title "\n")
-                      'face '(:weight bold :underline t)))
+                      'face 'my/dashboard-section))
   (insert "\n"))
 
 (defvar my/dashboard-signature-width 5
@@ -403,12 +403,12 @@ face instead of inheriting the button's."
                       'follow-link t
                       'help-echo file
                       'mouse-face 'highlight
-                      'face '(:foreground "#2aa198"))
+                      'face 'my/dashboard-note)
     (when (and my/dashboard-show-tags tags)
       (let ((pad (max 2 (- my/dashboard-tag-column (current-column)))))
         (insert (propertize (concat (make-string pad ?\s)
                                     ":" (string-join tags ":") ":")
-                            'face '(:foreground "#888888")))))
+                            'face 'my/dashboard-tags))))
     (insert "\n")))
 
 (defun my/dashboard-insert-tag-line (tag files)
@@ -423,7 +423,7 @@ face instead of inheriting the button's."
                       'follow-link t
                       'help-echo (format "Show notes tagged :%s:" tag)
                       'mouse-face 'highlight
-                      'face '(:foreground "#859900"))
+                      'face 'my/dashboard-tag-button)
     (insert "\n")))
 
 (defun my/dashboard-show-tag-notes (tag files)
@@ -445,11 +445,11 @@ without any manual setup."
         (insert (propertize
                  (format "Notes tagged :%s: (%d)  --  sorted by creation date\n\n"
                          tag (length files))
-                 'face '(:weight bold)))
+                 'face 'my/dashboard-section))
         (dolist (f sorted)
           (my/dashboard-insert-file-link f 'id))
         (insert "\n")
-        (insert (propertize "  q = close" 'face '(:foreground "#888888")))))
+        (insert (propertize "  q = close" 'face 'my/dashboard-hint))))
     (display-buffer buf '(display-buffer-below-selected (window-height . 0.4)))))
 
 ;; ============================================================
@@ -474,7 +474,7 @@ DATE-SOURCE is passed through to `my/dashboard-insert-file-link'."
     (when (> total (length shown))
       (insert (propertize (format "  ... and %d more\n"
                                   (- total (length shown)))
-                          'face '(:foreground "#888888"))))))
+                          'face 'my/dashboard-hint)))))
 
 (defun my/dashboard--section-recent ()
   "Insert the Recently Modified section."
@@ -642,11 +642,11 @@ columns in the buffer list, still showing whatever they last held."
         (when (= index 1)
           (insert "\n")
           (insert (propertize "  Notes Dashboard\n"
-                              'face '(:weight bold :height 1.3)))
+                              'face 'my/dashboard-title))
           (insert (propertize
                    (format "  %s\n"
                            (format-time-string "Refreshed: %Y-%m-%d %H:%M"))
-                   'face '(:foreground "#888888"))))
+                   'face 'my/dashboard-hint)))
         (dolist (section sections)
           (let ((fn (alist-get section my/dashboard-sections)))
             (if (functionp fn)
@@ -657,7 +657,7 @@ columns in the buffer list, still showing whatever they last held."
         (when (= index total)
           (insert (propertize
                    "  g = refresh  |  q = close  |  C-c w r = random note\n"
-                   'face '(:foreground "#888888"))))
+                   'face 'my/dashboard-hint)))
         (goto-char (point-min))))
     buf))
 

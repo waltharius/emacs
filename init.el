@@ -95,6 +95,12 @@
   (load (concat modules-dir "31-org-images.el")) ; Image attachments (C-c n i i)
   (load (concat modules-dir "32-web-links.el")) ; insert web link (C-c n i u)
   (load (concat modules-dir "33-denote-hubs.el")) ; Hub notes (C-c n i H)
+  ;; Loaded last, and optional (NOERROR).  It appends to the View menu
+  ;; from 12-transient.el and defines the faces that 15-workspace.el
+  ;; references, both of which degrade rather than fail when absent:
+  ;; a missing face renders as `default', and `my/transient-append'
+  ;; skips a menu whose anchor it cannot find.
+  (load (concat modules-dir "34-appearance.el") t) ; Padding, faces, pulse (C-c u)
   )
 
 (add-hook 'emacs-startup-hook
