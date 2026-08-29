@@ -11,9 +11,25 @@
 ;; ============================================================
 
 (setq inhibit-startup-screen t)
-(tool-bar-mode 1)         ; Keep tool bar (you like it)
-(menu-bar-mode 1)         ; Keep menu bar (File, Edit, Options...)
-(scroll-bar-mode 1)       ; Keep scroll bar
+
+;; CHROME.  The tool bar and the scroll bar are the two elements that
+;; date the frame most: a row of 16-pixel icons for commands this
+;; configuration reaches through C-c n, and a scroll bar duplicating
+;; information the mode line already gives as a percentage.  Neither is
+;; ever clicked here, and both eat vertical and horizontal space that
+;; the centred text column of 10-visual-fill.el then has to give back.
+;;
+;; The menu bar STAYS.  It is the only surface that lists what a mode
+;; can do without knowing a key for it, which matters in a
+;; configuration this large -- Org's own menu alone is a reference.
+;; That is a different argument from the one against the tool bar, and
+;; it comes out the other way.
+;;
+;; To revert either: change -1 to 1 here, or toggle for one session
+;; with `M-x tool-bar-mode' / `M-x scroll-bar-mode'.
+(tool-bar-mode -1)
+(menu-bar-mode 1)
+(scroll-bar-mode -1)
 
 ;; Set locale for Polish time/date formatting
 (setq system-time-locale "pl_PL.UTF-8")
@@ -41,6 +57,53 @@
   :ensure t
   :init
   (marginalia-mode))
+
+;; ============================================================
+;; CONSULT: load it, so the pieces built on it actually start
+;; ============================================================
+;; 04-denote.el declares consult-denote with `:after (denote consult)',
+;; which defers its whole body until BOTH features are provided.
+;; denote loads eagerly; consult did not, because nothing in the
+;; configuration ever required it -- package.el installed it as a
+;; dependency and left it on disk.  So `(consult-denote-mode 1)' did
+;; not run at startup, and the Denote sources it adds to
+;; `consult-buffer' were absent until some consult command happened to
+;; load the package.  `consult-denote-grep' in the Find menu still
+;; worked, via its own autoload; the integration around it did not.
+;;
+;; Requiring consult here fixes that at the source.  This module owns
+;; the completion stack (vertico, orderless, marginalia), so it is
+;; where the fourth piece belongs.
+;;
+;; BINDINGS ARE DELIBERATELY SPARSE.  The usual consult setup rebinds
+;; C-s to `consult-line'; here C-s is `save-buffer' (02-editing.el, a
+;; CUA-style choice this configuration makes throughout) and taking it
+;; would break a reflex used hundreds of times a day.  C-x C-b is
+;; ibuffer (02-editing.el).  What is left free and worth having:
+;;
+;;   C-x b    consult-buffer      -- buffers, recent files and the
+;;                                   Denote sources in one prompt
+;;   M-g g    consult-goto-line   -- with a live preview of the line
+;;   M-g i    consult-imenu       -- headings in the current note
+;;   M-s l    consult-line        -- search in buffer, with preview
+;;
+;; To search across notes, keep using `consult-denote-grep' (C-c n f g).
+
+(use-package consult
+  :ensure t
+  :demand t
+  :bind (("C-x b"   . consult-buffer)
+         ("M-g g"   . consult-goto-line)
+         ("M-g M-g" . consult-goto-line)
+         ("M-g i"   . consult-imenu)
+         ("M-s l"   . consult-line))
+  :config
+  (setq xref-show-xrefs-function #'consult-xref
+        xref-show-definitions-function #'consult-xref)
+  ;; Preview on demand rather than on every candidate: the sources
+  ;; include note files, and previewing each one while arrowing
+  ;; through a long list opens a buffer per candidate.
+  (setq consult-preview-key "M-.")) 
 
 ;; Enable completion-read-multiple with comma separator
 (setq crm-separator ",")
@@ -504,12 +567,34 @@ customized elsewhere."
 ;; WORD COUNT IN MODELINE
 ;; ============================================================
 
+(defface my/modeline-word-count
+  '((t :inherit (bold shadow)))
+  "Face for the word count segment of the mode line.
+Inherits rather than naming a colour, so the segment follows the
+active theme through a light/dark toggle.  The previous literal
+\"purple\" was legible on the light theme only."
+  :group 'mode-line-faces)
+
 (defun my/word-count-modeline ()
   "Display word count in modeline for text modes."
   (when (derived-mode-p 'org-mode 'text-mode)
     (let ((words (count-words (point-min) (point-max))))
-      (propertize (format "%d " words)
-                  'face '(:foreground "purple" :weight bold)))))
+      (propertize (format "%d " words) 'face 'my/modeline-word-count))))
+
+;; ============================================================
+;; THE MODE LINE: ONE DEFINITION, HERE
+;; ============================================================
+;; This `setq-default' is the only one in the configuration.  There
+;; used to be a second, identical but for one extra segment, at the top
+;; of 13-centered-writing.el -- so whichever file loaded last silently
+;; decided the mode line, and editing this one had no effect.
+;;
+;; Other modules contribute segments through `mode-line-misc-info',
+;; which is the mechanism `my/desktop-keep-buffer-mode-line' above
+;; already uses and which 13-centered-writing.el now uses too.  A
+;; module that adds a segment that way can be deleted without leaving
+;; the mode line broken, and does not need to know what the format
+;; looks like.
 
 (setq-default mode-line-format
               '((:eval (my/word-count-modeline))

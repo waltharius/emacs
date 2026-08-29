@@ -41,32 +41,35 @@ This is buffer-local so each note can have its own state.")
 ;; MODE-LINE INDICATOR
 ;; ============================================================
 
-(defun my/writing-mode-indicator ()
-  "Display 'W' in mode line when writing mode is enabled."
-  (when my/centered-writing-mode
-    (propertize "W "
-                'face '(:foreground "black" :weight bold)
-                'help-echo "Writing mode: cursor centered when typing")))
+(defface my/writing-mode-indicator
+  '((t :inherit (bold success)))
+  "Face for the writing-mode indicator in the mode line.
+Inherits rather than naming a colour: the previous literal \"black\"
+was invisible against a dark mode line."
+  :group 'mode-line-faces)
 
-;; Add indicator to mode line (after word count)
-(setq-default mode-line-format
-              '((:eval (my/word-count-modeline))
-                (:eval (my/writing-mode-indicator))  ; <-- Writing mode indicator
-                "%e"
-                mode-line-front-space
-                mode-line-mule-info
-                mode-line-client
-                mode-line-modified
-                mode-line-remote
-                mode-line-frame-identification
-                mode-line-buffer-identification
-                "   "
-                mode-line-position
-                (vc-mode vc-mode)
-                "  "
-                mode-line-modes
-                mode-line-misc-info
-                mode-line-end-spaces))
+(defvar my/writing-mode-line-construct
+  '(:eval (when my/centered-writing-mode
+            (propertize " W" 'face 'my/writing-mode-indicator
+                        'help-echo "Writing mode: cursor centered when typing")))
+  "Mode-line construct showing W while centred writing is on.")
+(put 'my/writing-mode-line-construct 'risky-local-variable t)
+
+;; CONTRIBUTE A SEGMENT, DO NOT REDEFINE THE MODE LINE
+;; --------------------------------------------------
+;; This file used to `setq-default mode-line-format' to its own copy of
+;; the format from 01-ui.el, plus this indicator.  Two files then
+;; declared the same variable and load order decided which one held:
+;; editing the format in 01-ui.el had no visible effect, because
+;; 13-centered-writing.el loads later and overwrote it.
+;;
+;; `mode-line-misc-info' is the seam meant for this.  01-ui.el owns the
+;; format and lists that variable in it; a module appends its own
+;; construct and stays out of the rest.  Deleting this file now removes
+;; one indicator instead of reverting the mode line to a stale copy.
+
+(unless (memq 'my/writing-mode-line-construct mode-line-misc-info)
+  (add-to-list 'mode-line-misc-info 'my/writing-mode-line-construct))
 
 ;; ============================================================
 ;; SIMPLE RECENTERING ON TYPING
