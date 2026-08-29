@@ -183,5 +183,120 @@ add any new keywords found in existing notes.")
 
 (setq load-prefer-newer t)
 
+;; ============================================================
+;; UI STATE: settings that must outlive a restart
+;; ============================================================
+;; A plist in one small file.  Used for choices made interactively --
+;; the active theme, the base font size, the default text width --
+;; which belong to the session rather than to the configuration.
+;;
+;; NOT `custom-set-variables', which would write custom.el.  That file
+;; was emptied on purpose (see the note at its top) and reintroducing
+;; machine-written settings there is how the theme became unfixable
+;; the first time.  NOT the desktop either: this has to work when no
+;; session is restored.
+;;
+;; Read once at startup, written on every change.  The file is tiny
+;; and the writes are rare, so no batching is worth the complexity.
+
+(defconst my/ui-state-file (locate-user-emacs-file "ui-state.el")
+  "File holding interactively chosen UI settings.
+Safe to delete: every reader falls back to a compiled-in default.")
+
+(defvar my/ui-state nil
+  "Plist of persisted UI settings.  See `my/ui-state-file'.")
+
+(defun my/ui-state-load ()
+  "Read `my/ui-state-file' into `my/ui-state'.
+Returns nil and leaves the state empty when the file is missing,
+empty or corrupt.  A UI preference is never worth aborting init for."
+  (setq my/ui-state
+        (when (file-readable-p my/ui-state-file)
+          (with-temp-buffer
+            (insert-file-contents my/ui-state-file)
+            (let ((data (ignore-errors (read (current-buffer)))))
+              (and (listp data) data))))))
+
+(my/ui-state-load)
+
+(defun my/ui-state-get (key &optional default)
+  "Return the stored value for KEY, or DEFAULT when there is none."
+  (if (plist-member my/ui-state key)
+      (plist-get my/ui-state key)
+    default))
+
+(defun my/ui-state-set (key value)
+  "Store VALUE under KEY and write the state file."
+  (setq my/ui-state (plist-put my/ui-state key value))
+  (with-temp-file my/ui-state-file
+    (insert ";; Written by Emacs.  Interactively chosen UI settings.\n")
+    (prin1 my/ui-state (current-buffer))
+    (insert "\n"))
+  value)
+
+;; ============================================================
+;; NOTE KEYWORDS: reading and writing #+key: value front matter
+;; ============================================================
+;; Denote front matter is a run of `#+keyword:' lines at the top of the
+;; file, and this configuration already uses it to carry per-note facts
+;; (`#+schema:', `#+project:', `#+wellbeing:').  Per-note appearance
+;; settings use the same channel, so a note that should be read wide or
+;; large says so in the note itself and travels with it through
+;; Syncthing, git and any other editor.
+;;
+;; Deliberately a regexp scan of the first few kilobytes rather than
+;; `org-collect-keywords': these run from `org-mode-hook', before Org
+;; has finished setting the buffer up, and must not depend on Org
+;; internals being ready.  10-visual-fill.el already scans for
+;; `#+filetags:' the same way.
+
+(defconst my/note-front-matter-limit 4096
+  "How far into a file to look for `#+keyword:' lines, in characters.")
+
+(defun my/note-keyword (name)
+  "Return the value of the file keyword NAME, or nil.
+NAME is given without the `#+' and the colon, e.g. \"text_width\".
+An empty value counts as absent."
+  (save-excursion
+    (goto-char (point-min))
+    (when (re-search-forward
+           (format "^#\\+%s:[ \t]*\\(.*\\)$" (regexp-quote name))
+           (min (point-max) my/note-front-matter-limit) t)
+      (let ((value (string-trim (match-string-no-properties 1))))
+        (unless (string-empty-p value) value)))))
+
+(defun my/note-keyword-number (name)
+  "Return the value of file keyword NAME as a number, or nil.
+Returns nil rather than signalling when the value is not a number, so
+a typo in a note degrades to the default instead of breaking the
+buffer."
+  (when-let* ((value (my/note-keyword name)))
+    (let ((n (string-to-number value)))
+      ;; `string-to-number' returns 0 for junk, so an explicit 0 has to
+      ;; be told apart from a failed parse.
+      (if (and (= n 0) (not (string-match-p "\\`[+-]?0*\\(\\.0*\\)?\\'" value)))
+          nil
+        n))))
+
+(defun my/note-keyword-set (name value)
+  "Set file keyword NAME to VALUE in the current buffer.
+Replaces an existing line, or inserts one after the last front-matter
+keyword.  Does not save the buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (if (re-search-forward (format "^#\\+%s:.*$" (regexp-quote name))
+                           (min (point-max) my/note-front-matter-limit) t)
+        (replace-match (format "#+%s: %s" name value) t t)
+      ;; No such line yet: walk the opening run of `#+keyword:' lines
+      ;; and insert after it, so the new key joins the front matter
+      ;; rather than landing in the prose.
+      (goto-char (point-min))
+      (let ((insert-at (point-min)))
+        (while (looking-at "^#\\+[a-zA-Z_]+:")
+          (forward-line 1)
+          (setq insert-at (point)))
+        (goto-char insert-at)
+        (insert (format "#+%s: %s\n" name value))))))
+
 (provide '00-core)
 ;;; 00-core.el ends here

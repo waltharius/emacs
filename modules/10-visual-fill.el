@@ -84,7 +84,13 @@ Files outside `my-notes-dir':
             (goto-char (point-min))
             (when (re-search-forward "^#\\+filetags:.*:docu:" nil t)
               (setq is-docu t)))
-          (let ((width (if is-docu my/fill-column-docu my-fill-column)))
+          ;; Precedence: the note's own `#+text_width:', then the
+          ;; :docu: width, then the global default.  A note that states
+          ;; a width carries that width everywhere -- to another
+          ;; machine over Syncthing, into git, into any other editor
+          ;; that reads the front matter.
+          (let ((width (or (my/note-keyword-number "text_width")
+                           (if is-docu my/fill-column-docu my-fill-column))))
             (setq fill-column                          width)
             (setq-local visual-fill-column-width       width)
             (setq-local visual-fill-column-center-text t))
@@ -138,6 +144,98 @@ Files outside `my-notes-dir':
 ;; activated before this module loaded.
 (when (fboundp 'global-display-fill-column-indicator-mode)
   (global-display-fill-column-indicator-mode -1))
+
+;; ============================================================
+;; CHANGING THE WIDTH, INTERACTIVELY
+;; ============================================================
+;; `C-c u w' enters a repeat map: `+' and `-' widen and narrow the
+;; current buffer live, `0' returns it to what the rules above would
+;; give it, `d' adopts the current width as the global default, and `s'
+;; writes it into this note's front matter.  Any other key leaves.
+;;
+;; Buffer-local while adjusting, so a width can be tried without
+;; committing to it.  Nothing is written anywhere until `d' or `s'.
+;;
+;; A REMINDER ABOUT THE UNIT.  The number is CHARACTERS of the buffer's
+;; default face, and visual-fill-column turns it into margins by
+;; multiplying by the width of one character.  A pks note in a
+;; proportional face and a docu note in JetBrains Mono therefore look
+;; different at the same number.  Adjust each kind separately and
+;; expect the figures to differ; that is the unit doing its job, not a
+;; bug.
+
+
+
+(defun my/text-width--apply (width &optional message-suffix)
+  "Set this buffer's text column to WIDTH and keep the repeat map alive."
+  (setq-local visual-fill-column-width (max 30 (min 300 width)))
+  (setq fill-column visual-fill-column-width)
+  (when (bound-and-true-p visual-fill-column-mode)
+    (visual-fill-column--adjust-window))
+  (force-window-update (selected-window))
+  (message "Width %d   [+ - 0]  d=make default  s=save in note%s"
+           visual-fill-column-width (or message-suffix ""))
+  (set-transient-map my/text-width-repeat-map t))
+
+(defun my/text-width-increase ()
+  "Widen the current buffer's text column by five characters."
+  (interactive)
+  (my/text-width--apply (+ visual-fill-column-width 5)))
+
+(defun my/text-width-decrease ()
+  "Narrow the current buffer's text column by five characters."
+  (interactive)
+  (my/text-width--apply (- visual-fill-column-width 5)))
+
+(defun my/text-width-reset ()
+  "Return this buffer to the width the normal rules would give it."
+  (interactive)
+  (kill-local-variable 'visual-fill-column-width)
+  (my/visual-fill-notes-setup)
+  (my/text-width--apply visual-fill-column-width))
+
+(defun my/text-width-save-as-default ()
+  "Adopt the current width as the default for all notes.
+Writes `my-fill-column' to `my/ui-state-file', so the choice survives
+a restart without editing 00-core.el.  Notes tagged `:docu:' and notes
+carrying their own `#+text_width:' are unaffected."
+  (interactive)
+  (setq my-fill-column visual-fill-column-width)
+  (my/ui-state-set :fill-column my-fill-column)
+  (my/text-width--apply visual-fill-column-width "  -- saved as default"))
+
+(defun my/text-width-save-to-note ()
+  "Write the current width into this note's front matter."
+  (interactive)
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Not an Org buffer"))
+  (my/note-keyword-set "text_width" visual-fill-column-width)
+  (my/text-width--apply visual-fill-column-width
+                        "  -- written to front matter, buffer not saved"))
+
+(defvar my/text-width-repeat-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "+") #'my/text-width-increase)
+    (define-key map (kbd "=") #'my/text-width-increase)
+    (define-key map (kbd "-") #'my/text-width-decrease)
+    (define-key map (kbd "0") #'my/text-width-reset)
+    (define-key map (kbd "d") #'my/text-width-save-as-default)
+    (define-key map (kbd "s") #'my/text-width-save-to-note)
+    map)
+  "Transient map active while adjusting the text width.")
+
+(defun my/text-width-adjust ()
+  "Adjust the text width, then keep adjusting with + and -."
+  (interactive)
+  (my/text-width--apply (or visual-fill-column-width my-fill-column)))
+
+(global-set-key (kbd "C-c u w") #'my/text-width-adjust)
+
+;; Adopt a previously saved default.  Late in the file so that the
+;; `setq-default' in the `use-package' form above has already run.
+(when-let* ((width (my/ui-state-get :fill-column)))
+  (setq my-fill-column width)
+  (setq-default visual-fill-column-width width))
 
 (provide '10-visual-fill)
 ;;; 10-visual-fill.el ends here

@@ -145,14 +145,22 @@ Inherits `link' because that is what it is -- clicking opens the note."
            :scroll-bar-width 8
            :fringe-width 10))
 
-  ;; Mode line as a hairline overline instead of a filled bar.  Read
-  ;; the doc string of `spacious-padding-subtle-mode-line': the
-  ;; keywords accept either a face with a foreground or a colour value,
-  ;; and the package defines `spacious-padding-line-active' and
-  ;; `spacious-padding-line-inactive' for exactly this.
-  (setq spacious-padding-subtle-mode-line
-        '( :mode-line-active spacious-padding-line-active
-           :mode-line-inactive spacious-padding-line-inactive))
+  ;; Mode line as a hairline overline instead of a filled bar.
+  ;;
+  ;; `t', not the face plist.  The plist form names
+  ;; `spacious-padding-line-active' and `-line-inactive' and takes
+  ;; their foregrounds, which works while the Modus and Ef themes are
+  ;; in play and produces `unspecified' under themes that leave those
+  ;; foregrounds unset -- several doom-themes and the built-in ones.
+  ;; An `unspecified' colour inside a `:box' is an invalid face
+  ;; specification, and the error aborts `enable-theme' partway, which
+  ;; is why such a theme applied to some faces and not others.  `t'
+  ;; lets the package derive the colour itself and has no such gap.
+  ;;
+  ;; `my/theme-load' (09-theme.el) additionally disables this mode
+  ;; across a theme load, so nothing here computes from a palette that
+  ;; is only half in place.
+  (setq spacious-padding-subtle-mode-line t)
 
   (spacious-padding-mode 1))
 
@@ -255,8 +263,16 @@ text column then has to give back."
 ;; ============================================================
 ;; KEYBINDINGS
 ;; ============================================================
-;; `C-c u' -- "UI" -- was free.  The theme toggle also has <f5>, bound
-;; in 09-theme.el, which is the convention the Modus manual uses.
+;; `C-c u' -- "UI" -- was free.  Theme keys live in 09-theme.el and
+;; text-width keys in 10-visual-fill.el, each next to the code they
+;; drive; this module only owns what it defines itself.
+;;
+;; The full prefix, wherever the pieces are defined:
+;;   C-c u t  theme light/dark      C-c u f  base font size
+;;   C-c u T  pick a theme          C-c u s  save text scale in note
+;;   C-c u p  padding               C-c u w  text width
+;;   C-c u + - 0   text scale, this buffer only
+;;   <f4> <f5>     walk light / dark themes
 
 (global-set-key (kbd "C-c u p") #'my/toggle-spacious-padding)
 (global-set-key (kbd "C-c u +") #'text-scale-increase)
@@ -273,9 +289,8 @@ text column then has to give back."
 ;; to each other.
 
 (when (fboundp 'my/transient-append)
-  ;; "T" is NOT free: 30-link-tooltips.el appends its tooltip-style
-  ;; command there, and `my/transient-append' skips an already-bound
-  ;; key silently -- so a collision here would produce a menu entry
+  ;; NOTE ON KEYS.  30-link-tooltips.el appends "T" to this same menu,
+  ;; and `my/transient-append' skips an already-bound key silently -- so a collision here would produce a menu entry
   ;; that is simply absent, with nothing said about it.  "t" and "p"
   ;; were checked against the menu as 12-transient.el defines it and
   ;; against every other module that appends to it.
@@ -285,9 +300,17 @@ text column then has to give back."
   ;; shape for a command pressed repeatedly; `C-c u +' and `C-c u -'
   ;; repeat cleanly.
   (my/transient-append 'my/notes-view-menu "e"
-                       '("t" "Theme light/dark" modus-themes-toggle))
+                       '("t" "Theme light/dark" my/theme-toggle))
+  ;; "y", not "T": 30-link-tooltips.el already owns "T" in this menu,
+  ;; and an append onto a taken key is dropped without a word.
   (my/transient-append 'my/notes-view-menu "t"
-                       '("p" "Padding" my/toggle-spacious-padding)))
+                       '("y" "Pick a theme" my/theme-select))
+  (my/transient-append 'my/notes-view-menu "y"
+                       '("p" "Padding" my/toggle-spacious-padding))
+  (my/transient-append 'my/notes-view-menu "p"
+                       '("W" "Text width" my/text-width-adjust))
+  (my/transient-append 'my/notes-view-menu "W"
+                       '("S" "Font size" my/font-size-adjust)))
 
 (provide '34-appearance)
 ;;; 34-appearance.el ends here

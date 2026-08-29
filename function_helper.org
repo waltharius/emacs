@@ -3411,150 +3411,261 @@ If a face differs between two frames, that is the symptom described
 above and means something has started calling =set-face-attribute=
 again.
 
-* Theme (F5 / C-c u t)
+* Theme (F4 / F5 / C-c u)
 :PROPERTIES:
 :CUSTOM_ID: theme
 :END:
 
-Light and dark, switchable.
+Around a hundred themes, browsable, with the choice surviving a
+restart.
 
 Module: =modules/09-theme.el=
 
-** Switching
+** Keys
 
-| Key | Command |
-|-----+---------|
-| =<f5>= | =modus-themes-toggle= |
-| =C-c u t= | =modus-themes-toggle= |
-| =C-c n v t= | same, from the View menu |
+| Key | Command | What it does |
+|-----+---------+--------------|
+| =<f4>= | =my/theme-cycle-light= | next light theme |
+| =<f5>= | =my/theme-cycle-dark= | next dark theme |
+| =S-<f4>= | =my/theme-cycle-all= | next of everything installed |
+| =C-c u t= | =my/theme-toggle= | light ↔ dark, remembering the last of each |
+| =C-c u T= | =my/theme-select= | pick by name, favourites first |
+| =C-c u m= | =my/theme-favourite-toggle= | mark or unmark the current theme |
+| =C-c u M= | =my/theme-cycle-favourites= | cycle only the marked ones |
+| =C-c u C= | =my/theme-classify= | file the current theme as light or dark |
+| =C-c u R= | =my/theme-repair= | clear =user= face overrides and reload |
+| =C-c n v t= | =my/theme-toggle= | same, from the View menu |
+| =C-c n v y= | =my/theme-select= | same, from the View menu |
 
-=modus-themes-to-toggle= names the pair. =M-x modus-themes-select= picks
-any Modus theme from the minibuffer without changing the pair, which is
-the way to try one before committing to it.
+*The intended workflow.* Walk everything with =S-<f4>=, press =C-c u m=
+on anything worth a second look, then compare just those with =C-c u M=.
+The point of browsing a hundred themes is to end up with four.
 
-=modus-themes-disable-other-themes= is =t=, so loading one disables the
-other. Without it Emacs blends them, which never looks like either.
+Cycling is sequential and wraps around, not random: comparing themes
+needs an order that can be retraced. The name is echoed on every step
+so a good one can be written down.
 
-** What survives a toggle, and how
+** Installed collections
 
-A theme reassigns every face it covers when it loads. Anything set
-outside the theme therefore has to be re-applied afterwards, and
-=modus-themes-after-load-theme-hook= is where that happens. Two
-functions are on it:
+| Package | Character |
+|---------+-----------|
+| =modus-themes= | Prot. Maximum legibility, WCAG AAA. The configured default. |
+| =ef-themes= | Prot. Colourful and opinionated, still legible. |
+| =standard-themes= | Prot. The stock Emacs look, made consistent. |
+| =doric-themes= | Prot. Minimalist: little colour, structure carried by weight and spacing. |
+| =doom-themes= | ~60 ports from other editors. Uneven, and the widest net. |
 
-- =my/fonts-apply= (=03b-fonts.el=) — the three base font faces, because
-  =default= is one of the faces a theme reassigns.
-- =my/theme--custom-faces= (=09-theme.el=) — =org-quote=,
-  =denote-faces-date=, =org-property-value=, =org-special-keyword=.
+Dropping one is a matter of deleting its =use-package= form. The lists
+are filtered through =custom-available-themes=, so a theme from an
+uninstalled package disappears from the cycle rather than signalling.
 
-Everything else needs no hook. *A face that inherits follows the theme
-for free*, which is why the dashboard faces and the mode-line indicator
-faces are =defface= declarations inheriting from =link=, =shadow= and
-=bold= rather than entries in that function.
+** How light and dark are told apart
 
-Keep =my/theme--custom-faces= short. A face belongs there only when it
-needs an attribute a palette override cannot express — a font family, a
-slant — or belongs to a package the themes do not cover.
+Three sources, merged:
+
+1. Variables the packages publish (=ef-themes-light-themes= and
+   friends), read through =boundp= so a renamed or absent variable is
+   skipped rather than breaking startup.
+2. =my/theme-known-light= and =my/theme-known-dark=, curated lists for
+   packages that publish nothing — doom-themes in particular.
+3. Anything filed by hand with =C-c u C=, stored in
+   =my/ui-state-file=.
+
+Everything is filtered through =custom-available-themes=. *That filter
+is what makes a wrong name harmless* — it is dropped, not signalled —
+and it is why the curated lists can afford to be generous rather than
+verified one by one. A theme on neither list still appears in
+=S-<f4>= and can be filed from there.
+
+** What survives a theme load, and how
+
+A theme reassigns every face it covers, so anything set outside it has
+to be re-applied. =my/theme-after-load-hook= fires for *any* theme
+from any family, through =enable-theme-functions= (Emacs 29+, with a
+fallback to the Modus hook). =03b-fonts.el= adds =my/fonts-apply=
+there, because =default= is one of the faces a theme reassigns.
+
+Add to it sparingly. *A face that inherits from a face the theme
+styles needs no hook at all* — which is how the shared faces in
+=34-appearance.el= work, and why there is no runtime
+=custom-set-faces= block here any more. See [[#org-faces][Org Faces and Fonts]].
+
+** Padding and theme loading
+
+=my/theme-load= disables =spacious-padding-mode= across a theme load
+and re-enables it afterwards, rather than refreshing it from the
+post-load hook.
+
+The hook fires *during* =load-theme=, when the palette is only half in
+place. spacious-padding writes a =:box= onto the mode line computed
+from theme colours, and a theme that leaves one =unspecified= — several
+doom-themes and the built-in themes do — yields an invalid face
+specification. The =face-spec-set= error then aborts =enable-theme=
+partway, so the theme applies to some faces and not others: the
+"loads, but not completely" symptom.
+
+Both steps are wrapped in =condition-case=. A theme that still cannot
+be combined with padding reports itself and leaves padding off,
+instead of signalling out of a keypress. Browsing a hundred themes
+means meeting a few broken ones.
+
+** When a theme keeps loading wrong
+
+=C-c u R= (=my/theme-repair=). An invalid specification written into
+the =user= theme breaks *every subsequent* theme load, not just the
+one that produced it, because the =user= theme is re-applied on every
+=enable-theme=. The command disables it and reloads.
+
+Nothing here relies on the =user= theme: colour lives in the palette
+overrides and the shared faces inherit.
 
 ** Editing colour
 
 See [[#org-faces][Org Faces and Fonts]] for the palette-override mechanism and the
-=faint= preset the list is built on. In brief: name palette entries, not
-hex values, and reload the theme (=<f5>= twice) after changing anything.
+=faint= preset the Modus list is built on. In brief: name palette
+entries, not hex values, and reload the theme after changing anything
+— overrides take effect on load, not on assignment.
+
+** Diagnostics
+
+=M-x my/theme-debug= reports the seven fields that decide how the
+frame looks: active theme, frame background, =default= face
+background, frame font, =variable-pitch= family, default height,
+whether padding is on, and whether org-modern loaded.
+
+The useful pair is =frame-bg= against =default-face-bg=. They are two
+different things that normally agree; when they disagree, something
+has written the frame parameter directly and a frameset restore is the
+usual culprit. =theme=NONE= means no theme is enabled at all, however
+plausible the colours look.
+
+** Why the theme loads from emacs-startup-hook
+
+It is the last point in startup: after init.el has loaded every
+module, and after =after-init-hook= where the desktop restores its
+frameset. A theme is the last word on how a face looks and should get
+the last word chronologically too. Loading it at module position 09
+put it ahead of two dozen modules that define faces and of a frameset
+carrying stale frame colours.
+
+Not =after-init-hook=: that is where the desktop restore itself runs,
+and hook order within it is not something this module should have to
+reason about.
 
 * Appearance layer (C-c u)
 :PROPERTIES:
 :CUSTOM_ID: appearance
 :END:
 
-The cosmetic layer. Nothing here changes what a command does; removing
-=34-appearance.el= from =init.el= leaves a working but plainer Emacs. It
-is loaded last and with =NOERROR= for that reason.
+The cosmetic layer, plus the interactive controls for size and width.
+Nothing here changes what a command does; removing
+=34-appearance.el= from =init.el= leaves a working but plainer Emacs.
 
-Module: =modules/34-appearance.el=
+Modules: =modules/34-appearance.el= (padding, faces, motion),
+=modules/03b-fonts.el= (size), =modules/10-visual-fill.el= (width)
 
-** Keybindings
+** The full C-c u prefix
 
-| Key | Command | Effect |
-|-----+---------+--------|
-| =C-c u t= | =modus-themes-toggle= | light ↔ dark (also =<f5>=) |
-| =C-c u p= | =my/toggle-spacious-padding= | padding on/off |
-| =C-c u += | =text-scale-increase= | this buffer only |
-| =C-c u -= | =text-scale-decrease= | this buffer only |
-| =C-c u 0= | =my/text-scale-reset= | this buffer back to default |
-| =C-M-== | =default-text-scale-increase= | every buffer, every frame |
-| =C-M--= | =default-text-scale-decrease= | every buffer, every frame |
+| Key | Command | Scope |
+|-----+---------+-------|
+| =C-c u t T m M C R= | theme commands | see [[#theme][Theme]] |
+| =C-c u p= | =my/toggle-spacious-padding= | frame |
+| =C-c u f= | =my/font-size-adjust= | base size, all frames |
+| =C-c u w= | =my/text-width-adjust= | this buffer |
+| =C-c u s= | =my/text-scale-save-to-note= | writes front matter |
+| =C-c u + - 0= | =text-scale-*= | this buffer only |
+| =C-M-= / C-M--= | =default-text-scale-*= | all frames |
 
-Two scopes on purpose: =text-scale-*= resizes the current buffer, which
-suits a long reading session in one note; =default-text-scale-*= changes
-the height of the =default= face, which suits tired eyes at the end of a
-day. visual-fill-column recomputes its margins from the scaled size, so
-a centred column stays centred at either.
+"u" for UI. It was the only free single letter under =C-c=: =v= is
+git, =w= is workspace, =t= is tabs.
 
-The View menu (=C-c n v=) gains =t= (theme) and =p= (padding) through
-=my/transient-append=. Text scaling is deliberately *not* in that menu:
-a transient closes and reopens around each invocation, which is the
-wrong shape for a key pressed repeatedly.
+** Adjusting the base font size — C-c u f
+
+Enters a repeat map. =+= and =-= change the size by half a point, =0=
+returns to the value compiled into =03b-fonts.el=, and any other key
+leaves. The chosen size is written to =my/ui-state-file= immediately,
+so it survives a restart without editing a file.
+
+This changes =my/font-default-height=, the size everything else is
+relative to — distinct from =text-scale-adjust= (=C-c u + - 0=), which
+scales one buffer. Both are useful and they compose: a note carrying
+=#+text_scale: 2= stays two steps above whatever the base becomes.
+
+** Adjusting the text width — C-c u w
+
+Also a repeat map. =+= and =-= by five characters, =0= back to what
+the normal rules give this buffer, =d= adopts the current width as the
+global default, =s= writes it into this note's front matter.
+
+*Nothing is written anywhere until =d= or =s=.* Until then the change
+is buffer-local and can be abandoned by leaving the map.
+
+*A reminder about the unit.* The number is CHARACTERS of the buffer's
+default face, and visual-fill-column turns it into margins by
+multiplying by the width of one character. A pks note in a
+proportional face and a docu note in JetBrains Mono look different at
+the same number. Adjust each kind separately and expect the figures to
+differ; that is the unit doing its job.
 
 ** spacious-padding
 
-Frame border, window dividers, fringes as page margins, and a mode line
-drawn as a hairline overline instead of a filled bar. This is the
-largest visual change in the layer and the cheapest — it is entirely
-presentational.
+Frame border, window dividers, fringes as page margins, and a mode
+line drawn as a hairline overline instead of a filled bar. The largest
+visual change in the layer and the cheapest, being entirely
+presentational. =C-c u p= turns it off when screen space is tight.
 
-*Check this against notes.* visual-fill-column centres note text by
-widening the window margins, and with
-=visual-fill-column-fringes-outside-margins= nil the fringes sit between
-margin and text. The =:fringe-width= here therefore *adds* to the gap on
-both sides of a centred column. If notes read as too narrow, lower
-=:fringe-width= in =spacious-padding-widths= before touching
-=my-fill-column=.
+=spacious-padding-subtle-mode-line= is =t=, not the face-plist form.
+The plist takes the foreground of two named faces, which is
+=unspecified= under themes that do not set them — see the padding note
+in [[#theme][Theme]].
 
-=C-c u p= turns the whole thing off when screen space is tight — a
-laptop panel, or four windows open.
+*Check this against notes.* visual-fill-column centres text by
+widening the margins, and with
+=visual-fill-column-fringes-outside-margins= nil the fringes sit
+between margin and text. The =:fringe-width= here therefore *adds* to
+the gap. If notes read as too narrow, lower it in
+=spacious-padding-widths= before touching the width.
 
 ** lin
 
 =02-editing.el= enables =global-hl-line-mode=, giving every buffer the
 same highlight at the same intensity. The line means two different
-things, though: a reminder of where point is in a note, and *the
-selection itself* in the inbox review queue (=25-inbox-review.el=), the
-maintenance reports (=26-maintenance.el=), the Readwise lists
-(=24-readwise.el=) and the dashboards.
+things: a reminder of where point is in a note, and *the selection
+itself* in the inbox review queue, the maintenance reports, the
+Readwise lists and the dashboards.
 
 =lin= remaps the highlight face buffer-locally in the modes named by
-=lin-mode-hooks= — =tabulated-list-mode-hook= covers all four of those —
-and leaves prose buffers to =hl-line= as the theme styles it.
+=lin-mode-hooks= — =tabulated-list-mode-hook= covers all four — and
+leaves prose buffers to =hl-line= as the theme styles it.
 
 ** pulsar
 
 A brief pulse on the line point just landed on. Navigation here is
-mostly jumps — a =denote:= link, a backlink, a dashboard entry, a search
-hit — each of which puts point somewhere in a window that has just been
-redrawn.
+mostly jumps — a =denote:= link, a backlink, a dashboard entry, a
+search hit — each putting point somewhere in a window that has just
+been redrawn.
 
 Emacs has no animation engine. This is a timer redrawing one line's
-background a few times, and that is the honest ceiling: nothing in this
-layer offers transitions, blur or sliding panels, because the display
-engine does not have them.
+background a few times, and that is the honest ceiling: nothing in
+this layer offers transitions, blur or sliding panels, because the
+display engine does not have them.
 
 ** Shared faces
 
-Six faces the dashboards use instead of hex values in =propertize=:
+Six the dashboards use instead of hex values in =propertize=:
 =my/dashboard-title=, =-section=, =-note=, =-tag-button=, =-tags=,
 =-hint=. Two more for the mode line, defined where their segment is:
 =my/modeline-word-count= (=01-ui.el=) and =my/writing-mode-indicator=
 (=13-centered-writing.el=).
 
-All eight inherit and name no colour of their own. A literal
+All eight inherit and name no colour. A literal
 ='(:foreground "#888888")= in a =propertize= call is correct under one
-theme and muddy under the other, and can only be found later by grepping
-for hex digits; a named face is greppable, appears in
+theme and muddy under the other, and can only be found later by
+grepping for hex digits; a named face is greppable, appears in
 =M-x list-faces-display=, and can be customised without editing code.
 
-The dashboard faces live in =34-appearance.el= rather than in
-=15-workspace.el= so that neither module needs the other — an undefined
+The dashboard faces live in =34-appearance.el= rather than
+=15-workspace.el= so neither module needs the other — an undefined
 face renders as =default= rather than signalling.
 
 ** What was considered and rejected
@@ -3563,10 +3674,138 @@ face renders as =default= rather than signalling.
 |---------+---------|
 | =doom-modeline= | would need the word-count and pin segments rebuilt as doom segments; icon-heavy look pulls against this direction |
 | =centaur-tabs= | buffer tabs, competing with the workspace model =23-fixed-tabs.el= builds on =tab-bar= |
-| =modern-tab-bar= | the right tool, but on neither GNU ELPA nor MELPA — =:ensure t= would fail at startup |
+| =modern-tab-bar= | the right tool, but on neither GNU ELPA nor MELPA — =:ensure t= fails at startup |
 | =beacon= | overlaps =pulsar=, and configures itself with a literal hex colour |
 | =mini-frame= | child frames are the least reliable part of Wayland/PGTK, and it would sit between which-key and every transient menu |
-| =all-the-icons= | superseded by =nerd-icons=; neither installed, both need a font added through the NixOS configuration |
+| =all-the-icons= | superseded by =nerd-icons=; neither installed, both needing a font added through the NixOS configuration |
+
+* Per-note appearance
+:PROPERTIES:
+:CUSTOM_ID: per-note-appearance
+:END:
+
+Two front-matter keywords override the defaults for one note.
+
+| Keyword | Effect | Written by |
+|---------+--------+------------|
+| =#+text_width: 110= | text column for this note, in characters | =C-c u w= then =s= |
+| =#+text_scale: 2= | size, in steps of =text-scale-adjust= | =C-c u s= |
+
+Both are read from =org-mode-hook=, so they apply on opening.
+
+** Precedence
+
+Width: =#+text_width:= → the =:docu:= width (=my/fill-column-docu=) →
+the global default (=my-fill-column=, itself overridable by =C-c u w
+d=).
+
+Scale: applied on top of whatever the base size is. *Relative steps,
+not an absolute size* — a note meant to be slightly larger stays
+slightly larger after the global size changes. An absolute value would
+have to be revisited every time =my/font-default-height= moved.
+
+** Why front-matter keywords and not a property drawer
+
+Because that is the channel this configuration already uses for
+per-note facts: =#+schema:=, =#+project:=, =#+wellbeing:=. The setting
+then travels with the file through Syncthing, git and any other editor
+that reads front matter.
+
+** How they are read
+
+=my/note-keyword= and =my/note-keyword-number= (=00-core.el=) scan the
+first four kilobytes with a regexp. Deliberately not
+=org-collect-keywords=: these run from =org-mode-hook=, before Org has
+finished setting the buffer up, and must not depend on Org internals
+being ready. =10-visual-fill.el= already scanned for =#+filetags:= the
+same way.
+
+A malformed value yields nil and the default, so a typo in a note
+degrades quietly instead of breaking the buffer.
+
+=my/note-keyword-set= writes: it replaces an existing line, or walks
+the opening run of =#+keyword:= lines and inserts after it so the new
+key joins the front matter rather than landing in the prose. *It does
+not save the buffer* — the change is visible and the decision to keep
+it is yours.
+
+* Persisted UI state
+:PROPERTIES:
+:CUSTOM_ID: ui-state
+:END:
+
+=~/.emacs.d/ui-state.el=, a plist. Choices made interactively, which
+belong to the session rather than to the configuration.
+
+Module: =modules/00-core.el=
+
+| Key | Set by |
+|-----+--------|
+| =:theme= | any theme load |
+| =:theme-light= / =:theme-dark= | the last of each, for =C-c u t= |
+| =:themes-favourite= | =C-c u m= |
+| =:themes-light= / =:themes-dark= | =C-c u C= |
+| =:font-height= | =C-c u f= |
+| =:fill-column= | =C-c u w= then =d= |
+
+Not =custom-set-variables=, which would write custom.el — the file
+that was emptied on purpose, and reintroducing machine-written
+settings there is how the theme became unfixable the first time. Not
+the desktop either: this has to work when no session is restored.
+
+Read once at startup, written on every change. *Safe to delete*: every
+reader falls back to a compiled-in default. Deleting it resets the
+theme to the first light one, the font to the size in
+=03b-fonts.el= and the width to =my-fill-column=.
+
+* Session and desktop diagnostics
+:PROPERTIES:
+:CUSTOM_ID: desktop-diagnostics
+:END:
+
+=desktop-save-mode= writes the session from =kill-emacs-hook=, where a
+failure is close to invisible: the message scrolls past as the frame
+disappears, and the next start quietly restores whatever was last
+written successfully.
+
+Module: =modules/01-ui.el=
+
+| Command | Reports |
+|---------+---------|
+| =my/desktop-status= | whether the file exists, when it was last written, who owns the lock, this Emacs's PID |
+| =my/desktop-force-save= | saves now, with errors shown rather than swallowed |
+
+** The frozen-session failure
+
+=desktop-load-locked-desktop= is =check-pid=, not =t=. With =t= a
+locked desktop is loaded without asking — but on exit =desktop-save=
+still finds the lock held by another PID and declines to overwrite it.
+A session that died without releasing its lock (a crash, a =kill -9=,
+an init that errored badly enough to be killed) therefore leaves every
+later session reading the same frozen state and writing nothing back:
+new tabs open, and are gone after a restart.
+
+=check-pid= loads when the owning process is no longer running and
+takes ownership, so the next save succeeds. A genuinely concurrent
+second Emacs is still refused, which is the case the lock exists for.
+
+The symptom to recognise: =my/desktop-status= naming a lock owner that
+is not this Emacs, or a "last written" timestamp older than the last
+time the session was closed.
+
+** A frameset overrides what init already set
+
+=desktop-restore-frames= is =t=, and the frameset carries frame
+parameters — =background-color=, =foreground-color=, =font=,
+=tool-bar-lines=, =vertical-scroll-bars=. Restoring it re-applies
+whatever those were when the desktop was last written, on top of
+whatever init has already done. Setting them in =default-frame-alist=
+is not a defence; frameset restore overrides that too.
+
+Two things re-assert themselves afterwards:
+=my/restore-chrome-preferences= on =desktop-after-read-hook= (tool bar
+and scroll bar off), and the theme, loaded from =emacs-startup-hook=
+which runs strictly later.
 
 * Capture Filing
 :PROPERTIES:
@@ -3831,7 +4070,7 @@ on a row.
 | =q= | leave; unhandled notes keep their keyword |
 
 Focus stays on the list on =RET= for the same reason as in
-[[#inbox-review][Inbox Review]]: the decision keys live in the list buffer, and
+[[#menu-inbox][Inbox Review]]: the decision keys live in the list buffer, and
 =view-mode= in the preview binds =n= to its own command. Press =o= when
 you want to read the note properly.
 
@@ -4005,9 +4244,19 @@ hand-editing either from memory.
 | C-c m c  | =my/notes-create-menu=        | =08-keybindings.el=          |
 | C-c m w  | =my/toggle-writeroom=         | =08-keybindings.el=          |
 | C-c m k  | =my/denote-keywords-edit=     | =08-keybindings.el= (duplicate of C-c d t) |
-| <f5>     | =modus-themes-toggle=         | =09-theme.el=                |
-| C-c u t  | =modus-themes-toggle=         | =09-theme.el=                |
+| <f4>     | =my/theme-cycle-light=        | =09-theme.el=                |
+| <f5>     | =my/theme-cycle-dark=         | =09-theme.el=                |
+| S-<f4>   | =my/theme-cycle-all=          | =09-theme.el=                |
+| C-c u t  | =my/theme-toggle=             | =09-theme.el=                |
+| C-c u T  | =my/theme-select=             | =09-theme.el=                |
+| C-c u m  | =my/theme-favourite-toggle=   | =09-theme.el=                |
+| C-c u M  | =my/theme-cycle-favourites=   | =09-theme.el=                |
+| C-c u C  | =my/theme-classify=           | =09-theme.el=                |
+| C-c u R  | =my/theme-repair=             | =09-theme.el=                |
 | C-c u p  | =my/toggle-spacious-padding=  | =34-appearance.el=           |
+| C-c u f  | =my/font-size-adjust=         | =03b-fonts.el= (all frames)  |
+| C-c u s  | =my/text-scale-save-to-note=  | =03b-fonts.el=               |
+| C-c u w  | =my/text-width-adjust=        | =10-visual-fill.el=          |
 | C-c u +  | =text-scale-increase=         | =34-appearance.el= (this buffer) |
 | C-c u -  | =text-scale-decrease=         | =34-appearance.el= (this buffer) |
 | C-c u 0  | =my/text-scale-reset=         | =34-appearance.el=           |
@@ -4026,7 +4275,12 @@ instead. Buffer-local search is =M-s l=; searching across notes stays
 
 *On the =C-c u= prefix:* "u" for UI. It was the only free single letter
 in the =C-c= space that suggested the right thing; =C-c v= is git,
-=C-c w= is workspace, =C-c t= is tabs.
+=C-c w= is workspace, =C-c t= is tabs. The commands are defined in the
+module each one drives, not gathered in one place — see
+[[#appearance][Appearance layer]] and [[#theme][Theme]].
+
+=C-c u f= and =C-c u w= each enter a repeat map, so =+= and =-= keep
+working without the prefix until any other key is pressed.
 
 *Note:* there is no =C-c F ...= spelling prefix — an earlier revision
 of this table and of =08-keybindings.el= documented one that was never

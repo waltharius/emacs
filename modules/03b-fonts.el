@@ -180,8 +180,90 @@ variable or after attaching a new display."
 
 ;; A theme reassigns the faces it covers when it loads, and `default'
 ;; is one of them.  Re-applying afterwards keeps the font choice from
-;; being reset by a light/dark toggle (<f5>).
-(add-hook 'modus-themes-after-load-theme-hook #'my/fonts-apply)
+;; being reset by a theme change.  `my/theme-after-load-hook'
+;; (09-theme.el) rather than a Modus-specific hook, because F4 and F5
+;; also load Ef themes.
+(add-hook 'my/theme-after-load-hook #'my/fonts-apply)
+
+;; ============================================================
+;; FACES THAT STAY MONOSPACED IN EVERY SILO
+;; ============================================================
+;; Prose changes typeface per silo; structure does not.
+;;
+;; `variable-pitch-mode' works by remapping `default' to inherit
+;; `variable-pitch', so every face that does not name a family of its
+;; own follows it -- including the property drawer and the front
+;; matter.  The result was that `:PROPERTIES:' and `#+filetags:'
+;; rendered as handwriting in a journal, as a text sans in pks and as
+;; monospace in docu: the same structural markup in three typefaces,
+;; for no reason a reader could infer.
+;;
+;; These faces are remapped back to `my/font-default'.  A buffer-local
+;; remap rather than a theme hook, because the requirement has nothing
+;; to do with the palette and everything to do with the buffer: it
+;; exists only where `variable-pitch-mode' is on, and it disappears
+;; with the buffer.  Nothing is written to the `user' theme.
+
+(defcustom my/font-fixed-faces
+  '(org-drawer
+    org-special-keyword
+    org-property-value
+    org-meta-line
+    org-document-info-keyword
+    org-tag
+    org-todo
+    org-done
+    org-checkbox)
+  "Faces that use `my/font-default' regardless of the silo.
+Structural markup, as opposed to prose.  A face listed here keeps the
+monospaced family even in a buffer whose body text is proportional."
+  :type '(repeat face) :group 'my/fonts)
+
+(defcustom my/font-fixed-faces-height 1.0
+  "Height of `my/font-fixed-faces', relative to body text.
+1.0 renders structure at the same size as prose.  Lower it -- 0.9 is a
+reasonable first try -- to make front matter and property drawers
+recede, which is what \"more condensed\" usually means in practice:
+the same information taking less vertical room and drawing less
+attention than the prose it describes."
+  :type 'number :group 'my/fonts)
+
+(defvar-local my/font--fixed-cookies nil
+  "Remap cookies for `my/font-fixed-faces' in this buffer.")
+
+(defun my/font--apply-fixed-faces (&optional correction)
+  "Remap `my/font-fixed-faces' to `my/font-default' in this buffer.
+
+CORRECTION is a height multiplier, and it is the part that matters.
+
+FIXING THE FAMILY WAS NOT ENOUGH
+--------------------------------
+The first version of this function set only `:family', on the
+assumption that the silos differed in typeface.  They differ in SIZE
+as well.  Each silo gives `variable-pitch' a `:height' -- 1.05 in
+journal, 1.15 in pks, 1.0 in docu -- and `variable-pitch-mode' makes
+`default' inherit `variable-pitch', so the height reaches every face
+in the buffer that does not state one.  Front matter therefore came
+out at three sizes in the same monospaced family, which reads as
+three different fonts even though it is one.
+
+CORRECTION cancels that: pass the reciprocal of the silo height and
+structure lands at the same size everywhere, matching docu, which is
+the one that looked right.
+
+Removes any previous remaps first.  `org-mode-hook' runs again on
+`revert-buffer' and after `denote-rename-file' moves a note between
+silos, and relative remaps compose rather than replace -- without
+this, the correction would be applied twice and structure would end
+up smaller than prose."
+  (mapc #'face-remap-remove-relative my/font--fixed-cookies)
+  (setq my/font--fixed-cookies
+        (mapcar (lambda (face)
+                  (face-remap-add-relative
+                   face
+                   :family my/font-default
+                   :height (* (or correction 1.0) my/font-fixed-faces-height)))
+                my/font-fixed-faces)))
 
 ;; ============================================================
 ;; APPLYING A SILO STYLE
@@ -204,28 +286,61 @@ the visible result depends on how many times the hook has run.")
 
 (defun my/notes-font-setup ()
   "Set the current buffer's typeface from its silo.
-Added to `org-mode-hook'.  Buffers outside every listed silo are left
-with the session defaults, which is why this does nothing rather than
-resetting them."
+Added to `org-mode-hook'.  Buffers outside every listed silo keep the
+session defaults for prose, but still get the structural faces pinned:
+the reason for pinning them does not depend on which silo a note is
+in."
   (when my/font--silo-cookie
     (face-remap-remove-relative my/font--silo-cookie)
     (setq my/font--silo-cookie nil))
-  (when-let* ((file (buffer-file-name))
-              (style (my/font--silo-style file)))
-    (setq my/font--silo-cookie
-          (face-remap-add-relative 'variable-pitch
-                                   :family (plist-get style :family)
-                                   :height (or (plist-get style :height) 1.0)))
-    ;; `variable-pitch-mode' remaps `default' to inherit
-    ;; `variable-pitch', which the line above has already redirected to
-    ;; the silo family -- so body text follows without naming a family
-    ;; twice.  Order does not matter: face remapping resolves the
-    ;; inheritance chain at redisplay, not at the time the remap is added.
-    (if (eq (plist-get style :body) 'proportional)
-        (variable-pitch-mode 1)
-      (variable-pitch-mode -1))))
+  (let* ((file  (buffer-file-name))
+         (style (and file (my/font--silo-style file)))
+         (height (or (plist-get style :height) 1.0))
+         (proportional (eq (plist-get style :body) 'proportional)))
+    (when style
+      (setq my/font--silo-cookie
+            (face-remap-add-relative 'variable-pitch
+                                     :family (plist-get style :family)
+                                     :height height))
+      ;; `variable-pitch-mode' remaps `default' to inherit
+      ;; `variable-pitch', which the line above has already redirected
+      ;; to the silo family -- so body text follows without naming a
+      ;; family twice.  Order does not matter: face remapping resolves
+      ;; the inheritance chain at redisplay, not when the remap is added.
+      (if proportional
+          (variable-pitch-mode 1)
+        (variable-pitch-mode -1)))
+    ;; Structure at one size in one family, in every silo.  The
+    ;; correction only applies where the silo height actually reached
+    ;; the buffer, which is where body text is proportional.
+    (my/font--apply-fixed-faces (if proportional (/ 1.0 height) 1.0)))
+  ;; And the note's own size preference, if it states one.
+  (when-let* ((scale (my/note-keyword-number "text_scale")))
+    (text-scale-set (truncate scale))))
 
 (add-hook 'org-mode-hook #'my/notes-font-setup)
+
+;; ============================================================
+;; PER-NOTE TEXT SIZE
+;; ============================================================
+;; `#+text_scale: 2' in a note's front matter enlarges that note by two
+;; steps of `text-scale-adjust'.  Negative values shrink it.
+;;
+;; Relative steps rather than an absolute point size, so a note that
+;; wants to be a little larger stays a little larger after the global
+;; size changes.  An absolute value would have to be revisited every
+;; time `my/font-default-height' moved.
+
+(defun my/text-scale-save-to-note ()
+  "Write the current text scale into this note's front matter.
+Experiment with `C-c u f', then run this to make the size a property
+of the note rather than of the session."
+  (interactive)
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Not an Org buffer"))
+  (let ((amount (or (bound-and-true-p text-scale-mode-amount) 0)))
+    (my/note-keyword-set "text_scale" amount)
+    (message "#+text_scale: %s written to front matter (buffer not saved)" amount)))
 
 ;; ============================================================
 ;; ORG FACES ARE NOT SET HERE
@@ -236,6 +351,74 @@ resetting them."
 ;; (`modus-themes-mixed-fonts'), so changing a family above changes
 ;; every face that follows it.  Colour and heading size live in
 ;; 09-theme.el.
+
+;; ============================================================
+;; CHANGING THE BASE SIZE, INTERACTIVELY AND FOR GOOD
+;; ============================================================
+;; `C-c u f' enters a small repeat map: `+' and `-' resize every buffer
+;; in every frame, `0' returns to the compiled-in default, and RET or
+;; any other key leaves.  The chosen size is written to
+;; `my/ui-state-file' immediately, so it survives a restart without
+;; editing this file.
+;;
+;; This changes `my/font-default-height', the size everything else is
+;; relative to -- distinct from `text-scale-adjust', which scales one
+;; buffer and leaves the rest alone.  Both are useful and they compose:
+;; a note carrying `#+text_scale: 2' stays two steps above whatever the
+;; base becomes.
+
+(defconst my/font-size-step 5
+  "Change in `my/font-default-height' per keypress, in units of 1/10 pt.")
+
+
+
+(defun my/font-size--apply (height)
+  "Set the base font HEIGHT, apply it, remember it, and report."
+  (setq my/font-default-height (max 60 (min 400 height)))
+  (my/fonts-apply)
+  (my/ui-state-set :font-height my/font-default-height)
+  (message "Base font %.1f pt   [+ - 0]  any other key to finish"
+           (/ my/font-default-height 10.0))
+  (set-transient-map my/font-size-repeat-map t))
+
+(defun my/font-size-increase ()
+  "Make the base font one step larger."
+  (interactive)
+  (my/font-size--apply (+ my/font-default-height my/font-size-step)))
+
+(defun my/font-size-decrease ()
+  "Make the base font one step smaller."
+  (interactive)
+  (my/font-size--apply (- my/font-default-height my/font-size-step)))
+
+(defun my/font-size-reset ()
+  "Return the base font to the value compiled into this file."
+  (interactive)
+  (my/font-size--apply (default-value 'my/font-default-height)))
+
+(defvar my/font-size-repeat-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "+") #'my/font-size-increase)
+    (define-key map (kbd "=") #'my/font-size-increase)
+    (define-key map (kbd "-") #'my/font-size-decrease)
+    (define-key map (kbd "0") #'my/font-size-reset)
+    map)
+  "Transient map active while adjusting the base font size.")
+
+(defun my/font-size-adjust ()
+  "Adjust the base font size, then keep adjusting with + and -."
+  (interactive)
+  (my/font-size--apply my/font-default-height))
+
+(global-set-key (kbd "C-c u f") #'my/font-size-adjust)
+(global-set-key (kbd "C-c u s") #'my/text-scale-save-to-note)
+
+;; Apply the remembered size, if there is one.  After the `defcustom'
+;; so that `default-value' still reports the compiled-in figure and
+;; `my/font-size-reset' has something to return to.
+(when-let* ((height (my/ui-state-get :font-height)))
+  (setq my/font-default-height height)
+  (my/fonts-apply))
 
 ;; ============================================================
 ;; FONT CACHE COMPACTION

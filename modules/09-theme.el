@@ -2,7 +2,8 @@
 ;;; Commentary:
 ;; Two themes, one switch: `modus-operandi-tinted' (light, ochre base)
 ;; and `modus-vivendi-tinted' (dark, night-sky base).  Toggle with
-;; <f5> or C-c u t; the transient entry is added by 34-appearance.el.
+;; C-c u t toggles; F4 and F5 walk the light and dark sets.
+;; The transient entries are added by 34-appearance.el.
 ;;
 ;; WHY THE DARK THEME WORKS NOW
 ;; ----------------------------
@@ -66,94 +67,319 @@
 ;; than being split across `:init' and `:custom'.
 
 ;; ============================================================
-;; REMEMBERING WHICH THEME WAS ACTIVE
+;; THEME PACKAGES TO BROWSE
 ;; ============================================================
-;; The choice is written to a one-line file and read back at startup.
-;; Deliberately NOT stored through `custom-set-variables' (which would
-;; put it in custom.el, the file this session emptied on purpose) and
-;; NOT through the desktop (which is the thing that has been failing).
-;; One fact, one small file, no dependency on anything else working.
+;; Four collections, roughly a hundred themes between them.  All are
+;; `:demand t' for the reason spelled out on the Modus form below: a
+;; deferred theme package is one that never configures itself, and
+;; more to the point here, one whose themes never appear in
+;; `custom-available-themes' and so never turn up in the cycle.
+;;
+;;   ef-themes        Prot.  Colourful, opinionated, still legible.
+;;                    The closest match to a stated preference for
+;;                    light and pastel.
+;;   standard-themes  Prot.  The stock Emacs look, made consistent.
+;;   doric-themes     Prot.  Minimalist: very few colours, structure
+;;                    carried by weight and spacing instead.
+;;   doom-themes      Around sixty ports of themes from other editors.
+;;                    Uneven, and the widest net by far.
+;;
+;; Dropping one is a matter of deleting its `use-package' form: the
+;; lists below are filtered through `custom-available-themes', so a
+;; theme from an uninstalled package disappears from the cycle rather
+;; than signalling.
 
-(defcustom my/theme-state-file (locate-user-emacs-file "theme-state.el")
-  "File holding the name of the theme that was last active."
-  :type 'file :group 'faces)
+(use-package ef-themes       :ensure t :demand t)
+(use-package standard-themes :ensure t :demand t)
+(use-package doric-themes    :ensure t :demand t)
+(use-package doom-themes     :ensure t :demand t)
 
-(defun my/theme--save-state (&rest _)
-  "Record the active theme in `my/theme-state-file'."
-  (when-let* ((theme (car custom-enabled-themes)))
-    (with-temp-file my/theme-state-file
-      (prin1 theme (current-buffer)))))
+;; ============================================================
+;; WHICH THEMES ARE LIGHT AND WHICH ARE DARK
+;; ============================================================
+;; Three sources, merged:
+;;
+;;   1. The lists a package publishes (`ef-themes-light-themes' and
+;;      friends), read through `boundp' so a renamed or absent
+;;      variable is skipped rather than breaking startup.
+;;   2. The curated lists below, for packages that publish nothing --
+;;      doom-themes in particular.
+;;   3. Anything filed by hand with `my/theme-classify', stored in
+;;      `my/ui-state-file'.
+;;
+;; Everything is then filtered through `custom-available-themes', which
+;; is what makes a wrong or stale name harmless: it is simply dropped.
+;; That filter is the reason the curated lists can afford to be
+;; generous rather than verified one by one.
+;;
+;; A theme that ends up on neither list still appears in
+;; `my/theme-cycle-all' and can be filed from there.
 
-(defun my/theme--read-state ()
-  "Return the remembered theme, or nil.
-Returns nil rather than signalling on a missing, empty or corrupt
-file, and refuses any value that is not one of the two themes the
-toggle knows about -- a stale name from an uninstalled theme would
-otherwise abort init."
-  (when (file-readable-p my/theme-state-file)
-    (with-temp-buffer
-      (insert-file-contents my/theme-state-file)
-      (let ((theme (ignore-errors (read (current-buffer)))))
-        (and (symbolp theme)
-             (memq theme modus-themes-to-toggle)
-             theme)))))
+(defcustom my/theme-known-light
+  '(modus-operandi modus-operandi-tinted
+    modus-operandi-deuteranopia modus-operandi-tritanopia
+    standard-light standard-light-tinted
+    doric-light
+    doom-one-light doom-solarized-light doom-nord-light
+    doom-opera-light doom-tomorrow-day doom-acario-light
+    doom-flatwhite doom-homage-white doom-earl-grey
+    doom-ayu-light doom-gruvbox-light doom-plain
+    doom-oksolar-light doom-bluloco-light doom-feather-light)
+  "Light themes not published by a package variable.
+Names that do not exist are ignored, so this list may be generous."
+  :type '(repeat symbol) :group 'faces)
+
+(defcustom my/theme-known-dark
+  '(modus-vivendi modus-vivendi-tinted
+    modus-vivendi-deuteranopia modus-vivendi-tritanopia
+    standard-dark standard-dark-tinted
+    doric-dark
+    doom-one doom-vibrant doom-nord doom-dracula doom-gruvbox
+    doom-palenight doom-tomorrow-night doom-solarized-dark
+    doom-city-lights doom-horizon doom-moonlight doom-oceanic-next
+    doom-material doom-monokai-pro doom-zenburn doom-henna
+    doom-badger doom-old-hope doom-ir-black doom-nova
+    doom-oksolar-dark doom-bluloco-dark doom-feather-dark)
+  "Dark themes not published by a package variable.
+Names that do not exist are ignored, so this list may be generous."
+  :type '(repeat symbol) :group 'faces)
+
+(defun my/theme--available (themes)
+  "Return the members of THEMES that are actually installed, deduplicated."
+  (let ((available (custom-available-themes)))
+    (seq-uniq (seq-filter (lambda (theme) (memq theme available)) themes))))
+
+(defun my/theme-light-themes ()
+  "Return every light theme available."
+  (my/theme--available
+   (append my/theme-known-light
+           (and (boundp 'ef-themes-light-themes) ef-themes-light-themes)
+           (and (boundp 'standard-themes-light-themes) standard-themes-light-themes)
+           (and (boundp 'doric-themes-light-themes) doric-themes-light-themes)
+           (my/ui-state-get :themes-light))))
+
+(defun my/theme-dark-themes ()
+  "Return every dark theme available."
+  (my/theme--available
+   (append my/theme-known-dark
+           (and (boundp 'ef-themes-dark-themes) ef-themes-dark-themes)
+           (and (boundp 'standard-themes-dark-themes) standard-themes-dark-themes)
+           (and (boundp 'doric-themes-dark-themes) doric-themes-dark-themes)
+           (my/ui-state-get :themes-dark))))
+
+(defun my/theme-light-p (&optional theme)
+  "Non-nil when THEME (default: the active one) is known to be light."
+  (memq (or theme (car custom-enabled-themes)) (my/theme-light-themes)))
+
+;; ============================================================
+;; LOADING, AND WHAT RUNS AFTERWARDS
+;; ============================================================
+
+(defvar my/theme-after-load-hook nil
+  "Run after any theme is loaded, whatever family it belongs to.
+
+A theme reassigns every face it covers, so anything set outside the
+theme has to be re-applied afterwards.  Modus and Ef each provide
+their own post-load hook; this one exists so that a module wanting to
+react does not have to know which family is active.
+
+03b-fonts.el adds `my/fonts-apply' here.  Add sparingly: a face that
+INHERITS from a face the theme styles needs no hook at all.")
 
 (defun my/theme-load (theme)
-  "Load THEME through the Modus API, falling back to `load-theme'.
-`modus-themes-load-theme' is preferred because it runs
-`modus-themes-after-load-theme-hook', which is what re-applies fonts
-\(03b-fonts.el) and records the choice."
-  (if (fboundp 'modus-themes-load-theme)
-      (modus-themes-load-theme theme)
-    (load-theme theme :no-confirm))
-  ;; spacious-padding (34-appearance.el) computes its mode-line and
-  ;; border faces from the palette that was current when it was
-  ;; enabled.  Since the theme now loads AFTER that module, and again
-  ;; on every toggle, the mode has to be re-asserted afterwards or the
-  ;; hairline mode line keeps the previous theme's colour.  Enabling an
-  ;; already-enabled `spacious-padding-mode' is how the package itself
-  ;; expects to be refreshed, so this is idempotent rather than a
-  ;; toggle.  Guarded: 34-appearance.el is optional.
-  (when (bound-and-true-p spacious-padding-mode)
-    (spacious-padding-mode 1)))
+  "Disable all active themes and load THEME, remembering the choice.
+
+Deliberately plain `load-theme' rather than `modus-themes-load-theme'
+or `ef-themes-select': those work only for their own family, and this
+has to handle four.  What the family loaders add is their post-load
+hook, which `my/theme--after-load' replaces with one that fires for
+any theme.
+
+PADDING IS TURNED OFF ACROSS THE LOAD, NOT REFRESHED AFTER IT
+-------------------------------------------------------------
+spacious-padding builds its border and mode-line faces from the
+palette current when it is enabled, and among other things writes a
+`:box' onto the mode line.  Leaving it enabled while a theme loads
+means it computes from whichever palette is half in place, and a theme
+that leaves a colour `unspecified' -- which the Modus and Ef themes do
+not, and several doom-themes and the built-in themes do -- yields an
+invalid box specification.  The resulting `face-spec-set' error aborts
+`enable-theme' partway, so the theme applies to some faces and not
+others: the \"loads but not completely\" symptom.
+
+Off, load, on again puts the computation after a complete palette.
+
+BOTH STEPS ARE GUARDED
+----------------------
+A theme that still cannot be combined with padding reports itself and
+leaves padding off, rather than signalling out of a keypress and
+leaving the frame in whatever state the error interrupted.  Browsing a
+hundred themes means meeting a few broken ones; that is a reason to
+survive them, not to stop browsing."
+  (let ((padding (bound-and-true-p spacious-padding-mode)))
+    (when padding (spacious-padding-mode -1))
+    (mapc #'disable-theme custom-enabled-themes)
+    (condition-case err
+        (load-theme theme :no-confirm)
+      (error (message "%s loaded with errors: %s"
+                      theme (error-message-string err))))
+    (when padding
+      (condition-case err
+          (spacious-padding-mode 1)
+        (error (message "%s: padding left off, it does not combine with this theme (%s)"
+                        theme (error-message-string err))))))
+  ;; Remembered per side, so `my/theme-toggle' can return to the last
+  ;; light AND the last dark rather than to a fixed pair.
+  (my/ui-state-set (if (my/theme-light-p theme) :theme-light :theme-dark) theme)
+  (my/ui-state-set :theme theme)
+  (message "%s" theme)
+  theme)
+
+(defun my/theme--after-load (&rest _)
+  "Re-apply everything a theme load has just overwritten.
+
+Padding is deliberately NOT handled here.  This runs from
+`enable-theme-functions', which fires DURING `load-theme', when the
+palette is only partly in place -- exactly the condition that produces
+an invalid `:box'.  `my/theme-load' handles padding after the load has
+finished."
+  (run-hooks 'my/theme-after-load-hook))
+
+(defun my/theme-repair ()
+  "Clear accumulated face overrides and load the active theme again.
+
+For when a theme keeps loading wrong even after switching away and
+back.  `custom-set-faces' -- used by Custom, and by some packages at
+runtime -- writes the `user' theme, which outranks every real theme
+and is re-applied on every `enable-theme'.  A single invalid
+specification stored there therefore breaks EVERY subsequent theme
+load, not just the one that produced it.
+
+Disabling the `user' theme drops those overrides for this session.
+Nothing in this configuration relies on them: colour lives in the
+palette overrides below, and the faces defined by 34-appearance.el
+inherit rather than override."
+  (interactive)
+  (disable-theme 'user)
+  (my/theme-load (or (car custom-enabled-themes)
+                     (my/ui-state-get :theme)
+                     (car (my/theme-light-themes))))
+  (message "Cleared `user' face overrides and reloaded %s"
+           (car custom-enabled-themes)))
+
+;; `enable-theme-functions' (Emacs 29+) fires for every theme from
+;; every family, which is exactly the abstraction wanted here.  The
+;; fallback covers older Emacs at the cost of only reacting to Modus.
+(if (boundp 'enable-theme-functions)
+    (add-hook 'enable-theme-functions #'my/theme--after-load)
+  (add-hook 'modus-themes-after-load-theme-hook #'my/theme--after-load))
+
+;; ============================================================
+;; CYCLING, TOGGLING, PICKING
+;; ============================================================
+
+(defun my/theme--cycle (themes)
+  "Load the theme after the active one in THEMES, wrapping around.
+Starts at the beginning when the active theme is not in the list,
+which is what lets F4 and F5 jump between families instead of
+refusing to move."
+  (let* ((current (car custom-enabled-themes))
+         (position (seq-position themes current))
+         (next (if position
+                   (nth (mod (1+ position) (length themes)) themes)
+                 (car themes))))
+    (my/theme-load next)))
+
+(defun my/theme-cycle-light ()
+  "Step to the next light theme, announcing its name.
+Press repeatedly to walk the whole set in a fixed order -- which is
+the point: comparing themes needs a sequence that can be retraced,
+not a random draw."
+  (interactive)
+  (my/theme--cycle (my/theme-light-themes)))
+
+(defun my/theme-cycle-dark ()
+  "Step to the next dark theme.  See `my/theme-cycle-light'."
+  (interactive)
+  (my/theme--cycle (my/theme-dark-themes)))
+
+(defun my/theme-toggle ()
+  "Switch between light and dark, keeping the last choice of each.
+Unlike `modus-themes-toggle' this works across families: browse the
+light themes with F4 and the dark ones with F5, and this returns to
+whichever was last active on the other side."
+  (interactive)
+  (my/theme-load
+   (if (my/theme-light-p)
+       (my/ui-state-get :theme-dark (car (my/theme-dark-themes)))
+     (my/ui-state-get :theme-light (car (my/theme-light-themes))))))
+
+(defun my/theme-cycle-all ()
+  "Step through every installed theme, classified or not.
+The escape hatch for the classification above: a theme that landed on
+neither list, or on the wrong one, still turns up here and can be
+filed with `my/theme-classify'."
+  (interactive)
+  (my/theme--cycle (my/theme--available (custom-available-themes))))
+
+(defun my/theme-cycle-favourites ()
+  "Step through the themes marked with `my/theme-favourite-toggle'.
+The point of browsing a hundred themes is to end up with four."
+  (interactive)
+  (if-let* ((favourites (my/theme--available (my/ui-state-get :themes-favourite))))
+      (my/theme--cycle favourites)
+    (user-error "No favourites yet -- mark one with `my/theme-favourite-toggle'")))
+
+(defun my/theme-favourite-toggle ()
+  "Add the active theme to the favourites, or remove it."
+  (interactive)
+  (let* ((theme (car custom-enabled-themes))
+         (favourites (my/ui-state-get :themes-favourite))
+         (member (memq theme favourites)))
+    (my/ui-state-set :themes-favourite
+                     (if member
+                         (delq theme (copy-sequence favourites))
+                       (cons theme favourites)))
+    (message "%s %s favourites (%d total)"
+             theme (if member "removed from" "added to")
+             (length (my/ui-state-get :themes-favourite)))))
+
+(defun my/theme-classify (side)
+  "File the active theme as light or dark.
+For themes the lists above did not know about, or got wrong.  The
+choice is remembered in `my/ui-state-file', so it applies to F4 and F5
+from now on without editing this file."
+  (interactive
+   (list (intern (completing-read "Classify current theme as: "
+                                  '("light" "dark") nil t))))
+  (let* ((theme (car custom-enabled-themes))
+         (key (if (eq side 'light) :themes-light :themes-dark))
+         (other (if (eq side 'light) :themes-dark :themes-light)))
+    (my/ui-state-set key (cons theme (my/ui-state-get key)))
+    (my/ui-state-set other (delq theme (copy-sequence (my/ui-state-get other))))
+    (message "%s filed as %s" theme side)))
+
+(defun my/theme-select ()
+  "Pick any installed theme by name, with completion.
+Favourites first, then everything else."
+  (interactive)
+  (let ((favourites (my/theme--available (my/ui-state-get :themes-favourite))))
+    (my/theme-load
+     (intern (completing-read
+              "Theme: "
+              (append favourites
+                      (seq-difference (my/theme--available (custom-available-themes))
+                                      favourites))
+              nil t)))))
 
 (defun my/theme--startup-load ()
-  "Load the remembered theme, once, at the end of startup.
-Falls back to the first entry of `modus-themes-to-toggle' when nothing
-was remembered -- a first run, or a state file that has been deleted."
-  (my/theme-load (or (my/theme--read-state)
-                     (car modus-themes-to-toggle))))
-
-(defun my/theme-reload ()
-  "Load the active theme again.
-
-Needed after a desktop restore, and useful by hand.
-
-WHY A RESTORED SESSION NEEDS THIS
----------------------------------
-`desktop-save-mode' saves a frameset, and a frameset carries frame
-parameters -- among them `background-color', `foreground-color' and
-`cursor-color'.  Restoring it re-applies the colours from whenever the
-desktop was last written, on top of whatever theme init had already
-loaded.  The frame then shows one theme's background under the other
-theme's faces: dark canvas, light-theme text, or the reverse.  That is
-the \"broken\" startup, and it is the same failure as the tool bar
-coming back (see the desktop block in 01-ui.el) -- a frameset
-overriding a setting made earlier in init.
-
-It also explains why the appearance repaired itself the moment
-anything reloaded the theme.  Loading a theme reassigns the frame
-colour parameters, which is exactly what the stale frameset had got
-wrong.
-
-The alternative would be to filter those three parameters out of
-`frameset-filter-alist' so the frameset never carries them.  Reloading
-is chosen instead because it is one call, it needs no knowledge of
-which parameters a future Emacs might add, and it doubles as the point
-where the remembered theme is applied."
-  (interactive)
-  (my/theme-load (or (car custom-enabled-themes)
-                     (car modus-themes-to-toggle))))
+  "Load the remembered theme, once, at the end of startup."
+  (let ((theme (my/ui-state-get :theme)))
+    (my/theme-load
+     (if (and theme (memq theme (append (my/theme-light-themes)
+                                        (my/theme-dark-themes))))
+         theme
+       (car (my/theme-light-themes))))))
 
 (use-package modus-themes
   :ensure t
@@ -252,7 +478,7 @@ where the remembered theme is applied."
   ;; To audition alternatives, replace the preset with
   ;; `modus-themes-preset-overrides-cooler' or `...-warmer', or drop it
   ;; and keep only the explicit entries.  Reload the theme afterwards
-  ;; (<f5> twice) -- overrides take effect on load, not on assignment.
+  ;; (C-c u t twice) -- overrides take effect on load, not on assignment.
   (setq modus-themes-common-palette-overrides
         `(;; -- Mode line: no border.  The line reads as a band rather
           ;; than a boxed widget, which is the shape spacious-padding
@@ -353,11 +579,23 @@ where the remembered theme is applied."
   ;; after all of `after-init-hook'.
   (add-hook 'emacs-startup-hook #'my/theme--startup-load)
 
-  ;; Record on every load, including the ones the toggle performs.
-  (add-hook 'modus-themes-after-load-theme-hook #'my/theme--save-state)
-
-  :bind (("<f5>" . modus-themes-toggle)
-         ("C-c u t" . modus-themes-toggle)))
+  ;; F4 walks the light themes, F5 the dark ones, both wrapping around
+  ;; and both announcing the name so a good one can be written down.
+  ;; The light/dark toggle keeps `C-c u t' and the View menu.
+  ;; F4 walks the light themes, F5 the dark ones, both wrapping around
+  ;; and both announcing the name so a good one can be written down.
+  ;; Shift walks everything installed, for themes the classification
+  ;; missed.  `C-c u m' marks a keeper; `C-c u M' then walks only those.
+  :bind (("<f4>"      . my/theme-cycle-light)
+         ("<f5>"      . my/theme-cycle-dark)
+         ("S-<f4>"    . my/theme-cycle-all)
+         ("S-<f5>"    . my/theme-cycle-all)
+         ("C-c u t"   . my/theme-toggle)
+         ("C-c u T"   . my/theme-select)
+         ("C-c u m"   . my/theme-favourite-toggle)
+         ("C-c u M"   . my/theme-cycle-favourites)
+         ("C-c u C"   . my/theme-classify)
+         ("C-c u R"   . my/theme-repair)))
 
 ;; ============================================================
 ;; WHY THERE IS NO RUNTIME FACE BLOCK HERE ANY MORE
