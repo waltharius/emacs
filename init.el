@@ -101,6 +101,10 @@
   ;; a missing face renders as `default', and `my/transient-append'
   ;; skips a menu whose anchor it cannot find.
   (load (concat modules-dir "34-appearance.el") t) ; Padding, faces, pulse (C-c u)
+  ;; Optional (NOERROR): reports days missing from the journal series.
+  ;; Degrades on its own if 05b-journal-metrics.el or 21-dashboards.el
+  ;; are absent -- see the header of the module.
+  (load (concat modules-dir "35-journal-gaps.el") t) ; Journal gaps (C-c n f j)
   )
 
 (add-hook 'emacs-startup-hook

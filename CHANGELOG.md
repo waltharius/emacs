@@ -7,6 +7,90 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-30 — Reporting the days that are not there
+
+### New module: 35-journal-gaps.el
+
+`C-c n f j` reports days missing from the journal series. Two kinds of
+gap, kept apart because they mean different things:
+
+- **no entry** — no journal file exists for that day;
+- **no metrics** — a file exists, but a field from
+  `my/journal-metrics-fields` is absent from its front matter.
+
+`05b-journal-metrics.el` states that an absent keyword means "not
+measured" and must never be read as zero. That rule only holds if the
+absences are visible. A day with no file and a day with a file but no
+`wellbeing` are indistinguishable in a query result and are not the
+same event: one was not written up, the other was written up and not
+rated.
+
+The weekday column answers the second question, which is whether the
+gaps are random. A series missing most Saturdays is not a sample of all
+days, and the schema note in `docu/` already says so.
+
+Keys in the report: `RET`/`o` opens the day and creates the note when
+there is none, `m` opens it and records the metrics straight away, `f`
+cycles the filter, `w` changes the window, `g` rebuilds.
+`my/journal-gaps-summary` gives the two numbers in the echo area
+without opening anything.
+
+### Decisions worth keeping
+
+**The required field list is derived, not copied.** It comes from
+`my/journal-metrics-fields`. A field added in `05b-journal-metrics.el`
+starts being reported without touching the new module; a field removed
+there stops being reported. A second copy would drift, and the drift
+would be silent — the report would keep demanding a field that no
+command writes.
+
+**`recalled` and `no_entry_reason` are not required.** Both are
+conditional: `05b-journal-metrics.el` asks for them only when a day is
+being backfilled or has no prose. Requiring them would mark almost
+every ordinary day incomplete, and a report that flags everything
+flags nothing.
+
+**A window, not the whole series.** Journals go back to 2015; every
+un-backfilled day since then is several thousand rows nobody will act
+on. The report covers a prompted number of days back, defaulting to
+90. A window is something that can be emptied. Days before the
+earliest journal file are dropped regardless — there was nothing to
+miss yet.
+
+**Dates come from file names.** Reading the front matter of every file
+in the silo to find its date would mean opening a thousand files to
+answer a question the names already answer. Only files inside the
+window are opened, and only their first kilobyte, so the cost is
+proportional to the number of days covered rather than to how much has
+been written.
+
+**The `defgroup` is `my-journal-gaps`, without the slash**, matching
+`my-dashboards` in `21-dashboards.el`. `my/journal-gaps` is the
+command; a group sharing that symbol is legal — functions and
+variables are separate namespaces — but makes both harder to find, and
+the pre-commit duplicate scan cannot tell them apart. It flagged this
+during review, which is the check earning its place.
+
+**Every dependency is guarded.** Without `05b-journal-metrics.el` the
+metrics half turns off and days with no entry are still listed;
+without `05-notes.el` a missing day can be opened but not created;
+without `21-dashboards.el` the report opens in the current window and
+the menu entry is skipped. The menu anchor is `h` (History), so the
+two dated views sit next to each other.
+
+### consult preview back on demand
+
+`consult-preview-key` returns to `"M-."` from `(:debounce 0.5 any)`.
+
+The sources include note files, so an automatic preview opens a buffer
+per candidate while scrolling — and each of those runs the full
+`org-mode-hook`: visual-fill-column, prettify-symbols, org-modern, the
+per-silo font setup. A debounce makes that cheaper without making it
+deliberate. Asking for the preview makes it deliberate, which is what
+a list of 3700 notes wants.
+
+---
+
 ## Session 2026-08-29 — Appearance: one deferral bug, and everything it explained
 
 A long session that began as a visual redesign and turned into a hunt

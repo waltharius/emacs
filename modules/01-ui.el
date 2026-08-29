@@ -100,17 +100,20 @@
   :config
   (setq xref-show-xrefs-function #'consult-xref
         xref-show-definitions-function #'consult-xref)
-  ;; Preview after a pause, not on every keystroke.  The sources
-  ;; include note files, so previewing on each candidate opens a buffer
-  ;; per candidate while arrowing through a long list.  With a debounce,
-  ;; scrolling past a candidate costs nothing and stopping on one for
-  ;; half a second shows it.
+  ;; Preview on demand: nothing is previewed until `M-.' is pressed on
+  ;; a candidate.
   ;;
-  ;; `any' means any key can trigger the preview; the debounce is what
-  ;; makes that affordable.  Raise 0.5 if scrolling still feels heavy,
-  ;; or replace the whole value with "M-." for preview strictly on
-  ;; demand.
-  (setq consult-preview-key '(:debounce 0.5 any)))
+  ;; The sources include note files, so an automatic preview opens a
+  ;; buffer per candidate while scrolling a long list -- and each of
+  ;; those runs the full `org-mode-hook': visual-fill-column,
+  ;; prettify-symbols, org-modern, the per-silo font setup.  A debounce
+  ;; makes that cheaper without making it deliberate; asking for the
+  ;; preview makes it deliberate, which is what a list of 3700 notes
+  ;; wants.
+  ;;
+  ;; For an automatic preview after a pause instead, use
+  ;; `(:debounce 0.5 any)'; for one on every candidate, `any'.
+  (setq consult-preview-key "M-."))
 
 ;; Enable completion-read-multiple with comma separator
 (setq crm-separator ",")

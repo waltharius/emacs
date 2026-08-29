@@ -3807,6 +3807,104 @@ Two things re-assert themselves afterwards:
 and scroll bar off), and the theme, loaded from =emacs-startup-hook=
 which runs strictly later.
 
+* Journal gaps (C-c n f j)
+:PROPERTIES:
+:CUSTOM_ID: journal-gaps
+:END:
+
+A report of what is *missing* from the journal series, as opposed to
+[[#menu-notes-history][This Day in History]] which shows what is there.
+
+Module: =modules/35-journal-gaps.el=
+
+** Two kinds of gap, and they are not the same thing
+
+| Gap | Meaning |
+|-----+---------|
+| =no entry= | no journal file exists for that day at all |
+| =no metrics= | a file exists, but a field from =my/journal-metrics-fields= is absent from its front matter |
+
+The distinction is the reason this report exists.
+[[#fn-my-journal-set-metrics][Journal metrics]] is explicit that an absent keyword means "not
+measured" and must never be read as zero — and that rule only holds if
+the absences are visible. A day with no file and a day with a file but
+no =wellbeing= look identical in a query result and mean different
+things: one was not written up, the other was written up and not rated.
+
+The =Day= column is there for the second question, which is whether the
+gaps are random or systematic. A series missing most Saturdays is not a
+sample of all days, and the schema note in =docu/= says so.
+
+** Commands
+
+| Command | Effect |
+|---------+--------|
+| =my/journal-gaps= | the report, in a buffer |
+| =my/journal-gaps-summary= | just the two numbers, in the echo area |
+
+Both prompt for how many days back to look, defaulting to
+=my/journal-gaps-default-days= (90).
+
+** Keys in the report
+
+| Key | Effect |
+|-----+--------|
+| =RET=, =o= | open the day, *creating* the note when there is none |
+| =m= | open it and record the metrics straight away |
+| =f= | cycle the filter: all rows / no entry / no metrics |
+| =w= | change the window without leaving the buffer |
+| =g= | rebuild from disk |
+
+=m= is the command that empties a row. Creating a file for a day that
+has none happens without a confirmation prompt — the row already said
+the file was absent.
+
+** Which fields count as required
+
+Derived from =my/journal-metrics-fields= (=05b-journal-metrics.el=),
+not listed again. A field added there starts being reported as missing
+without touching this module, and a field removed there stops being
+reported. A second copy of that list would drift silently: the report
+would keep demanding a field no command writes any more.
+
+=recalled= and =no_entry_reason= are deliberately *not* required. Both
+are conditional — asked for only when a day is being backfilled or has
+no prose — so treating their absence as a gap would mark almost every
+ordinary day incomplete.
+
+=my/journal-gaps-extra-required= exists for a field written by
+something other than =my/journal-set-metrics=. Normally empty.
+
+** Why a window and not the whole series
+
+Journals here go back to 2015. A list of every un-backfilled day since
+then is several thousand rows that nobody will act on. *A window is
+something that can be emptied*, which is the only shape in which this
+report is useful.
+
+Days before the earliest journal file are dropped from the window
+regardless — there was nothing to miss yet.
+
+** Cost
+
+The date of each note comes from its *file name*, which is what this
+configuration treats as authoritative for journal notes. Reading the
+front matter of every file in the silo to find its date would mean
+opening a thousand files to answer a question the names already answer.
+
+Only files inside the window are opened, and only their first
+kilobyte: front matter is at the top by construction, so scanning
+whole files would make the report cost proportional to how much has
+been written rather than to how many days are covered.
+
+** Degradation
+
+| Missing module | Effect |
+|----------------+--------|
+| =05b-journal-metrics.el= | the metrics half turns off; days with no entry are still listed |
+| =05-notes.el= | a missing day can be opened but not created |
+| =21-dashboards.el= | the report opens in the current window instead of the History tab, and the menu entry is skipped |
+
 * Capture Filing
 :PROPERTIES:
 :CUSTOM_ID: capture-filing
@@ -4253,6 +4351,7 @@ hand-editing either from memory.
 | C-c u M  | =my/theme-cycle-favourites=   | =09-theme.el=                |
 | C-c u C  | =my/theme-classify=           | =09-theme.el=                |
 | C-c u R  | =my/theme-repair=             | =09-theme.el=                |
+| C-c n f j | =my/journal-gaps=            | =35-journal-gaps.el=         |
 | C-c u p  | =my/toggle-spacious-padding=  | =34-appearance.el=           |
 | C-c u f  | =my/font-size-adjust=         | =03b-fonts.el= (all frames)  |
 | C-c u s  | =my/text-scale-save-to-note=  | =03b-fonts.el=               |
