@@ -5,9 +5,81 @@ with rationale and lessons learned. Its purpose is to serve as a reference
 before adding new code or modifying existing functionality — to avoid
 introducing regressions, hook races, or dependency conflicts.
 
+## Heading convention
+
+Sessions are listed newest first. Every session heading has the form
+
+    ## Session YYYY-MM-DDx — Title
+
+where `x` is a lower-case letter counting sessions within that day in
+chronological order, starting at `a`. The letter is always present, on
+single-session days as well, so that a second session can be appended
+without relabelling the first — the relabelling is what the scheme is
+there to avoid, and skipping `a` reintroduces it.
+
+Cross-references elsewhere in this file name the full label, letter
+included.
+
 ---
 
-## Session 2026-08-30 — The title stopped being load-bearing
+## Session 2026-08-30h — Session labels are append-only again
+
+### Three schemes, one file
+
+Headings had drifted through three forms. The original — bare date for
+the first session of a day, then `b`, `c`, and on to `s` on
+2026-08-02 — leaves the first session without a label until a second
+one exists, at which point the first has to be renamed. That rename
+was never made. Instead, later days grew parentheticals: `(later)` and
+`(evening)`, which carry no order (on both 2026-08-25 and 2026-08-30,
+`(later)` precedes `(evening)` chronologically, which is not what
+either word means), and 2026-08-30 accumulated three sessions with no
+distinguisher at all beyond their titles.
+
+Two sessions on 2026-08-03 were both labelled `b`, so the label was no
+longer unique.
+
+### What changed
+
+Headings only. No prose, no dates, no ordering: file order is
+chronological and was taken as authoritative.
+
+| Was | Now |
+|---|---|
+| `2026-08-30` ×3, `(later)` ×2, `(evening)` ×2 | `2026-08-30a` … `2026-08-30g` |
+| `2026-08-25`, `(later)`, `(evening)` | `2026-08-25a`, `b`, `c` |
+| `2026-08-03b` ×2 | `2026-08-03b`, `2026-08-03c` |
+| `2026-08-02`, `2026-08-01`, `2026-07-28` (bare, first of day) | `…a` |
+| `2026-07-30` ×2, `2026-06-30` ×2 | `…a`, `…b` |
+| Single-session days | `…a` |
+
+28 headings in total. The three cross-references in the Lessons
+Learned section were updated to match.
+
+### The two 2026-08-03 sessions overlap and were left alone
+
+`2026-08-03b` and what is now `2026-08-03c` describe the same
+compression ladder, the same title-based naming and the same
+`my/org-image-recompress-attachments`, in different words. Each also
+holds something the other does not: `b` has the screenshot-versus-
+photograph heuristic and the evidence-carrying message, `c` has the
+second fault, the converter failing without saying so.
+
+Merging them would mean deciding which account of the shared material
+is correct, and that is a judgement about what happened, not about
+formatting. Left as two entries.
+
+### Lesson
+
+**A label that has to be edited later will not be.** The bare-date form
+required renaming the first session of a day the moment a second one
+appeared. That edit is small, obvious and was skipped every single
+time — seven times on one day. The fix is not discipline but a scheme
+with nothing to edit: append-only labels, `a` included.
+
+---
+
+## Session 2026-08-30g — The title stopped being load-bearing
 
 ### Journal notes are identified by keyword, not by their slug
 
@@ -91,7 +163,7 @@ does.
 
 ---
 
-## Session 2026-08-30 (evening) — The inbox is not part of the collection yet
+## Session 2026-08-30f — The inbox is not part of the collection yet
 
 ### Keyword figures now skip staged notes
 
@@ -135,7 +207,7 @@ match the other.
 
 ---
 
-## Session 2026-08-30 (later) — Windows open sideways now
+## Session 2026-08-30e — Windows open sideways now
 
 ### Two variables nothing had ever set
 
@@ -207,7 +279,7 @@ to set them rather than to advise a split function.
 
 ---
 
-## Session 2026-08-30 — Statistics worth acting on
+## Session 2026-08-30d — Statistics worth acting on
 
 The dashboard from the previous session reported numbers. This one
 makes the numbers openable, because a statistic worth reporting is one
@@ -304,7 +376,7 @@ mattered, and it exists because of an unrelated problem months ago.
 
 ---
 
-## Session 2026-08-30 (evening) — Every count was wrong, and nothing said so
+## Session 2026-08-30c — Every count was wrong, and nothing said so
 
 ### `.snapshots` was being scanned as if it were notes
 
@@ -388,7 +460,7 @@ computing is one that can look wrong.
 
 ---
 
-## Session 2026-08-30 (later) — A statistics dashboard
+## Session 2026-08-30b — A statistics dashboard
 
 ### New module: 36-notes-stats.el
 
@@ -478,7 +550,7 @@ omitted, without denote-explore the `e` key says so.
 
 ---
 
-## Session 2026-08-30 — Reporting the days that are not there
+## Session 2026-08-30a — Reporting the days that are not there
 
 ### New module: 35-journal-gaps.el
 
@@ -585,7 +657,7 @@ a list of 3700 notes wants.
 
 ---
 
-## Session 2026-08-29 — Appearance: one deferral bug, and everything it explained
+## Session 2026-08-29a — Appearance: one deferral bug, and everything it explained
 
 A long session that began as a visual redesign and turned into a hunt
 for a single missing `use-package` keyword. The redesign is described
@@ -983,7 +1055,7 @@ disappears.
   `11-org-appearance.el` — inside the 0.1–0.4 range upstream
   recommends. Raising it will misalign them.
 
-## Session 2026-08-28 — A day worth asking for, hub notes, and a dashboard in columns
+## Session 2026-08-28a — A day worth asking for, hub notes, and a dashboard in columns
 
 ### The day-of-month dashboards were stuck on today
 
@@ -1293,7 +1365,7 @@ say "close".
 
 ---
 
-## Session 2026-08-25 (evening) — Three small corrections
+## Session 2026-08-25c — Three small corrections
 
 ### The no-entry prompt fired on today's entry
 
@@ -1338,7 +1410,7 @@ nudge with it.
 
 ---
 
-## Session 2026-08-25 (later) — Metrics as keywords, and a menu chain I broke
+## Session 2026-08-25b — Metrics as keywords, and a menu chain I broke
 
 ### The regression from the previous commit
 
@@ -1489,7 +1561,7 @@ worse than not having it.
 
 ---
 
-## Session 2026-08-25 — A property drawer Org never read
+## Session 2026-08-25a — A property drawer Org never read
 
 ### What was wrong
 
@@ -1633,7 +1705,7 @@ Every metadata key added from here on gets checked once with
 
 ---
 
-## Session 2026-08-24 — Fetching a page title instead of typing one
+## Session 2026-08-24a — Fetching a page title instead of typing one
 
 ### What was missing
 
@@ -1657,7 +1729,7 @@ so `12-transient.el` itself is untouched.
 
 ---
 
-## Session 2026-08-12 — The second most-used command had no binding
+## Session 2026-08-12a — The second most-used command had no binding
 
 ### What the measurement said
 
@@ -1756,7 +1828,7 @@ board, where those keys do not exist.
 
 ---
 
-## Session 2026-08-03b — Rescaling is not compression, and a failure that said nothing
+## Session 2026-08-03c — Rescaling is not compression, and a failure that said nothing
 
 ### What was reported, twice
 
@@ -3537,7 +3609,7 @@ limitations above were tested directly; the ox-odt path was not._
 
 ---
 
-## Session 2026-08-02 — Writing Projects: note creation, mention filtering
+## Session 2026-08-02a — Writing Projects: note creation, mention filtering
 
 ### A — `my/writing-project-new-note`
 
@@ -3655,7 +3727,7 @@ _Not compiled or run: written without an Emacs available._
 
 ---
 
-## Session 2026-08-01 — Writing Projects, Phase 1
+## Session 2026-08-01a — Writing Projects, Phase 1
 
 ### Context
 
@@ -3730,7 +3802,7 @@ included, disabled by default and marked unverified.
 CLOCK line by hand with S-<up> moves by a useful step — manual
 correction is the fallback whenever idle detection cannot be trusted.
 
-## Session 2026-07-31 — Decoupling Menu Extension Between Modules
+## Session 2026-07-31a — Decoupling Menu Extension Between Modules
 
 ### Context
 
@@ -3809,7 +3881,7 @@ reachable from the menu rather than only from `C-c b c` and `M-x`.
 
 ---
 
-## Session 2026-07-30 — Obsidian Migration: Inbox Review
+## Session 2026-07-30b — Obsidian Migration: Inbox Review
 
 ### Context
 
@@ -3934,7 +4006,7 @@ re-converted and replaced after the fix.
 
 ---
 
-## Session 2026-07-30 — Citation Export and Key Checking
+## Session 2026-07-30a — Citation Export and Key Checking
 
 ### Context
 
@@ -4028,7 +4100,7 @@ carrying dead references.
 
 ---
 
-## Session 2026-07-29 — Org-transclusion Review
+## Session 2026-07-29a — Org-transclusion Review
 
 ### Context
 
@@ -4371,7 +4443,7 @@ about a format that only one of them defines.
 
 ---
 
-## Session 2026-07-28 — Persistent Branching Undo
+## Session 2026-07-28a — Persistent Branching Undo
 
 ### Context
 
@@ -4491,7 +4563,7 @@ the arrow-key bindings.
 
 ---
 
-## Session 2026-07-27 — Fixed Tabs and Detachable Frames
+## Session 2026-07-27a — Fixed Tabs and Detachable Frames
 
 ### Context
 
@@ -4609,7 +4681,7 @@ frames, not for a permanent second frame with its own buffer list.
 
 ---
 
-## Session 2026-07-26 — Zettelkasten Layer, Silo Moving, and the Fixes That Followed
+## Session 2026-07-26a — Zettelkasten Layer, Silo Moving, and the Fixes That Followed
 
 ### Context
 
@@ -5106,7 +5178,7 @@ having none, since it would be trusted.
 
 ---
 
-## Session 2026-07-25 — Desktop Trim Tab/Pin Protection, Keybinding Audit, Org Markup Styling
+## Session 2026-07-25a — Desktop Trim Tab/Pin Protection, Keybinding Audit, Org Markup Styling
 
 ### Context
 
@@ -5248,7 +5320,7 @@ one-entry-per-face pattern already used throughout this file (see
 
 ---
 
-## Session 2026-07-02 — Hierarchical Notes Menu, Function Helper, and Transclusion
+## Session 2026-07-02a — Hierarchical Notes Menu, Function Helper, and Transclusion
 
 ### Context
 
@@ -5400,7 +5472,7 @@ If a workflow depends on stable exportable references, generated anchors
 not temporary editor artefacts. Their presence in files is a design choice,
 not accidental noise.
 
-## Session 2026-06-30 — Performance & Warning Cleanup (Session 2)
+## Session 2026-06-30b — Performance & Warning Cleanup (Session 2)
 
 ### Context
 
@@ -5503,7 +5575,7 @@ when you want an attribute to be inherited rather than set.
 
 ---
 
-## Session 2026-06-30 — Quality Control Pass (Paczki B1, C, D)
+## Session 2026-06-30a — Quality Control Pass (Paczki B1, C, D)
 
 ### Context
 
@@ -5716,7 +5788,7 @@ as long as X exists — they don't forget entries just because something
 newer came along. If a derived set (e.g. "buffers to protect") is built
 from one of these, cap it explicitly — for an MRU-ordered list, take
 only the front `N` entries — so the derived set stays bounded
-regardless of how long X has been alive. See Session 2026-07-25, A.
+regardless of how long X has been alive. See Session 2026-07-25a, A.
 
 ### L13 — Extending a transient from another module creates a load-order dependency
 
@@ -5731,7 +5803,7 @@ Two habits keep this safe: keep the appending modules numbered above
 the prefix's module in `init.el`, and guard the append with
 `transient-get-suffix` wrapped in `ignore-errors` (it signals when the
 key is absent) so re-evaluating a module during development does not
-stack duplicate entries. See Session 2026-07-26, A.
+stack duplicate entries. See Session 2026-07-26a, A.
 
 ---
 
@@ -5753,7 +5825,7 @@ line's content instead. Line-oriented front matter parsing wants
 The companion mistake is using `.+` for a value that may legitimately
 be empty. `.+` makes the match fail on the correct line, so the search
 succeeds further down the buffer on some unrelated line. Use `.*` and
-treat an empty capture as absent. See Session 2026-07-26, E.
+treat an empty capture as absent. See Session 2026-07-26a, E.
 
 ## File Ownership Map (current)
 
