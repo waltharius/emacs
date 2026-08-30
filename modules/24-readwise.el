@@ -1013,8 +1013,14 @@ use it up."
     ("o" "Open import folder" my/readwise-open-directory)]
    [("q" "Quit" transient-quit-one)]])
 
-(my/transient-append 'my/notes-tools-menu "z"
-                     '("r" "Readwise →" my/readwise-menu))
+;; `my/transient-append' degrades on a missing prefix or anchor, but
+;; calling it unguarded still needs 12-transient.el to have been loaded:
+;; without it init aborts here with a void-function error naming this
+;; file rather than the missing one.
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-append)
+    (my/transient-append 'my/notes-tools-menu "z"
+                         '("r" "Readwise →" my/readwise-menu))))
 
 ;; ============================================================
 ;; KEYBINDINGS

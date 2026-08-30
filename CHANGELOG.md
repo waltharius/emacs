@@ -22,6 +22,126 @@ included.
 
 ---
 
+## Session 2026-08-30j — A habit is not created, it is ticked
+
+### 38-habits.el
+
+`f9` asks which habit and records it, at that habit's own location,
+without changing the current buffer. `C-u f9` records it for an
+earlier day. `my/habit-new` defines one; `my/habit-derive` fills a
+history in from somewhere else.
+
+The commands are completion prompts rather than text entry because of
+what org-habit is: a habit is a TODO that never goes away, defined
+once and afterwards only marked. Marking it DONE does not close it —
+the repeater moves SCHEDULED forward and the completion is recorded in
+LOGBOOK. Anything that created a habit each time one was done would be
+fighting the model rather than using it.
+
+### Two bugs found by reading org-habit.el rather than assuming
+
+Both would have produced *plausible wrong output* rather than an
+error, which is why they are recorded rather than merely fixed.
+
+**Back-dating shifted the schedule from the wrong day.** A `.+`
+repeater shifts from `org-today`, and `org-today` computes from the
+clock directly — it does not consult `org-current-effective-time`, the
+accessor everything else in Org uses for "now". Overriding only the
+latter would have written the completion on the right day and left the
+schedule one day out: yesterday's run logged for a daily habit would
+show as due tomorrow. `my/habit-log` binds `org-today` for the
+duration of the `org-todo` call instead.
+
+**The log line is written after the command returns.**
+`org-add-log-setup` defers to `post-command-hook`, for `'time` and
+`'state` logging as much as for a prompted note. A `save-buffer`
+inside the command therefore saves the file *before the line exists*,
+leaving the drawer unwritten on disk and the buffer modified until
+something else saves it — on a Syncthing tree, indefinitely.
+
+The fix is not to reorder but to stop using `org-todo` for the
+logging: it is called with `org-log-done` and `org-log-repeat` bound
+to nil, so it does only the repeater shift, and the LOGBOOK line is
+written directly. One command, one buffer edit, one save.
+
+### One line format, one place
+
+That leaves this module owning the format `org-habit-parse-todo`
+matches:
+
+    - State "DONE"       from "TODO"       [2026-08-30 sob 00:00]
+
+which it owned anyway for derived habits. Manual logging and
+derivation now go through the same writer, so there is no way for the
+two to drift into producing different lines that only one of them
+parses.
+
+### Derived habits, and why they are capped
+
+`my/habit-derive` rewrites a habit's LOGBOOK from a source function.
+The shipped one reads the journal silo: the completion dates are the
+dates in the file names, via `my/journal-file-date`.
+
+The drawer is replaced, never merged. A merge would have to decide
+what to do about a date the source no longer reports, and there is no
+honest answer — the source is the truth, so anything else in the
+drawer is stale by definition. Same rule as hub membership in
+33-denote-hubs.el.
+
+`org-habit-parse-todo` stops after `org-habit-preceding-days` plus
+`org-habit-following-days` matches — 28 by default — reading from the
+top of the drawer downwards while `org-log-states-order-reversed`
+holds. Writing ten years of journal dates into one drawer would add
+nothing to the graph and a great deal to every agenda build.
+`my/habits-derived-cap` is 40: the default window plus enough margin
+that raising `org-habit-preceding-days` a little does not silently
+truncate the graph.
+
+### The boundary with journal metrics
+
+org-habit answers "did I do it today" and stores a tick. The journal
+front matter answers "how much" and stores a number. Converting either
+way loses the thing that made it worth recording, and neither loss is
+recoverable, so the boundary is stated in both the module header and
+the documentation rather than left to be inferred.
+
+### Three modules could have broken init, and now cannot
+
+A mechanical audit of load-time cross-module references — every
+top-level form that is not a `defun`, `with-eval-after-load`, or
+guarded by `fboundp`/`boundp` — found `my/transient-append` called
+bare in 22-zettelkasten.el, 24-readwise.el and 25-inbox-review.el.
+
+The function degrades on a missing prefix or anchor; it does not
+degrade on being absent itself. Removing 12-transient.el would have
+aborted init at whichever of the three loaded first, with a
+void-function error naming *that* file rather than the missing one —
+the exact failure 12-transient.el's own header describes and that
+`my/transient-append` was written to prevent. Every other module
+already wrapped the call; these three were the exceptions.
+
+All three now use the same shape as the rest:
+
+    (with-eval-after-load '12-transient
+      (when (fboundp 'my/transient-append)
+        ...))
+
+After the fix, two load-time cross-module references remain, both to
+`my/ui-state-get` in 00-core.el, which is not optional and always
+loads first.
+
+### Lesson
+
+**A guard that protects against the wrong failure is not a guard.**
+`my/transient-append` exists so that a missing *anchor* cannot break
+init, and it does that job. Three call sites read as protected because
+the function they called was careful, when what actually needed
+guarding was the call itself. The distinction is invisible while every
+module is loaded, which is why it survived twelve modules' worth of
+copying.
+
+---
+
 ## Session 2026-08-30i — A task written without leaving the sentence
 
 ### 37-tasks.el

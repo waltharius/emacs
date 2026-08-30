@@ -654,8 +654,14 @@ note records where it came from in :extracted_from:."
     ("R" "Change identifier"   my/denote-change-identifier)]
    [("q" "Quit" transient-quit-one)]])
 
-(my/transient-append 'my/notes-tools-menu "z"
-                     '("i" "Inbox \u2192" my/inbox-menu))
+;; `my/transient-append' degrades on a missing prefix or anchor, but
+;; calling it unguarded still needs 12-transient.el to have been loaded:
+;; without it init aborts here with a void-function error naming this
+;; file rather than the missing one.
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-append)
+    (my/transient-append 'my/notes-tools-menu "z"
+                         '("i" "Inbox \u2192" my/inbox-menu))))
 
 (provide '25-inbox-review)
 ;;; 25-inbox-review.el ends here

@@ -214,11 +214,15 @@ follow with my/zettel-reparent to place it under an existing thread."
    [("q" "Quit" transient-quit-one)]])
 
 ;; Append to the main notes menu after "t" (Tools), same pattern as
-;; 19-philosophy-notes.el.  Guarded so reloading this file does not
-;; add a duplicate entry (transient-get-suffix errors when the key is
-;; absent, hence ignore-errors).
-(my/transient-append 'my/notes-menu "t"
-                     '("z" "Zettelkasten →" my/zettelkasten-menu))
+;; 19-philosophy-notes.el.  `my/transient-append' itself degrades when
+;; the prefix or anchor is missing, but calling it unguarded needs
+;; 12-transient.el to have been loaded first -- removing that module
+;; would abort init here with a void-function error naming this file
+;; rather than the missing one.
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-append)
+    (my/transient-append 'my/notes-menu "t"
+                         '("z" "Zettelkasten →" my/zettelkasten-menu))))
 
 (provide '22-zettelkasten)
 ;;; 22-zettelkasten.el ends here

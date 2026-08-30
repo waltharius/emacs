@@ -115,6 +115,12 @@
   ;; having the last word.  Without 28 it still works and the agenda
   ;; holds this module's own files only.
   (load (concat modules-dir "37-tasks.el") t) ; Tasks & agenda (f8, C-c n A)
+  ;; Optional (NOERROR): org-habit setup, fast logging, derived history.
+  ;; Loaded after 37-tasks.el because it adds its file to that module's
+  ;; `my/tasks-extra-agenda-files' and appends to its menu.  Without 37
+  ;; the commands still work; the habit file is simply not in the
+  ;; agenda, so no consistency graphs are drawn.
+  (load (concat modules-dir "38-habits.el") t) ; Habits (f9, C-c n H)
   )
 
 (add-hook 'emacs-startup-hook

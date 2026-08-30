@@ -2679,6 +2679,173 @@ than no link, because it looks like it should work.
 
 Module: =modules/37-tasks.el=
 
+* Habits (f9, C-c n H)
+:PROPERTIES:
+:CUSTOM_ID: habits
+:END:
+
+Binary habit tracking on top of Org's own =org-habit=. Did I do it
+today — nothing else.
+
+** The commands
+
+| Key        | Command          | Effect                              |
+|------------+------------------+-------------------------------------|
+| =<f9>=     | =my/habit-log=   | Log a habit done today              |
+| =C-u <f9>= | =my/habit-log=   | Log it for an earlier day           |
+| =C-c n H=  | =my/habits-menu= | The menu                            |
+
+| Key | Command           | Effect                                |
+|-----+-------------------+---------------------------------------|
+| =l= | =my/habit-log=    | Log done today                        |
+| =L= | =my/habit-log=    | Log for another day                   |
+| =n= | =my/habit-new=    | Define a new habit                    |
+| =d= | =my/habit-derive= | Rebuild a derived history             |
+| =f= | =my/habits-open=  | Open =habits.org=                     |
+| =g= | =my/habit-goto=   | Jump to one habit                     |
+| =a= | =org-agenda=      | The agenda, where the graphs are      |
+
+Also reachable as =h= inside the tasks menu (=C-c n A=), because
+habits and tasks are read together.
+
+** How org-habit works, in four sentences
+
+A habit is a TODO that never goes away. Marking it DONE does not close
+it: the repeater moves its =SCHEDULED= date forward and the completion
+is recorded as a state-change line in its =LOGBOOK= drawer. The agenda
+draws a consistency graph from those lines. So habits are defined once
+and afterwards only logged — which is why =my/habit-log= is a
+completion prompt and not a text entry.
+
+An entry is a habit when it has =:STYLE: habit= and a =SCHEDULED= date
+carrying a repeater. Without either, =org-habit-parse-todo= rejects it
+and it is an ordinary repeating task.
+
+** Repeaters
+
+| Offered                     | Written    |
+|-----------------------------+------------|
+| every day                   | =.+1d=     |
+| every day, 3 days grace     | =.+1d/3d=  |
+| every 2 days                | =.+2d=     |
+| every week                  | =.+1w=     |
+| every week, 10 days grace   | =.+1w/10d= |
+| every month                 | =.+1m=     |
+
+=.+= and not =+=: =.+1d= schedules the next occurrence one day after
+it was actually done, =+1d= one day after it was previously due.
+Missing three days of a =+1d= habit leaves three occurrences waiting,
+which is not what a habit means.
+
+The =/Nd= suffix is the grace period. The habit turns red only after
+that many days, so an every-day habit with three days of grace stays
+green through a normal week and complains only when the week was not
+normal.
+
+Edit =my/habits-repeaters= to change the list.
+
+** Binary here, numbers in the journal
+
+=org-habit= answers "did I do it today". Quantities — hours slept,
+pages read, a wellbeing score — belong in the journal front matter;
+see [[#fn-my-journal-set-metrics][Journal Metrics]].
+
+Putting a number into a habit stores a tick and loses the number.
+Putting a tick into the metrics loses the streak. Neither conversion
+is recoverable, so the boundary is worth keeping sharp.
+
+** Derived habits
+
+=my/habit-derive= rewrites a habit's =LOGBOOK= from something already
+recorded elsewhere, rather than from what was typed.
+
+The one shipped derivation is =journal entry=: the completion dates
+come from the file names in the journal silo, through
+=my/journal-file-date=. Define a habit called exactly =journal entry=,
+run =d= in the menu, and the graph fills itself in.
+
+The file names are the truth; the drawer is a cache, rewritten whole
+and never edited in place. Same rule as hub membership in
+[[#fn-my-denote-add-to-hub][Hub Notes]], and for the same reason: a second copy of a fact drifts
+from the first. Running the command repeatedly is therefore safe.
+
+Add a derivation by pushing =(NAME . FUNCTION)= onto
+=my/habits-derivations=, where FUNCTION takes no arguments and returns
+=YYYY-MM-DD= strings, newest first.
+
+*Only the recent window is written.* =org-habit-parse-todo= stops
+after =org-habit-preceding-days= plus =org-habit-following-days=
+matches, 28 by default, reading from the top of the drawer downwards.
+Ten years of journal dates in one drawer would add nothing to the
+graph and a great deal to the parse, so =my/habits-derived-cap= (40)
+caps it. Long-term journal coverage is what [[#journal-gaps][Journal Gaps]] and
+[[#notes-stats][Statistics]] are for.
+
+** Why the LOGBOOK lines are written by hand
+
+=org-todo= would log them, but =org-add-log-setup= defers the write to
+=post-command-hook= — after the command has returned. A =save-buffer=
+inside the command would then save the file before the line existed,
+and the file would sit modified until something else saved it.
+
+Writing the line directly keeps the whole operation inside one
+command. The cost is owning one line format, which this module owns
+anyway for derived habits, so there is exactly one place it is
+written:
+
+: - State "DONE"       from "TODO"       [2026-08-30 sob 00:00]
+
+Logging the same day twice is detected and does nothing.
+
+** Why back-dating overrides org-today
+
+A =.+= repeater shifts from =org-today=, and =org-today= does not
+consult =org-current-effective-time=. Without the override, logging
+yesterday's run for a daily habit would leave it due *tomorrow*
+instead of today — the completion recorded correctly and the schedule
+silently one day out. =my/habit-log= binds =org-today= to the day
+being logged for the duration of the =org-todo= call.
+
+** Configuration
+
+| Variable                   | Meaning                               |
+|----------------------------+---------------------------------------|
+| =my/habits-file=           | Where habits live                     |
+| =my/habits-heading=        | Top-level heading they sit under      |
+| =my/habits-repeaters=      | Repeat periods offered                |
+| =my/habits-capture-key=    | Key inside =org-capture-templates=    |
+| =my/habits-log-binding=    | Global key, nil for none              |
+| =my/habits-derived-cap=    | Completions a derived drawer keeps    |
+| =my/habits-derivations=    | Habits computed rather than typed     |
+
+org-habit's own settings are set here too:
+=org-habit-graph-column= (50), =org-habit-preceding-days= (21),
+=org-habit-following-days= (7), =org-habit-show-habits-only-for-today=
+(t). The last one keeps habits on today's agenda line only; repeated
+across a week they are seven copies of one row, and the graph is drawn
+relative to today in every copy anyway.
+
+** Logging must be on
+
+=org-log-done= is ='time= and =org-log-into-drawer= is =t=, set both
+here and in [[#tasks][Tasks]]. Without them a habit records nothing and the
+graph is empty for reasons nothing reports. Duplicated on purpose:
+either module has to be correct on its own.
+
+** Later
+
+- =org-habit-stats= (MELPA) adds calendars, bar charts and a strength
+  score, computed from the same LOGBOOK entries. Nothing has to be
+  migrated to adopt it, so it is worth adding only once there is a
+  month of data to look at.
+- Import from Loop Habit Tracker. Loop exports CSV and its own SQLite
+  file; the import direction is a =my/habits-derivations= entry and
+  nothing more. The export direction does not exist — Loop restores
+  only its own backups — so one of the two has to be the source of
+  truth for any given habit.
+
+Module: =modules/38-habits.el=
+
 * Office Export — ODT and DOCX (C-c n x)
 :PROPERTIES:
 :CUSTOM_ID: office-export
@@ -4870,6 +5037,7 @@ hand-editing either from memory.
 | C-c a t  | =keylog-disable=              | =14-typing-analytics.el=     |
 | C-c a T  | =keylog-enable=               | =14-typing-analytics.el=     |
 | <f8>     | =my/task-capture=             | =37-tasks.el=                |
+| <f9>     | =my/habit-log=                | =38-habits.el=               |
 | C-x g    | =magit-status=                | =07-git.el=                  |
 | C-x M-g  | =magit-dispatch=              | =07-git.el=                  |
 | C-c g s  | =magit-status=                | =07-git.el=                  |
