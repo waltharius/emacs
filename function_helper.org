@@ -3910,58 +3910,75 @@ been written rather than to how many days are covered.
 :CUSTOM_ID: notes-stats
 :END:
 
-One screen answering "how big is this thing, and is it healthy".
+One screen answering "how big is this thing, and is it healthy", with
+the interesting numbers clickable.
 
 Module: =modules/36-notes-stats.el= | also =C-c w s=
 
-** Two tiers
-
-Everything on the opening screen is computed from *file names and
-=file-attributes= alone*. Not one note is read. That is possible
-because Denote puts the date, the title and the keywords in the name,
-so counts, sizes, keyword frequencies, growth per month and the entire
-journal-coverage section are already there for the taking. One
-=directory-files-recursively= and the report is up.
-
-The second tier — words, links, orphans — has to open every file. It
-runs only on =c=, shows a progress reporter, and caches its result
-until asked again. *Keeping it off the opening path is what makes this
-something to glance at rather than something to wait for.*
-
-** What is on the screen
+** Sections
 
 | Section | Contents |
 |---------+----------|
-| Collection | notes, total size, average note, largest note |
-| Silos | notes and bytes per silo, each as a share of the whole |
-| On disk | every top-level directory under =~/notes/=, all file types |
-| Journal | first entry, days elapsed, days covered, coverage %, longest and current streak, days missing metrics |
-| Keywords | distinct, assignments, per-note average, singletons, notes with none, top 12 with bars |
-| Growth | notes created per month for the last 12, with bars, plus the busiest month ever |
+| Collection | notes, total size, average, largest and smallest note (both clickable) |
+| Notes by directory | =.org= files grouped by top-level directory — journal, pks, docu, inbox, (root) |
+| On disk | every file of every type, same grouping — attachments, pdf, html, refs.bib |
+| Zettelkasten | sequenced notes, top-level sequences, deepest and average signature depth |
+| Journal | first entry (clickable), days elapsed, coverage, streaks, days missing metrics |
+| Keywords | distinct, assignments, singletons and no-keyword notes (both clickable), top 12 |
+| Notes created | per month for the last 12, then per year for the whole history |
 | Content | words, links, notes linking to nothing, notes nothing links to — after =c= |
 
 ** Keys
 
 | Key | Effect |
 |-----+--------|
-| =g= | rebuild the fast tier |
-| =c= | read every note and fill in the Content section |
+| =g= | rebuild |
+| =c= | read every note and fill in Content |
 | =e= | run a =denote-explore-= command, chosen by completion |
-| =x= | write the report to an Org file and open it |
+| =x= | write the report to an Org file with working links, and open it |
+| =n= / =p= | next / previous button |
 | =q= | quit |
 
-** Two views of size, disagreeing on purpose
+In the drill-down lists, =r= runs =my/maintenance-rename-keyword= —
+which is the command for merging a singleton into a real keyword, or
+removing it.
 
-=Silos= counts *notes*: =.org= files inside the three silo
-directories. =On disk= counts *files*: everything under =~/notes/=
-whatever its extension, grouped by top-level directory.
+** What is clickable, and where it opens
 
-They differ by more than an order of magnitude, and the difference is
-the answer to a real question. =attachments/= is around 200 MB against
-12 MB for the entire journal. A report on "how big is this" counting
-only notes is off by a factor of twenty; one counting only bytes says
-the collection is mostly photographs. Both are true and neither alone
-is useful.
+Titles, the first journal entry and the two keyword counts are
+buttons. A note opens in a window to the *right* of the report; the
+window is created on the first click and *reused* afterwards, so
+clicking through twenty singletons does not leave twenty windows.
+Point stays in the report — the report is the thing being worked
+through, the note is what is being looked at.
+
+=Used once only= opens a list of keywords used by exactly one note,
+each with a link to that note. A singleton is usually a near-duplicate
+of a keyword in real use (=filozofia= beside =filozofie=) or a one-off
+that was never going to become a category.
+
+=Notes with no keywords= opens the same kind of list, grouped by the
+directory each note sits in.
+
+** Three views of the collection, disagreeing on purpose
+
+=Notes by directory= counts *notes*: =.org= files, grouped by the
+top-level directory they sit in. This replaced an =other= row: a row
+called =inbox= with 443 notes says something, a row called =other=
+with 443 notes says only that the code did not look.
+
+=On disk= counts *files*, every extension, same grouping.
+=attachments/= is around 200 MB against 12 MB for the entire journal.
+A report on "how big is this" counting only notes is off by a factor
+of twenty; one counting only bytes says the collection is mostly
+photographs. Both are true and neither alone is useful.
+
+=Zettelkasten= counts notes carrying a =denote-sequence= signature —
+the =\=\=SIGNATURE= field between identifier and title. Its presence is
+the test, because that is exactly what [[#menu-zettelkasten][Zettelkasten]] adds when a
+thought is placed in a sequence and nothing else in the collection
+carries one. Depth is counted as alternations in the alphanumeric
+scheme: =1= is 1, =1a= is 2, =1a1= is 3.
 
 ** Dot directories are excluded, and this used to be broken
 
@@ -3971,104 +3988,91 @@ three: =.backups=, =.autosaves=, =.git=.
 
 It therefore did not skip =.snapshots=, the btrfs snapshot directory,
 which holds complete copies of the whole tree. Every command reading
-=my/denote--all-files= — this dashboard, the whole of
-[[#maintenance][Maintenance]], the identifier checks — was scanning several hundred
-thousand files.
+=my/denote--all-files= — this dashboard, the whole of [[#maintenance][Maintenance]],
+the identifier checks — was scanning several hundred thousand files.
 
-The consequences were not merely slowness. Keyword inventories counted
-a note once per snapshot; duplicate-identifier checks had a duplicate
-for every note ever snapshotted; this dashboard reported 728,000 notes
-across 2.7 GB, and the growth chart was a chart of snapshot activity.
-*Nothing signalled.* Every number was wrong, in a direction that looked
-like growth.
+Keyword inventories counted a note once per snapshot; duplicate checks
+had a duplicate for every note ever snapshotted; this dashboard
+reported 728,000 notes across 2.7 GB. *Nothing signalled.* Every
+number was wrong, in a direction that looked like growth.
 
-=.stfolder= and =.stversions= (Syncthing) had the same problem.
 Matching the *convention* rather than the current membership of a list
-is what stops it recurring.
+is what stops the next tool that hides state in a dot directory from
+joining them.
 
-** Exporting the report
+** Exporting
 
-=x= writes the buffer's text into an Org file, wrapped in an
-=example= block with a front-matter header, and visits it. From there
-=C-c p= (=my/org-export-to-pdf=) produces the PDF.
+=x= writes *real Org* — headings, tables and =denote:= links — not the
+buffer text in an =example= block. An example block would preserve the
+bars and lose every link, which is the wrong trade for a file whose
+point is to be clicked through. The bars are dropped instead: the
+number is on the same line, and U+2588 is not a glyph the PDF font can
+be relied on to have.
 
-An =example= block rather than rebuilt Org tables: the report is
-already aligned in a fixed-pitch column, and the block preserves that
-through both exporters without a second renderer that could disagree
-with the first.
+The export includes the *full* singleton and no-keyword lists, not
+just their counts, so the exported file is the working document for an
+inventory session.
 
-The bars are U+2588. They survive to HTML; whether they survive to PDF
-depends on whether the LaTeX class's main font covers that codepoint,
-which for the fonts here it may not. Nothing is lost if it does not —
-the number is on the same line.
-
-The two steps are separate because =my/org-export-to-pdf= has its own
+From the opened file, =C-c p= (=my/org-export-to-pdf=) produces the
+PDF. The two steps stay separate because that command has its own
 rules about where a PDF goes and which font it uses, and duplicating
 them here would be a second place to keep them right.
+
+** One data pass, two renderers
+
+=my/notes-stats--collect= gathers every figure once and returns a
+plist. The buffer renderer and the Org renderer both read it and
+neither computes anything of its own, so *the screen and the exported
+file cannot disagree about a number* — which is the failure that makes
+an exported report worse than no report.
 
 ** Two link counts that are not the same
 
 =Link to nothing= counts notes with no outgoing =denote:= link.
-=Nothing links to= counts notes that no other note points at.
+=Nothing links to= counts notes no other note points at.
 
 A reference note may legitimately have no outgoing links. A note
-nothing points at is one that nothing will ever lead you back to —
-reachable only by search, which is a different kind of note from one
-that is part of the structure. Only the second is a problem, and only
-when it is not deliberate.
+nothing points at is reachable only by search, which is a different
+kind of note from one that is part of the structure. Only the second
+is a problem, and only when it is not deliberate.
+
+** Two tiers
+
+Everything on the opening screen except the two extreme-note titles is
+computed from *file names and =file-attributes= alone*. Denote puts
+the date, the signature, the title and the keywords in the name.
+
+The second tier — words, links, orphans — opens every file, runs only
+on =c=, shows a progress reporter and caches. Keeping it off the
+opening path is what makes this something to glance at rather than
+something to wait for.
 
 ** What is delegated
 
-denote-explore already draws keyword bar charts, a link network and
-lists of isolated notes; [[#maintenance][Maintenance]] already finds duplicates,
-broken links and keyword inventories. None of it is reimplemented
-here. *A dashboard says how many; a drill-down says which.*
+denote-explore draws the charts and the link network; [[#maintenance][Maintenance]]
+finds duplicates, broken links and keyword inventories, and renames or
+merges a keyword across the collection. None of it is reimplemented.
+*A dashboard says how many; a drill-down says which; a maintenance
+command changes it.*
 
 =e= lists every =denote-explore-= command actually present, built by
-completion over the obarray rather than from a hardcoded list — so a
-command renamed or added upstream appears without editing this module,
-and one that is removed simply stops being offered. That is the same
-reasoning as the theme lists filtered through
-=custom-available-themes=: a name that no longer exists should
-disappear, not signal.
-
-** Why these numbers and not others
-
-Singletons, notes with no keywords, orphans and journal coverage are
-reported because they are the ones worth acting on. *A statistic
-nobody would change their behaviour over is a statistic not worth
-computing*, and every one that gets computed makes the ones that
-matter harder to see.
-
-** Cost, and what was done about it
-
-Three naive spellings would each have been slow at this scale, and all
-three were rewritten:
-
-- =file-attributes= is a system call. Sizes are computed once into a
-  hash. Sorting the file list to find the largest note would have
-  called it twice per comparison — roughly a hundred thousand stat
-  calls for one number.
-- The journal metrics line looks up a file per day. Scanning the whole
-  list per day is fine once and quadratic over a year; the dates are
-  mapped to files once instead.
-- =(apply #\='+ ...)= over three thousand sizes is close enough to the
-  limit on argument count to be worth not finding out. A =dolist=
-  accumulator instead.
+completion over the obarray rather than a hardcoded list — so a
+command renamed upstream appears without editing this module, and one
+that is removed stops being offered.
 
 ** Degradation
 
 | Missing | Effect |
 |---------+--------|
-| =27-denote-identifiers.el= | hard error: there is no file list to measure |
-| =26-maintenance.el= | hard error: the keyword field is parsed there and must be parsed once |
-| =34-appearance.el= | bars and headings render in =default= |
+| =27-denote-identifiers.el= | hard error: no file list to measure |
+| =26-maintenance.el= | hard error: the keyword field is parsed there |
+| =34-appearance.el= | bars and buttons render in default faces |
 | =35-journal-gaps.el= | the metrics line is omitted |
 | =denote-explore= | =e= says so |
 
-The two hard dependencies signal a readable error rather than
-measuring nothing and reporting zero, which is the failure that would
-be believed.
+The two hard dependencies signal rather than measuring nothing and
+reporting zero. A zero that is believed is worse than an error that is
+not.
 
 * Capture Filing
 :PROPERTIES:

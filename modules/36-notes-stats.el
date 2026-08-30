@@ -1,77 +1,75 @@
 ;;; 36-notes-stats.el --- Summary statistics for the collection -*- lexical-binding: t; -*-
 ;;; Commentary:
-;; One screen answering "how big is this thing, and is it healthy".
+;; One screen answering "how big is this thing, and is it healthy",
+;; with the interesting numbers clickable and the whole thing
+;; exportable to Org.
 ;;
-;; TWO TIERS, AND WHY THE SPLIT MATTERS
-;; ------------------------------------
-;; Everything shown when the buffer opens is computed from FILE NAMES
-;; and `file-attributes' alone.  Not one note is read.  That is
-;; possible because Denote puts the date, the title and the keywords in
-;; the name, so counts, sizes, keyword frequencies, growth per month
-;; and the whole journal-coverage section are already there for the
-;; taking.  It costs one `directory-files-recursively' and returns in
-;; well under a second on three thousand notes.
+;; TWO TIERS
+;; ---------
+;; Everything on the opening screen except the two extreme-note titles
+;; is computed from FILE NAMES and `file-attributes' alone.  Denote
+;; puts the date, the signature, the title and the keywords in the
+;; name, so counts, sizes, keyword frequencies, growth per month and
+;; per year, the zettelkasten breakdown and the whole journal-coverage
+;; section are already there for the taking.
 ;;
-;; The second tier -- word counts, links, orphans -- has to open every
-;; file.  It runs only on `c', shows a progress reporter, and caches
-;; its result until asked again.  Keeping it off the opening path is
-;; what makes the dashboard something to glance at rather than
-;; something to wait for.
+;; The second tier -- words, links, orphans -- opens every file.  It
+;; runs only on `c', with a progress reporter, and caches until asked
+;; again.  Keeping it off the opening path is what makes this something
+;; to glance at rather than something to wait for.
 ;;
-;; WHAT IS DELEGATED, AND WHAT IS NOT
-;; ----------------------------------
-;; denote-explore already draws keyword bar charts, a link network and
-;; lists of isolated notes, and 26-maintenance.el already finds
-;; duplicates, broken links and keyword inventories.  None of that is
-;; reimplemented here.  This buffer reports the NUMBER and offers `e',
-;; which lists every `denote-explore-' command actually present and
-;; runs the chosen one -- built by completion over the obarray rather
-;; than from a hardcoded list, so it cannot go stale when the package
-;; renames something.
+;; TWO VIEWS OF SIZE, DISAGREEING ON PURPOSE
+;; -----------------------------------------
+;; "Notes by directory" counts .org files, grouped by the top-level
+;; directory they sit in -- so `inbox' appears next to the three silos
+;; instead of being swallowed by an "other" row that says nothing about
+;; what is in it.
 ;;
-;; The division: a dashboard says how many, a drill-down says which.
-;;
-;; TWO VIEWS OF SIZE, AND THEY DISAGREE ON PURPOSE
-;; -----------------------------------------------
-;; "Silos" counts NOTES: .org files inside the three silo directories.
-;; "On disk" counts FILES: everything under `my-notes-dir\=' whatever
-;; its extension, grouped by top-level directory.
-;;
-;; They differ by a factor of twenty here, and the difference is the
-;; answer to a real question.  `attachments/\=' is around two hundred
-;; megabytes against twelve for the entire journal, so a report on
-;; "how big is this" that counted only notes would be off by an order
-;; of magnitude, and a report that counted only bytes would say the
-;; collection is mostly photographs.  Both are true and neither alone
-;; is useful.
+;; "On disk" counts FILES, every extension, same grouping.  The two
+;; differ by more than an order of magnitude: `attachments/' is around
+;; two hundred megabytes against twelve for the entire journal.  A
+;; report on "how big is this" counting only notes is off by a factor
+;; of twenty; one counting only bytes says the collection is mostly
+;; photographs.  Both are true and neither alone is useful.
 ;;
 ;; DOT DIRECTORIES
 ;; ---------------
-;; Excluded from both, by `my/denote-scan-exclude-regexp\=' for the note
-;; view and by an explicit test for the disk view.  `.snapshots/\='
-;; holds complete btrfs copies of the tree; counting it reported
-;; 728,000 notes across 2.7 GB, inflated every keyword frequency by
-;; the number of snapshots a note appears in, and turned the monthly
-;; growth chart into a chart of snapshot activity.  See the doc string
-;; of `my/denote-scan-exclude-regexp\=' in 27-denote-identifiers.el.
+;; Excluded from both.  `.snapshots/' holds complete btrfs copies of
+;; the tree; counting it reported 728,000 notes across 2.7 GB and
+;; turned the growth chart into a chart of snapshot activity.  See the
+;; doc string of `my/denote-scan-exclude-regexp' in
+;; 27-denote-identifiers.el, which is where that was fixed.
 ;;
-;; ON THE NUMBERS THAT ARE MEANT TO LOOK BAD
-;; -----------------------------------------
-;; Singleton keywords, notes with no keywords, orphans and journal
-;; coverage are all reported because they are the ones worth acting on.
-;; A statistic nobody would ever change their behaviour over is a
-;; statistic not worth computing.
+;; CLICKABLE, AND WHY IN BOTH RENDERINGS
+;; -------------------------------------
+;; A statistic worth reporting is one somebody might act on, and acting
+;; on it means opening the notes behind it.  Titles, the first journal
+;; entry, the singleton-keyword count and the no-keyword count are all
+;; buttons: in the buffer they open a note in a window on the right, and
+;; in the exported Org file they are real `denote:' links.
+;;
+;; The Org export is therefore genuine Org -- headings, tables and
+;; links -- not the buffer text wrapped in an `example' block.  An
+;; example block would have preserved the bars and lost every link,
+;; which is the wrong trade for a file whose point is to be clicked
+;; through.  The bars are dropped from the export instead: the number
+;; is on the same line, and U+2588 is not a glyph the PDF font can be
+;; relied on to have.
+;;
+;; WHAT IS DELEGATED
+;; -----------------
+;; denote-explore draws the charts and the link network;
+;; 26-maintenance.el finds duplicates, broken links, keyword
+;; inventories, and renames or merges a keyword across the collection.
+;; None of it is reimplemented.  A dashboard says how many; a
+;; drill-down says which; a maintenance command changes it.
 ;;
 ;; DEPENDENCIES
-;;   27-denote-identifiers.el  `my/denote--all-files' (hard: without it
-;;                             there is no collection to measure)
-;;   26-maintenance.el         `my/maintenance--file-keywords' (hard,
-;;                             same reason -- the keyword field is
-;;                             parsed there and must be parsed once)
-;;   34-appearance.el          shared faces (soft: an undefined face
-;;                             renders as `default')
-;;   35-journal-gaps.el        metrics completeness (soft: that line is
-;;                             omitted)
+;;   27-denote-identifiers.el  `my/denote--all-files' (hard)
+;;   26-maintenance.el         `my/maintenance--file-keywords' (hard),
+;;                             `my/maintenance-rename-keyword' (soft)
+;;   34-appearance.el          shared faces (soft)
+;;   35-journal-gaps.el        metrics completeness (soft)
 ;;   denote-explore            the `e' key (soft)
 ;;
 ;; Docs: ~/.emacs.d/function_helper.org::#notes-stats
@@ -81,12 +79,15 @@
 (require 'seq)
 (require 'subr-x)
 (require 'time-date)
+(require 'button)
 
 (declare-function my/denote--all-files "27-denote-identifiers" ())
 (declare-function my/maintenance--file-keywords "26-maintenance" (file))
+(declare-function my/maintenance-rename-keyword "26-maintenance" (&optional k r))
 (declare-function my/fixed-tab-goto "01-ui" (name))
 (declare-function my/journal-gaps--required-keys "35-journal-gaps" ())
 (declare-function my/journal-gaps--missing-keys "35-journal-gaps" (file required))
+(declare-function my/org-export-to-pdf "16-org-export" ())
 
 (defgroup my-notes-stats nil
   "Summary statistics for the note collection."
@@ -101,42 +102,87 @@
   :type 'integer :group 'my-notes-stats)
 
 (defcustom my/notes-stats-growth-months 12
-  "How many recent months the growth chart covers."
+  "How many recent months the monthly chart covers."
   :type 'integer :group 'my-notes-stats)
 
 (defcustom my/notes-stats-bar-width 28
-  "Width in characters of the longest bar in the growth chart."
+  "Width in characters of the longest bar."
   :type 'integer :group 'my-notes-stats)
 
 ;; ============================================================
-;; SMALL HELPERS
+;; FILE-NAME READING
 ;; ============================================================
-
-(defun my/notes-stats--require ()
-  "Signal unless the modules this one measures with are loaded."
-  (unless (fboundp 'my/denote--all-files)
-    (user-error "27-denote-identifiers.el is not loaded"))
-  (unless (fboundp 'my/maintenance--file-keywords)
-    (user-error "26-maintenance.el is not loaded")))
 
 (defun my/notes-stats--size (file)
   "Return FILE's size in bytes, or 0 when it has gone away."
   (or (file-attribute-size (file-attributes file)) 0))
 
-(defun my/notes-stats--identifier-month (file)
-  "Return YYYY-MM from FILE's Denote identifier, or nil.
-Read from the name: the identifier is the first fifteen characters of
-a Denote file name and encodes the creation moment, so a month
-histogram needs no file access at all."
+(defun my/notes-stats--identifier (file)
+  "Return FILE's Denote identifier, or nil."
+  (let ((base (file-name-nondirectory file)))
+    (when (string-match "\\`\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)" base)
+      (match-string 1 base))))
+
+(defun my/notes-stats--year-month (file)
+  "Return (YEAR . MONTH) as strings from FILE's identifier, or nil."
   (let ((base (file-name-nondirectory file)))
     (when (string-match "\\`\\([0-9]\\{4\\}\\)\\([0-9]\\{2\\}\\)[0-9]\\{2\\}T" base)
-      (concat (match-string 1 base) "-" (match-string 2 base)))))
+      (cons (match-string 1 base) (match-string 2 base)))))
+
+(defun my/notes-stats--signature (file)
+  "Return FILE's Denote signature, or nil.
+
+A signature is what makes a note part of a Folgezettel sequence: the
+`==SIGNATURE' field that `denote-sequence' writes between the
+identifier and the title.  Its presence is the test for a zettelkasten
+note, because that is exactly what 22-zettelkasten.el adds when a
+thought is placed in a sequence, and nothing else in the collection
+carries one."
+  (let ((base (file-name-nondirectory file)))
+    (when (string-match "==\\([^-]+\\)--" base)
+      (match-string 1 base))))
+
+(defun my/notes-stats--signature-depth (signature)
+  "Return the depth of SIGNATURE in the alphanumeric scheme.
+`1' is 1, `1a' is 2, `1a1' is 3: each alternation between digits and
+letters is one step further from the trunk."
+  (let ((depth 0) (index 0))
+    (while (string-match "[0-9]+\\|[a-zA-Z]+" signature index)
+      (setq depth (1+ depth))
+      (setq index (match-end 0)))
+    depth))
 
 (defun my/notes-stats--journal-date (file)
   "Return YYYY-MM-DD when FILE is a journal note, else nil."
   (let ((name (file-name-nondirectory file)))
     (when (string-match "--\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)-journal" name)
       (match-string 1 name))))
+
+(defun my/notes-stats--top-directory (file)
+  "Return the top-level directory of FILE relative to `my-notes-dir'.
+Files sitting directly in the notes root are grouped as \"(root)\"."
+  (let* ((root (file-name-as-directory (expand-file-name my-notes-dir)))
+         (relative (file-relative-name (expand-file-name file) root))
+         (slash (string-search "/" relative)))
+    (if slash (substring relative 0 slash) "(root)")))
+
+(defun my/notes-stats--title (file)
+  "Return FILE's `#+title:', or its base name.
+The only place on the opening screen where a file is read, and it is
+read twice: once for the largest note and once for the smallest.  A
+file name slug is not a title -- it is lowercased, stripped of
+punctuation and truncated -- and the two extremes are the entries most
+likely to be opened."
+  (with-temp-buffer
+    (insert-file-contents file nil 0 500)
+    (goto-char (point-min))
+    (if (re-search-forward "^#\\+title:[ \t]+\\(.+\\)$" nil t)
+        (string-trim (match-string 1))
+      (file-name-base file))))
+
+;; ============================================================
+;; SMALL FORMATTING HELPERS
+;; ============================================================
 
 (defun my/notes-stats--day-number (date)
   "Return DATE (YYYY-MM-DD) as an absolute day number."
@@ -159,71 +205,33 @@ histogram needs no file access at all."
                                  (/ (float value) maximum))))
                  ?\u2588)))
 
+(defun my/notes-stats--face (name fallback)
+  "Return face NAME when it is defined, else FALLBACK."
+  (if (facep name) name fallback))
+
 ;; ============================================================
-;; TIER ONE: NAMES AND ATTRIBUTES ONLY
+;; COLLECTING
 ;; ============================================================
+;; One pass, one plist.  Both renderers read this and neither computes
+;; anything of its own, so the buffer and the exported file cannot
+;; disagree about a number -- which is the failure that makes an
+;; exported report worse than no report.
 
-(defun my/notes-stats--sizes (files)
-  "Return a hash of FILE -> size in bytes.
-Computed once and passed around.  `file-attributes' is a system call,
-and the naive spellings of the three things that need a size -- the
-total, the largest note, the per-silo breakdown -- would each walk the
-list again, with the sort in the middle calling it twice per
-comparison.  Three thousand notes turn that into roughly a hundred
-thousand stat calls for a number that does not change while the report
-is being drawn."
-  (let ((table (make-hash-table :test #'equal)))
-    (dolist (file files table)
-      (puthash file (my/notes-stats--size file) table))))
-
-(defun my/notes-stats--total-size (files sizes)
-  "Return the total size of FILES, using the SIZES table.
-A `dolist' accumulator rather than `(apply #\='+ ...)': `apply' with a
-list of three thousand arguments is close enough to the limit on
-argument count to be worth not finding out."
-  (let ((sum 0))
-    (dolist (file files sum)
-      (setq sum (+ sum (gethash file sizes 0))))))
-
-(defun my/notes-stats--silo-rows (files sizes)
-  "Return (NAME DIR COUNT BYTES) per silo, plus a row for anything outside them."
-  (let ((rows (mapcar (lambda (dir)
-                        (list (file-name-nondirectory
-                               (directory-file-name dir))
-                              dir 0 0))
-                      (if (boundp 'my/denote-silo-directories)
-                          my/denote-silo-directories
-                        (list my-notes-journal my-notes-pks my-notes-docu))))
-        (other (list "other" nil 0 0)))
-    (dolist (file files)
-      (let ((row (seq-find (lambda (r)
-                             (and (nth 1 r)
-                                  (string-prefix-p (expand-file-name (nth 1 r))
-                                                   (expand-file-name file))))
-                           rows)))
-        (setq row (or row other))
-        (setf (nth 2 row) (1+ (nth 2 row)))
-        (setf (nth 3 row) (+ (nth 3 row) (gethash file sizes 0)))))
-    (append rows (when (> (nth 2 other) 0) (list other)))))
+(defun my/notes-stats--require ()
+  "Signal unless the modules this one measures with are loaded."
+  (unless (fboundp 'my/denote--all-files)
+    (user-error "27-denote-identifiers.el is not loaded"))
+  (unless (fboundp 'my/maintenance--file-keywords)
+    (user-error "26-maintenance.el is not loaded")))
 
 (defun my/notes-stats--disk-rows ()
-  "Return (NAME COUNT BYTES) for each top-level directory under `my-notes-dir'.
-
-A DISK view, not a note view: it counts every file, whatever its
-extension, so attachments, exported PDFs, the CSL styles and refs.bib
-appear alongside the silos.  `attachments/' is two hundred megabytes
-against twelve for the whole journal, and a report on the size of the
-collection that omits it is answering a different question from the
-one being asked.
-
-Dot directories are skipped here for the same reason
-`my/denote-scan-exclude-regexp' skips them: `.snapshots/' holds whole
-copies of the tree and would be counted as growth."
+  "Return (NAME COUNT BYTES) for each top-level entry under `my-notes-dir'.
+Every file, whatever its extension.  Dot directories skipped."
   (let ((root (expand-file-name my-notes-dir))
         rows)
     (dolist (entry (directory-files root t) (nreverse rows))
       (let ((name (file-name-nondirectory entry)))
-        (unless (or (string-prefix-p "." name) (string= name ".."))
+        (unless (string-prefix-p "." name)
           (if (file-directory-p entry)
               (let ((count 0) (bytes 0))
                 (dolist (file (directory-files-recursively
@@ -237,34 +245,70 @@ copies of the tree and would be counted as growth."
                 (push (list name count bytes) rows))
             (push (list name 1 (my/notes-stats--size entry)) rows)))))))
 
-(defun my/notes-stats--keyword-counts (files)
-  "Return a hash of keyword -> number of notes carrying it."
-  (let ((table (make-hash-table :test #'equal)))
-    (dolist (file files table)
-      (dolist (keyword (my/maintenance--file-keywords file))
-        (puthash keyword (1+ (gethash keyword table 0)) table)))))
-
-(defun my/notes-stats--journal-map (files)
-  "Return a hash of YYYY-MM-DD -> journal file.
-Built once.  Looking a day up by scanning the whole file list is fine
-for one day and quadratic for a year of them -- the metrics line below
-would otherwise run a regexp over three thousand names three hundred
-and sixty-five times."
-  (let ((table (make-hash-table :test #'equal)))
-    (dolist (file files table)
+(defun my/notes-stats--collect ()
+  "Gather every figure the report shows.  Returns a plist."
+  (my/notes-stats--require)
+  (let* ((files (my/denote--all-files))
+         (total (length files))
+         (sizes (make-hash-table :test #'equal))
+         (dirs (make-hash-table :test #'equal))
+         (keywords (make-hash-table :test #'equal))
+         (keyword-files (make-hash-table :test #'equal))
+         (months (make-hash-table :test #'equal))
+         (years (make-hash-table :test #'equal))
+         (journal (make-hash-table :test #'equal))
+         (bytes 0) (largest nil) (smallest nil)
+         (bare nil) (zettel nil))
+    (dolist (file files)
+      (let ((size (my/notes-stats--size file)))
+        (puthash file size sizes)
+        (setq bytes (+ bytes size))
+        (when (or (null largest) (> size (gethash largest sizes 0)))
+          (setq largest file))
+        (when (or (null smallest) (< size (gethash smallest sizes 0)))
+          (setq smallest file)))
+      ;; Directory grouping.  Named rows rather than one "other": a row
+      ;; called `inbox' with 443 notes says something; a row called
+      ;; `other' with 443 notes says only that the code did not look.
+      (let* ((dir (my/notes-stats--top-directory file))
+             (row (or (gethash dir dirs) (puthash dir (list 0 0) dirs))))
+        (setf (nth 0 row) (1+ (nth 0 row)))
+        (setf (nth 1 row) (+ (nth 1 row) (gethash file sizes 0))))
+      (let ((keys (my/maintenance--file-keywords file)))
+        (if (null keys)
+            (push file bare)
+          (dolist (key keys)
+            (puthash key (1+ (gethash key keywords 0)) keywords)
+            (push file (gethash key keyword-files nil)))))
+      (when-let* ((ym (my/notes-stats--year-month file)))
+        (puthash (concat (car ym) "-" (cdr ym))
+                 (1+ (gethash (concat (car ym) "-" (cdr ym)) months 0)) months)
+        (puthash (car ym) (1+ (gethash (car ym) years 0)) years))
       (when-let* ((date (my/notes-stats--journal-date file)))
-        (unless (gethash date table)
-          (puthash date file table))))))
+        (unless (gethash date journal) (puthash date file journal)))
+      (when-let* ((signature (my/notes-stats--signature file)))
+        (push (cons file signature) zettel)))
+    (list :files files :total total :sizes sizes :bytes bytes
+          :dirs dirs :keywords keywords :keyword-files keyword-files
+          :months months :years years :journal journal
+          :largest largest :smallest smallest
+          :bare (nreverse bare) :zettel (nreverse zettel))))
 
-(defun my/notes-stats--journal-days (journal-map)
-  "Return the sorted list of days present in JOURNAL-MAP."
-  (sort (hash-table-keys journal-map) #'string<))
+(defun my/notes-stats--singletons (data)
+  "Return an alist of (KEYWORD . FILE) for keywords used by exactly one note."
+  (let ((keywords (plist-get data :keywords))
+        (keyword-files (plist-get data :keyword-files))
+        acc)
+    (maphash (lambda (key count)
+               (when (= count 1)
+                 (push (cons key (car (gethash key keyword-files))) acc)))
+             keywords)
+    (sort acc (lambda (a b) (string< (car a) (car b))))))
 
 (defun my/notes-stats--streaks (days)
   "Return (LONGEST . CURRENT) for the sorted date list DAYS.
-CURRENT counts back from today, and tolerates today itself being
-absent: a streak that is intact up to yesterday is still a streak at
-nine in the morning."
+CURRENT tolerates today itself being absent: a streak intact up to
+yesterday is still a streak at nine in the morning."
   (if (null days)
       (cons 0 0)
     (let* ((numbers (mapcar #'my/notes-stats--day-number days))
@@ -281,7 +325,7 @@ nine in the morning."
         (cons longest current)))))
 
 ;; ============================================================
-;; TIER TWO: READS EVERY FILE
+;; TIER TWO
 ;; ============================================================
 
 (defvar-local my/notes-stats--deep nil
@@ -296,9 +340,7 @@ nine in the morning."
         (index 0))
     (dolist (file files)
       (progress-reporter-update reporter (setq index (1+ index)))
-      (when-let* ((id (and (string-match "\\`\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)"
-                                         (file-name-nondirectory file))
-                           (match-string 1 (file-name-nondirectory file)))))
+      (when-let* ((id (my/notes-stats--identifier file)))
         (puthash id file identifiers))
       (with-temp-buffer
         (insert-file-contents file)
@@ -312,9 +354,9 @@ nine in the morning."
           (when (zerop here) (setq no-links (1+ no-links))))))
     (progress-reporter-done reporter)
     ;; An orphan is a note nothing links TO.  Distinct from a note that
-    ;; links to nothing, which is the `no-links' count above: a
-    ;; reference note may legitimately have no outgoing links, while a
-    ;; note nothing points at is one nothing will ever lead you back to.
+    ;; links to nothing: a reference note may legitimately have no
+    ;; outgoing links, while a note nothing points at is one nothing
+    ;; will ever lead you back to.
     (let ((orphans 0))
       (maphash (lambda (id _file)
                  (unless (gethash id targets) (setq orphans (1+ orphans))))
@@ -322,12 +364,131 @@ nine in the morning."
       (list :words words :links links :no-links no-links :orphans orphans))))
 
 ;; ============================================================
-;; RENDERING
+;; OPENING NOTES FROM THE REPORT
 ;; ============================================================
 
-(defun my/notes-stats--face (name fallback)
-  "Return face NAME when it is defined, else FALLBACK."
-  (if (facep name) name fallback))
+(defvar-local my/notes-stats--preview-window nil
+  "Window this report reuses for the notes opened from it.")
+
+(defun my/notes-stats--visit (file)
+  "Show FILE in the window to the right of the report.
+The window is created on the first visit and reused afterwards, so
+clicking through twenty singleton keywords does not leave twenty
+windows.  Point stays in the report: the report is the thing being
+worked through, and the note is what is being looked at."
+  (let ((buffer (find-file-noselect file))
+        (origin (selected-window)))
+    (unless (window-live-p my/notes-stats--preview-window)
+      (setq my/notes-stats--preview-window
+            (split-window origin nil 'right)))
+    (set-window-buffer my/notes-stats--preview-window buffer)
+    (select-window origin)))
+
+(defun my/notes-stats--note-button (file label)
+  "Insert LABEL as a button visiting FILE."
+  (insert-text-button
+   label
+   'face (my/notes-stats--face 'my/dashboard-note 'link)
+   'help-echo (abbreviate-file-name file)
+   'follow-link t
+   'action (let ((target file)
+                 (report (current-buffer)))
+             (lambda (_button)
+               (with-current-buffer report
+                 (my/notes-stats--visit target))))))
+
+(defun my/notes-stats--list-button (label opener)
+  "Insert LABEL as a button running OPENER, a function of no arguments."
+  (insert-text-button
+   label
+   'face (my/notes-stats--face 'my/dashboard-tag-button 'link)
+   'follow-link t
+   'action (lambda (_button) (funcall opener))))
+
+;; ============================================================
+;; DRILL-DOWN BUFFERS
+;; ============================================================
+
+(defun my/notes-stats-rename-keyword ()
+  "Run `my/maintenance-rename-keyword', for merging a singleton away."
+  (interactive)
+  (if (fboundp 'my/maintenance-rename-keyword)
+      (call-interactively #'my/maintenance-rename-keyword)
+    (user-error "26-maintenance.el is not loaded")))
+
+;; ============================================================
+;; BUFFER RENDERING
+;; ============================================================
+
+
+(defvar my/notes-stats-list-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "r") #'my/notes-stats-rename-keyword)
+    (define-key map (kbd "n") #'forward-button)
+    (define-key map (kbd "p") #'backward-button)
+    map)
+  "Keymap for `my/notes-stats-list-mode'.")
+
+(define-derived-mode my/notes-stats-list-mode special-mode "Stats List"
+  "Major mode for the drill-down lists opened from the statistics report.
+\\{my/notes-stats-list-mode-map}"
+  (setq-local truncate-lines t)
+  (when (bound-and-true-p visual-fill-column-mode)
+    (visual-fill-column-mode -1)))
+
+(defun my/notes-stats--show-list (name intro entries)
+  "Display ENTRIES in a buffer called NAME under the heading INTRO.
+ENTRIES is a list of (HEADING . FILE); HEADING is shown as text and
+FILE, when non-nil, as a button beneath it."
+  (let ((report (current-buffer))
+        (buffer (get-buffer-create name)))
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (my/notes-stats-list-mode)
+        (setq my/notes-stats--preview-window
+              (buffer-local-value 'my/notes-stats--preview-window report))
+        (insert (propertize (concat "  " intro "\n\n")
+                            'face (my/notes-stats--face 'my/dashboard-title 'bold)))
+        (dolist (entry entries)
+          (insert "  " (propertize (car entry) 'face
+                                   (my/notes-stats--face 'my/dashboard-section 'bold))
+                  "\n")
+          (when (cdr entry)
+            (insert "      ")
+            (my/notes-stats--note-button (cdr entry)
+                                         (my/notes-stats--title (cdr entry)))
+            (insert "\n")))
+        (goto-char (point-min))))
+    (switch-to-buffer buffer)))
+
+(defun my/notes-stats-show-singletons ()
+  "List keywords used by exactly one note, each with a link to it.
+
+A singleton is usually a near-duplicate of a keyword that is in real
+use -- `filozofia' beside `filozofie' -- or a one-off that was never
+going to become a category.  Either way the fix is
+`my/maintenance-rename-keyword' (26-maintenance.el), which merges one
+keyword into another or removes it across the collection; `r' here
+calls it."
+  (interactive)
+  (let ((singletons (my/notes-stats--singletons (my/notes-stats--collect))))
+    (my/notes-stats--show-list
+     "*Singleton Keywords*"
+     (format "%d keywords used by exactly one note   --   r to merge or remove one"
+             (length singletons))
+     (mapcar (lambda (pair) (cons (concat ":" (car pair) ":") (cdr pair)))
+             singletons))))
+
+(defun my/notes-stats-show-bare ()
+  "List notes carrying no keywords at all."
+  (interactive)
+  (let ((bare (plist-get (my/notes-stats--collect) :bare)))
+    (my/notes-stats--show-list
+     "*Notes Without Keywords*"
+     (format "%d notes with no keywords" (length bare))
+     (mapcar (lambda (file) (cons (my/notes-stats--top-directory file) file))
+             bare))))
 
 (defun my/notes-stats--heading (text)
   "Insert TEXT as a section heading."
@@ -343,22 +504,23 @@ nine in the morning."
                              (my/notes-stats--face 'my/dashboard-hint 'shadow))))
   (insert "\n"))
 
-(defun my/notes-stats--render ()
-  "Draw the whole report into the current buffer."
-  (my/notes-stats--require)
+(defun my/notes-stats--dim (text)
+  "Return TEXT in the hint face."
+  (propertize text 'face (my/notes-stats--face 'my/dashboard-hint 'shadow)))
+
+(defun my/notes-stats--render (data)
+  "Draw the report for DATA into the current buffer."
   (let* ((inhibit-read-only t)
-         (files (my/denote--all-files))
-         (total (length files))
-         (sizes (my/notes-stats--sizes files))
-         (bytes (my/notes-stats--total-size files sizes))
-         (keywords (my/notes-stats--keyword-counts files))
-         (journal-map (my/notes-stats--journal-map files))
-         (journal-days (my/notes-stats--journal-days journal-map)))
+         (total (plist-get data :total))
+         (bytes (plist-get data :bytes))
+         (sizes (plist-get data :sizes))
+         (keywords (plist-get data :keywords))
+         (journal (plist-get data :journal))
+         (journal-days (sort (hash-table-keys journal) #'string<)))
     (erase-buffer)
     (insert (propertize "  Notes Statistics\n"
                         'face (my/notes-stats--face 'my/dashboard-title 'bold)))
-    (insert (propertize (format "  %s\n" (format-time-string "%Y-%m-%d %H:%M"))
-                        'face (my/notes-stats--face 'my/dashboard-hint 'shadow)))
+    (insert (my/notes-stats--dim (format "  %s\n" (format-time-string "%Y-%m-%d %H:%M"))))
 
     ;; -- Collection --------------------------------------------
     (my/notes-stats--heading "Collection")
@@ -367,65 +529,87 @@ nine in the morning."
     (my/notes-stats--line "Average note"
                           (if (zerop total) "-"
                             (file-size-human-readable (/ bytes total))))
-    (when files
-      (let ((largest (car files)))
-        (dolist (file (cdr files))
-          (when (> (gethash file sizes 0) (gethash largest sizes 0))
-            (setq largest file)))
-        (my/notes-stats--line "Largest note"
-                              (file-size-human-readable (gethash largest sizes 0))
-                              (file-name-base largest))))
+    (dolist (pair (list (cons "Largest note" (plist-get data :largest))
+                        (cons "Smallest note" (plist-get data :smallest))))
+      (when (cdr pair)
+        (insert (format "  %-28s %s  " (car pair)
+                        (file-size-human-readable (gethash (cdr pair) sizes 0))))
+        (my/notes-stats--note-button (cdr pair) (my/notes-stats--title (cdr pair)))
+        (insert "\n")))
 
-    ;; -- Silos -------------------------------------------------
-    (my/notes-stats--heading "Silos")
-    (dolist (row (my/notes-stats--silo-rows files sizes))
-      (pcase-let ((`(,name ,_dir ,count ,size) row))
+    ;; -- Notes by directory ------------------------------------
+    (my/notes-stats--heading "Notes by directory")
+    (let ((rows (let (acc)
+                  (maphash (lambda (dir row) (push (cons dir row) acc))
+                           (plist-get data :dirs))
+                  (sort acc (lambda (a b) (> (nth 0 (cdr a)) (nth 0 (cdr b))))))))
+      (dolist (row rows)
         (my/notes-stats--line
-         name
-         (format "%5d notes   %9s" count (file-size-human-readable size))
+         (car row)
+         (format "%5d notes   %9s" (nth 0 (cdr row))
+                 (file-size-human-readable (nth 1 (cdr row))))
          (format "%s of notes, %s of size"
-                 (my/notes-stats--percent count total)
-                 (my/notes-stats--percent size bytes)))))
+                 (my/notes-stats--percent (nth 0 (cdr row)) total)
+                 (my/notes-stats--percent (nth 1 (cdr row)) bytes)))))
 
     ;; -- On disk -----------------------------------------------
-    (my/notes-stats--heading "On disk")
+    (my/notes-stats--heading "On disk (all file types)")
     (let* ((rows (my/notes-stats--disk-rows))
-           (disk (let ((sum 0))
-                   (dolist (row rows sum) (setq sum (+ sum (nth 2 row)))))))
+           (disk (let ((sum 0)) (dolist (r rows sum) (setq sum (+ sum (nth 2 r)))))))
       (dolist (row rows)
-        (pcase-let ((`(,name ,count ,size) row))
-          (my/notes-stats--line
-           name
-           (format "%6d files   %9s" count (file-size-human-readable size))
-           (my/notes-stats--percent size disk))))
+        (my/notes-stats--line
+         (nth 0 row)
+         (format "%6d files   %9s" (nth 1 row)
+                 (file-size-human-readable (nth 2 row)))
+         (my/notes-stats--percent (nth 2 row) disk)))
       (my/notes-stats--line "TOTAL ON DISK" (file-size-human-readable disk)
                             "dot directories excluded"))
+
+    ;; -- Zettelkasten ------------------------------------------
+    (my/notes-stats--heading "Zettelkasten")
+    (let ((zettel (plist-get data :zettel)))
+      (if (null zettel)
+          (my/notes-stats--line "Sequenced notes" "none"
+                                "a signature is added only when a thought joins a sequence")
+        (let* ((depths (mapcar (lambda (z) (my/notes-stats--signature-depth (cdr z)))
+                               zettel))
+               (trunks (seq-uniq
+                        (mapcar (lambda (z)
+                                  (if (string-match "\\`[0-9]+" (cdr z))
+                                      (match-string 0 (cdr z))
+                                    (cdr z)))
+                                zettel))))
+          (my/notes-stats--line "Sequenced notes" (number-to-string (length zettel))
+                                (format "%s of all notes"
+                                        (my/notes-stats--percent (length zettel) total)))
+          (my/notes-stats--line "Top-level sequences" (number-to-string (length trunks)))
+          (my/notes-stats--line "Deepest signature"
+                                (format "%d levels" (apply #'max depths)))
+          (my/notes-stats--line "Average depth"
+                                (format "%.2f" (/ (float (apply #'+ 0 depths))
+                                                  (length depths)))))))
 
     ;; -- Journal -----------------------------------------------
     (my/notes-stats--heading "Journal")
     (if (null journal-days)
         (my/notes-stats--line "Entries" "none found")
-      (let* ((first (car journal-days))
+      (let* ((first-day (car journal-days))
              (elapsed (1+ (- (time-to-days (current-time))
-                             (my/notes-stats--day-number first))))
+                             (my/notes-stats--day-number first-day))))
              (covered (length journal-days))
              (streaks (my/notes-stats--streaks journal-days)))
-        (my/notes-stats--line "First entry" first)
+        (insert (format "  %-28s %s  " "First entry" first-day))
+        (my/notes-stats--note-button (gethash first-day journal)
+                                     (my/notes-stats--title (gethash first-day journal)))
+        (insert "\n")
         (my/notes-stats--line "Days since" (number-to-string elapsed))
-        (my/notes-stats--line "Days with an entry"
-                              (number-to-string covered)
+        (my/notes-stats--line "Days with an entry" (number-to-string covered)
                               (format "coverage %s"
                                       (my/notes-stats--percent covered elapsed)))
         (my/notes-stats--line "Days without one"
                               (number-to-string (- elapsed covered)))
-        (my/notes-stats--line "Longest streak"
-                              (format "%d days" (car streaks)))
-        (my/notes-stats--line "Current streak"
-                              (format "%d days" (cdr streaks)))
-        ;; Metrics completeness, only when 35-journal-gaps.el is here.
-        ;; The last 365 days rather than everything: the whole series
-        ;; would mean opening every journal note, which belongs in the
-        ;; second tier, and a year is the horizon anyone acts on.
+        (my/notes-stats--line "Longest streak" (format "%d days" (car streaks)))
+        (my/notes-stats--line "Current streak" (format "%d days" (cdr streaks)))
         (when (and (fboundp 'my/journal-gaps--required-keys)
                    (fboundp 'my/journal-gaps--missing-keys))
           (let* ((required (my/journal-gaps--required-keys))
@@ -436,13 +620,11 @@ nine in the morning."
                  (incomplete 0))
             (when required
               (dolist (day recent)
-                (when-let* ((file (gethash day journal-map)))
-                  (when (my/journal-gaps--missing-keys file required)
-                    (setq incomplete (1+ incomplete)))))
-              (my/notes-stats--line
-               "Missing metrics"
-               (format "%d of %d" incomplete (length recent))
-               "last 365 days -- C-c n f j to fix"))))))
+                (when (my/journal-gaps--missing-keys (gethash day journal) required)
+                  (setq incomplete (1+ incomplete))))
+              (my/notes-stats--line "Missing metrics"
+                                    (format "%d of %d" incomplete (length recent))
+                                    "last 365 days -- C-c n f j to fix"))))))
 
     ;; -- Keywords ----------------------------------------------
     (my/notes-stats--heading "Keywords")
@@ -450,24 +632,23 @@ nine in the morning."
            (assignments (let ((sum 0))
                           (maphash (lambda (_k v) (setq sum (+ sum v))) keywords)
                           sum))
-           (singletons (let ((n 0))
-                         (maphash (lambda (_k v) (when (= v 1) (setq n (1+ n))))
-                                  keywords)
-                         n))
-           (bare (seq-count (lambda (f) (null (my/maintenance--file-keywords f)))
-                            files))
+           (singletons (length (my/notes-stats--singletons data)))
+           (bare (length (plist-get data :bare)))
            (pairs (let (acc)
                     (maphash (lambda (k v) (push (cons k v) acc)) keywords)
                     (sort acc (lambda (a b) (> (cdr a) (cdr b)))))))
       (my/notes-stats--line "Distinct keywords" (number-to-string distinct))
       (my/notes-stats--line "Assignments" (number-to-string assignments)
                             (format "%.2f per note"
-                                    (if (zerop total) 0.0
-                                      (/ (float assignments) total))))
-      (my/notes-stats--line "Used once only" (number-to-string singletons)
-                            "candidates for merging or removal")
-      (my/notes-stats--line "Notes with no keywords" (number-to-string bare))
-      (insert "\n")
+                                    (if (zerop total) 0.0 (/ (float assignments) total))))
+      (insert (format "  %-28s " "Used once only"))
+      (my/notes-stats--list-button (number-to-string singletons)
+                                   #'my/notes-stats-show-singletons)
+      (insert "  " (my/notes-stats--dim "click to list and merge") "\n")
+      (insert (format "  %-28s " "Notes with no keywords"))
+      (my/notes-stats--list-button (number-to-string bare)
+                                   #'my/notes-stats-show-bare)
+      (insert "  " (my/notes-stats--dim "click to list") "\n\n")
       (let ((maximum (cdar pairs)))
         (dolist (pair (seq-take pairs my/notes-stats-top-keywords))
           (insert (format "  %-22s %5d  %s\n" (car pair) (cdr pair)
@@ -476,25 +657,31 @@ nine in the morning."
     ;; -- Growth ------------------------------------------------
     (my/notes-stats--heading
      (format "Notes created, last %d months" my/notes-stats-growth-months))
-    (let ((months (make-hash-table :test #'equal)))
-      (dolist (file files)
-        (when-let* ((month (my/notes-stats--identifier-month file)))
-          (puthash month (1+ (gethash month months 0)) months)))
-      (let* ((keys (sort (hash-table-keys months) #'string<))
-             (recent (last keys my/notes-stats-growth-months))
-             (maximum (apply #'max 1 (mapcar (lambda (m) (gethash m months)) recent))))
-        (dolist (month recent)
-          (insert (format "  %-10s %5d  %s\n" month (gethash month months)
-                          (my/notes-stats--bar (gethash month months) maximum))))
-        (when keys
-          (let ((busiest (car (sort (copy-sequence keys)
-                                    (lambda (a b) (> (gethash a months)
-                                                     (gethash b months)))))))
-            (insert "\n")
-            (my/notes-stats--line "Busiest month ever"
-                                  (format "%s (%d)" busiest (gethash busiest months)))))))
+    (let* ((months (plist-get data :months))
+           (keys (sort (hash-table-keys months) #'string<))
+           (recent (last keys my/notes-stats-growth-months))
+           (maximum (apply #'max 1 (mapcar (lambda (m) (gethash m months)) recent))))
+      (dolist (month recent)
+        (insert (format "  %-10s %5d  %s\n" month (gethash month months)
+                        (my/notes-stats--bar (gethash month months) maximum))))
+      (when keys
+        (let ((busiest (car (sort (copy-sequence keys)
+                                  (lambda (a b) (> (gethash a months)
+                                                   (gethash b months)))))))
+          (insert "\n")
+          (my/notes-stats--line "Busiest month ever"
+                                (format "%s (%d)" busiest (gethash busiest months))))))
 
-    ;; -- Deep tier ---------------------------------------------
+    ;; -- Per year ----------------------------------------------
+    (my/notes-stats--heading "Notes created, per year")
+    (let* ((years (plist-get data :years))
+           (keys (sort (hash-table-keys years) #'string<))
+           (maximum (apply #'max 1 (mapcar (lambda (y) (gethash y years)) keys))))
+      (dolist (year keys)
+        (insert (format "  %-10s %5d  %s\n" year (gethash year years)
+                        (my/notes-stats--bar (gethash year years) maximum)))))
+
+    ;; -- Content -----------------------------------------------
     (my/notes-stats--heading "Content")
     (if (null my/notes-stats--deep)
         (my/notes-stats--line "Not computed" "press c"
@@ -502,8 +689,7 @@ nine in the morning."
       (let ((deep my/notes-stats--deep))
         (my/notes-stats--line "Words" (number-to-string (plist-get deep :words))
                               (format "%d per note"
-                                      (if (zerop total) 0
-                                        (/ (plist-get deep :words) total))))
+                                      (if (zerop total) 0 (/ (plist-get deep :words) total))))
         (my/notes-stats--line "Denote links" (number-to-string (plist-get deep :links))
                               (format "%.2f per note"
                                       (if (zerop total) 0.0
@@ -515,33 +701,171 @@ nine in the morning."
                               (number-to-string (plist-get deep :orphans))
                               "unreachable by following links")))
 
-    (insert "\n"
-            (propertize
-             "  g refresh   c compute content   e denote-explore   x export   q quit\n"
-             'face (my/notes-stats--face 'my/dashboard-hint 'shadow)))
+    (insert "\n" (my/notes-stats--dim
+                  "  g refresh   c content   e denote-explore   x export   q quit\n"))
     (goto-char (point-min))))
+
+;; ============================================================
+;; ORG RENDERING
+;; ============================================================
+
+(defun my/notes-stats--org-link (file)
+  "Return FILE as a `denote:' link with its title, or a plain title."
+  (let ((title (my/notes-stats--title file))
+        (id (my/notes-stats--identifier file)))
+    (if id (format "[[denote:%s][%s]]" id title) title)))
+
+(defun my/notes-stats--render-org (data)
+  "Insert DATA as Org markup into the current buffer.
+
+Real Org -- headings, tables and `denote:' links -- rather than the
+report buffer wrapped in an `example' block.  The block would have
+preserved the bars and lost every link, which is the wrong trade for a
+file whose point is to be clicked through.  The bars are dropped
+instead: the number is on the same line, and U+2588 is not a glyph the
+PDF font can be relied on to have."
+  (let* ((total (plist-get data :total))
+         (bytes (plist-get data :bytes))
+         (sizes (plist-get data :sizes))
+         (keywords (plist-get data :keywords))
+         (journal (plist-get data :journal))
+         (journal-days (sort (hash-table-keys journal) #'string<)))
+    (insert "#+title:      Notes statistics " (format-time-string "%Y-%m-%d") "\n"
+            "#+date:       " (format-time-string "[%Y-%m-%d %a %H:%M]") "\n"
+            "#+filetags:   :docu:stats:\n"
+            "#+language:   en\n"
+            "#+options:    toc:t num:nil\n\n")
+
+    (insert "* Collection\n\n")
+    (insert "| Measure | Value |\n|---|---|\n")
+    (insert (format "| Notes | %d |\n" total))
+    (insert (format "| Total size | %s |\n" (file-size-human-readable bytes)))
+    (insert (format "| Average note | %s |\n"
+                    (if (zerop total) "-" (file-size-human-readable (/ bytes total)))))
+    (dolist (pair (list (cons "Largest" (plist-get data :largest))
+                        (cons "Smallest" (plist-get data :smallest))))
+      (when (cdr pair)
+        (insert (format "| %s note | %s -- %s |\n" (car pair)
+                        (file-size-human-readable (gethash (cdr pair) sizes 0))
+                        (my/notes-stats--org-link (cdr pair))))))
+
+    (insert "\n* Notes by directory\n\n| Directory | Notes | Size | Share |\n|---|---|---|---|\n")
+    (let ((rows (let (acc)
+                  (maphash (lambda (dir row) (push (cons dir row) acc))
+                           (plist-get data :dirs))
+                  (sort acc (lambda (a b) (> (nth 0 (cdr a)) (nth 0 (cdr b))))))))
+      (dolist (row rows)
+        (insert (format "| %s | %d | %s | %s |\n" (car row) (nth 0 (cdr row))
+                        (file-size-human-readable (nth 1 (cdr row)))
+                        (my/notes-stats--percent (nth 0 (cdr row)) total)))))
+
+    (insert "\n* On disk\n\n| Entry | Files | Size |\n|---|---|---|\n")
+    (dolist (row (my/notes-stats--disk-rows))
+      (insert (format "| %s | %d | %s |\n" (nth 0 row) (nth 1 row)
+                      (file-size-human-readable (nth 2 row)))))
+
+    (let ((zettel (plist-get data :zettel)))
+      (insert "\n* Zettelkasten\n\n")
+      (if (null zettel)
+          (insert "No sequenced notes.\n")
+        (let ((depths (mapcar (lambda (z) (my/notes-stats--signature-depth (cdr z)))
+                              zettel)))
+          (insert "| Measure | Value |\n|---|---|\n")
+          (insert (format "| Sequenced notes | %d (%s of all) |\n"
+                          (length zettel)
+                          (my/notes-stats--percent (length zettel) total)))
+          (insert (format "| Deepest signature | %d levels |\n" (apply #'max depths)))
+          (insert (format "| Average depth | %.2f |\n"
+                          (/ (float (apply #'+ 0 depths)) (length depths)))))))
+
+    (insert "\n* Journal\n\n")
+    (if (null journal-days)
+        (insert "No journal notes found.\n")
+      (let* ((first-day (car journal-days))
+             (elapsed (1+ (- (time-to-days (current-time))
+                             (my/notes-stats--day-number first-day))))
+             (covered (length journal-days))
+             (streaks (my/notes-stats--streaks journal-days)))
+        (insert "| Measure | Value |\n|---|---|\n")
+        (insert (format "| First entry | %s -- %s |\n" first-day
+                        (my/notes-stats--org-link (gethash first-day journal))))
+        (insert (format "| Days since | %d |\n" elapsed))
+        (insert (format "| Days with an entry | %d (%s) |\n" covered
+                        (my/notes-stats--percent covered elapsed)))
+        (insert (format "| Days without one | %d |\n" (- elapsed covered)))
+        (insert (format "| Longest streak | %d days |\n" (car streaks)))
+        (insert (format "| Current streak | %d days |\n" (cdr streaks)))))
+
+    (insert "\n* Keywords\n\n")
+    (let* ((assignments (let ((sum 0))
+                          (maphash (lambda (_k v) (setq sum (+ sum v))) keywords)
+                          sum))
+           (singletons (my/notes-stats--singletons data))
+           (bare (plist-get data :bare))
+           (pairs (let (acc)
+                    (maphash (lambda (k v) (push (cons k v) acc)) keywords)
+                    (sort acc (lambda (a b) (> (cdr a) (cdr b)))))))
+      (insert "| Measure | Value |\n|---|---|\n")
+      (insert (format "| Distinct keywords | %d |\n" (hash-table-count keywords)))
+      (insert (format "| Assignments | %d |\n" assignments))
+      (insert (format "| Used once only | %d |\n" (length singletons)))
+      (insert (format "| Notes with no keywords | %d |\n" (length bare)))
+      (insert "\n** Most used\n\n| Keyword | Notes |\n|---|---|\n")
+      (dolist (pair (seq-take pairs my/notes-stats-top-keywords))
+        (insert (format "| %s | %d |\n" (car pair) (cdr pair))))
+      (insert "\n** Used once only\n\n")
+      (if (null singletons)
+          (insert "None.\n")
+        (dolist (pair singletons)
+          (insert (format "- =%s= -- %s\n" (car pair)
+                          (my/notes-stats--org-link (cdr pair))))))
+      (insert "\n** Notes with no keywords\n\n")
+      (if (null bare)
+          (insert "None.\n")
+        (dolist (file bare)
+          (insert (format "- %s\n" (my/notes-stats--org-link file))))))
+
+    (insert "\n* Notes created\n\n** Per year\n\n| Year | Notes |\n|---|---|\n")
+    (let* ((years (plist-get data :years))
+           (keys (sort (hash-table-keys years) #'string<)))
+      (dolist (year keys)
+        (insert (format "| %s | %d |\n" year (gethash year years)))))
+    (insert "\n** Per month, last "
+            (number-to-string my/notes-stats-growth-months)
+            "\n\n| Month | Notes |\n|---|---|\n")
+    (let* ((months (plist-get data :months))
+           (keys (sort (hash-table-keys months) #'string<)))
+      (dolist (month (last keys my/notes-stats-growth-months))
+        (insert (format "| %s | %d |\n" month (gethash month months)))))
+
+    (when my/notes-stats--deep
+      (let ((deep my/notes-stats--deep))
+        (insert "\n* Content\n\n| Measure | Value |\n|---|---|\n")
+        (insert (format "| Words | %d |\n" (plist-get deep :words)))
+        (insert (format "| Denote links | %d |\n" (plist-get deep :links)))
+        (insert (format "| Link to nothing | %d |\n" (plist-get deep :no-links)))
+        (insert (format "| Nothing links to | %d |\n" (plist-get deep :orphans)))))))
 
 ;; ============================================================
 ;; COMMANDS
 ;; ============================================================
 
 (defun my/notes-stats-refresh ()
-  "Rebuild the fast statistics, keeping any computed content figures."
+  "Rebuild the report, keeping any computed content figures."
   (interactive)
-  (my/notes-stats--render))
+  (my/notes-stats--render (my/notes-stats--collect)))
 
 (defun my/notes-stats-compute-deep ()
   "Read every note and add word, link and orphan counts to the report."
   (interactive)
   (my/notes-stats--require)
   (setq my/notes-stats--deep (my/notes-stats--deep-scan (my/denote--all-files)))
-  (my/notes-stats--render))
+  (my/notes-stats-refresh))
 
 (defun my/notes-stats-explore ()
   "Run one of the `denote-explore-' commands, chosen by completion.
 Built from the obarray rather than a hardcoded list, so a command
-renamed or added upstream appears here without this file changing, and
-one that is removed simply stops being offered."
+renamed or added upstream appears without this file changing."
   (interactive)
   (unless (require 'denote-explore nil t)
     (user-error "denote-explore is not available"))
@@ -555,42 +879,26 @@ one that is removed simply stops being offered."
     (call-interactively (intern (completing-read "denote-explore: " commands nil t)))))
 
 (defun my/notes-stats-export ()
-  "Write the report to an Org file and open it.
-
-The Org file is the report buffer's own text inside an `example\=' block
-plus a front matter header.  Deliberately not a set of Org tables
-rebuilt from the data: the report is already aligned in a fixed-pitch
-column, and an `example\=' block preserves that alignment through both
-the HTML and the LaTeX exporter without a second renderer that could
-disagree with the first.
-
-The block characters used for the bars are U+2588.  They survive to
-HTML; whether they survive to PDF depends on whether the main font of
-the LaTeX class covers that codepoint, which for the fonts this
-configuration uses it may not.  Nothing is lost if it does not -- the
-numbers are in the same line.
-
-After the file is written it is visited, from where `C-c p'
-\(`my/org-export-to-pdf\=') produces the PDF.  The two steps are kept
-separate because that command has its own rules about where a PDF goes
-and what font it uses, and duplicating them here would be a second
-place to keep them right."
+  "Write the report to an Org file with working links, and open it.
+From the opened file, `C-c p' (`my/org-export-to-pdf') produces the
+PDF.  The two steps stay separate because that command has its own
+rules about where a PDF goes and which font it uses, and duplicating
+them here would be a second place to keep them right."
   (interactive)
-  (let* ((default (expand-file-name
+  (let* ((deep my/notes-stats--deep)
+         (default (expand-file-name
                    (format "notes-stats-%s.org" (format-time-string "%Y-%m-%d"))
                    (if (boundp 'my-notes-docu) my-notes-docu "~/")))
          (target (read-file-name "Write report to: " nil default nil
                                  (file-name-nondirectory default)))
-         (body (buffer-substring-no-properties (point-min) (point-max))))
+         (data (my/notes-stats--collect)))
     (with-temp-file target
-      (insert "#+title:      Notes statistics "
-              (format-time-string "%Y-%m-%d") "\n"
-              "#+date:       " (format-time-string "[%Y-%m-%d %a %H:%M]") "\n"
-              "#+language:   en\n"
-              "#+options:    toc:nil num:nil\n\n"
-              "#+begin_example\n")
-      (insert body)
-      (insert "#+end_example\n"))
+      ;; The renderer reads `my/notes-stats--deep', which is buffer-local
+      ;; to the report; carry it into the temp buffer or the Content
+      ;; section silently disappears from an export made right after
+      ;; pressing `c'.
+      (setq-local my/notes-stats--deep deep)
+      (my/notes-stats--render-org data))
     (find-file target)
     (message "Written.  C-c p exports it to PDF")))
 
@@ -600,6 +908,8 @@ place to keep them right."
     (define-key map (kbd "c") #'my/notes-stats-compute-deep)
     (define-key map (kbd "e") #'my/notes-stats-explore)
     (define-key map (kbd "x") #'my/notes-stats-export)
+    (define-key map (kbd "n") #'forward-button)
+    (define-key map (kbd "p") #'backward-button)
     map)
   "Keymap for `my/notes-stats-mode'.")
 
@@ -607,8 +917,7 @@ place to keep them right."
   "Major mode for the note statistics report.
 \\{my/notes-stats-mode-map}"
   (setq-local truncate-lines t)
-  ;; The report is a single column of its own; a centred text column
-  ;; would push the bars off the right edge.
+  ;; A centred text column would push the bars off the right edge.
   (when (bound-and-true-p visual-fill-column-mode)
     (visual-fill-column-mode -1)))
 
@@ -616,20 +925,22 @@ place to keep them right."
 (defun my/notes-stats ()
   "Show summary statistics for the note collection.
 
-Everything on the opening screen comes from file names and file
-attributes -- no note is read.  Press `c' for word, link and orphan
-counts, which do read every file.  Press `e' for denote-explore's
-charts, network view and drill-down lists."
+Titles, the first journal entry and the two keyword counts are
+buttons: clicking opens the note, or the list, in a window on the
+right.  `c' adds word, link and orphan counts.  `e' runs a
+denote-explore command.  `x' writes the whole thing to an Org file
+with working `denote:' links."
   (interactive)
   (my/notes-stats--require)
   (let ((buffer (get-buffer-create my/notes-stats-buffer-name)))
     (with-current-buffer buffer
       (my/notes-stats-mode)
-      (my/notes-stats--render))
+      (my/notes-stats--render (my/notes-stats--collect)))
     (when (and (fboundp 'my/fixed-tab-goto)
                (boundp 'my/dashboards-tab-name))
       (my/fixed-tab-goto my/dashboards-tab-name))
-    (switch-to-buffer buffer)))
+    (switch-to-buffer buffer)
+    (delete-other-windows)))
 
 ;; ============================================================
 ;; MENU

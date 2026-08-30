@@ -7,6 +7,103 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-31 — Statistics worth acting on
+
+The dashboard from the previous session reported numbers. This one
+makes the numbers openable, because a statistic worth reporting is one
+somebody might act on and acting on it means opening the notes behind
+it.
+
+### `other` became named rows
+
+The Silos section had an `other` row holding 443 notes. A row called
+`other` with 443 notes says only that the code did not look. Notes are
+now grouped by the top-level directory they sit in, so `inbox` appears
+beside the three silos and files in the notes root appear as `(root)`.
+
+### Clickable
+
+Largest and smallest note titles, the first journal entry, and the two
+keyword counts are buttons.
+
+A note opens in a window to the **right** of the report, created on
+the first click and **reused** afterwards — clicking through twenty
+singleton keywords should not leave twenty windows. Point stays in the
+report: the report is the thing being worked through, the note is what
+is being looked at.
+
+`Used once only` opens a list of keywords used by exactly one note,
+each with a link to it. `Notes with no keywords` opens the same kind
+of list, grouped by directory. In both, `r` runs
+`my/maintenance-rename-keyword` — which was already the command for
+merging a singleton into a real keyword or removing it, and is now one
+keypress from the number that motivates using it.
+
+### Titles come from `#+title:`
+
+The two extremes are the entries most likely to be opened, and a file
+name slug is not a title: it is lowercased, stripped of punctuation
+and truncated. These are the only two files read on the opening
+screen.
+
+### New sections
+
+**Smallest note**, alongside largest — the stubs are as informative as
+the essays.
+
+**Zettelkasten**: notes carrying a `denote-sequence` signature, the
+number of top-level sequences, the deepest and the average signature
+depth. The `==SIGNATURE` field is the test, because that is exactly
+what `22-zettelkasten.el` adds when a thought joins a sequence and
+nothing else in the collection carries one. Depth counts alternations
+in the alphanumeric scheme: `1` is 1, `1a` is 2, `1a1` is 3.
+
+**Notes created per year**, for the whole history, beside the existing
+twelve-month view.
+
+### The export is now real Org
+
+Previously the buffer text wrapped in an `example` block. That
+preserved the bars and lost every link, which is the wrong trade for a
+file whose point is to be clicked through.
+
+The export is now headings, tables and `denote:` links, and it
+includes the **full** singleton and no-keyword lists rather than their
+counts — so the exported file is the working document for an inventory
+session, which is what it was asked for.
+
+The bars are dropped from the export. The number is on the same line,
+and U+2588 is not a glyph the PDF font can be relied on to have.
+
+### One data pass, two renderers
+
+`my/notes-stats--collect` gathers every figure once into a plist. The
+buffer renderer and the Org renderer both read it and neither computes
+anything of its own, so **the screen and the exported file cannot
+disagree about a number**. That is the failure that makes an exported
+report worse than no report, and the only way to rule it out is to
+have one place where each figure is computed.
+
+It also removed three separate passes over the file list that the
+previous version made — sizes, keywords and the journal map are now
+built in the same loop.
+
+### A reordering mistake worth recording
+
+Moving two definitions above their callers, to keep the byte-compile
+scan clean, duplicated a seventy-line block instead: the script found
+the insertion point after removing the source text, and the two
+happened to coincide. The paren balance check passed — a duplicated
+balanced block is still balanced — and the duplicate-definition grep
+is what caught it, reporting five functions defined twice.
+
+The lesson is not about the script. It is that **the check which
+catches a mistake is rarely the one aimed at it**. Paren balance was
+the check being run; duplicate definitions was the check that
+mattered, and it exists because of an unrelated problem months ago.
+
+---
+
 ## Session 2026-08-30 (evening) — Every count was wrong, and nothing said so
 
 ### `.snapshots` was being scanned as if it were notes
