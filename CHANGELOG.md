@@ -22,6 +22,112 @@ included.
 
 ---
 
+## Session 2026-08-30k — git can answer "am I behind", Syncthing cannot
+
+### 39-project-git.el
+
+Projects live outside `~/notes/` so that Syncthing does not replicate
+`.git/` and corrupt it. That decision is right and it has a cost: a
+second machine has only what git gave it, and nothing announces when
+that was three weeks ago.
+
+The failure changes shape rather than going away. A Syncthing conflict
+file is recoverable. Three hours of writing on top of a stale copy is
+a merge nobody wants to do, and the laptop is used rarely enough that
+the copy is always stale.
+
+So: opening any file inside a project fetches its remote in the
+background and reports what it finds, throttled to once per fifteen
+minutes per repository. That is the whole mechanism — the part that
+does not rely on remembering.
+
+### The order of the two operations is the point
+
+Fetch first, then compare. Comparing without fetching answers a
+question about whatever the last fetch saw, which on a machine opened
+once a month is nothing at all. An answer of "up to date" that is
+three weeks old is worse than no answer, because it will be believed.
+
+### What it refuses to do
+
+**It does not commit.** Committing is a judgement about what a change
+was for, and a program cannot make it. Magit is already on `C-x g`.
+
+**It does not merge.** `my/project-git-auto-pull` is nil by default,
+and when it is on it fast-forwards a clean tree or reports and stops.
+Both conditions, no exceptions. A pull that merges decides which of
+two versions is right, and making that decision while attention is
+elsewhere is worse than asking.
+
+**Buffers are re-read after a pull.** A pull that changes a file
+already on screen leaves the buffer showing the old text, and the next
+save writes it back over the pull — the stale-copy problem in
+miniature, inside one session. Modified buffers are left alone;
+reverting those would discard unsaved edits, which is what all of this
+exists to prevent.
+
+### No API token, because none is needed
+
+Pushing to a free path in a namespace where projects may be created
+makes GitLab create the project. So publishing is a `git push` and
+this configuration holds no secret.
+(https://docs.gitlab.com/topics/git/project)
+
+Recorded because it will come up: a path used before and renamed
+redirects instead of creating, and has to be made in the web
+interface.
+
+### `GIT_TERMINAL_PROMPT=0`
+
+An asynchronous git asked for a password has no terminal to ask on. It
+waits, holding a process Emacs never mentions, and the symptom is a
+project that is permanently "being checked". Failing immediately with
+a line in the log is visible and names the thing that needs
+configuring — `credential.helper`, or an SSH remote.
+
+Same class of failure as the tilde that `file-readable-p` accepted and
+ImageMagick did not: a subprocess whose environment differs from the
+one the code was reasoned about in.
+
+### `my/writing-project-created-hook`
+
+New in 28-writing-projects.el, run with the slug and the directory
+before the hub is opened.
+
+Giving a new project a git remote is not what a writing-project module
+is about, and neither is whatever comes next. Without the hook, this
+module would have had to advise `my/writing-project-new`, which is the
+correction-module pattern by another name. With it, 28 does not know
+39 exists.
+
+### Documentation: the agenda dispatcher
+
+Two new sections in `function_helper.org`, both written because the
+vocabulary is what has been blocking use rather than the mechanics:
+
+- **The Agenda Dispatcher** — every key on the `C-c a` screen, what it
+  answers, and the distinction that the screen itself does not make:
+  `a` is calendar-shaped and shows only dated entries, `t` is
+  list-shaped and shows everything unfinished. Neither is a better
+  version of the other, and a task captured with no date is invisible
+  in the first.
+- **Project Repositories** — this module.
+
+`org-agenda-custom-commands` stays empty. A custom view written from a
+guess about what will be missing is a view nobody opens.
+
+### Lesson
+
+**Automation should refuse the judgement calls and take the tedium.**
+Everything here is a fetch, a comparison and a message; the pull is
+opt-in and conditional, and the commit and the merge are not offered
+at all. What was actually being forgotten was never "should I merge
+this" — it was "check whether there is anything to merge", which is
+mechanical, uninteresting, and exactly what a computer should be doing
+unasked.
+
+---
+
 ## Session 2026-08-30j — A habit is not created, it is ticked
 
 ### 38-habits.el

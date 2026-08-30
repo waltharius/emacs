@@ -2846,6 +2846,212 @@ either module has to be correct on its own.
 
 Module: =modules/38-habits.el=
 
+* The Agenda Dispatcher (C-c a)
+:PROPERTIES:
+:CUSTOM_ID: agenda-dispatcher
+:END:
+
+What =org-agenda= shows before it shows anything: a list of ways to
+look at the same files. Every entry here is a *view*, not a place — no
+option creates, deletes or moves anything, so pressing the wrong one
+costs a =q=.
+
+All of them read =org-agenda-files= and nothing else; see [[#tasks][Tasks]] for
+what is in that list and why.
+
+** The views
+
+| Key | Name                          | Answers                        |
+|-----+-------------------------------+--------------------------------|
+| =a= | Agenda for current week or day | What is happening on which day |
+| =t= | List of all TODO entries      | Everything unfinished          |
+| =n= | Agenda and all TODOs          | Both of the above, stacked     |
+| =m= | Match a TAGS/PROP/TODO query  | Entries matching a query       |
+| =M= | Like =m=, unfinished only     | The same, minus what is done   |
+| =s= | Search for keywords           | Entries whose text matches     |
+| =S= | Like =s=, unfinished only     | The same, minus what is done   |
+| =T= | Entries with special TODO kwd | Only =WAITING=, only =NEXT=, … |
+| =/= | Multi-occur                   | A regexp across the files      |
+| =?= | Find =:FLAGGED:= entries      | Entries tagged =FLAGGED=       |
+
+*=a= is calendar-shaped.* Only entries with a date appear: =SCHEDULED=,
+=DEADLINE=, or a plain timestamp. A task with no date is invisible
+here however urgent it is. Habits appear on today's line with their
+consistency graph.
+
+*=t= is list-shaped.* Every unfinished entry, dated or not, grouped by
+file. This is where a task captured with "none" as its date lives.
+
+Between them: =a= answers "what is today", =t= answers "what is
+outstanding". They are different questions and neither is a better
+version of the other.
+
+** The rest of the screen
+
+| Key | Name                              | What it is                  |
+|-----+-----------------------------------+-----------------------------|
+| =<= | Buffer, subtree/region restriction | Limit the next view to the current file or subtree |
+| =>= | Remove restriction                | Undo that                   |
+| =e= | Export agenda views               | Write a view to a file      |
+| =C= | Configure custom agenda commands  | Opens Customize for =org-agenda-custom-commands= |
+| =#= | List stuck projects               | A =org-stuck-projects= report; unconfigured by default |
+| =*= | Toggle sticky agenda views        | Keep built agenda buffers instead of rebuilding |
+
+** Inside an agenda buffer
+
+The dispatcher chooses a view; these act on entries once one is open.
+
+| Key       | Effect                                          |
+|-----------+-------------------------------------------------|
+| =RET=     | Go to the entry in its own file                 |
+| =TAB=     | Show it in another window, stay in the agenda   |
+| =t=       | Cycle its TODO state                            |
+| =C-c C-w= | Refile it — see =my/task-refile= in [[#tasks][Tasks]]        |
+| =C-c C-s= | Reschedule                                      |
+| =C-c C-d= | Set or change a deadline                        |
+| =I= / =O= | Clock in / clock out                            |
+| =f= / =b= | Forward / back one period                       |
+| =.=       | Jump to today                                   |
+| =d= / =w= | Day view / week view                            |
+| =v A=     | Add the clocktable to the view                  |
+| =K=       | Toggle habits on and off                        |
+| =g=       | Rebuild the view from the files                 |
+| =q=       | Quit                                            |
+
+** What is deliberately not configured
+
+=org-agenda-custom-commands= is empty and =org-stuck-projects= is at
+its default. Both are worth having and neither is worth having before
+the built-in views have been used enough to know what is missing about
+them. A custom view written from a guess is a view nobody opens.
+
+* Project Repositories (C-c n p G)
+:PROPERTIES:
+:CUSTOM_ID: project-git
+:END:
+
+Every writing project is its own git repository. [[#writing-projects][Writing Projects]]
+creates it; this module gives it a remote on the local GitLab, watches
+whether it has fallen behind, and says so before any editing starts.
+
+** The menu
+
+| Key | Command                    | Effect                          |
+|-----+----------------------------+---------------------------------|
+| =c= | =my/project-git-check=     | Fetch this project, report      |
+| =C= | =my/project-git-check-all= | Fetch every project, report     |
+| =u= | =my/project-git-pull=      | Fast-forward, if possible       |
+| =p= | =my/project-git-push=      | Push                            |
+| =i= | =my/project-git-init=      | Publish to GitLab               |
+| =r= | =my/project-git-set-remote= | Attach or change the remote    |
+| =g= | =magit-status=             | Everything else                 |
+| =l= | —                          | The git output log              |
+
+** Why this exists
+
+The projects tree is outside =~/notes/= on purpose, so Syncthing does
+not carry it, so a second machine only has what git gave it. That is
+the right trade — Syncthing replicating =.git/= across devices corrupts
+it — but it moves the failure from "corrupt repository" to "silently
+working on a stale copy".
+
+Quieter, not smaller. A Syncthing conflict file is recoverable; three
+hours of writing on top of a three-week-old copy is a merge nobody
+wants to do. The point of the module is that git can answer "am I
+behind" and Syncthing cannot, so the answer is asked for rather than
+remembered.
+
+** The part that does not rely on remembering
+
+Opening any file inside a project fetches its remote in the background
+and reports what it finds, at most once per
+=my/project-git-check-interval= (15 minutes) per repository. Set
+=my/project-git-check-on-visit= to nil to keep the commands and lose
+the reminders.
+
+An unreachable server is not treated as an error. On a laptop away
+from that network it is the normal case, and the fact is recorded in
+the log rather than shown.
+
+** What it will and will not do by itself
+
+| Situation                | Default             | With auto-pull on   |
+|--------------------------+---------------------+---------------------|
+| Behind, tree clean       | Says so             | Fast-forwards       |
+| Behind, tree dirty       | Says so             | Says so             |
+| Ahead and behind         | Says so             | Says so             |
+| Ahead only               | Says how many       | Says how many       |
+
+=my/project-git-auto-pull= is nil by default. When it is on, the two
+conditions are not negotiable: a pull that merges is a decision about
+which of two versions is right, and a program that makes that decision
+while attention is elsewhere is worse than one that asks.
+
+It never commits. Committing is a judgement about what a change was
+for. =C-x g= is Magit.
+
+*After a successful pull, buffers are re-read.* A pull that changes a
+file already on screen leaves the buffer showing the old text, and the
+next save writes it back over the pull. Buffers with unsaved edits are
+left alone, because reverting those would discard the edits — the
+thing this is meant to prevent.
+
+** Creating the GitLab project
+
+Nothing has to exist on GitLab first. Pushing to a free path in a
+namespace where projects may be created makes GitLab create the
+project, so =my/project-git-init= needs no API token and this
+configuration holds no secret.
+
+=my/writing-project-new= runs it automatically through
+=my/writing-project-created-hook=. Projects that already exist get a
+remote with =i= in the menu.
+
+The exception is a path that was used before and renamed: those
+redirect rather than creating, and have to be made in the web
+interface. See https://docs.gitlab.com/topics/git/project
+
+** Credentials
+
+Over HTTP git wants credentials on every push. Configure a helper
+once:
+
+: git config --global credential.helper store
+
+Or move to SSH, which avoids the question:
+
+: (setq my/project-git-remote-format
+:       "ssh://git@192.168.50.46:PORT/heniekk/%s.git")
+
+Git is run with =GIT_TERMINAL_PROMPT=0=, so a missing credential fails
+immediately with a line in the log rather than leaving a background
+process waiting on a prompt that has no terminal to appear on.
+
+** Configuration
+
+| Variable                        | Meaning                          |
+|---------------------------------+----------------------------------|
+| =my/project-git-remote-format=  | Remote URL, =%s= is the slug     |
+| =my/project-git-remote-name=    | Remote name (=origin=)           |
+| =my/project-git-branch=         | Branch pushed and tracked        |
+| =my/project-git-gitignore=      | Lines written into a new project |
+| =my/project-git-auto-pull=      | Warn only, or fast-forward       |
+| =my/project-git-check-interval= | Seconds between checks of one repo |
+| =my/project-git-check-on-visit= | Check when a project file opens  |
+
+Exports are not ignored. A =.docx= sent to a supervisor is a thing
+that happened on a date, and a repository that holds it can answer
+which version they read.
+
+** The log buffer
+
+Every git command, its output and its exit status go to
+=*project-git*=. =call-process= with a nil destination discards output,
+which turns any failure into a return code with no explanation — the
+same lesson as the image converter in [[#fn-my-org-image-insert][Image Attachments]].
+
+Module: =modules/39-project-git.el=
+
 * Office Export — ODT and DOCX (C-c n x)
 :PROPERTIES:
 :CUSTOM_ID: office-export

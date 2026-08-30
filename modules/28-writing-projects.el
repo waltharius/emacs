@@ -361,6 +361,17 @@ whose front matter names exactly one project."
 ;; CREATING A PROJECT
 ;; ============================================================
 
+(defvar my/writing-project-created-hook nil
+  "Hook run after a project has been created, before its hub is opened.
+
+Each function is called with the slug and the project directory.
+
+A hook rather than a list of things this module does itself: giving a
+new project a git remote, registering it somewhere, generating
+scaffolding -- none of that is what a writing-project module is about,
+and every one of them would otherwise have to be added here.  Nothing
+in this file needs to know which of them exist.")
+
 (defun my/writing--hub-template (title slug target-chars target-date)
   "Return the initial contents of a hub file.
 TITLE, SLUG, TARGET-CHARS and TARGET-DATE describe the new project."
@@ -403,9 +414,11 @@ text, TARGET-DATE the day it is due.  Creates the directory, the
 subdirectories from `my/writing-project-subdirectories', the hub file,
 and initialises a git repository if git is available.
 
-The repository is local and has no remote: it exists so that a bulk
-operation gone wrong can be undone across the whole project at once,
-which per-file version history cannot do."
+The repository is local: it exists so that a bulk operation gone wrong
+can be undone across the whole project at once, which per-file version
+history cannot do.  Whether it also gets a remote is decided by
+`my/writing-project-created-hook' -- 39-project-git.el attaches one,
+and nothing here depends on that module being loaded."
   (interactive
    (list (read-string "Project title: ")
          (read-number "Target characters: " 20000)
@@ -426,6 +439,9 @@ which per-file version history cannot do."
             (call-process "git" nil nil nil "init" "--quiet")))
       (message "git not found -- project created without a repository"))
     (my/writing-projects-update-agenda-files)
+    ;; Before the hub is opened: a hook that publishes the project
+    ;; should have finished before anything is edited in it.
+    (run-hook-with-args 'my/writing-project-created-hook slug dir)
     (find-file hub)
     (message "Project `%s' created in %s" slug dir)))
 

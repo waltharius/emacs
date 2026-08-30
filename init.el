@@ -121,6 +121,11 @@
   ;; the commands still work; the habit file is simply not in the
   ;; agenda, so no consistency graphs are drawn.
   (load (concat modules-dir "38-habits.el") t) ; Habits (f9, C-c n H)
+  ;; Optional (NOERROR): remotes and staleness checks for project
+  ;; repositories.  Loaded after 28-writing-projects.el, whose creation
+  ;; hook it uses; without that module every command reports that there
+  ;; are no projects and does nothing.
+  (load (concat modules-dir "39-project-git.el") t) ; Project git (C-c n p G)
   )
 
 (add-hook 'emacs-startup-hook
