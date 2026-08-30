@@ -22,6 +22,116 @@ included.
 
 ---
 
+## Session 2026-08-30l — Committing is not the same as pushing
+
+### `~/notes` was committed for four days and pushed on none of them
+
+`git log origin/main` ended at 26 August; `git log main` did not.
+Magit said it plainly — "Unmerged into origin/main (32)" — and the
+auto-commit had been doing its half of the job perfectly the whole
+time.
+
+That is the failure this configuration keeps rediscovering in new
+places: a mechanism that works, reports success, and leaves the part
+that actually protects anything undone. A local commit protects
+against an editing mistake. Only a push protects against the disk.
+
+### 07-git.el: one mechanism instead of two copies
+
+`my/auto-commit-notes` and `my/auto-commit-emacs-config` were thirty
+near-identical lines each, differing in one string. Adding a third
+directory meant copying them again.
+
+Now `my/auto-commit-repository` takes a directory, and
+`my/auto-commit-repository-sources` holds *functions* returning
+directories. Functions rather than paths because the set has to be
+computed: the number of writing projects changes during a session, and
+39-project-git.el contributes them without 07-git.el knowing what a
+project is. Same shape as `my/tasks-extra-agenda-files`.
+
+The notes/config asymmetry survives, because the reasoning behind it
+was right: text is a working log and "Auto-commit: `<date>`" describes
+it accurately; a configuration change is a decision with a reason worth
+writing down.
+
+### Two moments, and why idle is the important one
+
+**Five minutes idle, repeating.** The machine is on, the network is
+up, and nobody is typing. Everything about the moment is right.
+
+**On exit, once.** The safety net, which with the idle timer in place
+usually finds nothing to do.
+
+**Bounding the exit push.** The exit path is synchronous, so an
+unreachable server would hold Emacs open for a full TCP timeout — an
+editor that will not close, with no explanation. `GIT_SSH_COMMAND`
+carries `ConnectTimeout=5`, and `GIT_TERMINAL_PROMPT=0` closes the
+other way it could wait. Together they bound the worst case to a few
+seconds per repository.
+
+### `C-c a` was not the agenda
+
+Every Org tutorial says `C-c a`. Here it was a prefix for four
+typing-analytics commands, so `C-c a n` reported "undefined" and the
+agenda had no global key at all — reachable only through two menus.
+
+keyfreq and keylog moved to `C-c y`. Four commands opened a few times
+a year were holding the key of one opened every morning.
+
+### The auto-clockout was configured and the timeout was wrong
+
+`org-clock-idle-time` (10 minutes) and
+`org-clock-auto-clockout-timer` (30 minutes) were both already set;
+30 minutes was chosen on the theory that automatic clock-out only had
+to catch falling asleep over the manuscript.
+
+The case that actually happens is leaving the desk for three hours.
+Half an hour of that is already enough to make the day's figures
+fiction, so `my/writing-clock-auto-clockout-seconds` is now 600.
+
+### `C-c n p G C` said "Checking 1 project(s)..." and nothing else
+
+`my/project-git--report` was silent when a repository was up to date.
+Correct for the check that fires on opening a file — a message every
+time a project file is visited is noise — and wrong for a command that
+was just run, where silence is indistinguishable from the command
+failing.
+
+The commands now pass a verbose flag: they say "up to date", and they
+say when the server could not be reached, which the automatic check
+still records only in the log.
+
+**Silence means two things and a program does not get to pick one.**
+The fix is not to always report or never report, but to know which
+caller is asking.
+
+### `/` and `_` are no longer emphasis triggers
+
+02b-bold-marker.el wrapped a word when a trigger character was typed
+straight after it. Both of these occur far more often as ordinary
+punctuation than as emphasis — paths, URLs, dates, `this/that`, file
+names, code — and a trigger that fires unasked costs an undo and
+breaks the sentence being written. `*`, `~` and `=` do not appear
+inside words in prose and stay.
+
+### `C-a` is a movement key again
+
+It was `mark-whole-buffer`: convenient once a week, in the way of a
+command used hundreds of times an hour, and the reason a key that
+every tutorial and every reflex expects to go to the start of the line
+did something else. Select-all is `C-x h`, which is what the rest of
+Emacs already calls it.
+
+### Lesson
+
+**Check the remote, not the branch.** `git log` shows what you asked
+for, and asking for `main` when the question is "is this backed up"
+returns a confident, complete, wrong answer. The question is always
+`git log origin/main`, and the reason the auto-commit felt trustworthy
+for four days is that nobody asked it.
+
+---
+
 ## Session 2026-08-30k — git can answer "am I behind", Syncthing cannot
 
 ### 39-project-git.el

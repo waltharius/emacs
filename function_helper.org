@@ -2851,6 +2851,70 @@ either module has to be correct on its own.
 
 Module: =modules/38-habits.el=
 
+* Auto-commit and Push (C-c v a)
+:PROPERTIES:
+:CUSTOM_ID: auto-commit
+:END:
+
+Repositories that hold text are committed and pushed by themselves.
+Repositories that hold decisions are not.
+
+** What is covered
+
+| Repository        | Committed        | Why                          |
+|-------------------+------------------+------------------------------|
+| =~/notes/=        | yes              | a working log                |
+| =~/projects/*/=   | yes              | a working log                |
+| =~/.emacs.d/=     | only if asked    | decisions, each with a reason |
+
+Text accumulates, and "Auto-commit: 2026-08-30 22:23" is an accurate
+description of what happened to it — the value is being able to get
+yesterday's paragraph back, not a readable history. A configuration
+change is the opposite: it has a reason worth writing down, and an
+automatic commit buries the reason and silently absorbs half-finished
+edits. Set =my/auto-commit-config-enabled= to =t= to include it anyway.
+
+** When it runs
+
+*After five minutes of idleness*, repeating. This is the one that
+matters: it happens while the machine is on and the network reachable,
+and it costs nothing because nobody is typing.
+
+*On exit*, once per session. The safety net. With the idle timer in
+place it usually finds nothing left to do.
+
+=C-c v a= runs it immediately. =C-c v l= shows the git output.
+
+** Pushing
+
+=my/auto-commit-push= is =t=. A commit protects against an editing
+mistake; only a push protects against the disk, and that is what the
+local GitLab is for.
+
+Git runs with =GIT_TERMINAL_PROMPT=0= and an SSH =ConnectTimeout= of
+five seconds. Both bound a hang: the exit-time push is synchronous, so
+an unreachable server would otherwise hold Emacs open for a full TCP
+timeout and the symptom would be an editor that will not close.
+
+** Adding a repository
+
+Push a function onto =my/auto-commit-repository-sources=. Each function
+returns a list of directories. A list of functions rather than a list
+of directories, so that the set can be *computed*: the number of
+writing projects changes during a session, and
+=39-project-git.el= contributes them by calling
+=my/project-git-repositories= rather than by naming them.
+
+** Reading the result
+
+=git log= shows the branch you name. =git log origin/main= shows what
+the *server* has, which is not what you have — if the newest entry
+there is three days old and Magit shows "Unmerged into origin/main
+(32)", the commits exist and were never pushed. That is the failure
+this section exists to remove.
+
+Module: =modules/07-git.el=
+
 * The Agenda Dispatcher (C-c a)
 :PROPERTIES:
 :CUSTOM_ID: agenda-dispatcher

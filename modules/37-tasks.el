@@ -614,5 +614,12 @@ state that gets diagnosed as \"the agenda is broken\".  The cost is one
 (when my/tasks-capture-binding
   (global-set-key (kbd my/tasks-capture-binding) #'my/task-capture))
 
+;; "C-c a" is the agenda key in every piece of Org documentation, every
+;; tutorial and every answer on the subject.  It was a prefix for
+;; typing-analytics until 2026-08; those four commands moved to "C-c y"
+;; (14-typing-analytics.el), which is the right way round -- the agenda
+;; is opened every morning and keyfreq a few times a year.
+(global-set-key (kbd "C-c a") #'org-agenda)
+
 (provide '37-tasks)
 ;;; 37-tasks.el ends here

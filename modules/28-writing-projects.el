@@ -145,10 +145,19 @@ merely skips keyword lines, drawers and comments."
   :type 'integer
   :group 'my/writing-projects)
 
-(defcustom my/writing-clock-auto-clockout-seconds 1800
+(defcustom my/writing-clock-auto-clockout-seconds 600
   "Seconds of idleness after which a running clock stops by itself.
 
-Covers falling asleep over the manuscript.  Nil disables it."
+Ten minutes.  It was thirty, on the theory that this only had to catch
+falling asleep over the manuscript.  The case that actually happens is
+leaving the desk to deal with something and coming back three hours
+later to a clock that has been counting the whole time -- and half an
+hour of that is already enough to make the day\='s figures fiction.
+
+Note that `org-clock-idle-time' handles the other half of the problem:
+when idleness is noticed while Emacs is still open, Org asks what to do
+with the time rather than deciding.  This is the fallback for when
+nobody is there to answer.  Nil disables it."
   :type '(choice integer (const nil))
   :group 'my/writing-projects)
 

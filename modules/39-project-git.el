@@ -382,15 +382,25 @@ edits, which is the thing this is supposed to prevent."
         (with-current-buffer buffer
           (revert-buffer :ignore-auto :noconfirm))))))
 
-(defun my/project-git--report (dir)
-  "Report, and possibly act on, how DIR stands against its remote."
+(defun my/project-git--report (dir &optional verbose)
+  "Report, and possibly act on, how DIR stands against its remote.
+
+With VERBOSE, says so even when there is nothing to report.  Silence is
+right for the automatic check on opening a file -- a message every time
+a project file is visited is noise -- and wrong for a command the user
+just ran, where it is indistinguishable from the command failing."
   (let* ((name (file-name-nondirectory (directory-file-name dir)))
          (divergence (my/project-git--divergence dir)))
-    (when divergence
+    (cond
+     ((null divergence)
+      (when verbose
+        (message "%s: no upstream branch.  C-c n p G i to publish" name)))
+     (t
       (let ((ahead (car divergence))
             (behind (cdr divergence)))
         (cond
-         ((and (= behind 0) (= ahead 0)) nil)
+         ((and (= behind 0) (= ahead 0))
+          (when verbose (message "%s: up to date" name)))
          ((= behind 0)
           (message "%s: %d commit(s) not pushed" name ahead))
          ((> ahead 0)
@@ -409,14 +419,19 @@ edits, which is the thing this is supposed to prevent."
                 (my/project-git--revert-buffers dir)
                 (message "%s: pulled %d commit(s)" name behind))
             (message "%s: fast-forward refused, see %s"
-                     name my/project-git-log-buffer))))))))
+                     name my/project-git-log-buffer)))))))))
 
-(defun my/project-git--fetch-and-report (dir)
+(defun my/project-git--fetch-and-report (dir &optional verbose)
   "Fetch DIR in the background, then report where it stands.
 
 Asynchronous because a fetch talks to the network, and a synchronous
 one freezes Emacs for as long as the server takes -- which on a laptop
-that is not on the same network is a timeout, not a moment."
+that is not on the same network is a timeout, not a moment.
+
+VERBOSE is passed on to `my/project-git--report', and also turns an
+unreachable server into a message: for an automatic check that is the
+normal case and not worth mentioning, but for a command the user ran it
+is the answer."
   (let ((default-directory (file-name-as-directory dir))
         (process-environment (my/project-git--env))
         (buffer (generate-new-buffer " *project-git-fetch*")))
@@ -435,12 +450,11 @@ that is not on the same network is a timeout, not a moment."
            (kill-buffer buffer)
            (my/project-git--log dir '("fetch") output status)
            (if (eq status 0)
-               (my/project-git--report dir)
-             ;; Not an error worth interrupting for: the server is
-             ;; simply not reachable, which on a laptop away from that
-             ;; network is the normal case.
-             (my/project-git--log
-              dir '("fetch") "remote unreachable, staleness unknown" status))))))))
+               (my/project-git--report dir verbose)
+             (when verbose
+               (message "%s: remote unreachable, staleness unknown"
+                        (file-name-nondirectory
+                         (directory-file-name dir)))))))))))
 
 ;;;###autoload
 (defun my/project-git-check (&optional slug)
@@ -452,9 +466,9 @@ that is not on the same network is a timeout, not a moment."
                   (my/project-git--read-slug "Check project: ")))))
     (unless (my/project-git--repo-p dir)
       (user-error "Not a git repository: %s" dir))
-    (my/project-git--fetch-and-report dir)
     (message "Checking %s..." (file-name-nondirectory
-                               (directory-file-name dir)))))
+                               (directory-file-name dir)))
+    (my/project-git--fetch-and-report dir :verbose)))
 
 ;;;###autoload
 (defun my/project-git-check-all ()
@@ -463,8 +477,8 @@ that is not on the same network is a timeout, not a moment."
   (let ((dirs (seq-filter #'my/project-git--repo-p
                           (delq nil (mapcar #'my/project-git--directory
                                             (my/project-git--slugs))))))
-    (dolist (dir dirs) (my/project-git--fetch-and-report dir))
-    (message "Checking %d project(s)..." (length dirs))))
+    (message "Checking %d project(s)..." (length dirs))
+    (dolist (dir dirs) (my/project-git--fetch-and-report dir :verbose))))
 
 ;;;###autoload
 (defun my/project-git-pull (&optional slug)
@@ -477,7 +491,7 @@ that is not on the same network is a timeout, not a moment."
          (my/project-git-auto-pull t))
     (unless (my/project-git--repo-p dir)
       (user-error "Not a git repository: %s" dir))
-    (my/project-git--fetch-and-report dir)))
+    (my/project-git--fetch-and-report dir :verbose)))
 
 ;; ============================================================
 ;; THE PART THAT DOES NOT RELY ON REMEMBERING
@@ -494,6 +508,24 @@ For `find-file-hook'."
         (my/project-git--fetch-and-report dir)))))
 
 (add-hook 'find-file-hook #'my/project-git--maybe-check)
+
+;; ============================================================
+;; AUTO-COMMIT
+;; ============================================================
+;; 07-git.el owns the mechanism; this module only says which
+;; directories it applies to.  The list is computed rather than stored,
+;; because the number of projects changes during a session.
+
+(defun my/project-git-repositories ()
+  "Return every project directory that is a git repository."
+  (seq-filter #'my/project-git--repo-p
+              (delq nil (mapcar #'my/project-git--directory
+                                (my/project-git--slugs)))))
+
+(with-eval-after-load '07-git
+  (when (boundp 'my/auto-commit-repository-sources)
+    (add-to-list 'my/auto-commit-repository-sources
+                 #'my/project-git-repositories t)))
 
 ;; ============================================================
 ;; MENU

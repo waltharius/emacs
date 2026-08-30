@@ -8,7 +8,12 @@
 ;; MODERN KEYBINDINGS (without CUA conflicts)
 ;; ============================================================
 
-(global-set-key (kbd "C-a") 'mark-whole-buffer)  ; Select all
+;; C-a is `move-beginning-of-line', as in stock Emacs.  It was
+;; `mark-whole-buffer' until 2026-08: convenient once a week, in the way
+;; of a movement command used hundreds of times an hour, and the reason
+;; a movement key that every tutorial and every muscle memory expects
+;; did something else entirely.  Select-all is `C-x h', which is what
+;; the rest of Emacs already calls it.
 (global-set-key (kbd "C-f") 'isearch-forward)    ; Find
 (global-set-key (kbd "C-s") 'save-buffer)        ; Save
 (global-set-key (kbd "C-z") 'undo)               ; Undo

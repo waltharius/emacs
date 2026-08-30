@@ -8,10 +8,16 @@
 ;;   word in the corresponding org-mode inline markers:
 ;;
 ;;     word*   ->  *word*    bold
-;;     word_   ->  _word_    underline
-;;     word/   ->  /word/    italic
 ;;     word~   ->  ~word~    code
 ;;     word=   ->  =word=    verbatim
+;;
+;;   `/' and `_' were triggers too and were removed 2026-08.  Both occur
+;;   far more often as ordinary punctuation than as emphasis: `/' in
+;;   paths, URLs, dates and alternatives written as this/that, `_' in
+;;   file names, identifiers and code.  A trigger that fires when it was
+;;   not wanted costs an undo and breaks the sentence being written,
+;;   which is a worse trade than typing /italic/ by hand.  `*', `~' and
+;;   `=' do not appear inside words in prose, so they stay.
 ;;
 ;;   The trigger fires only when:
 ;;     - The buffer is in org-mode (or a derived mode).
@@ -42,13 +48,17 @@
 
 (defvar my/inline-marker-triggers
   '((?*  "*"  "*")   ; bold
-    (?_  "_"  "_")   ; underline
-    (?/  "/"  "/")   ; italic
     (?~  "~"  "~")   ; code
     (?=  "="  "="))  ; verbatim
   "Alist of (trigger-char open-marker close-marker) for org inline formatting.
 Each entry causes `my/inline-marker-on-trigger' to wrap the preceding word
-when trigger-char is typed directly after it.")
+when trigger-char is typed directly after it.
+
+Only characters that do not occur inside words in ordinary prose belong
+here.  `/' and `_' were removed: they appear constantly in paths, URLs,
+dates, this/that alternatives, file names and code, and a trigger that
+fires unasked costs an undo and interrupts the sentence.  Italic and
+underline are typed by hand, which is rarer than all of those.")
 
 ;; ============================================================
 ;; STATE: track opening marker position for C-= expansion

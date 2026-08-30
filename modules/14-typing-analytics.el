@@ -39,8 +39,13 @@
   
   (message "✓ Keyfreq tracking enabled (~/.emacs.keyfreq)"))
 
-;; Quick access to view statistics
-(global-set-key (kbd "C-c a k") 'keyfreq-show)
+;; Quick access to view statistics.
+;;
+;; Moved off the "C-c a" prefix 2026-08.  "C-c a" is the agenda key in
+;; every piece of Org documentation there is, and holding it for four
+;; commands opened a few times a year, at the cost of the one opened
+;; every morning, was the wrong way round.
+(global-set-key (kbd "C-c y k") 'keyfreq-show)
 
 ;; ============================================================
 ;; CHARACTER-LEVEL TYPING ANALYTICS
@@ -123,19 +128,19 @@
 (keylog-enable)
 
 ;; Quick access commands
-(global-set-key (kbd "C-c a s") 'keylog-status)
-(global-set-key (kbd "C-c a t") 'keylog-disable)  ; Temporarily disable
-(global-set-key (kbd "C-c a T") 'keylog-enable)   ; Re-enable
+(global-set-key (kbd "C-c y s") 'keylog-status)
+(global-set-key (kbd "C-c y t") 'keylog-disable)  ; Temporarily disable
+(global-set-key (kbd "C-c y T") 'keylog-enable)   ; Re-enable
 
 ;; ============================================================
 ;; USAGE INSTRUCTIONS
 ;; ============================================================
 ;;
 ;; Active keybindings:
-;; - C-c a k : View command frequency statistics (keyfreq-show)
-;; - C-c a s : Show current keylog status
-;; - C-c a t : Temporarily disable character tracking
-;; - C-c a T : Re-enable character tracking
+;; - C-c y k : View command frequency statistics (keyfreq-show)
+;; - C-c y s : Show current keylog status
+;; - C-c y t : Temporarily disable character tracking
+;; - C-c y T : Re-enable character tracking
 ;;
 ;; Data locations:
 ;; - ~/.emacs.keyfreq - Command frequency data
