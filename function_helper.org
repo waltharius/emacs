@@ -2487,6 +2487,198 @@ guarantees. =~/notes/.stignore= excludes =.git= for the same reason.
 
 Module: =modules/28-writing-projects.el=
 
+* Tasks & Agenda (f8, C-c n A)
+:PROPERTIES:
+:CUSTOM_ID: tasks
+:END:
+
+Writing down a task without leaving what is being written. One key,
+three questions, and the window comes back.
+
+** The command
+
+| Key        | Command                 | Effect                          |
+|------------+-------------------------+---------------------------------|
+| =<f8>=     | =my/task-capture=       | Capture, destination decided    |
+| =C-u <f8>= | =my/task-capture=       | Capture, destination asked      |
+| =C-c n A=  | =my/tasks-menu=         | The menu                        |
+
+Three prompts, in this order:
+
+1. *Task* — the headline. Empty answer aborts.
+2. *Scheduled* — one of =none=, =today=, =tomorrow=, =in 3 days=,
+   =next week=, =in a month=, =other date=. =none= is the default, so
+   =RET= means no date.
+3. The capture buffer opens for the *reason*: what the thing is and
+   why it is worth checking. =C-c C-c= files it, =C-c C-k= discards.
+
+The echo area then names the file and heading the task went to.
+
+The capture buffer is an ordinary Org buffer, so =C-c C-d= sets a
+deadline, =C-c C-s= a schedule, =C-c C-x e= an effort and =C-c C-q= a
+tag, before confirming.
+
+** The menu (C-c n A)
+
+| Key | Command                       | Effect                        |
+|-----+-------------------------------+-------------------------------|
+| =t= | =my/task-capture=             | New task                      |
+| =T= | =my/task-capture-here=        | New task, choose destination  |
+| =r= | =my/task-refile=              | Move to another project       |
+| =a= | =org-agenda=                  | The agenda                    |
+| =f= | =my/tasks-open=               | Open =tasks.org=              |
+| =U= | =my/tasks-update-agenda-files= | Rebuild =org-agenda-files=   |
+| =i= | =org-clock-in=                | Start the clock               |
+| =o= | =org-clock-out=               | Stop it                       |
+| =g= | =org-clock-goto=              | Go to the clocked task        |
+
+** Where a task goes
+
+Decided from the buffer the capture started in, not asked for:
+
+| The buffer                    | The task lands in                    |
+|-------------------------------+--------------------------------------|
+| Note with =#+project: slug=   | =Tasks= in that project's hub        |
+| Anything else                 | =Inbox= in =my/tasks-file=           |
+
+A prefix argument replaces this with a prompt offering every project
+plus =— inbox (no project) —=.
+
+Routing that stays silent is routing nobody trusts, so the destination
+is always reported. When a note names a project whose hub file has
+gone, the capture falls back to the inbox and says so rather than
+failing: losing what was just typed over a deleted directory would be
+absurd.
+
+** Moving tasks between projects
+
+=r= in the menu runs =my/task-refile=, which is =org-refile= with a
+narrowed target list: the =Tasks= heading of every project hub, and
+the three headings of =tasks.org=. Without narrowing, the completion
+offers every heading of every agenda file, including each hub's
+clocktable and materials sections, and a list that long is escaped
+from rather than chosen from.
+
+Every candidate is called =Tasks=, so the file name is what
+distinguishes them; =org-refile-use-outline-path= is bound to ='file=
+for the duration.
+
+Works in an Org buffer and in the agenda, dispatching to
+=org-agenda-refile= in the latter.
+
+A task moved into a hub picks up that hub's =#+category:= and so
+appears under the project name in the agenda. Nothing has to be
+edited.
+
+** The files
+
+=~/notes/planner/tasks.org=, created on first use with three
+top-level headings:
+
+| Heading   | Holds                                              |
+|-----------+----------------------------------------------------|
+| =Inbox=   | Captured with no project, not yet filed            |
+| =Tasks=   | Filed, belonging to no writing project             |
+| =Someday= | Deliberately not being worked on                   |
+
+Inbox and Tasks are separate so that the inbox can reach zero. A list
+that never empties stops being read.
+
+Inside the notes tree, so Syncthing carries it and the btrfs snapshots
+cover it. Not a Denote silo: nothing here has an identifier and
+nothing here is a note. Deliberately not under =~/.emacs.d/=, which is
+configuration rather than content and whose git history should not
+fill with daily task churn.
+
+The file is written with the same =#+todo:= keyword set as a project
+hub, so a task refiled from one to the other keeps its state instead
+of becoming plain text no agenda view will show.
+
+** Who owns org-agenda-files
+
+This module, for the whole configuration. The list is
+=my/tasks-file=, plus =my/tasks-extra-agenda-files=, plus the hub file
+of every writing project.
+
+=28-writing-projects.el= used to set the variable itself and now
+delegates: =my/writing-projects-update-agenda-files= calls this
+module's version when it is loaded. Pressing =U= in either menu
+therefore produces the complete list rather than whichever half
+belongs to the menu that was open. Without this module,
+=28-writing-projects.el= still sets the variable on its own.
+
+The list is also rebuilt before every =org-agenda= call, so a project
+created during the session appears immediately. The cost is one
+=directory-files= call on a directory holding a handful of entries.
+
+Missing files are filtered out. The old laptop has the notes tree but
+not necessarily the project directories, and =org-agenda= signals on a
+missing file rather than skipping it — which would make the agenda
+unusable there instead of merely shorter.
+
+The silos are still not in the list, and that is deliberate; see
+[[#writing-projects][Writing Projects]].
+
+** Extending the agenda from another module
+
+Push a file onto =my/tasks-extra-agenda-files=. Nothing else is
+needed, and this module need not know what the file is for.
+=38-habits.el= joins the agenda this way.
+
+** Logging
+
+=org-log-done= is ='time= and =org-log-into-drawer= is =t=: closing
+time is recorded, and log entries go into a =LOGBOOK= drawer rather
+than the body, where they would push a task's own text down the screen
+one line at a time. Habit consistency graphs are built from those
+entries, so a habit module depends on both.
+
+** Configuration
+
+| Variable                      | Meaning                            |
+|-------------------------------+------------------------------------|
+| =my/tasks-directory=          | Where the task files live          |
+| =my/tasks-file=               | Tasks belonging to no project      |
+| =my/tasks-category=           | =#+category:= of a new tasks file  |
+| =my/tasks-heading-inbox=      | Heading captures land under        |
+| =my/tasks-heading-active=     | Heading for filed general tasks    |
+| =my/tasks-heading-someday=    | Heading for the parked ones        |
+| =my/tasks-extra-agenda-files= | Files other modules contribute     |
+| =my/tasks-capture-key=        | Key inside =org-capture-templates= |
+| =my/tasks-capture-binding=    | Global key, nil for none           |
+| =my/tasks-date-keyword=       | ='scheduled= or ='deadline=        |
+| =my/tasks-date-choices=       | Answers offered at the date prompt |
+| =my/tasks-record-source=      | Record a =SOURCE= property         |
+
+** Why the prompts are in the command, not the template
+
+org-capture can ask for a date with =%^t=, but an empty answer there
+means today rather than no date, and most tasks have no date at all.
+Asking in the command makes "none" the default and turns the common
+dates into single keystrokes. It also fixes the order the questions
+arrive in, which =%^= does not.
+
+** Why SCHEDULED and not DEADLINE
+
+"Check X in a few days" is a date to start on. =SCHEDULED= hides the
+task until then; =DEADLINE= is a date to be finished by and starts
+warning in advance. Most captures are the former. =C-c C-d= in the
+capture buffer sets a deadline when it really is one, and
+=my/tasks-date-keyword= changes the default.
+
+** Why the source is a property, not a line of text
+
+A task always has a heading of its own, so it has a property drawer to
+hang the origin on. Body text is what [[#capture-filing][Capture Filing]] has to use for
+fragments filed under a shared heading, and that is where the repeated
+=Source:= lines come from. Set =my/tasks-record-source= to nil to
+record nothing.
+
+A buffer with no file gets no link at all. A link to nowhere is worse
+than no link, because it looks like it should work.
+
+Module: =modules/37-tasks.el=
+
 * Office Export — ODT and DOCX (C-c n x)
 :PROPERTIES:
 :CUSTOM_ID: office-export
@@ -4677,6 +4869,7 @@ hand-editing either from memory.
 | C-c a s  | =keylog-status=               | =14-typing-analytics.el=     |
 | C-c a t  | =keylog-disable=              | =14-typing-analytics.el=     |
 | C-c a T  | =keylog-enable=               | =14-typing-analytics.el=     |
+| <f8>     | =my/task-capture=             | =37-tasks.el=                |
 | C-x g    | =magit-status=                | =07-git.el=                  |
 | C-x M-g  | =magit-dispatch=              | =07-git.el=                  |
 | C-c g s  | =magit-status=                | =07-git.el=                  |

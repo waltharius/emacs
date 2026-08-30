@@ -22,6 +22,133 @@ included.
 
 ---
 
+## Session 2026-08-30i — A task written without leaving the sentence
+
+### 37-tasks.el
+
+One key, three questions, and the window comes back. `f8` asks what
+the task is and when it is for, opens a capture buffer for the reason,
+and files the result where it belongs.
+
+The destination is not asked for. It is read from the buffer the
+capture started in: a note declaring `#+project: slug` sends the task
+to that project's hub, anything else sends it to the inbox. A prefix
+argument replaces the routing with a prompt.
+
+### Why the prompts are in the command rather than the template
+
+org-capture can ask for a date with `%^t`, but an empty answer there
+means today, not "no date" — and most tasks have no date. Asking in
+the command makes "none" the default answer, turns the six common
+dates into single keystrokes, and fixes the order the questions arrive
+in, which `%^` does not.
+
+The template is therefore a function returning a fully built string.
+The alternative, five `%(...)` fragments concatenated by org-capture,
+has the same expansion caveat and is far harder to follow.
+
+**The caveat, recorded because it will look like a bug one day:** the
+built string is still scanned for `%` escapes afterwards, so a note
+title containing `%` immediately followed by an org-capture escape
+letter would be expanded. A percent sign followed by a space or a
+digit — every real case — passes through untouched.
+
+### SCHEDULED, not DEADLINE
+
+"Check X in a few days" is a date to start on. SCHEDULED hides the
+task until then; DEADLINE is a date to finish by and warns in advance.
+Most captures are the former, and a task list that warns about things
+which are not late teaches its owner to ignore warnings. `C-c C-d` in
+the capture buffer overrides it per task, `my/tasks-date-keyword` in
+general.
+
+### The origin is a property, not a line of body text
+
+`06-capture.el` writes `Source:` as body text because a fragment filed
+under a shared heading has no heading of its own to hang a drawer on.
+That is also where the repetition comes from: several captures from
+one note under one heading produce the same line several times.
+
+A task always has its own heading, so the origin goes in the property
+drawer, where the problem cannot arise. A buffer with no file gets no
+link at all — a link to nowhere is worse than no link, because it
+looks like it should work.
+
+### `org-agenda-files` has one owner again
+
+The same question that 05-notes.el and 28-writing-projects.el once
+answered by both setting the variable. It is answered the same way:
+one owner. 37-tasks.el owns it and includes the project hubs;
+`my/writing-projects-update-agenda-files` delegates when this module
+is loaded, and still works on its own when it is not.
+
+That matters beyond load order. Pressing "U" in the writing-projects
+menu used to be correct only because nothing else contributed; with a
+second contributor it would have silently dropped the task files until
+the next refresh. A menu entry that quietly narrows the agenda is
+worse than one that does nothing.
+
+Two changes that follow from the laptop, not from the design:
+
+- **Missing files are filtered out.** The old Lenovo has the notes
+  tree over Syncthing but not the project directories, and
+  `org-agenda` signals on a missing file rather than skipping it. The
+  agenda there is now shorter instead of broken.
+- **The list is rebuilt before every `org-agenda` call.** A project
+  created during the session used to stay out of the agenda until
+  restart, which gets diagnosed as "the agenda is broken" rather than
+  as staleness. The cost is one `directory-files` call on a directory
+  holding a handful of entries.
+
+### The planner directory is not a silo
+
+`~/notes/planner/` holds `tasks.org` and, later, `habits.org`. Inside
+the notes tree so Syncthing carries it and the snapshots cover it; not
+under `~/.emacs.d/`, which is configuration rather than content and
+whose history should not fill with daily task churn.
+
+`denote-excluded-directories-regexp` was **not** extended to cover it.
+The files carry no Denote identifier, so `denote-directory-files`
+already skips them; the only effect would be on `consult-denote-grep`,
+where finding a task while searching notes is arguably right. Adding
+the exclusion would also mean deciding who owns that variable —
+25-inbox-review.el sets it with `setq` — and that refactor is not
+worth doing for two files. Recorded so the question is not reopened
+from scratch.
+
+### Inbox and Tasks are separate headings
+
+Both live in `tasks.org`, which is one file rather than two because
+two files for a few dozen items is overhead without benefit. But they
+are different states: the inbox is where something waits until it is
+decided what it is, and it is supposed to reach zero. A list that
+never empties stops being read, and then the things in it stop
+happening.
+
+### Deferred, deliberately
+
+- **`alcohol_u` removal from `my/journal-metrics-fields`.**
+  `tests/test-journal-metrics.el` asserts against the field list in
+  roughly fifteen places. Removing the field without updating them
+  ships a red suite, which is worse than shipping the field. Its own
+  commit.
+- **Project git automation.** GitLab creates a project on first push
+  (`git push --set-upstream`, Free tier, self-managed included), so
+  `my/writing-project-new` can register a new project with no API
+  token. That belongs in a git module together with background
+  `fetch` and a behind-upstream warning, and needs the instance URL
+  and namespace convention first.
+
+### Lesson
+
+**Automatic routing must report where it routed.** The destination is
+correct in every case the design anticipated, and that is exactly why
+it has to be shown: an automatic decision that is never displayed
+cannot be checked, so the first time it is wrong, the task is simply
+gone. One line in the echo area is the whole price.
+
+---
+
 ## Session 2026-08-30h — Session labels are append-only again
 
 ### Three schemes, one file

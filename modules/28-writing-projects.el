@@ -52,8 +52,10 @@
 ;;   creating notes needs `denote' and says so rather than failing.
 ;; - Appends to the menus of 12-transient via `my/transient-append', so a
 ;;   missing 12-transient leaves the entry out instead of breaking init.
-;; - Owns `org-agenda-files'.  The setting that used to live in 05-notes.el
-;;   has been removed; see the Agenda section below for why.
+;; - Owns `org-agenda-files' when 37-tasks.el is absent.  When it is
+;;   present, that module owns the variable and this one supplies the
+;;   project half of the list; see the Agenda section below.  The
+;;   setting that used to live in 05-notes.el has been removed.
 ;; - Requires `org-clock-persist-file' to keep its default value.  See the
 ;;   Clock section: 04-denote.el used to set it to nil.
 ;;
@@ -806,16 +808,44 @@ a flag would spend most of its life set wrongly."
 ;;
 ;; Personal tasks are not an exception to be carved out here: a project
 ;; named "Life" is a project like any other.
+;;
+;; 37-tasks.el ADDS ITS OWN FILES to the same variable, so the same
+;; question arises again.  It is answered the same way: one owner.  When
+;; that module is loaded it owns `org-agenda-files' outright and this
+;; function delegates to it, so pressing "U" in either menu produces the
+;; complete list rather than whichever half belongs to the menu that was
+;; open.  Without it, this module still sets the variable on its own and
+;; the agenda holds the project hubs, as before.
+;;
+;; Missing files are filtered out.  A project directory that exists on
+;; the desktop but not on the laptop would otherwise make `org-agenda'
+;; signal instead of showing a shorter agenda.
+
+(defun my/writing-projects-agenda-files ()
+  "Return the hub file of every writing project that has one."
+  (seq-filter #'file-exists-p
+              (mapcar #'my/writing--hub-file (my/writing-project-slugs))))
 
 (defun my/writing-projects-update-agenda-files ()
-  "Set `org-agenda-files' to the hub file of every writing project."
+  "Set `org-agenda-files' to the hub file of every writing project.
+
+Delegates to `my/tasks-update-agenda-files' when 37-tasks.el is
+loaded, because that module contributes files of its own and only one
+of the two can have the last word."
   (interactive)
-  (setq org-agenda-files (mapcar #'my/writing--hub-file (my/writing-project-slugs)))
-  (when (called-interactively-p 'interactive)
-    (message "org-agenda-files: %d project(s)" (length org-agenda-files))))
+  (if (fboundp 'my/tasks-update-agenda-files)
+      (my/tasks-update-agenda-files)
+    (setq org-agenda-files (my/writing-projects-agenda-files))
+    (when (called-interactively-p 'interactive)
+      (message "org-agenda-files: %d project(s)" (length org-agenda-files)))))
 
 (with-eval-after-load 'org
-  (my/writing-projects-update-agenda-files))
+  ;; Skipped when 37-tasks.el is present: that module registers its own
+  ;; `with-eval-after-load' later and would immediately overwrite this.
+  ;; Both orders end at the same value; running it twice only wastes a
+  ;; directory scan and makes the sequence harder to follow.
+  (unless (fboundp 'my/tasks-update-agenda-files)
+    (my/writing-projects-update-agenda-files)))
 
 ;; ============================================================
 ;; CLOCK

@@ -109,6 +109,12 @@
   ;; helpers from 26 and 27 and signals a readable error if either is
   ;; missing, rather than measuring nothing and reporting zero.
   (load (concat modules-dir "36-notes-stats.el") t) ; Statistics (C-c n f s)
+  ;; Optional (NOERROR): task capture, project routing, agenda files.
+  ;; Loaded after 28-writing-projects.el on purpose: it takes over
+  ;; `org-agenda-files' from that module, and taking over requires
+  ;; having the last word.  Without 28 it still works and the agenda
+  ;; holds this module's own files only.
+  (load (concat modules-dir "37-tasks.el") t) ; Tasks & agenda (f8, C-c n A)
   )
 
 (add-hook 'emacs-startup-hook
