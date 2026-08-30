@@ -33,6 +33,40 @@ the narrowest a note stays readable at, and `my-fill-column` is 95.
 `even-window-sizes` is set to t so the new window does not come out
 noticeably narrower than the one it was split from.
 
+### The thresholds were not enough on their own
+
+They decide *how* to split, not *whether* to. `display-buffer` reuses
+an existing window before it ever considers making one, so in a tab
+that already holds two windows the thresholds are never consulted: the
+buffer lands in whichever window is not the current one.
+
+And the layout persists. `desktop-restore-frames` saves window
+configurations with the frameset, so a stacked layout created once
+comes back on every start and keeps being reused. That is what "it has
+done this for months" looks like from the inside, and it is why
+setting the thresholds appeared to change nothing.
+
+`display-buffer-base-action` now names a direction rather than a
+split:
+
+```elisp
+(setq display-buffer-base-action
+      '((display-buffer-reuse-window
+         display-buffer-in-direction)
+        (direction . right)))
+```
+
+`display-buffer-in-direction` reuses a window on the right when there
+is one and creates one when there is not, so the result no longer
+depends on what the tab happened to look like beforehand. It is a
+global default — `*Help*`, compilation output and everything else —
+and the comment in `01-ui.el` says how to back it out.
+
+**The lesson**: a setting that governs a decision is worthless if the
+decision is not being reached. The thresholds were correct and
+irrelevant, which is a harder thing to notice than a setting that is
+simply wrong.
+
 ### The naming trap, recorded because it will come up again
 
 Emacs names a split after the direction of the **dividing line**,

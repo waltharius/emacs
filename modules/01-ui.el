@@ -78,6 +78,38 @@
 ;; the one it came from, depending on what was displayed before.
 (setq even-window-sizes t)
 
+;; ------------------------------------------------------------
+;; THE THRESHOLDS ONLY DECIDE HOW TO SPLIT, NOT WHETHER TO
+;; ------------------------------------------------------------
+;; `display-buffer' REUSES an existing window before it ever considers
+;; making one.  So in a tab that already holds two windows, the two
+;; variables above are never consulted: the buffer simply lands in
+;; whichever window is not the current one, and if that window happens
+;; to be below, everything keeps appearing below no matter what the
+;; thresholds say.
+;;
+;; Worse, the layout persists.  `desktop-restore-frames' saves window
+;; configurations along with the frameset, so a stacked layout created
+;; once comes back on every start and keeps being reused -- which is
+;; what "it has done this for months" looks like from the inside.
+;;
+;; `display-buffer-base-action' settles it by naming a DIRECTION rather
+;; than a split.  `display-buffer-in-direction' with `right' reuses a
+;; window on the right when there is one and creates one when there is
+;; not, so the answer no longer depends on what the tab happened to
+;; look like beforehand.
+;;
+;; TO BACK THIS OUT, comment out this form and keep the thresholds:
+;; they are enough on their own as long as every tab starts from a
+;; single window (`C-x 1').  This is the belt to their braces, and it
+;; is a global default -- it applies to *Help*, compilation output and
+;; everything else, not only to notes.
+
+(setq display-buffer-base-action
+      '((display-buffer-reuse-window
+         display-buffer-in-direction)
+        (direction . right)))
+
 ;; ============================================================
 ;; COMPLETION FRAMEWORK: Vertico + Orderless + Marginalia
 ;; ============================================================

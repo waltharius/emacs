@@ -3946,6 +3946,53 @@ Emacs names a split after the direction of the *dividing line*.
 avoid the word entirely, which is why they are the reliable things to
 set.
 
+** The thresholds only decide HOW to split, not WHETHER to
+
+=display-buffer= *reuses* an existing window before it ever considers
+making one. In a tab that already holds two windows the thresholds are
+never consulted: the buffer lands in whichever window is not the
+current one, and if that window is below, everything keeps appearing
+below however the thresholds are set.
+
+The layout persists too. =desktop-restore-frames= saves window
+configurations with the frameset, so a stacked layout created once
+comes back on every start and keeps being reused — which is what "it
+has done this for months" looks like from the inside.
+
+=display-buffer-base-action= settles it by naming a *direction*
+instead of a split:
+
+#+begin_src elisp
+(setq display-buffer-base-action
+      '((display-buffer-reuse-window
+         display-buffer-in-direction)
+        (direction . right)))
+#+end_src
+
+=display-buffer-in-direction= reuses a window on the right when there
+is one and creates one when there is not, so the answer no longer
+depends on what the tab happened to look like beforehand.
+
+This is a *global* default: it applies to =*Help*=, compilation output
+and everything else, not only to notes. Commenting it out leaves the
+thresholds, which are enough on their own as long as every tab starts
+from a single window.
+
+** Diagnosing it
+
+If windows still stack:
+
+| Check | Meaning |
+|-------+---------|
+| =C-h v split-height-threshold= says 80, not nil | =01-ui.el= has not been reloaded — restart |
+| it says nil, and =C-x 1= then following a link splits right | the layout was already split and was being reused |
+| it says nil and =C-x 1= does not help | something else is calling =split-window-below= directly |
+
+For the third case, =M-x display-buffer-alist= and
+=C-h v display-buffer-base-action= show what is in force, and
+=C-h k= on the key being pressed names the command actually
+responsible.
+
 ** Overriding it for one buffer
 
 The thresholds are the global default. For a specific buffer —
