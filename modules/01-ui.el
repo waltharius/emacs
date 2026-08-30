@@ -35,6 +35,50 @@
 (setq system-time-locale "pl_PL.UTF-8")
 
 ;; ============================================================
+;; WINDOW SPLITTING: side by side, not stacked
+;; ============================================================
+;; Emacs splits a window when something asks to be displayed and no
+;; suitable window exists.  Which way it splits is decided by
+;; `split-window-sensibly', and its order is: BELOW first, right second.
+;;
+;;   1. split below, if the window is at least `split-height-threshold'
+;;      lines tall  (default 80)
+;;   2. split right, if it is at least `split-width-threshold' columns
+;;      wide          (default 160)
+;;   3. failing both, and only when the window is the frame's only one,
+;;      split below regardless of the threshold
+;;
+;; On a full-screen frame step 1 always succeeds, so the second window
+;; is always underneath -- for the whole life of the session, in every
+;; context, no matter how wide the display is.  That is the behaviour
+;; being changed here, and nothing in this configuration had ever
+;; touched these two variables.
+;;
+;; A NOTE ON THE WORD "HORIZONTAL"
+;; -------------------------------
+;; Emacs names splits after the direction of the DIVIDING LINE, which
+;; is the opposite of what most people mean.  `split-window-horizontally'
+;; puts windows SIDE BY SIDE; `split-window-vertically' STACKS them.
+;; The variables below avoid the word entirely, which is why they are
+;; the reliable things to set.
+;;
+;; `split-height-threshold' nil means "never split below by choice".
+;; Step 3 above is unaffected -- a frame too narrow for a side-by-side
+;; split still gets a stacked one rather than nothing.
+;;
+;; 120 for the width: two 60-column windows is about the narrowest a
+;; note stays readable at, and `my-fill-column' is 95, so a frame under
+;; 120 columns has no business being split sideways anyway.
+
+(setq split-height-threshold nil
+      split-width-threshold 120)
+
+;; Keep the two windows the same size after a split.  Without this a
+;; side-by-side split can leave the new window noticeably narrower than
+;; the one it came from, depending on what was displayed before.
+(setq even-window-sizes t)
+
+;; ============================================================
 ;; COMPLETION FRAMEWORK: Vertico + Orderless + Marginalia
 ;; ============================================================
 

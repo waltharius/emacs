@@ -3905,6 +3905,56 @@ been written rather than to how many days are covered.
 | =05-notes.el= | a missing day can be opened but not created |
 | =21-dashboards.el= | the report opens in the current window instead of the History tab, and the menu entry is skipped |
 
+* Window splitting
+:PROPERTIES:
+:CUSTOM_ID: window-splitting
+:END:
+
+Windows open *side by side*, not stacked.
+
+Module: =modules/01-ui.el=
+
+** The two variables that decide it
+
+| Variable | Value | Default |
+|----------+-------+---------|
+| =split-height-threshold= | =nil= | 80 |
+| =split-width-threshold= | 120 | 160 |
+
+=split-window-sensibly= tries, in order:
+
+1. split *below*, if the window is at least =split-height-threshold=
+   lines tall;
+2. split *right*, if it is at least =split-width-threshold= columns
+   wide;
+3. failing both, and only when the window is the frame's only one,
+   split below ignoring the threshold.
+
+On a full-screen frame step 1 always succeeds, which is why the second
+window was always underneath — for the whole session, in every
+context, however wide the display.
+
+=nil= means "never split below by choice". Step 3 is unaffected: a
+frame too narrow for a side-by-side split still gets a stacked one
+rather than nothing.
+
+** The word "horizontal" means the opposite of what you expect
+
+Emacs names a split after the direction of the *dividing line*.
+=split-window-horizontally= puts windows *side by side*;
+=split-window-vertically= *stacks* them. The two threshold variables
+avoid the word entirely, which is why they are the reliable things to
+set.
+
+** Overriding it for one buffer
+
+The thresholds are the global default. For a specific buffer —
+=*Help*= always at the bottom, a compilation buffer always on the
+right — the mechanism is =display-buffer-alist=, which matches on
+buffer name and takes precedence. Nothing in this configuration uses
+it yet; =06-capture.el= documents one place that deliberately bypasses
+it.
+
 * Notes statistics (C-c n f s)
 :PROPERTIES:
 :CUSTOM_ID: notes-stats

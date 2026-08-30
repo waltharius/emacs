@@ -7,6 +7,44 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-31 (later) — Windows open sideways now
+
+### Two variables nothing had ever set
+
+New windows always appeared *underneath* the current one, in every
+context, for months. Nothing in the configuration was responsible:
+`split-height-threshold` and `split-width-threshold` were at their
+defaults, 80 and 160, and neither had ever been touched.
+
+`split-window-sensibly` tries below first and right second. On a
+full-screen frame the window is always taller than 80 lines, so step
+one always succeeds and step two is never reached — however wide the
+display is.
+
+`split-height-threshold` is now nil ("never split below by choice")
+and `split-width-threshold` 120. The fallback clause in
+`split-window-sensibly`, which splits below regardless when the window
+is the frame's only one, is unaffected: a frame too narrow for a
+side-by-side split still gets a stacked one rather than nothing.
+
+120 rather than the default 160 because two 60-column windows is about
+the narrowest a note stays readable at, and `my-fill-column` is 95.
+
+`even-window-sizes` is set to t so the new window does not come out
+noticeably narrower than the one it was split from.
+
+### The naming trap, recorded because it will come up again
+
+Emacs names a split after the direction of the **dividing line**,
+which is the opposite of what most people mean.
+`split-window-horizontally` puts windows **side by side**;
+`split-window-vertically` **stacks** them. Any instruction phrased in
+those words is ambiguous to a reader and precise only to Emacs. The
+two threshold variables avoid the word entirely, which is the reason
+to set them rather than to advise a split function.
+
+---
+
 ## Session 2026-08-31 — Statistics worth acting on
 
 The dashboard from the previous session reported numbers. This one
