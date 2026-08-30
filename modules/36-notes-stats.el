@@ -105,6 +105,37 @@
   "How many recent months the monthly chart covers."
   :type 'integer :group 'my-notes-stats)
 
+(defcustom my/notes-stats-keyword-exclude-dirs '("inbox")
+  "Top-level directories left out of the KEYWORD statistics.
+
+Counts and sizes still include these directories; only the keyword
+figures and the two drill-down lists skip them.  The split is
+deliberate: size answers \"how much is there\", and a note in the inbox
+is there, while the keyword figures answer \"how well is the collection
+organised\", and a note in the inbox has not been organised yet.
+
+WHY THE INBOX IN PARTICULAR
+---------------------------
+A staged note is not part of the system.  Its keywords, title and
+identifier are all provisional -- filing it through
+25-inbox-review.el may change any of them -- so a keyword that appears
+once, in the inbox, is not a keyword used once.  It is a keyword that
+has not been decided on.
+
+It is also not reachable.  Denote's own listing excludes the inbox,
+so a `denote:' link to a staged note does not resolve, which makes
+every entry in the singleton list a dead end.  A list nobody can click
+through is worse than no list: it looks like work to be done.
+
+DIFFERENT FROM 26-maintenance.el ON PURPOSE
+-------------------------------------------
+That module includes the inbox, and its header says why: a keyword
+renamed everywhere except there comes back one note at a time as notes
+are filed.  For a WRITING command that is right.  For a REPORT it is
+the opposite, because the report is a list of things to act on and
+those notes cannot be acted on yet."
+  :type '(repeat string) :group 'my-notes-stats)
+
 (defcustom my/notes-stats-bar-width 28
   "Width in characters of the longest bar."
   :type 'integer :group 'my-notes-stats)
@@ -257,7 +288,7 @@ Every file, whatever its extension.  Dot directories skipped."
          (months (make-hash-table :test #'equal))
          (years (make-hash-table :test #'equal))
          (journal (make-hash-table :test #'equal))
-         (bytes 0) (largest nil) (smallest nil)
+         (bytes 0) (largest nil) (smallest nil) (keyword-total 0)
          (bare nil) (zettel nil))
     (dolist (file files)
       (let ((size (my/notes-stats--size file)))
@@ -274,12 +305,18 @@ Every file, whatever its extension.  Dot directories skipped."
              (row (or (gethash dir dirs) (puthash dir (list 0 0) dirs))))
         (setf (nth 0 row) (1+ (nth 0 row)))
         (setf (nth 1 row) (+ (nth 1 row) (gethash file sizes 0))))
-      (let ((keys (my/maintenance--file-keywords file)))
-        (if (null keys)
-            (push file bare)
-          (dolist (key keys)
-            (puthash key (1+ (gethash key keywords 0)) keywords)
-            (push file (gethash key keyword-files nil)))))
+      ;; Keyword statistics skip the excluded directories; every other
+      ;; figure in this loop counts the file.  See
+      ;; `my/notes-stats-keyword-exclude-dirs'.
+      (unless (member (my/notes-stats--top-directory file)
+                      my/notes-stats-keyword-exclude-dirs)
+        (setq keyword-total (1+ keyword-total))
+        (let ((keys (my/maintenance--file-keywords file)))
+          (if (null keys)
+              (push file bare)
+            (dolist (key keys)
+              (puthash key (1+ (gethash key keywords 0)) keywords)
+              (push file (gethash key keyword-files nil))))))
       (when-let* ((ym (my/notes-stats--year-month file)))
         (puthash (concat (car ym) "-" (cdr ym))
                  (1+ (gethash (concat (car ym) "-" (cdr ym)) months 0)) months)
@@ -290,6 +327,7 @@ Every file, whatever its extension.  Dot directories skipped."
         (push (cons file signature) zettel)))
     (list :files files :total total :sizes sizes :bytes bytes
           :dirs dirs :keywords keywords :keyword-files keyword-files
+          :keyword-total keyword-total
           :months months :years years :journal journal
           :largest largest :smallest smallest
           :bare (nreverse bare) :zettel (nreverse zettel))))
@@ -475,8 +513,12 @@ calls it."
   (let ((singletons (my/notes-stats--singletons (my/notes-stats--collect))))
     (my/notes-stats--show-list
      "*Singleton Keywords*"
-     (format "%d keywords used by exactly one note   --   r to merge or remove one"
-             (length singletons))
+     (format "%d keywords used by exactly one note%s   --   r to merge or remove one"
+             (length singletons)
+             (if my/notes-stats-keyword-exclude-dirs
+                 (format " (%s excluded)"
+                         (string-join my/notes-stats-keyword-exclude-dirs ", "))
+               ""))
      (mapcar (lambda (pair) (cons (concat ":" (car pair) ":") (cdr pair)))
              singletons))))
 
@@ -486,7 +528,11 @@ calls it."
   (let ((bare (plist-get (my/notes-stats--collect) :bare)))
     (my/notes-stats--show-list
      "*Notes Without Keywords*"
-     (format "%d notes with no keywords" (length bare))
+     (format "%d notes with no keywords%s" (length bare)
+             (if my/notes-stats-keyword-exclude-dirs
+                 (format " (%s excluded)"
+                         (string-join my/notes-stats-keyword-exclude-dirs ", "))
+               ""))
      (mapcar (lambda (file) (cons (my/notes-stats--top-directory file) file))
              bare))))
 
@@ -627,8 +673,13 @@ calls it."
                                     "last 365 days -- C-c n f j to fix"))))))
 
     ;; -- Keywords ----------------------------------------------
-    (my/notes-stats--heading "Keywords")
+    (my/notes-stats--heading
+     (if my/notes-stats-keyword-exclude-dirs
+         (format "Keywords (%s excluded)"
+                 (string-join my/notes-stats-keyword-exclude-dirs ", "))
+       "Keywords"))
     (let* ((distinct (hash-table-count keywords))
+           (counted (plist-get data :keyword-total))
            (assignments (let ((sum 0))
                           (maphash (lambda (_k v) (setq sum (+ sum v))) keywords)
                           sum))
@@ -637,10 +688,14 @@ calls it."
            (pairs (let (acc)
                     (maphash (lambda (k v) (push (cons k v) acc)) keywords)
                     (sort acc (lambda (a b) (> (cdr a) (cdr b)))))))
+      (my/notes-stats--line "Notes counted" (number-to-string counted)
+                            (format "of %d; %d staged and not yet organised"
+                                    total (- total counted)))
       (my/notes-stats--line "Distinct keywords" (number-to-string distinct))
       (my/notes-stats--line "Assignments" (number-to-string assignments)
                             (format "%.2f per note"
-                                    (if (zerop total) 0.0 (/ (float assignments) total))))
+                                    (if (zerop counted) 0.0
+                                      (/ (float assignments) counted))))
       (insert (format "  %-28s " "Used once only"))
       (my/notes-stats--list-button (number-to-string singletons)
                                    #'my/notes-stats-show-singletons)
@@ -797,7 +852,11 @@ PDF font can be relied on to have."
         (insert (format "| Current streak | %d days |\n" (cdr streaks)))))
 
     (insert "\n* Keywords\n\n")
-    (let* ((assignments (let ((sum 0))
+    (when my/notes-stats-keyword-exclude-dirs
+      (insert (format "Notes in %s are excluded: a staged note is not part of the\ncollection yet, its keywords are provisional, and a =denote:= link to\nit does not resolve.\n\n"
+                      (string-join my/notes-stats-keyword-exclude-dirs ", "))))
+    (let* ((counted (plist-get data :keyword-total))
+           (assignments (let ((sum 0))
                           (maphash (lambda (_k v) (setq sum (+ sum v))) keywords)
                           sum))
            (singletons (my/notes-stats--singletons data))
@@ -806,6 +865,7 @@ PDF font can be relied on to have."
                     (maphash (lambda (k v) (push (cons k v) acc)) keywords)
                     (sort acc (lambda (a b) (> (cdr a) (cdr b)))))))
       (insert "| Measure | Value |\n|---|---|\n")
+      (insert (format "| Notes counted | %d of %d |\n" counted total))
       (insert (format "| Distinct keywords | %d |\n" (hash-table-count keywords)))
       (insert (format "| Assignments | %d |\n" assignments))
       (insert (format "| Used once only | %d |\n" (length singletons)))

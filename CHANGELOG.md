@@ -7,6 +7,50 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-31 (evening) — The inbox is not part of the collection yet
+
+### Keyword figures now skip staged notes
+
+`my/notes-stats-keyword-exclude-dirs` defaults to `("inbox")`.
+
+Counts and sizes still include it. Collection, Notes by directory, On
+disk and the growth charts all count staged notes, because those
+answer "how much is there" and a note in the inbox is there. The
+keyword figures and the two drill-down lists skip it, because those
+answer "how well is the collection organised" and a staged note has
+not been organised yet.
+
+Two reasons, and the second is the decisive one:
+
+- **A staged note's keywords are provisional.** Filing it through
+  `25-inbox-review.el` may change its keywords, its title or its
+  identifier. A keyword appearing once, in the inbox, is not a keyword
+  used once — it is a keyword not yet decided on.
+- **A staged note is not reachable.** Denote's own listing excludes
+  the inbox, so a `denote:` link to one does not resolve. Every such
+  entry in the singleton list is a dead end, and a list nobody can
+  click through is worse than no list: it looks like work to be done.
+
+The exclusion is stated in the section heading and in both list
+headings, and a "Notes counted" line reports how many of the total
+were included. Numbers that do not add up should say why on the same
+screen, not in a file somebody has to remember to read.
+
+### Deliberately different from 26-maintenance.el
+
+That module includes the inbox and its header explains why: a keyword
+renamed everywhere except there comes back one note at a time as notes
+are filed. For a **writing** command that is right — a rename must
+reach everything or it is not a rename.
+
+For a **report** it is the opposite. A report is a list of things to
+act on, and those notes cannot be acted on yet. Two modules reading
+the same collection can want different scopes, and the right response
+is a documented difference rather than one of them quietly changing to
+match the other.
+
+---
+
 ## Session 2026-08-31 (later) — Windows open sideways now
 
 ### Two variables nothing had ever set

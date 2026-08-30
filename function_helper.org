@@ -4057,6 +4057,37 @@ that was never going to become a category.
 =Notes with no keywords= opens the same kind of list, grouped by the
 directory each note sits in.
 
+** The inbox is excluded from the keyword figures
+
+=my/notes-stats-keyword-exclude-dirs= defaults to =("inbox")=.
+
+Counts and sizes still include it — the Collection, Notes by
+directory, On disk and growth sections all count staged notes, because
+those answer "how much is there" and a note in the inbox is there.
+
+The keyword figures and the two drill-down lists skip it, because
+those answer "how well is the collection organised" and a staged note
+has not been organised yet. The section heading and both list headings
+say so, so the numbers not adding up is stated rather than left to be
+noticed.
+
+Two reasons, and the second is the decisive one:
+
+- *A staged note's keywords are provisional.* Filing it through
+  [[#menu-inbox][Inbox Review]] may change its keywords, its title or its
+  identifier. A keyword appearing once, in the inbox, is not a keyword
+  used once — it is a keyword not yet decided on.
+- *A staged note is not reachable.* Denote's own listing excludes the
+  inbox, so a =denote:= link to one does not resolve. Every such entry
+  in the singleton list is a dead end, and a list nobody can click
+  through is worse than no list: it looks like work to be done.
+
+*Deliberately different from [[#maintenance][Maintenance]]*, which includes the inbox
+and documents why: a keyword renamed everywhere except there comes
+back one note at a time as notes are filed. For a *writing* command
+that is right. For a *report* it is the opposite, because a report is
+a list of things to act on and those notes cannot be acted on yet.
+
 ** Three views of the collection, disagreeing on purpose
 
 =Notes by directory= counts *notes*: =.org= files, grouped by the
