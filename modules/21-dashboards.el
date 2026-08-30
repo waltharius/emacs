@@ -89,7 +89,15 @@ drawer (schema 0)."
   (let* ((base (file-name-base file))
          (keywords (when (string-match "__\\(.*\\)\\\'" base)
                      (split-string (match-string 1 base) "_" t))))
-    (or (and keywords (member "journal" keywords) t)
+    ;; `my/journal-file-p' (05-notes.el) is now the canonical keyword
+    ;; test, and this module was the model for it.  The local parse is
+    ;; kept as the fallback so that removing 05-notes.el leaves the
+    ;; dashboards working, and the metrics-drawer clause below stays
+    ;; here rather than moving into journal identity in general: it
+    ;; exists for notes that lost their keywords in the Obsidian
+    ;; migration, which is a dashboard concern, not a definition.
+    (or (and (fboundp 'my/journal-file-p) (my/journal-file-p file))
+        (and keywords (member "journal" keywords) t)
         (with-temp-buffer
           (insert-file-contents file nil 0 1200)
           (let ((case-fold-search t))

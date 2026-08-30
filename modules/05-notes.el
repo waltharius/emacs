@@ -269,13 +269,10 @@ sync."
   (interactive)
   (let* ((today (format-time-string "%Y-%m-%d"))
          (time-now (format-time-string "%H:%M"))
-         (journal-pattern (concat "--" today "-journal"))
-         (existing-journal nil))
-
-    ;; Search for existing journal in journal silo
-    (dolist (file (directory-files my-notes-journal t "\\.org$"))
-      (when (string-match-p journal-pattern (file-name-nondirectory file))
-        (setq existing-journal file)))
+         ;; By parsed date, not by slug: a journal note whose title has
+         ;; been changed must still be found, or a second one for the
+         ;; same day gets created beside it.
+         (existing-journal (my/journal-file-for-date today)))
 
     (if existing-journal
         ;; Journal exists - add new entry
@@ -299,14 +296,14 @@ sync."
 
       ;; Create new journal
       (let* ((id (format-time-string "%Y%m%dT%H%M%S"))
-             (slug (format "%s-journal" today))
+             (slug (my/journal-slug today))
              (filename (format "%s--%s__journal.org" id slug))
              (filepath (expand-file-name filename my-notes-journal)))
 
         (find-file filepath)
 
         ;; Front matter
-        (insert (format "#+title:      %s Journal\n" today))
+        (insert (format "#+title:      %s\n" (my/journal-title today)))
         (insert (format "#+date:       [%s]\n" (format-time-string "%Y-%m-%d %a %H:%M")))
         (insert "#+filetags:   :journal:\n")
         (insert (format "#+identifier: %s\n" id))
@@ -323,6 +320,103 @@ sync."
 ;; JOURNAL: Specific date (for migration/backdating)
 ;; ============================================================
 
+(defcustom my/journal-title-suffix ""
+  "Text appended to a journal note's title after the date.
+
+Empty by default.  It used to be \" Journal\", which put the word in the
+title AND in the file-name slug alongside the `journal\=' keyword --
+three copies of one fact, two of them in the same file name.
+
+CHANGING THIS IS SAFE.  Nothing identifies a journal note by its title
+or by its slug any more; see `my/journal-file-p\='.  Existing notes keep
+whatever title they were created with and are still recognised."
+  :type 'string :group 'my)
+
+;; ============================================================
+;; WHAT MAKES A FILE A JOURNAL NOTE
+;; ============================================================
+;; Two signals, both independent of the title: the file lives in the
+;; journal silo, and it carries the `journal' Denote keyword.
+;;
+;; THIS USED TO BE THE SLUG, AND THAT WAS A MISTAKE
+;; ------------------------------------------------
+;; Eight places across four modules tested for `-journal' in the file
+;; name.  It worked, but it made the TITLE load-bearing: renaming a
+;; journal note, or creating one with a different title, would have
+;; made it invisible to the metrics command, the gaps report, the
+;; statistics dashboard and the duplicate check -- silently, since each
+;; of those simply finds nothing rather than failing.
+;;
+;; A title is prose.  It should be free to change.  The keyword and the
+;; directory are structure, and structure is what identification should
+;; rest on.  21-dashboards.el already worked this way and was the model
+;; for these functions.
+;;
+;; The keyword segment is parsed with a plain regexp rather than a
+;; Denote helper, so this does not depend on which helper names a given
+;; Denote version exposes.
+
+(defun my/journal-keywords (file)
+  "Return FILE's Denote keywords as a list of strings."
+  (let ((base (file-name-base file)))
+    (when (string-match "__\\(.*\\)\\'" base)
+      (split-string (match-string 1 base) "_" t))))
+
+(defun my/journal-file-p (file)
+  "Return non-nil when FILE is a journal note.
+
+Tests the `journal\=' keyword in the file name.  Costs no file access,
+and holds whatever the title says -- which is the point.
+
+Does NOT additionally require the journal silo: a journal note that has
+been moved, or one written before the silos existed, is still a journal
+note.  Callers that want only the silo already restrict their file list
+to it."
+  (and (member "journal" (my/journal-keywords file)) t))
+
+(defun my/journal-file-date (file)
+  "Return the date FILE describes as \"YYYY-MM-DD\", or nil.
+
+Read from the file name, which is where this configuration has always
+kept it -- but from the DATE alone, no longer from a `DATE-journal\='
+slug.  Two guards keep that from over-matching:
+
+  - FILE must satisfy `my/journal-file-p\=', so a note in another silo
+    that happens to be titled with a date is not mistaken for one;
+  - the date must be the first thing after `--\=', so a date appearing
+    later in a longer title is not picked up.
+
+Falls back to the identifier when the slug carries no date, which is
+what a journal note renamed to a free-form title looks like."
+  (when (my/journal-file-p file)
+    (let ((base (file-name-nondirectory file)))
+      (cond
+       ((string-match "--\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)" base)
+        (match-string 1 base))
+       ((string-match "\\`\\([0-9]\\{4\\}\\)\\([0-9]\\{2\\}\\)\\([0-9]\\{2\\}\\)T" base)
+        (concat (match-string 1 base) "-" (match-string 2 base)
+                "-" (match-string 3 base)))))))
+
+(defun my/journal-file-for-date (date &optional files)
+  "Return the journal note for DATE (\"YYYY-MM-DD\"), or nil.
+FILES defaults to the .org files in the journal silo.  Compares parsed
+dates rather than matching a slug pattern, so it finds a note whose
+title has been changed."
+  (seq-find (lambda (file) (equal (my/journal-file-date file) date))
+            (or files (directory-files my-notes-journal t "\\.org\\'"))))
+
+(defun my/journal-title (date)
+  "Return the `#+title:' a journal note for DATE should carry."
+  (concat date my/journal-title-suffix))
+
+(defun my/journal-slug (date)
+  "Return the file-name slug a journal note for DATE should carry.
+Derived from the title, the way Denote derives one, so the two cannot
+drift apart."
+  (replace-regexp-in-string
+   "[^a-z0-9-]+" "-"
+   (downcase (string-trim (my/journal-title date)))))
+
 (defun my/denote-journal--create-backdated (date encoded-time)
   "Write a backdated journal file for DATE and return its path.
 DATE is \"YYYY-MM-DD\"; ENCODED-TIME is the matching Lisp timestamp.
@@ -335,14 +429,14 @@ with a zeroed clock, and a same-date journal is found by the caller
 before this function is reached.  The one real risk -- silently
 overwriting an existing file -- is checked for explicitly."
   (let* ((id       (format-time-string "%Y%m%dT000000" encoded-time))
-         (slug     (format "%s-journal" date))
+         (slug     (my/journal-slug date))
          (filename (format "%s--%s__journal.org" id slug))
          (filepath (expand-file-name filename my-notes-journal))
          (added-at (format-time-string "%Y-%m-%d %a %H:%M")))
     (when (file-exists-p filepath)
       (user-error "Plik %s już istnieje" filename))
     (with-temp-file filepath
-      (insert (format "#+title:      %s Journal\n" date))
+      (insert (format "#+title:      %s\n" (my/journal-title date)))
       (insert (format "#+date:       %s\n"
                       (format-time-string "[%Y-%m-%d %a]" encoded-time)))
       (insert "#+filetags:   :journal:\n")
@@ -374,13 +468,9 @@ Behaviour:
          (encoded-time   (apply #'encode-time parsed-time))
          (date-formatted (format-time-string "%Y-%m-%d" encoded-time))
          (added-at-stamp (format-time-string "%Y-%m-%d %a %H:%M"))
-         (journal-pattern (concat "--" date-formatted "-journal"))
-         (existing-journal nil))
-
-    ;; Search for existing journal for the chosen date
-    (dolist (file (directory-files my-notes-journal t "\\.org$"))
-      (when (string-match-p journal-pattern (file-name-nondirectory file))
-        (setq existing-journal file)))
+         ;; By parsed date, not by slug -- see the note in
+         ;; `my/journal-file-date'.
+         (existing-journal (my/journal-file-for-date date-formatted)))
 
     (if existing-journal
         ;; --------------------------------------------------------

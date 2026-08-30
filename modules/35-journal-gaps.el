@@ -69,6 +69,7 @@
 
 (declare-function my/journal-set-metrics "05b-journal-metrics" ())
 (declare-function my/denote-journal--create-backdated "05-notes" (date encoded-time))
+(declare-function my/journal-file-date "05-notes" (file))
 (declare-function my/fixed-tab-goto "23-fixed-tabs" (name))
 
 (defgroup my-journal-gaps nil
@@ -111,26 +112,27 @@ rather than inventing a field list."
 ;; READING THE SILO
 ;; ============================================================
 
-(defconst my/journal-gaps--name-regexp
-  "--\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)-journal"
-  "Regexp matching the date a journal file name encodes.
-The same test 05b-journal-metrics.el uses, and for the same reason:
-the file name is what this configuration treats as authoritative for
-which day a journal note describes.")
-
 (defun my/journal-gaps--file-map ()
   "Return a hash of YYYY-MM-DD -> file for every journal note.
-Built from file names alone.  Reading the front matter of every file
-in the silo to find its date would mean opening a thousand files to
-answer a question the names already answer."
+
+Built from file names alone -- reading the front matter of a thousand
+files to find dates the names already carry would make the report cost
+proportional to how much has been written.
+
+The date comes from `my/journal-file-date' (05-notes.el), which tests
+the `journal' KEYWORD and then reads the date.  This module used to
+match a `DATE-journal' slug itself, which made the title
+load-bearing: a retitled journal note dropped out of the report
+silently, and a report that silently omits days is worse than no
+report, because its whole content is a claim about what is missing."
   (let ((map (make-hash-table :test #'equal)))
     (dolist (file (directory-files my-notes-journal t "\\.org\\'") map)
-      (let ((name (file-name-nondirectory file)))
-        (when (string-match my/journal-gaps--name-regexp name)
-          ;; First one wins.  Two files for one day is a duplicate, and
-          ;; 26-maintenance.el is where that gets reported.
-          (unless (gethash (match-string 1 name) map)
-            (puthash (match-string 1 name) file map)))))))
+      (when-let* ((date (and (fboundp 'my/journal-file-date)
+                             (my/journal-file-date file))))
+        ;; First one wins.  Two files for one day is a duplicate, and
+        ;; 26-maintenance.el is where that gets reported.
+        (unless (gethash date map)
+          (puthash date file map))))))
 
 (defun my/journal-gaps--missing-keys (file required)
   "Return the members of REQUIRED absent from FILE's front matter.

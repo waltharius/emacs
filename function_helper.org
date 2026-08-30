@@ -3807,6 +3807,74 @@ Two things re-assert themselves afterwards:
 and scroll bar off), and the theme, loaded from =emacs-startup-hook=
 which runs strictly later.
 
+* What makes a file a journal note
+:PROPERTIES:
+:CUSTOM_ID: journal-identity
+:END:
+
+Two signals, both independent of the title: the =journal= Denote
+keyword, and the date in the file name.
+
+Module: =modules/05-notes.el=
+
+| Function | Answers |
+|----------+---------|
+| =my/journal-file-p= | is this a journal note |
+| =my/journal-file-date= | which day it describes, as =YYYY-MM-DD= |
+| =my/journal-file-for-date= | which note covers a given day |
+| =my/journal-title= | the =#+title:= a new journal note should carry |
+| =my/journal-slug= | the file-name slug, derived from the title |
+
+Everything that needs to recognise a journal note goes through these:
+[[#fn-my-journal-set-metrics][the metrics command]], [[#journal-gaps][the gaps report]], [[#notes-stats][the statistics dashboard]],
+[[#menu-notes-history][This Day in History]], and the duplicate check that stops a second note
+being created for a day that already has one.
+
+** It used to be the slug, and that was a mistake
+
+Eight places tested for =-journal= in the file name. That made the
+*title* structural: a journal note renamed, by hand or by
+=denote-rename-file=, stopped being recognised.
+
+*Silently, in every case.* Each site finds nothing rather than
+failing, and finding nothing is a valid answer in all of them — no
+journal today, no metrics for that day, a gap in the series. There is
+no way to tell a real absence from a lookup that stopped matching.
+
+A title is prose and gets edited. A keyword and a directory are
+structure. Identification belongs on the structure.
+
+** my/journal-title-suffix
+
+Empty by default, so a new journal note is titled =2026-08-27=. It
+used to be =" Journal"=, which put the word in the title *and* in the
+slug beside the =journal= keyword — three copies of one fact, two of
+them in the same file name.
+
+Setting it back to =" Journal"= restores the old form for new notes.
+
+*Existing notes are untouched and still recognised*, because nothing
+tests the title. The collection can hold both forms indefinitely, and
+renaming the older notes is a separate optional decision.
+
+** If you do decide to rename them all
+
+=denote:= links resolve by identifier and are unaffected. git sees
+renames with unchanged content, so =--follow= keeps working. What does
+change:
+
+| Thing | Effect |
+|-------+--------|
+| Syncthing | 3,500 renames propagate as delete-plus-create; =.stversions= fills up |
+| Attachments | named from the old title slug ([[#fn-my-org-image-insert][31-org-images.el]]); nothing breaks, but names stop matching |
+| Existing PDFs | keep the old file names; new exports use the new |
+
+The mechanism is Denote's own Dired batch rename that reads front
+matter — change =#+title:= in the files first, then let Denote
+recompute the names. Check the exact command name in your installed
+version with =C-h a denote-dired-rename=; the API was consolidated
+between Denote 2 and 3.
+
 * Journal gaps (C-c n f j)
 :PROPERTIES:
 :CUSTOM_ID: journal-gaps

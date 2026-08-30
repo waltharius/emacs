@@ -367,13 +367,15 @@ subtree are excluded."
 (defun my/journal--file-date ()
   "Return the day the current journal file describes, as YYYY-MM-DD.
 Read from the file name, which is what the rest of this configuration
-treats as authoritative for journal notes.  Nil outside a journal file."
-  (let ((name (and buffer-file-name
-                   (file-name-nondirectory buffer-file-name))))
-    (when (and name
-               (string-match "--\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)-journal"
-                             name))
-      (match-string 1 name))))
+treats as authoritative for journal notes.  Nil outside a journal file.
+
+Delegates to `my/journal-file-date' (05-notes.el) rather than matching
+a `DATE-journal' slug here.  That slug embedded the TITLE in the test:
+a journal note retitled, by hand or by `denote-rename-file', stopped
+being recognised -- and silently, because the caller simply gets nil
+and behaves as though the buffer were not a journal."
+  (when (and buffer-file-name (fboundp 'my/journal-file-date))
+    (my/journal-file-date buffer-file-name)))
 
 ;; ============================================================
 ;; PROMPTING
@@ -484,12 +486,12 @@ C-g leaves the file byte-identical."
                  "Metryki zapisane")))))
 
 (defun my/journal--file-for-date (date)
-  "Return the journal file whose name encodes DATE (YYYY-MM-DD), or nil."
-  (car (seq-filter
-        (lambda (f)
-          (string-match-p (concat "--" (regexp-quote date) "-journal")
-                          (file-name-nondirectory f)))
-        (directory-files my-notes-journal t "\\.org\\'"))))
+  "Return the journal note for DATE (YYYY-MM-DD), or nil.
+Delegates to `my/journal-file-for-date' (05-notes.el), which compares
+parsed dates instead of matching a slug -- see the note on
+`my/journal--file-date'."
+  (when (fboundp 'my/journal-file-for-date)
+    (my/journal-file-for-date date)))
 
 ;;;###autoload
 (defun my/journal-set-metrics-for-date ()

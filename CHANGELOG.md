@@ -7,7 +7,91 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
-## Session 2026-08-31 (evening) — The inbox is not part of the collection yet
+## Session 2026-08-30 — The title stopped being load-bearing
+
+### Journal notes are identified by keyword, not by their slug
+
+Eight places across four modules tested for `-journal` in the file
+name. It worked, and it made the **title** structural: renaming a
+journal note, or creating one with a different title, would have made
+it invisible to the metrics command, the gaps report, the statistics
+dashboard and the duplicate check that stops a second note being
+created for a day that already has one.
+
+Silently, in every case. Each of those sites finds nothing rather than
+failing, so a retitled journal note would have shown up as a gap in
+the coverage report and as an absence in the metrics series — neither
+of which is distinguishable, from the outside, from a day that was
+never written up.
+
+Three helpers in `05-notes.el` are now the single answer:
+
+| Function | Answers |
+|---|---|
+| `my/journal-file-p` | is this a journal note — by the `journal` keyword |
+| `my/journal-file-date` | which day it describes — by the date in the name |
+| `my/journal-file-for-date` | which note covers a given day — by comparing parsed dates |
+
+`21-dashboards.el` already worked this way and was the model. It now
+delegates, keeping its local parse as a fallback and keeping its
+metrics-drawer clause, which exists for notes that lost their keywords
+in the Obsidian migration — a dashboard concern, not part of what a
+journal note *is*.
+
+### Why a title should be free to change
+
+A title is prose. A keyword and a directory are structure.
+Identification belongs on the structure, and the reason is not
+aesthetic: prose gets edited, and every edit to something load-bearing
+is a chance to break something far away without noticing.
+
+The immediate motivation was the redundancy — `journal` in the title,
+in the slug and in the keyword, three copies of one fact and two of
+them in the same file name — but the change is worth making
+independently of whether any note is ever renamed.
+
+### `my/journal-title-suffix`
+
+New, empty by default. New journal notes get the title `2026-08-27`
+rather than `2026-08-27 Journal`, and a slug to match. Set it back to
+`" Journal"` to restore the old form.
+
+**Existing notes are untouched and still recognised.** Nothing tests
+the title any more, so the collection can hold both forms
+indefinitely. A mass rename of the 3,500 existing journal notes is now
+a separate, optional, reversible decision rather than a prerequisite.
+
+### What a mass rename would still cost, when the time comes
+
+Recorded here so the analysis does not have to be redone:
+
+- **Syncthing** propagates 3,500 renames as delete-plus-create on
+  every peer, and `.stversions` fills with the deleted copies.
+- **Attachments** are named `IDENTIFIER--TITLE-SLUG-N.EXT`
+  (`31-org-images.el`). Renaming a note does not rename them, so
+  nothing breaks, but the names stop matching their notes.
+- **PDF file names** come from `#+title:`, so old exports keep the old
+  names while new ones use the new.
+- **`denote:` links are unaffected** — they resolve by identifier.
+- **git** sees 3,500 renames with unchanged content, so `--follow`
+  keeps working.
+
+None of these is a reason not to do it; all of them are reasons to do
+it deliberately rather than as a side effect.
+
+### Lesson
+
+**A silent nil is worse than an error.** Every one of the eight sites
+would have failed by finding nothing, and finding nothing is a valid
+answer in each of them — no journal today, no metrics for that day, a
+gap in the series. There is no way to tell a real absence from a
+lookup that stopped matching. That is what makes identification worth
+putting on structure that does not change, rather than on text that
+does.
+
+---
+
+## Session 2026-08-30 (evening) — The inbox is not part of the collection yet
 
 ### Keyword figures now skip staged notes
 
@@ -51,7 +135,7 @@ match the other.
 
 ---
 
-## Session 2026-08-31 (later) — Windows open sideways now
+## Session 2026-08-30 (later) — Windows open sideways now
 
 ### Two variables nothing had ever set
 
@@ -123,7 +207,7 @@ to set them rather than to advise a split function.
 
 ---
 
-## Session 2026-08-31 — Statistics worth acting on
+## Session 2026-08-30 — Statistics worth acting on
 
 The dashboard from the previous session reported numbers. This one
 makes the numbers openable, because a statistic worth reporting is one
