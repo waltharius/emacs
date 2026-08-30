@@ -3934,6 +3934,7 @@ something to glance at rather than something to wait for.*
 |---------+----------|
 | Collection | notes, total size, average note, largest note |
 | Silos | notes and bytes per silo, each as a share of the whole |
+| On disk | every top-level directory under =~/notes/=, all file types |
 | Journal | first entry, days elapsed, days covered, coverage %, longest and current streak, days missing metrics |
 | Keywords | distinct, assignments, per-note average, singletons, notes with none, top 12 with bars |
 | Growth | notes created per month for the last 12, with bars, plus the busiest month ever |
@@ -3946,7 +3947,64 @@ something to glance at rather than something to wait for.*
 | =g= | rebuild the fast tier |
 | =c= | read every note and fill in the Content section |
 | =e= | run a =denote-explore-= command, chosen by completion |
+| =x= | write the report to an Org file and open it |
 | =q= | quit |
+
+** Two views of size, disagreeing on purpose
+
+=Silos= counts *notes*: =.org= files inside the three silo
+directories. =On disk= counts *files*: everything under =~/notes/=
+whatever its extension, grouped by top-level directory.
+
+They differ by more than an order of magnitude, and the difference is
+the answer to a real question. =attachments/= is around 200 MB against
+12 MB for the entire journal. A report on "how big is this" counting
+only notes is off by a factor of twenty; one counting only bytes says
+the collection is mostly photographs. Both are true and neither alone
+is useful.
+
+** Dot directories are excluded, and this used to be broken
+
+=my/denote-scan-exclude-regexp= (=27-denote-identifiers.el=) is now
+=/\.= — *any* directory whose name starts with a dot. It used to name
+three: =.backups=, =.autosaves=, =.git=.
+
+It therefore did not skip =.snapshots=, the btrfs snapshot directory,
+which holds complete copies of the whole tree. Every command reading
+=my/denote--all-files= — this dashboard, the whole of
+[[#maintenance][Maintenance]], the identifier checks — was scanning several hundred
+thousand files.
+
+The consequences were not merely slowness. Keyword inventories counted
+a note once per snapshot; duplicate-identifier checks had a duplicate
+for every note ever snapshotted; this dashboard reported 728,000 notes
+across 2.7 GB, and the growth chart was a chart of snapshot activity.
+*Nothing signalled.* Every number was wrong, in a direction that looked
+like growth.
+
+=.stfolder= and =.stversions= (Syncthing) had the same problem.
+Matching the *convention* rather than the current membership of a list
+is what stops it recurring.
+
+** Exporting the report
+
+=x= writes the buffer's text into an Org file, wrapped in an
+=example= block with a front-matter header, and visits it. From there
+=C-c p= (=my/org-export-to-pdf=) produces the PDF.
+
+An =example= block rather than rebuilt Org tables: the report is
+already aligned in a fixed-pitch column, and the block preserves that
+through both exporters without a second renderer that could disagree
+with the first.
+
+The bars are U+2588. They survive to HTML; whether they survive to PDF
+depends on whether the LaTeX class's main font covers that codepoint,
+which for the fonts here it may not. Nothing is lost if it does not —
+the number is on the same line.
+
+The two steps are separate because =my/org-export-to-pdf= has its own
+rules about where a PDF goes and which font it uses, and duplicating
+them here would be a second place to keep them right.
 
 ** Two link counts that are not the same
 

@@ -31,6 +31,30 @@
 ;;
 ;; The division: a dashboard says how many, a drill-down says which.
 ;;
+;; TWO VIEWS OF SIZE, AND THEY DISAGREE ON PURPOSE
+;; -----------------------------------------------
+;; "Silos" counts NOTES: .org files inside the three silo directories.
+;; "On disk" counts FILES: everything under `my-notes-dir\=' whatever
+;; its extension, grouped by top-level directory.
+;;
+;; They differ by a factor of twenty here, and the difference is the
+;; answer to a real question.  `attachments/\=' is around two hundred
+;; megabytes against twelve for the entire journal, so a report on
+;; "how big is this" that counted only notes would be off by an order
+;; of magnitude, and a report that counted only bytes would say the
+;; collection is mostly photographs.  Both are true and neither alone
+;; is useful.
+;;
+;; DOT DIRECTORIES
+;; ---------------
+;; Excluded from both, by `my/denote-scan-exclude-regexp\=' for the note
+;; view and by an explicit test for the disk view.  `.snapshots/\='
+;; holds complete btrfs copies of the tree; counting it reported
+;; 728,000 notes across 2.7 GB, inflated every keyword frequency by
+;; the number of snapshots a note appears in, and turned the monthly
+;; growth chart into a chart of snapshot activity.  See the doc string
+;; of `my/denote-scan-exclude-regexp\=' in 27-denote-identifiers.el.
+;;
 ;; ON THE NUMBERS THAT ARE MEANT TO LOOK BAD
 ;; -----------------------------------------
 ;; Singleton keywords, notes with no keywords, orphans and journal
@@ -182,6 +206,37 @@ argument count to be worth not finding out."
         (setf (nth 3 row) (+ (nth 3 row) (gethash file sizes 0)))))
     (append rows (when (> (nth 2 other) 0) (list other)))))
 
+(defun my/notes-stats--disk-rows ()
+  "Return (NAME COUNT BYTES) for each top-level directory under `my-notes-dir'.
+
+A DISK view, not a note view: it counts every file, whatever its
+extension, so attachments, exported PDFs, the CSL styles and refs.bib
+appear alongside the silos.  `attachments/' is two hundred megabytes
+against twelve for the whole journal, and a report on the size of the
+collection that omits it is answering a different question from the
+one being asked.
+
+Dot directories are skipped here for the same reason
+`my/denote-scan-exclude-regexp' skips them: `.snapshots/' holds whole
+copies of the tree and would be counted as growth."
+  (let ((root (expand-file-name my-notes-dir))
+        rows)
+    (dolist (entry (directory-files root t) (nreverse rows))
+      (let ((name (file-name-nondirectory entry)))
+        (unless (or (string-prefix-p "." name) (string= name ".."))
+          (if (file-directory-p entry)
+              (let ((count 0) (bytes 0))
+                (dolist (file (directory-files-recursively
+                               entry ".*" nil
+                               (lambda (dir)
+                                 (not (string-prefix-p
+                                       "." (file-name-nondirectory
+                                            (directory-file-name dir)))))))
+                  (setq count (1+ count))
+                  (setq bytes (+ bytes (my/notes-stats--size file))))
+                (push (list name count bytes) rows))
+            (push (list name 1 (my/notes-stats--size entry)) rows)))))))
+
 (defun my/notes-stats--keyword-counts (files)
   "Return a hash of keyword -> number of notes carrying it."
   (let ((table (make-hash-table :test #'equal)))
@@ -332,6 +387,20 @@ nine in the morning."
                  (my/notes-stats--percent count total)
                  (my/notes-stats--percent size bytes)))))
 
+    ;; -- On disk -----------------------------------------------
+    (my/notes-stats--heading "On disk")
+    (let* ((rows (my/notes-stats--disk-rows))
+           (disk (let ((sum 0))
+                   (dolist (row rows sum) (setq sum (+ sum (nth 2 row)))))))
+      (dolist (row rows)
+        (pcase-let ((`(,name ,count ,size) row))
+          (my/notes-stats--line
+           name
+           (format "%6d files   %9s" count (file-size-human-readable size))
+           (my/notes-stats--percent size disk))))
+      (my/notes-stats--line "TOTAL ON DISK" (file-size-human-readable disk)
+                            "dot directories excluded"))
+
     ;; -- Journal -----------------------------------------------
     (my/notes-stats--heading "Journal")
     (if (null journal-days)
@@ -448,7 +517,7 @@ nine in the morning."
 
     (insert "\n"
             (propertize
-             "  g refresh   c compute content   e denote-explore   q quit\n"
+             "  g refresh   c compute content   e denote-explore   x export   q quit\n"
              'face (my/notes-stats--face 'my/dashboard-hint 'shadow)))
     (goto-char (point-min))))
 
@@ -485,11 +554,52 @@ one that is removed simply stops being offered."
                     (sort acc #'string<))))
     (call-interactively (intern (completing-read "denote-explore: " commands nil t)))))
 
+(defun my/notes-stats-export ()
+  "Write the report to an Org file and open it.
+
+The Org file is the report buffer's own text inside an `example\=' block
+plus a front matter header.  Deliberately not a set of Org tables
+rebuilt from the data: the report is already aligned in a fixed-pitch
+column, and an `example\=' block preserves that alignment through both
+the HTML and the LaTeX exporter without a second renderer that could
+disagree with the first.
+
+The block characters used for the bars are U+2588.  They survive to
+HTML; whether they survive to PDF depends on whether the main font of
+the LaTeX class covers that codepoint, which for the fonts this
+configuration uses it may not.  Nothing is lost if it does not -- the
+numbers are in the same line.
+
+After the file is written it is visited, from where `C-c p'
+\(`my/org-export-to-pdf\=') produces the PDF.  The two steps are kept
+separate because that command has its own rules about where a PDF goes
+and what font it uses, and duplicating them here would be a second
+place to keep them right."
+  (interactive)
+  (let* ((default (expand-file-name
+                   (format "notes-stats-%s.org" (format-time-string "%Y-%m-%d"))
+                   (if (boundp 'my-notes-docu) my-notes-docu "~/")))
+         (target (read-file-name "Write report to: " nil default nil
+                                 (file-name-nondirectory default)))
+         (body (buffer-substring-no-properties (point-min) (point-max))))
+    (with-temp-file target
+      (insert "#+title:      Notes statistics "
+              (format-time-string "%Y-%m-%d") "\n"
+              "#+date:       " (format-time-string "[%Y-%m-%d %a %H:%M]") "\n"
+              "#+language:   en\n"
+              "#+options:    toc:nil num:nil\n\n"
+              "#+begin_example\n")
+      (insert body)
+      (insert "#+end_example\n"))
+    (find-file target)
+    (message "Written.  C-c p exports it to PDF")))
+
 (defvar my/notes-stats-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "g") #'my/notes-stats-refresh)
     (define-key map (kbd "c") #'my/notes-stats-compute-deep)
     (define-key map (kbd "e") #'my/notes-stats-explore)
+    (define-key map (kbd "x") #'my/notes-stats-export)
     map)
   "Keymap for `my/notes-stats-mode'.")
 

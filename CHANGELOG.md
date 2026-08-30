@@ -7,6 +7,90 @@ introducing regressions, hook races, or dependency conflicts.
 
 ---
 
+## Session 2026-08-30 (evening) — Every count was wrong, and nothing said so
+
+### `.snapshots` was being scanned as if it were notes
+
+`my/denote-scan-exclude-regexp` (`27-denote-identifiers.el`) named
+three directories: `.backups`, `.autosaves`, `.git`. It did **not**
+name `.snapshots` — the btrfs snapshot directory, which holds complete
+copies of the whole tree — nor Syncthing's `.stfolder` and
+`.stversions`.
+
+Every command reading `my/denote--all-files` was therefore scanning
+several hundred thousand files, most of them older revisions of notes
+that are also present in their current form. That is the whole of
+`26-maintenance.el`, the identifier checks in `27`, and the new
+statistics dashboard.
+
+The consequences were not merely slowness:
+
+- keyword inventories counted a note once per snapshot — `journal`
+  showed 606,876 assignments against roughly 3,500 real journal notes;
+- duplicate-identifier checks had a duplicate for every note that had
+  ever been snapshotted;
+- the statistics dashboard reported 728,000 notes across 2.7 GB, with
+  "other" at 99.5% of everything;
+- the monthly growth chart was a chart of snapshot activity, not of
+  writing;
+- "used once only" showed 0, because nothing is ever used once when
+  every note exists in dozens of copies.
+
+**Nothing signalled.** Every number was simply wrong, and wrong in a
+direction that looked like growth — which is the failure mode that
+gets believed.
+
+The regexp is now `/\.`: any directory whose name begins with a dot.
+Matching the *convention* rather than the current membership of a list
+is what stops the next tool that hides state in a dot directory from
+joining them. Note-bearing directories in this tree never begin with a
+dot, and scanning starts at `my-notes-dir`, so a dot directory above
+the notes tree cannot match and exclude everything.
+
+This is a fix at the source rather than a filter added in the
+dashboard. Six other commands were reading the same wrong list.
+
+### The dashboard now has two views of size
+
+`Silos` counts **notes**: `.org` files inside the three silo
+directories. `On disk` counts **files**: everything under `~/notes/`
+whatever its extension, grouped by top-level directory, dot
+directories excluded.
+
+They differ by more than an order of magnitude and the difference is
+the answer to a real question. `attachments/` is around 200 MB against
+12 MB for the entire journal. A report on "how big is this" counting
+only notes is off by a factor of twenty; one counting only bytes says
+the collection is mostly photographs. Both are true and neither alone
+is useful, which is why both are shown rather than one being picked.
+
+### Export
+
+`x` writes the report to an Org file and visits it; `C-c p` then
+produces the PDF through `my/org-export-to-pdf`.
+
+The Org file wraps the buffer's own text in an `example` block rather
+than rebuilding the figures as Org tables. The report is already
+aligned in a fixed-pitch column, and the block preserves that through
+both exporters **without a second renderer that could disagree with
+the first** — the failure mode where the screen and the PDF quietly
+report different numbers.
+
+The two steps are kept separate because `my/org-export-to-pdf` has its
+own rules about where a PDF goes and which font it uses. Duplicating
+them here would be a second place to keep them right.
+
+### Lesson
+
+**A number with no error path is the most dangerous kind.** Every
+symptom in this session was a plausible-looking figure. The dashboard
+was what made it visible, and only because it put the numbers next to
+each other: 3,508 journal notes beside 728,558 "other" is obviously
+wrong in a way that neither figure is on its own. A statistic worth
+computing is one that can look wrong.
+
+---
+
 ## Session 2026-08-30 (later) — A statistics dashboard
 
 ### New module: 36-notes-stats.el
