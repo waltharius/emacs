@@ -2695,10 +2695,10 @@ today — nothing else.
 | =C-u <f9>= | =my/habit-log=   | Log it for an earlier day           |
 | =C-c n H=  | =my/habits-menu= | The menu                            |
 
-| Key | Command           | Effect                                |
-|-----+-------------------+---------------------------------------|
-| =l= | =my/habit-log=    | Log done today                        |
-| =L= | =my/habit-log=    | Log for another day                   |
+| Key | Command                | Effect                           |
+|-----+------------------------+----------------------------------|
+| =l= | =my/habit-log=         | Log done today                   |
+| =L= | =my/habit-log-for-date= | Log for another day             |
 | =n= | =my/habit-new=    | Define a new habit                    |
 | =d= | =my/habit-derive= | Rebuild a derived history             |
 | =f= | =my/habits-open=  | Open =habits.org=                     |
@@ -2707,6 +2707,11 @@ today — nothing else.
 
 Also reachable as =h= inside the tasks menu (=C-c n A=), because
 habits and tasks are read together.
+
+*A habit has to exist before it can be logged.* Pressing =<f9>= with
+none defined offers to define one; it does not ask for a name and
+create one on the spot, because that is not what org-habit is. See
+below.
 
 ** How org-habit works, in four sentences
 
@@ -2945,7 +2950,7 @@ whether it has fallen behind, and says so before any editing starts.
 | =i= | =my/project-git-init=      | Publish to GitLab               |
 | =r= | =my/project-git-set-remote= | Attach or change the remote    |
 | =g= | =magit-status=             | Everything else                 |
-| =l= | —                          | The git output log              |
+| =l= | =my/project-git-show-log=  | The git output log              |
 
 ** Why this exists
 
@@ -3011,17 +3016,33 @@ The exception is a path that was used before and renamed: those
 redirect rather than creating, and have to be made in the web
 interface. See https://docs.gitlab.com/topics/git/project
 
-** Credentials
+** Credentials: SSH, and why not HTTP
 
-Over HTTP git wants credentials on every push. Configure a helper
-once:
+The default remote is
+=ssh://git@gitlab.home.lan:2424/heniekk/%s.git=, the form every
+existing repository on the instance already uses. The key exists and
+is already deployed: =modules/services/ssh.nix= in the NixOS
+configuration writes =~/.ssh/id_ed25519_gitlab= from sops and matches
+it to that host, which LAN DNS resolves to 192.168.50.46. Nothing new
+is stored anywhere.
+
+GitLab's web interface offers HTTP clone URLs, and those would ask for
+a password on every push. The usual answer cannot be given on this
+system:
 
 : git config --global credential.helper store
+: error: could not lock config file ~/.config/git/config: Read-only file system
 
-Or move to SSH, which avoids the question:
+That is home-manager working as intended — the file is a symlink into
+the Nix store. Global git settings belong in
+=users/marcin/base/git.nix=, which also rewrites the instance's HTTP
+URLs to the SSH form, so a URL copied out of the clone box works
+without being edited by hand. Existing remotes are unaffected: the
+rewrite fires only on a URL beginning with one of the HTTP prefixes,
+and an =ssh://= URL does not.
 
-: (setq my/project-git-remote-format
-:       "ssh://git@192.168.50.46:PORT/heniekk/%s.git")
+The port is part of the remote format because the instance does not
+listen on 22.
 
 Git is run with =GIT_TERMINAL_PROMPT=0=, so a missing credential fails
 immediately with a line in the log rather than leaving a background

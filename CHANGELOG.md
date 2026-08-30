@@ -126,6 +126,66 @@ this" — it was "check whether there is anything to merge", which is
 mechanical, uninteresting, and exactly what a computer should be doing
 unasked.
 
+### Two corrections after first use
+
+**`f9` with no habits was a dead end.** It reported the command that
+defines one, which is correct and useless: the user is then told to go
+and find something. It now offers to define one on the spot. The
+underlying behaviour is unchanged and right -- a habit is defined once
+and afterwards only marked -- but an error message naming a command is
+not a path to that command.
+
+**Two transient suffixes used anonymous lambdas.** Replaced with named
+commands, `my/habit-log-for-date` and `my/project-git-show-log`.
+Transient accepts a command symbol; a bare lambda in a suffix
+specification is at best version-dependent, and the failure would have
+been at menu-open time rather than at load time, so nothing in the
+pre-commit checks would have caught it.
+
+**The default remote is SSH, not HTTP.** The address in the first
+version came from a screenshot of the GitLab project form, which
+offers HTTP. On this system that is the wrong half of the answer:
+`git config --global credential.helper store` cannot be run at all,
+because home-manager writes `~/.config/git/config` as a read-only
+symlink into the Nix store. The setting would have to go into
+`users/marcin/base/git.nix`, and the password would then need a home
+of its own -- while `~/.ssh/id_ed25519_gitlab` already exists and is
+already deployed from sops.
+
+The instance is reached at `ssh://git@gitlab.home.lan:2424/`, which is
+what its existing repositories already use, and `gitlab.home.lan`
+resolves on the LAN. `git.nix` also rewrites the HTTP forms the web
+interface offers to that address, so a URL copied out of the clone box
+needs no editing. Existing remotes are untouched: an `insteadOf` rule
+fires only on a URL beginning with the string it names, and an
+`ssh://` URL does not.
+
+### One change proposed and withdrawn
+
+An extra `ssh_config` match block for `192.168.50.46`, ordered ahead
+of the existing `192.168.50.*` wildcard so that the GitLab key would
+win over the tabby one.
+
+Withdrawn. OpenSSH matches on the host as written on the command line,
+not on the address it resolves to, and every remote names
+`gitlab.home.lan` -- which has its own block already. The wildcard is
+never consulted. The block would have guarded a case that does not
+arise, at the cost of a `lib` argument and an explicit DAG ordering in
+a file that works.
+
+Recorded rather than deleted, because the reasoning was wrong in an
+instructive way: an address appearing in a config file is not the same
+as an address anything types.
+
+### Lesson
+
+**A read-only config file is a design decision, not a failure.** The
+"could not lock config file" error reads like a permissions problem
+and is in fact the declarative setup refusing to let state accumulate
+where nothing tracks it. The reflex fix -- chmod, sudo, `--local`
+instead of `--global` -- would each have worked once and left the
+machine one rebuild away from losing the setting.
+
 ---
 
 ## Session 2026-08-30j — A habit is not created, it is ticked

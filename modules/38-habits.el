@@ -375,8 +375,20 @@ With prefix ARG, asks for a day instead of using today.  Habits are
 remembered in the morning about the evening before at least as often
 as they are logged on the spot, and back-dating shifts the repeater
 from that day rather than from today -- so logging yesterday's run for
-a daily habit leaves it due today, not tomorrow."
+a daily habit leaves it due today, not tomorrow.
+
+A habit has to exist before it can be logged; org-habit's model is a
+TODO that never goes away, defined once and afterwards only marked.
+With none defined, this offers to define one rather than reporting a
+command the user would then have to go and find."
   (interactive "P")
+  (if (null (my/habits--entries))
+      (when (y-or-n-p "No habits defined yet.  Define one now? ")
+        (my/habit-new))
+    (my/habits--log-1 arg)))
+
+(defun my/habits--log-1 (arg)
+  "Body of `my/habit-log', with at least one habit known to exist."
   (let* ((marker (my/habits--read "Log habit: "))
          (time (if arg (org-read-date nil t) (current-time)))
          (date (format-time-string "%Y-%m-%d" time))
@@ -405,6 +417,12 @@ a daily habit leaves it due today, not tomorrow."
                  "%s was already logged for %s"
                "Logged: %s (%s)")
              headline date)))
+
+;;;###autoload
+(defun my/habit-log-for-date ()
+  "Mark a habit done on a day chosen at the prompt."
+  (interactive)
+  (my/habit-log t))
 
 ;;;###autoload
 (defun my/habit-goto ()
@@ -512,7 +530,7 @@ Safe to run repeatedly: the drawer is replaced, not appended to."
   "Habits."
   [["Log"
     ("l" "Log habit done"       my/habit-log)
-    ("L" "Log for another day"  (lambda () (interactive) (my/habit-log t)))]
+    ("L" "Log for another day"  my/habit-log-for-date)]
    ["Define"
     ("n" "New habit"            my/habit-new)
     ("d" "Rebuild derived"      my/habit-derive)]

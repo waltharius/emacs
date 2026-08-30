@@ -60,23 +60,29 @@
   :group 'my)
 
 (defcustom my/project-git-remote-format
-  "http://192.168.50.46:8929/heniekk/%s.git"
+  "ssh://git@gitlab.home.lan:2424/heniekk/%s.git"
   "Remote URL of a project, with %s replaced by the project slug.
 
-The local GitLab instance.  Change the host here and every project
-created afterwards follows; projects that already exist keep the
-remote they were given, which is what `my/project-git-set-remote' is
-for.
+The local GitLab instance, in the form its existing repositories
+already use.  Change the host here and every project created
+afterwards follows; projects that already exist keep the remote they
+were given, which is what `my/project-git-set-remote' is for.
 
-Over HTTP git will want credentials on every push unless a credential
-helper is configured:
+SSH rather than HTTP, because the key already exists and is already
+managed: modules/services/ssh.nix in the NixOS configuration deploys
+`~/.ssh/id_ed25519_gitlab' from sops and matches it to the
+`gitlab.home.lan' host, which DNS resolves on the LAN.
 
-  git config --global credential.helper store
+HTTP would work as well, but every push would want credentials, and
+the usual answer -- `git config --global credential.helper store' --
+cannot be given on this system: `~/.config/git/config' is a read-only
+symlink into the Nix store, managed by home-manager.  It would have to
+go into users/marcin/base/git.nix, and the password would then need a
+home of its own.  A key that exists is simpler than a secret that does
+not.
 
-An SSH URL avoids the question entirely and is the better answer once
-a key is in place:
-
-  ssh://git@192.168.50.46:PORT/heniekk/%s.git"
+The port is explicit because the instance does not listen on 22.  Any
+project's clone dropdown shows the exact form."
   :type 'string
   :group 'my/project-git)
 
@@ -493,6 +499,12 @@ For `find-file-hook'."
 ;; MENU
 ;; ============================================================
 
+;;;###autoload
+(defun my/project-git-show-log ()
+  "Show the buffer collecting git output from this module."
+  (interactive)
+  (pop-to-buffer (get-buffer-create my/project-git-log-buffer)))
+
 (transient-define-prefix my/project-git-menu ()
   "Project repositories."
   [["Remote state"
@@ -505,9 +517,7 @@ For `find-file-hook'."
     ("r" "Set remote"          my/project-git-set-remote)]
    ["Elsewhere"
     ("g" "Magit status"        magit-status)
-    ("l" "Log buffer"          (lambda ()
-                                 (interactive)
-                                 (pop-to-buffer my/project-git-log-buffer)))]
+    ("l" "Log buffer"          my/project-git-show-log)]
    [("q" "Quit" transient-quit-one)]])
 
 (with-eval-after-load '12-transient
