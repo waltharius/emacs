@@ -49,8 +49,34 @@
 (defconst my/denote-identifier-regexp "[0-9]\\{8\\}T[0-9]\\{6\\}"
   "Regexp matching a Denote identifier.")
 
-(defcustom my/denote-scan-exclude-regexp "/\\.\\(backups\\|autosaves\\|git\\)/"
-  "Paths matching this are skipped when scanning for notes and links."
+(defcustom my/denote-scan-exclude-regexp "/\\."
+  "Paths matching this are skipped when scanning for notes and links.
+
+ANY DIRECTORY WHOSE NAME STARTS WITH A DOT, NOT A NAMED LIST
+------------------------------------------------------------
+This used to name three: `.backups\=', `.autosaves\=' and `.git\='.  It
+therefore did NOT skip `.snapshots\=' -- the btrfs snapshot directory,
+which holds complete copies of the whole tree.  Every command reading
+`my/denote--all-files\=' was consequently scanning several hundred
+thousand files, most of them older revisions of notes that are also
+present in their current form.
+
+The consequences were not limited to being slow.  Keyword inventories
+counted the same note once per snapshot, duplicate-identifier checks
+had a duplicate for every note that had ever been snapshotted, and the
+statistics dashboard reported 728,000 notes across 2.7 GB.  Nothing
+signalled: every number was simply wrong, and wrong in a direction
+that looked like growth.
+
+`.stfolder\=' and `.stversions\=' (Syncthing) had the same problem, and
+any future tool that hides state in a dot directory would have joined
+them.  Matching the convention rather than the current membership of
+the list is what stops that recurring.
+
+Note-bearing directories in this tree never begin with a dot, so
+nothing wanted is lost.  Scanning starts at `my-notes-dir\=', so a dot
+directory in the path ABOVE the notes tree is not matched and cannot
+exclude everything."
   :type 'regexp :group 'my)
 
 (defcustom my/denote-silo-directories
