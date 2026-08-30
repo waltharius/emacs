@@ -122,6 +122,23 @@ every tutorial and every reflex expects to go to the start of the line
 did something else. Select-all is `C-x h`, which is what the rest of
 Emacs already calls it.
 
+### Follow-up: the exit commit was recording the wrong state
+
+The auto-commit runs from `kill-emacs-hook` and as `:before` advice on
+`save-buffers-kill-emacs` — that is, *before* Emacs asks whether to
+save modified buffers. So the last paragraph written, still only in a
+buffer, was not in the commit that reported success.
+
+Nothing was lost: the next session's idle timer would catch it. But a
+commit that says it succeeded and does not contain the work is worse
+than no commit, because it will be believed. `my/auto-commit-all` now
+saves modified buffers under the repositories it is about to commit.
+
+Scoped, not `save-some-buffers`: only files under those directories,
+and never anything inside `.git/`. Saving everything would reach
+scratch buffers and files opened for reference, and git's own
+`COMMIT_EDITMSG` is not text anyone wants preserved.
+
 ### Lesson
 
 **Check the remote, not the branch.** `git log` shows what you asked

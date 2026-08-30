@@ -186,10 +186,37 @@ Returns a short description of what happened, or nil when nothing did."
            (when my/auto-commit-config-enabled
              (list (expand-file-name user-emacs-directory))))))
 
+(defun my/auto-commit--save-buffers ()
+  "Save modified buffers visiting files inside the auto-committed repositories.
+
+Without this, the exit-time commit records what is on disk while the
+last paragraph is still only in a buffer.  Nothing is lost -- the next
+session's idle timer catches it -- but a commit that reports success
+and does not contain the work is worse than no commit, because it will
+be believed.
+
+Only files under those directories, and never anything inside `.git/':
+saving every modified buffer would reach scratch buffers and files
+opened for reference, and git's own COMMIT_EDITMSG is not text anyone
+wants preserved."
+  (let ((dirs (my/auto-commit-directories)))
+    (dolist (buffer (buffer-list))
+      (let ((file (buffer-file-name buffer)))
+        (when (and file
+                   (buffer-modified-p buffer)
+                   (not (string-match-p "/\\.git/" file))
+                   (seq-some (lambda (dir)
+                               (string-prefix-p (file-name-as-directory dir)
+                                                (expand-file-name file)))
+                             dirs))
+          (with-current-buffer buffer
+            (ignore-errors (save-buffer))))))))
+
 ;;;###autoload
 (defun my/auto-commit-all ()
   "Commit and push every repository that needs it."
   (interactive)
+  (my/auto-commit--save-buffers)
   (let ((results (delq nil (mapcar #'my/auto-commit-repository
                                    (my/auto-commit-directories)))))
     (when results
