@@ -22,6 +22,35 @@ included.
 
 ---
 
+## Session 2026-08-31d — The keybinding help text had drifted again
+ 
+`08-keybindings.el` holds a hand-written reference buffer (`C-c h k`).
+It still described two things that changed in August 2026:
+ 
+- `C-a` as `mark-whole-buffer`. It went back to
+  `move-beginning-of-line` — useful once a week, in the way of a
+  movement command used hundreds of times an hour. Select-all is
+  `C-x h`, which is what the rest of Emacs already calls it.
+- Typing analytics on `C-c a`. They moved to `C-c y` to free `C-c a`
+  for `org-agenda`, which is what binds it now.
+Both corrected, in the comment blocks and in the help string, and an
+entry for `C-c a` added since the agenda was never listed.
+ 
+This is the second drift in this file, and its own AUDIT NOTE predicted
+it. The structural problem is not the errors but the arrangement: the
+buffer is a hand-maintained snapshot of facts that exist in three other
+places — the bindings themselves, `which-key`, and
+`function_helper.org`. Four sources of truth for one set of facts, and
+only one of them updates itself.
+ 
+The check added in session 2026-08-31e catches this class of error, but
+a checker treats the symptom. The fix that removes the possibility is
+to generate the buffer from the live keymaps and transient prefixes, so
+that it cannot disagree with them. Not done here; recorded as the
+intended direction.
+ 
+---
+
 ## Session 2026-08-31c — declare-function for my/fixed-tab-goto
  
 `35-journal-gaps.el` declared `my/fixed-tab-goto` as coming from

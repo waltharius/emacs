@@ -110,10 +110,11 @@
 ;; ============================================================
 ;; TYPING ANALYTICS (already defined in 14-typing-analytics.el)
 ;; ============================================================
-;; C-c a k = keyfreq-show (command frequency stats)
-;; C-c a s = keylog-status
-;; C-c a t = keylog-disable (temporarily)
-;; C-c a T = keylog-enable
+;; C-c y k = keyfreq-show (command frequency stats)
+;; C-c y s = keylog-status
+;; C-c y t = keylog-disable (temporarily)
+;; C-c y T = keylog-enable
+;; Moved off C-c a in August 2026 to free that key for `org-agenda'.
 
 ;; ============================================================
 ;; ZETTELKASTEN / FOLGEZETTEL (already defined in 22-zettelkasten.el)
@@ -149,7 +150,10 @@
 ;; ============================================================
 ;; REBOUND DEFAULT KEYS (already defined in 02-editing.el)
 ;; ============================================================
-;; C-a = mark-whole-buffer (NOT move-beginning-of-line!)
+;; C-a is NOT rebound; it is stock `move-beginning-of-line'.  It was
+;; mark-whole-buffer until August 2026 -- useful once a week, in the way
+;; of a movement command used hundreds of times an hour.  Select-all is
+;; C-x h, which is what the rest of Emacs already calls it.
 ;; C-f = isearch-forward   (NOT forward-char!)
 ;; C-s = save-buffer       (matches most other editors)
 ;; C-z = undo              (NOT suspend-frame!)
@@ -231,10 +235,13 @@ Workspace / Dashboards:
   (inside *Notes Dashboard*: g = refresh, q = close)
 
 Typing Analytics:
-  C-c a k - Command frequency stats (keyfreq)
-  C-c a s - Keylog status
-  C-c a t - Disable keylog temporarily
-  C-c a T - Re-enable keylog
+  C-c y k - Command frequency stats (keyfreq)
+  C-c y s - Keylog status
+  C-c y t - Disable keylog temporarily
+  C-c y T - Re-enable keylog
+
+Tasks and habits:
+  C-c a   - Org agenda
 
 Bibliography:
   C-c x   - Zotero/bib menu (same as C-c n t z)
@@ -264,7 +271,6 @@ Menus and modes (C-c m ...):
   C-c m k - Modify keywords (duplicate of C-c d t)
 
 Rebound defaults (not the usual Emacs bindings!):
-  C-a     - Select all      (mark-whole-buffer)
   C-f     - isearch-forward (NOT move-forward-char)
   C-s     - save-buffer
   C-z     - undo
