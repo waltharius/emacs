@@ -333,6 +333,31 @@ with something like (regexp-quote my-notes-journal)."
     (seq-some (lambda (re) (string-match-p re file))
               my/desktop-always-keep-regexps)))
 
+(defun my/desktop--transient-buffer-p (buffer)
+  "Return non-nil when BUFFER must not be killed by the trim.
+
+Three kinds, and each of them has bitten or would bite:
+
+MODIFIED buffers.  `kill-buffer\=' on an unsaved file buffer asks
+\"Buffer modified; kill anyway?\", and the trim runs from the
+`desktop-auto-save\=' timer, where a prompt is either a modal
+interruption in the middle of typing or, worse, silently answered.  A
+buffer with unsaved changes is also by definition one being worked on.
+
+Buffers under a `.git\=' DIRECTORY.  COMMIT_EDITMSG, MERGE_MSG,
+rebase todo lists: transient files that a version-control command owns
+for the length of one operation.  They are ordinary file-visiting
+buffers, so nothing else here excluded them.
+
+Buffers that have installed their own `kill-buffer-query-functions\='.
+That is a buffer stating in the only way Emacs provides that it is not
+ready to die -- with-editor does exactly this for COMMIT_EDITMSG, and
+the check generalises to anything else that adopts the convention."
+  (or (buffer-modified-p buffer)
+      (when-let* ((file (buffer-file-name buffer)))
+        (string-match-p "/\\.git/" file))
+      (local-variable-p 'kill-buffer-query-functions buffer)))
+
 (defun my/desktop--protected-buffers ()
   "Buffers `my/desktop-trim-buffers' must never kill."
   (delete-dups
@@ -359,6 +384,7 @@ than no report at all."
            (lambda (buf)
              (and (buffer-file-name buf)
                   (not (memq buf protected))
+                  (not (my/desktop--transient-buffer-p buf))
                   (not (memq (buffer-local-value 'major-mode buf)
                              desktop-modes-not-to-save))
                   (not (string-match-p desktop-files-not-to-save
@@ -421,12 +447,30 @@ persist them anyway, so they neither count toward the limit nor get
 killed here.
 
 Use \\[my/desktop-show-protected] to see the outcome before it happens."
-  (let ((to-kill (plist-get (my/desktop--classify-buffers) :doomed)))
+  (let ((to-kill (plist-get (my/desktop--classify-buffers) :doomed))
+        (refused 0))
     (when to-kill
       (message "desktop trim: killing %d old buffers before save"
                (length to-kill))
       (dolist (buf to-kill)
-        (kill-buffer buf)))))
+        ;; A buffer is allowed to refuse.  Entries in
+        ;; `kill-buffer-query-functions' may signal rather than return
+        ;; nil -- with-editor does, for one -- and this hook runs from
+        ;; the `desktop-auto-save' timer, where an unhandled signal
+        ;; aborts the whole of `desktop-save':
+        ;; the session is then not written at all because one buffer
+        ;; declined to die.  Losing the session to a refused kill is a
+        ;; far worse outcome than keeping one extra buffer, so each kill
+        ;; is attempted on its own and a refusal is counted, not raised.
+        (condition-case err
+            (kill-buffer buf)
+          (error
+           (setq refused (1+ refused))
+           (message "desktop trim: kept %s (%s)"
+                    (buffer-name buf) (error-message-string err)))))
+      (when (> refused 0)
+        (message "desktop trim: %d buffer(s) declined to be killed"
+                 refused)))))
 
 (defun my/restore-chrome-preferences ()
   "Re-apply chrome settings that a desktop frameset restore overrode.
@@ -576,8 +620,13 @@ a session that is ready to use.")
 
 ;; Don't save temporary/auxiliary files
 (add-to-list 'desktop-modes-not-to-save 'fundamental-mode)
+;; The "/.git/" branch covers COMMIT_EDITMSG, MERGE_MSG and rebase todo files.
+;; Restoring one of those into a later session is meaningless -- the
+;; operation that created it finished long ago -- and it is the same set
+;; the trim now refuses to kill, so the two policies agree.
 (setq desktop-files-not-to-save
       (concat desktop-files-not-to-save
+              "\\|/\\.git/"
               "\\|\\(\\.aux\\|\\.log\\|\\.out\\|\\.toc\\|\\.tex\\|\\.epub\\)$"))
 
 ;; Manual save command

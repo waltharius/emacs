@@ -22,6 +22,71 @@ included.
 
 ---
 
+## Session 2026-09-01a — A refused kill took the whole session down
+ 
+### The failure
+ 
+Error running timer 'desktop-auto-save': (user-error "Don't kill this
+buffer #<buffer COMMIT_EDITMSG>. Instead cancel using C-c C-k")
+ 
+`my/desktop-trim-buffers` runs from `desktop-save-hook`, and
+`desktop-auto-save` runs it on a timer. COMMIT_EDITMSG is an ordinary
+file-visiting buffer, so nothing excluded it from the trim candidates;
+once it fell past the ten most-recently-used it was killed like any
+other. with-editor installs a `kill-buffer-query-functions` entry that
+signals rather than returning nil, the signal escaped the `dolist`,
+and `desktop-save` never ran.
+ 
+So the visible symptom was a message about one buffer, and the actual
+consequence was that **the session was not written at all**. That is
+the defect worth fixing: not that COMMIT_EDITMSG was a candidate, but
+that one buffer declining to die takes session persistence with it.
+ 
+### Three fixes, in order of how much they matter
+ 
+**Each kill is attempted on its own.** `condition-case` around the
+`kill-buffer`, refusals counted and reported rather than raised.
+Losing the session to a refused kill is a far worse outcome than
+keeping one extra buffer, and the module's own rule is to degrade
+rather than signal.
+ 
+**`my/desktop--transient-buffer-p` excludes three kinds of buffer from
+the candidate list.** Modified ones, because `kill-buffer` on an
+unsaved file buffer asks "Buffer modified; kill anyway?" and this runs
+from a timer, where a prompt is an interruption in the middle of
+typing at best; a buffer with unsaved changes is also by definition
+one being worked on. Buffers under a `.git` directory, because
+COMMIT_EDITMSG, MERGE_MSG and rebase todo lists are owned by a
+version-control command for the length of one operation. And buffers
+that have installed their own `kill-buffer-query-functions`, which is
+a buffer saying in the only way Emacs provides that it is not ready to
+die — with-editor's case, generalised.
+ 
+**`desktop-files-not-to-save` gains `/\.git/`.** Restoring a
+COMMIT_EDITMSG into a later session is meaningless, and it keeps the
+two policies agreeing: the same files the trim now refuses to kill are
+the ones desktop refuses to persist.
+ 
+### Not caused by the journal note
+ 
+The entry created just before the error is unrelated. The trigger is a
+COMMIT_EDITMSG buffer being open and falling out of the ten most
+recently used, which needs only a commit made through magit or through
+`git commit` with `EDITOR` pointing at emacsclient. Dropping `journal`
+from the title changes which slug `my/journal-file-date` parses and
+nothing about buffer lifetimes.
+ 
+### Untested branch, stated plainly
+ 
+The modified-buffer branch has not been observed failing. It is
+included because `kill-buffer` on a modified buffer prompts, and a
+prompt raised from a timer is a fault whether or not it has happened
+yet. Each branch was checked in isolation under `emacs -Q --batch`;
+what has not been reproduced is the whole path with with-editor
+loaded.
+ 
+---
+
 ## Session 2026-08-31h — Documenting the Zettelkasten views
  
 ### The measurement
