@@ -2689,21 +2689,21 @@ today — nothing else.
 
 ** The commands
 
-| Key        | Command          | Effect                              |
-|------------+------------------+-------------------------------------|
-| =<f9>=     | =my/habit-log=   | Log a habit done today              |
-| =C-u <f9>= | =my/habit-log=   | Log it for an earlier day           |
-| =C-c n H=  | =my/habits-menu= | The menu                            |
+| Key      | Command        | Effect                    |
+|----------+----------------+---------------------------|
+| =<f9>=     | =my/habit-log=   | Log a habit done today    |
+| =C-u <f9>= | =my/habit-log=   | Log it for an earlier day |
+| =C-c n H=  | =my/habits-menu= | The menu                  |
 
-| Key | Command                | Effect                           |
-|-----+------------------------+----------------------------------|
-| =l= | =my/habit-log=         | Log done today                   |
-| =L= | =my/habit-log-for-date= | Log for another day             |
-| =n= | =my/habit-new=    | Define a new habit                    |
-| =d= | =my/habit-derive= | Rebuild a derived history             |
-| =f= | =my/habits-open=  | Open =habits.org=                     |
-| =g= | =my/habit-goto=   | Jump to one habit                     |
-| =a= | =org-agenda=      | The agenda, where the graphs are      |
+| Key | Command               | Effect                           |
+|-----+-----------------------+----------------------------------|
+| =l=   | =my/habit-log=          | Log done today                   |
+| =L=   | =my/habit-log-for-date= | Log for another day              |
+| =n=   | =my/habit-new=          | Define a new habit               |
+| =d=   | =my/habit-derive=       | Rebuild a derived history        |
+| =f=   | =my/habits-open=        | Open =habits.org=                  |
+| =g=   | =my/habit-goto=         | Jump to one habit                |
+| =a=   | =org-agenda=            | The agenda, where the graphs are |
 
 Also reachable as =h= inside the tasks menu (=C-c n A=), because
 habits and tasks are read together.
@@ -2728,14 +2728,14 @@ and it is an ordinary repeating task.
 
 ** Repeaters
 
-| Offered                     | Written    |
-|-----------------------------+------------|
-| every day                   | =.+1d=     |
-| every day, 3 days grace     | =.+1d/3d=  |
-| every 2 days                | =.+2d=     |
-| every week                  | =.+1w=     |
-| every week, 10 days grace   | =.+1w/10d= |
-| every month                 | =.+1m=     |
+| Offered                   | Written  |
+|---------------------------+----------|
+| every day                 | =.+1d=     |
+| every day, 3 days grace   | =.+1d/3d=  |
+| every 2 days              | =.+2d=     |
+| every week                | =.+1w=     |
+| every week, 10 days grace | =.+1w/10d= |
+| every month               | =.+1m=     |
 
 =.+= and not =+=: =.+1d= schedules the next occurrence one day after
 it was actually done, =+1d= one day after it was previously due.
