@@ -22,6 +22,133 @@ included.
 
 ---
 
+## Session 2026-08-31a — A week's days, listed inside the Sunday journal
+
+### The weekly note was designed and then not adopted
+
+A separate weekly note type was worked out in full: ISO labels in
+`#+week:` front matter, a `weekly` keyword kept deliberately distinct
+from `journal`, a `denote-org` dynamic block regenerating the link
+list. It was dropped before installation, and the reason is worth
+recording so that it is not rediscovered.
+
+The system already has two axes. The journal is time; hubs are
+subject. A weekly note adds neither — it adds a coarser division of
+the axis the journal already covers. Everything it would have provided
+beyond that was available more cheaply: the summary is a heading in
+the Sunday journal, and the link list is inserted on demand.
+
+What was genuinely lost is retrieval by period — "autumn 2023", where
+no search term is known in advance. That remains open. If it becomes a
+real problem, the weekly note is the answer and the design above is
+the design.
+
+### The code went into 05-notes.el, not a module of its own
+
+It was first written as `40-journal-week.el` and that was wrong. The
+rule is one functionality per independent module, and this is not one:
+it is journal date arithmetic one level up, it cannot run without
+`my/journal-file-for-date`, and its own header had to say the
+dependency was required rather than optional. A module that is a leaf
+of another module draws a file boundary where there is no seam.
+
+It also duplicated work. 05-notes.el already owns the journal-date
+family — `my/journal-file-p`, `my/journal-file-date`,
+`my/journal-file-for-date`, `my/journal-title`, `my/journal-slug` —
+and the week helpers belong beside them, where the next thing needing
+a week can find them.
+
+Because 05-notes.el loads without NOERROR, the menu entry is declared
+statically in `12-transient.el` alongside the other commands from that
+file, rather than appended through `my/transient-append`. There is
+nothing to degrade around when the owning module is mandatory.
+
+### `my/journal-insert-week-links` (`C-c n i w`)
+
+Inserts at point the seven days of an ISO week as an Org list, each
+linked to its journal note. The week is derived from the day the
+current note describes; with a prefix argument, or outside a journal
+note, from `org-read-date`.
+
+Static list, not a dynamic block. The week is over by the time it is
+summarised, so the set of days is closed and there is nothing to
+recompute. That removes the `denote-org` dependency the weekly-note
+design needed.
+
+### Three things it does that a hand-written list does not
+
+**Missing days are stated, not omitted.** A day with no note appears as
+`— brak wpisu`. In a hand-written list an omission and an empty day
+look identical, which is the distinction 35-journal-gaps.el exists to
+preserve.
+
+**Days are found by parsed date, not by file name.** Through
+`my/journal-file-for-date`, so a journal renamed to "2026-06-15 Obrona
+licencjatu" is still found — and so is one renamed to something with
+no date in it at all, since `my/journal-file-date` falls back to the
+identifier.
+
+**The current day is not linked to itself.** 26-maintenance.el reports
+self-links as a defect; inserting one every Sunday would make that
+check noisy enough to stop being read. The day is rendered as plain
+text instead.
+
+### Weekday names are pinned, not read from the locale
+
+`%a` in `format-time-string` returns what `LC_TIME` says — English
+under `C`, Polish under `pl_PL`. A file whose contents depend on an
+environment variable reads differently on the machine that syncs it,
+so `my/journal-week-day-names` holds the seven strings.
+
+The weekday number, by contrast, does come from `format-time-string`:
+`%u` is the ISO weekday, 1 for Monday, which is the numbering the
+arithmetic wants without a conversion step and without depending on
+the `decoded-time-*` accessors being loaded.
+
+`%G` and `%V` supply the ISO week label, so the one genuinely awkward
+rule — 31 December can belong to week 1 of the following year — is not
+reimplemented. Date arithmetic is anchored at midday and stepped in
+whole days, so a daylight-saving transition moves a timestamp to 11:00
+or 13:00 rather than across midnight. Same approach as
+35-journal-gaps.el.
+
+Links are built with `denote-format-link` rather than a formatted
+`[[denote:...]]` string: the link syntax belongs to Denote and to the
+file type of the buffer being written into.
+
+### A duplicate left in place, deliberately
+
+`my/journal-date-encode` is what `my/journal-gaps--encode` already
+does, down to the reasoning in its docstring. 35-journal-gaps.el is
+not being rewritten for a six-line deduplication: it works, it is
+optional, and the risk is larger than the gain. The duplicate is noted
+in a comment above the new function and should be retired the next
+time that file is touched for another reason.
+
+### Note on descriptive journal titles
+
+Renaming a journal note to something descriptive is safe with one
+constraint, which follows from `my/journal-file-date`: the slug is
+searched for a date immediately after the `--` separator, and the
+identifier is the fallback. So "Obrona licencjatu" is safe (no date in
+the slug, identifier used) and "2026-06-15 Obrona licencjatu" is safe
+(correct date in the slug). A title *beginning* with some other date —
+"2015-06-01 rocznica" on a note from 2026 — is the one shape that
+misreports, because the wrong date matches at the anchor and the
+fallback is never reached.
+
+No guard was added. It requires deliberately opening a title with an
+unrelated date, and a check for it would be a module whose only job is
+to correct another module's assumption.
+
+The weekday name was considered for the title and rejected: it is
+derivable from the date, and this configuration's own rule — stated
+for hub membership in 33-denote-hubs.el — is that a derived fact is
+computed, never stored. The Journal gaps report already computes it
+for its "Day" column.
+
+---
+
 ## Session 2026-08-30l — Committing is not the same as pushing
 
 ### `~/notes` was committed for four days and pushed on none of them

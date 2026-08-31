@@ -3,6 +3,8 @@
 ;; Only the note functions you actually use:
 ;; - Journal (daily)
 ;; - Journal (specific date)
+;; - Links to the days of a week, for a weekly summary written inside
+;;   the Sunday journal
 ;; - Base note (simple)
 ;; - Essay
 ;; - Well-being tracking
@@ -503,6 +505,202 @@ Behaviour:
         (goto-char (point-max))
         (message "Created backdated journal for %s (written %s)"
                  date-formatted added-at-stamp)))))
+
+;; ============================================================
+;; WEEK ARITHMETIC
+;; ============================================================
+;; Journal dates are handled above; a week is the same arithmetic one
+;; level up, so it lives beside them rather than in a module of its own.
+;; ISO weeks run Monday to Sunday and are numbered so that week 1 is the
+;; one containing the first Thursday of the year.  Nothing here
+;; implements that rule: `%G' and `%V' in `format-time-string' do, which
+;; is why 31 December belonging to week 1 of the following year is not a
+;; case this code has to know about.
+;;
+;; Every timestamp is normalised to midday before anything is added to
+;; it, and days are added as whole multiples of 86400 seconds.  A
+;; daylight-saving transition then moves a timestamp from midday to
+;; 11:00 or 13:00 and never across midnight into a neighbouring day.
+;; The hour is never read.
+;;
+;; The weekday comes from `%u' (1 Monday to 7 Sunday) rather than from
+;; the `decoded-time-*' accessors, so the numbering is the ISO one
+;; without a conversion step and nothing here depends on time-date.el
+;; being loaded.
+;;
+;; NOTE: 35-journal-gaps.el has a private `my/journal-gaps--encode' that
+;; does exactly what `my/journal-date-encode' does, with the same
+;; reasoning in its docstring.  It is left alone for now -- that module
+;; works, is optional, and rewriting a working file for a six-line
+;; deduplication is not worth the risk -- but it is a duplicate and
+;; should be retired in favour of this one the next time that file is
+;; touched.
+
+(defconst my/journal-day-seconds 86400
+  "Seconds in a day, for date arithmetic anchored at midday.")
+
+(defun my/journal-date-encode (date)
+  "Return DATE, a \"YYYY-MM-DD\" string, as a time value at midday.
+
+The decoded-time LIST form of `encode-time'.  The six-positional-argument
+form reads more naturally and has been obsolete since Emacs 27; it still
+works today and is exactly the kind of call that stops working on an
+upgrade.
+
+Midday rather than midnight so that a daylight-saving transition cannot
+move the timestamp into the previous or next day."
+  (encode-time (list 0 0 12
+                     (string-to-number (substring date 8 10))
+                     (string-to-number (substring date 5 7))
+                     (string-to-number (substring date 0 4))
+                     nil -1 nil)))
+
+(defun my/journal-midday (&optional time)
+  "Return TIME, or now, moved to midday of the same calendar day."
+  (my/journal-date-encode (format-time-string "%Y-%m-%d" time)))
+
+(defun my/journal-week-monday (&optional time)
+  "Return the Monday of the ISO week containing TIME, at midday.
+TIME defaults to now."
+  (let* ((midday (my/journal-midday time))
+         ;; `%u' is the ISO weekday: 1 for Monday, 7 for Sunday.
+         (back (1- (string-to-number (format-time-string "%u" midday)))))
+    (time-add midday (* (- back) my/journal-day-seconds))))
+
+(defun my/journal-week-days (monday)
+  "Return the seven days of the week starting at MONDAY, as time values."
+  (mapcar (lambda (n) (time-add monday (* n my/journal-day-seconds)))
+          (number-sequence 0 6)))
+
+(defun my/journal-week-label (monday)
+  "Return the ISO week label of MONDAY, e.g. \"2026-W35\"."
+  (format-time-string "%G-W%V" monday))
+
+;; ============================================================
+;; WEEK LINKS: the days of a week, listed inside a journal note
+;; ============================================================
+;; `my/journal-insert-week-links' (C-c n i w) inserts an Org list of the
+;; seven days of a week, each linked to its journal note:
+;;
+;;   - [[denote:20260824T000000][pon 2026-08-24]]
+;;   - śr 2026-08-26 — brak wpisu
+;;   - ndz 2026-08-30 — ten wpis
+;;
+;; Written for a weekly summary kept as a heading inside the Sunday
+;; journal rather than as a separate note type.  A separate weekly note
+;; was designed and rejected: the journal is the time axis and the hubs
+;; of 33-denote-hubs.el are the subject axis, and a weekly note adds
+;; neither -- only a coarser division of the axis the journal already
+;; covers.  The CHANGELOG entry has the full reasoning.
+;;
+;; A STATIC LIST, NOT A DYNAMIC BLOCK.  `denote-org' offers a
+;; `denote-links' dblock that would keep the list current, and for a
+;; note written during the week that would be the right answer.  A week
+;; being summarised is over: the set of days is closed, so there is
+;; nothing left to recompute and the dependency buys nothing.
+;;
+;; THREE THINGS IT DOES THAT TYPING THE LIST DOES NOT
+;;
+;; 1. Every day appears, including the ones with no note.  A hand-written
+;;    list cannot distinguish an omission from an empty day; that is the
+;;    distinction 35-journal-gaps.el exists to preserve.
+;;
+;; 2. Each day is found by PARSED DATE, through `my/journal-file-for-date',
+;;    so a journal renamed to "2026-06-15 Obrona licencjatu" is still
+;;    found -- and so is one renamed to something with no date in it at
+;;    all, since `my/journal-file-date' falls back to the identifier.
+;;
+;; 3. The day being written in is not linked to itself.  A self-link is
+;;    a defect 26-maintenance.el reports, and one inserted every Sunday
+;;    would make that check noisy enough to stop being read.
+
+(defcustom my/journal-week-day-names
+  '("pon" "wt" "śr" "czw" "pt" "sob" "ndz")
+  "Weekday abbreviations, Monday first.
+
+Seven strings, written into the note as part of each link description.
+Pinned rather than taken from the locale: `%a' in `format-time-string'
+returns whatever LC_TIME says -- English under C, Polish under pl_PL --
+and a note whose contents depend on an environment variable reads
+differently on the machine that syncs it."
+  :type '(repeat string)
+  :group 'my/notes)
+
+(defcustom my/journal-week-missing-text "brak wpisu"
+  "Text marking a day of the week with no journal note."
+  :type 'string
+  :group 'my/notes)
+
+(defcustom my/journal-week-current-text "ten wpis"
+  "Text marking the day whose own note the list is being inserted into.
+Rendered instead of a link, because a note linking to itself is a defect
+that 26-maintenance.el reports."
+  :type 'string
+  :group 'my/notes)
+
+(defun my/journal-week--entry (time index files current-file)
+  "Return the Org list item for the day at TIME.
+
+INDEX is the day's position in the week, 0 for Monday, and selects the
+name from `my/journal-week-day-names'.  FILES is the journal silo's file
+list, passed in so that seven lookups read the directory once.
+CURRENT-FILE is the file being written into, which is never linked."
+  (let* ((date (format-time-string "%Y-%m-%d" time))
+         (name (or (nth index my/journal-week-day-names)
+                   (format-time-string "%a" time)))
+         (label (format "%s %s" name date))
+         (file (my/journal-file-for-date date files)))
+    (cond
+     ((null file)
+      (format "- %s — %s" label my/journal-week-missing-text))
+     ((and current-file (file-equal-p file current-file))
+      (format "- %s — %s" label my/journal-week-current-text))
+     (t
+      ;; `denote-format-link' rather than a hand-written [[denote:...]]
+      ;; string: the link syntax belongs to Denote and to the file type
+      ;; of the buffer being written into, not to this code.
+      (format "- %s"
+              (denote-format-link
+               file label
+               (denote-filetype-heuristics (or current-file file))
+               nil))))))
+
+(defun my/journal-week-links (monday &optional current-file)
+  "Return the Org list of the week starting at MONDAY, as a string.
+CURRENT-FILE, when given, is rendered as text rather than as a link."
+  (let ((files (directory-files my-notes-journal t "\\.org\\'"))
+        (index -1))
+    (mapconcat (lambda (time)
+                 (setq index (1+ index))
+                 (my/journal-week--entry time index files current-file))
+               (my/journal-week-days monday)
+               "\n")))
+
+(defun my/journal-insert-week-links (&optional ask)
+  "Insert at point a list of the seven days of a week, linked.
+
+The week is the one containing the day the current journal note
+describes.  Outside a journal note, or with a prefix argument (ASK
+non-nil), the day is chosen with `org-read-date'; any day of the week
+will do, since the Monday is derived from it.
+
+Days with no journal note are listed as missing rather than omitted, and
+the day whose own note is being written in is rendered as plain text."
+  (interactive "P")
+  (let* ((own-date (unless ask
+                     (when-let* ((file (buffer-file-name)))
+                       (my/journal-file-date file))))
+         (date (or own-date
+                   (org-read-date nil nil nil "Any day in the week: ")))
+         (monday (my/journal-week-monday (my/journal-date-encode date)))
+         (days (my/journal-week-days monday))
+         (text (my/journal-week-links monday (buffer-file-name))))
+    (unless (bolp) (insert "\n"))
+    (insert text "\n")
+    (message "%s (%s – %s)"
+             (my/journal-week-label monday)
+             (format-time-string "%Y-%m-%d" (car days))
+             (format-time-string "%Y-%m-%d" (car (last days))))))
 
 ;; ============================================================
 ;; BASE NOTE: Simple note with title and tags

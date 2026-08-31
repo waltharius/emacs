@@ -684,7 +684,9 @@ Module: =modules/21-dashboards.el=
 Insert links, timestamps, and other content at point. =t=, =i=, =I=,
 =u= and =H= are appended dynamically by =20-transclusion.el=,
 =31-org-images.el=, =32-web-links.el= and =33-denote-hubs.el=; =H= is
-the one entry that writes into another file rather than at point.
+the one entry that writes into another file rather than at point. =w=
+is declared here rather than appended, because its module,
+=05-notes.el=, is mandatory and there is nothing to degrade around.
 
 Module: =modules/12-transient.el=
 

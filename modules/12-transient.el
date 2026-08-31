@@ -77,7 +77,12 @@
     ("L" "Linked note"  my/denote-linked-note)]
    ["Date & Time"
     ("h" "Time (HH:MM)"      insert-current-time)
-    ("d" "Date (YYYY-MM-DD)" insert-current-date)]
+    ("d" "Date (YYYY-MM-DD)" insert-current-date)
+    ;; Declared here rather than appended by the owning module, the way
+    ;; the Create menu declares the other 05-notes.el commands:
+    ;; 05-notes.el is loaded without NOERROR, so it is always present
+    ;; and there is nothing to degrade around.
+    ("w" "Week's days"       my/journal-insert-week-links)]
    [("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================
