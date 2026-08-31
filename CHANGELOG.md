@@ -22,6 +22,48 @@ included.
 
 ---
 
+## Session 2026-08-31f — README
+ 
+A README describing what the configuration does, how it is put
+together, what every module is for, what the keys are, what each note
+template writes, and why the design is the way it is.
+ 
+Written from the source rather than from memory: the package list comes
+from the `use-package` forms, the external programs from the
+`executable-find` calls, the keys from the `global-set-key` forms and
+the transient definitions, the module summaries from their own headers.
+That method is the lesson of `08-keybindings.el`, twice.
+ 
+Two things it states that were not written down anywhere before.
+ 
+**Where the system came from.** Two needs, and everything else grew
+around them: writing a journal entry or a plain note has to be
+instant, and notes have to connect and accumulate without ceremony.
+The keyboard does everything — there are no graphical menus and none
+are wanted; a transient is a keyboard interface that happens to be
+visible. And the structured metadata (`#+schema:`, `#+project:`,
+`#+week:`, metrics as keywords with an explicit "absent means not
+measured" rule) is groundwork for a local model to read the collection
+later and build derived views over it. The model configuration lives in
+a separate NixOS repository. Nothing in the system depends on that
+happening.
+ 
+**That the Elisp was written by an LLM.** Not assisted — written. What
+is human is the requirements, the habits the system is shaped around,
+and the rejections, of which this CHANGELOG is largely a record. The
+code is cross-reviewed by models from different companies on the
+reasoning that independently trained systems are less likely to share
+a blind spot, and the README says plainly what that is not: several
+models agreeing is not review by an experienced Elisp programmer and
+is not a security audit. A reader is entitled to know before deciding
+whether to trust a codebase.
+ 
+The README also carries the known issues from session 2026-08-31b, so
+that a reader meeting `my/denote--all-files` in the first hour knows it
+is a catalogued debt rather than an intended convention.
+
+---
+
 ## Session 2026-08-31e — Pre-commit consistency checks
  
 `hooks/` holds a pre-commit hook, an Elisp reader check and a Python
