@@ -22,6 +22,126 @@ included.
 
 ---
 
+## Session 2026-08-31b — Module boundary audit
+ 
+Every top-level definition in `modules/` was indexed to its owning
+file, then every `my/`- and `my-`-prefixed symbol occurring in code was
+resolved back to its owner. Docstring-only mentions were checked by
+hand and excluded. No code changed; this entry records what the graph
+says, so that the next round of "should this be its own module" starts
+from measurement.
+ 
+43 modules, 20,243 lines, 812 top-level definitions.
+ 
+### There is no hidden library waiting to be extracted
+ 
+**49 definitions — 6% — are referenced by two or more other modules.**
+That is the entire shared surface, and it is concentrated:
+`my/transient-append` (20 users), the four silo path variables (7 to
+11 each), `my/fixed-tab-goto` (7), the menu prefixes. Below that
+everything drops to three users or fewer and is domain logic rather
+than utility.
+ 
+A `my-lib.el` built from symbols with two callers each is not a
+library, it is a junk drawer, and the first cost of a junk drawer is
+that "where does this go" stops having an answer.
+ 
+The layering already exists, arrived at by use rather than decree:
+`00-core.el` (24 dependents) for data, paths and state;
+`12-transient.el` (21) for the menu framework; and three domain
+libraries that emerged on their own — `27-denote-identifiers.el` (4),
+`28-writing-projects.el` (3), `22-zettelkasten.el` (2).
+ 
+`22-zettelkasten.el` is the test for whether a boundary is real: two
+unrelated modules call into it from two directions and it knows about
+neither. A module with several independent callers and no arrow
+pointing back is a library.
+ 
+### What is broken is the naming, not the boundaries
+ 
+**Twenty-one privately-named symbols are called from other modules.**
+The double-dash convention has stopped meaning anything, in two
+different ways.
+ 
+`27-denote-identifiers.el` is a library by every measure — four
+dependents, no outward arrows except core — and *five of its exported
+symbols carry the double dash*. A library that tells every caller not
+to call it cannot be relied on: the next person to refactor it has
+every reason to believe those five have no external callers.
+ 
+`16-org-export.el` exports `my/--latex-preamble`, `my/--org-title`,
+`my/--resolve-pdf-dest` and `my/--title-to-filename` — private *and*
+namespaceless. The one thing the prefix convention is for is missing in
+exactly the symbols that travel furthest.
+ 
+Every one of the twenty-one is a two-way decision: promote the name, or
+remove the call. In the great majority the honest answer is promote —
+these are real APIs that were never renamed when a second caller
+appeared. The renames are mechanical and are being done file by file as
+each is touched for another reason, rather than as one sweep.
+ 
+### Four boundaries that do not survive the graph
+ 
+1. **`my/fixed-tab-goto` is documented in two places as living in two
+   different files.** `35-journal-gaps.el` declares it as
+   `"23-fixed-tabs"`, `36-notes-stats.el` as `"01-ui"`. The second is
+   right. Fixed in session 2026-08-31c.
+   The first instinct — move it into `23-fixed-tabs.el`, the module
+   named after the feature — is wrong, and the reference count is why.
+   Seven modules call it and six of them are not the fixed-tabs
+   feature; they are modules putting their own buffer in a named tab.
+   It is a shared UI primitive and `23-fixed-tabs.el` is one of its
+   seven consumers, the one that automates it with advice. Moving it
+   would make six modules depend on the automation module for a
+   primitive unrelated to automation. It stays in `01-ui.el`, which
+   owns the tab-bar configuration it drives.
+2. **`18-zotero-transient.el` has no content of its own.** 56 lines,
+   one transient, six references into `17-bibliography.el`, nothing
+   referencing it but a single menu entry. It is the only module in the
+   configuration whose entire content is another module's menu; every
+   other feature declares its menu at the bottom of its own file. To be
+   merged.
+3. **`28-writing-projects.el` points back at its own extension.**
+   `37-tasks.el` references four symbols from `28`; `28` references
+   `my/tasks-update-agenda-files`. Both guarded, so nothing is broken,
+   but the arrow is backwards. `28` already has the mechanism to avoid
+   it — `my/writing-project-created-hook`, which `39-project-git.el`
+   uses to attach itself without `28` knowing anything about git. The
+   agenda update should run the same way. Not a merge: 28+29+37+38+39
+   is 3,021 lines and the split is right; one arrow is wrong.
+4. **`36-notes-stats.el` reads three private helpers** from
+   `26-maintenance.el` and `35-journal-gaps.el`, and its own header
+   documents one as a "(hard)" dependency — an accurate description of
+   a contract the naming says does not exist.
+### Clusters that look mergeable and are not
+ 
+The appearance modules (`03b-fonts`, `09-theme`, `10-visual-fill`,
+`11-org-appearance`, `34-appearance`, 1,945 lines) all answer "how do
+notes look", but the split is by lifecycle, not topic:
+`10-visual-fill.el` is the declared single source of truth for
+wrapping, `11-org-appearance.el` handles behaviour while faces belong
+to `custom.el`, and `34-appearance.el` is optional. Merging a mandatory
+module into an optional one would take the View menu down with it.
+ 
+The report modules (`21-dashboards`, `35-journal-gaps`,
+`36-notes-stats`, 1,829 lines) would merge into one file holding three
+unrelated buffers. What they should share is the date arithmetic each
+re-derives, which is now in `05-notes.el`.
+ 
+`32-web-links.el` is 29 lines and there is nowhere to put it: the
+Insert menu is a menu, not a functionality, and its entries come from
+five unrelated modules.
+ 
+### Known-good duplicate
+ 
+`(defvar vertico-preselect)` appears at top level in both
+`05-notes.el` and `06-capture.el`. This is correct Elisp — a valueless
+`defvar` marks a symbol special for the file it appears in, and each
+file binding it dynamically needs its own. It is an explicit exception
+in the duplicate-definition check rather than something to fix.
+ 
+---
+
 ## Session 2026-08-31a — A week's days, listed inside the Sunday journal
 
 ### The weekly note was designed and then not adopted
