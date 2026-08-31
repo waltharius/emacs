@@ -896,10 +896,10 @@ Function: =insert-current-date= | Module: =modules/05-notes.el=
 :PROPERTIES:
 :CUSTOM_ID: fn-my-journal-insert-week-links
 :END:
- 
+
 Inserts at point an Org list of the seven days of an ISO week, each
 linked to its journal note:
- 
+
 #+begin_example
 - [[denote:20260824T000000][pon 2026-08-24]]
 - [[denote:20260825T093012][wt 2026-08-25]]
@@ -909,20 +909,20 @@ linked to its journal note:
 - [[denote:20260829T204410][sob 2026-08-29]]
 - ndz 2026-08-30 — ten wpis
 #+end_example
- 
+
 The week is the one containing the day the current journal note
 describes. Outside a journal note, or with a prefix argument, the day
 is chosen with =org-read-date= — any day of that week will do, since
 the Monday is derived from it.
- 
+
 Written for a weekly summary kept as a heading inside the Sunday
 journal rather than as a separate note type. The week is over by the
 time it is summarised, so the set of days is closed: a static list is
 the honest representation, and no dynamic block — and therefore no
 =denote-org= — is involved.
- 
+
 **** What it does that typing the list does not
- 
+
 - *Missing days are stated, not omitted* (=— brak wpisu=). In a
   hand-written list an omission and an empty day look the same; this
   is the distinction [[#journal-gaps][Journal gaps]] exists to preserve.
@@ -934,31 +934,31 @@ the honest representation, and no dynamic block — and therefore no
 - *The current day is not linked to itself* (=— ten wpis=). A
   self-link is a defect [[#maintenance][Maintenance]] reports; inserting one every
   Sunday would make that check noisy enough to stop being read.
- 
+
 **** Weekday names
- 
+
 Held in =my/journal-week-day-names=, not read from the locale. =%a= in
 =format-time-string= returns whatever =LC_TIME= says — English under
 =C=, Polish under =pl_PL= — and a note whose contents depend on an
 environment variable reads differently on the machine that syncs it.
- 
+
 The weekday *number* does come from =format-time-string=: =%u= is the
 ISO weekday, 1 for Monday, which is the numbering the arithmetic needs
 without a conversion step.
- 
+
 **** Options
- 
+
 | Variable                       | Default                                    |
 |--------------------------------+--------------------------------------------|
 | =my/journal-week-day-names=    | =("pon" "wt" "śr" "czw" "pt" "sob" "ndz")= |
 | =my/journal-week-missing-text= | ="brak wpisu"=                             |
 | =my/journal-week-current-text= | ="ten wpis"=                               |
- 
+
 Helper functions in the same module, usable on their own:
 =my/journal-date-encode=, =my/journal-midday=,
 =my/journal-week-monday=, =my/journal-week-days= and
 =my/journal-week-label= (=%G-W%V=, e.g. =2026-W35=).
- 
+
 Function: =my/journal-insert-week-links= | Module: =modules/05-notes.el=
 
 *** i — Image from disk
