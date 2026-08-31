@@ -22,6 +22,20 @@ included.
 
 ---
 
+## Session 2026-08-31c — declare-function for my/fixed-tab-goto
+ 
+`35-journal-gaps.el` declared `my/fixed-tab-goto` as coming from
+`23-fixed-tabs`. It is defined in `01-ui.el`, as `36-notes-stats.el`
+correctly says.
+ 
+No behaviour change: `declare-function` informs the byte compiler and
+nothing else. The value of the fix is that the two declarations no
+longer contradict each other, which is what made the function look
+misplaced in the first place — see session 2026-08-31b for why it is
+not.
+ 
+---
+
 ## Session 2026-08-31b — Module boundary audit
  
 Every top-level definition in `modules/` was indexed to its owning

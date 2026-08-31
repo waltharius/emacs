@@ -70,7 +70,7 @@
 (declare-function my/journal-set-metrics "05b-journal-metrics" ())
 (declare-function my/denote-journal--create-backdated "05-notes" (date encoded-time))
 (declare-function my/journal-file-date "05-notes" (file))
-(declare-function my/fixed-tab-goto "23-fixed-tabs" (name))
+(declare-function my/fixed-tab-goto "01-ui" (name))
 
 (defgroup my-journal-gaps nil
   "Reporting days missing from the journal series.
