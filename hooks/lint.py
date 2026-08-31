@@ -170,6 +170,31 @@ def check_keybinding_help():
     return problems
 
 
+MENU_SUFFIX_RE = re.compile(r'\("([^"]{1,3})"\s+"([^"]+)"\s+(my/[A-Za-z0-9/_?-]+)')
+
+
+def check_menu_coverage():
+    """A command reachable from a transient menu that the docs never mention.
+
+    Menu PREFIXES are exempt: a command whose name ends in `-menu' opens a
+    submenu, and function_helper.org documents those as whole sections
+    rather than as entries, so requiring the symbol by name would flag
+    every section that is in fact written.
+    """
+    if not os.path.exists(HELPER):
+        return ["function_helper.org is missing"]
+    helper = open(HELPER, encoding="utf-8").read()
+    problems = []
+    for name, text in modules():
+        for m in MENU_SUFFIX_RE.finditer(text):
+            key, label, command = m.groups()
+            if command.endswith("-menu"):
+                continue
+            if command not in helper:
+                problems.append(f"{name}: {key!r} {label!r} runs {command}, undocumented")
+    return sorted(set(problems))
+
+
 def staged_files():
     out = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
@@ -199,6 +224,7 @@ CHECKS = {
     "functions": (check_documented_functions, "documented functions that no longer exist"),
     "keys": (check_keybinding_help, "keys the help text claims but nothing binds"),
     "changelog": (check_changelog, "modules staged without a CHANGELOG entry"),
+    "coverage": (check_menu_coverage, "menu commands function_helper.org never mentions"),
 }
 
 # Checks that report but never block.  `private' is here because the
@@ -206,7 +232,7 @@ CHECKS = {
 # would make every commit fail until the backlog is cleared, and a hook
 # that always fails is a hook that gets bypassed by reflex.  Move it to
 # blocking once the count reaches zero.
-ADVISORY = {"private"}
+ADVISORY = {"private", "coverage"}
 
 
 def main(argv):

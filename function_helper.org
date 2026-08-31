@@ -1873,13 +1873,13 @@ optional =SIGNATURE= file name component.
 In the alphanumeric scheme, depth is communicated by alternating
 between digits and letters, so =1a2= is three levels deep.
 
-| Signature | Relationship                                          |
-|-----------+-------------------------------------------------------|
-| =1=       | A top-level thread, unrelated to =2=                  |
-| =1a=      | First child of =1= — elaborates one concept from it   |
-| =1a1=     | First child of =1a= — drills deeper still             |
-| =1b=      | Second child of =1= — a different branch off =1=      |
-| =2=       | A separate top-level thread                           |
+| Signature | Relationship                                      |
+|-----------+---------------------------------------------------|
+| =1=         | A top-level thread, unrelated to =2=                |
+| =1a=        | First child of =1= — elaborates one concept from it |
+| =1a1=       | First child of =1a= — drills deeper still           |
+| =1b=        | Second child of =1= — a different branch off =1=      |
+| =2=         | A separate top-level thread                       |
 
 Branch (create a *child*) to develop one specific concept out of a
 note without interrupting its main line. Continue (create a *sibling*)
@@ -1892,26 +1892,29 @@ yields =1a2=.
 :CUSTOM_ID: zettelkasten-commands
 :END:
 
-| Key | Command                       | Wraps                                    |
-|-----+-------------------------------+------------------------------------------|
-| n   | =my/zettel-new-parent=        | =denote-sequence-new-parent=             |
-| c   | =my/zettel-new-child-of-current= | =denote-sequence-new-child-of-current= |
-| C   | =my/zettel-new-child=         | =denote-sequence-new-child=              |
+| Key | Command                            | Wraps                                    |
+|-----+------------------------------------+------------------------------------------|
+| n   | =my/zettel-new-parent=             | =denote-sequence-new-parent=             |
+| c   | =my/zettel-new-child-of-current=   | =denote-sequence-new-child-of-current=   |
+| C   | =my/zettel-new-child=              | =denote-sequence-new-child=              |
 | s   | =my/zettel-new-sibling-of-current= | =denote-sequence-new-sibling-of-current= |
-| f   | =my/zettel-find=              | =denote-sequence-find=                   |
-| j   | =my/zettel-next-sibling=      | =denote-sequence-find-next-sibling=      |
-| k   | =my/zettel-previous-sibling=  | =denote-sequence-find-previous-sibling=  |
-| d   | =my/zettel-dired=             | =denote-sequence-dired=                  |
-| p   | =my/zettel-dired-prefix=      | =denote-sequence-dired= with =C-u=       |
-| P   | =my/zettel-dired-prefix-depth= | =denote-sequence-dired= with =C-u C-u=  |
-| l   | =my/zettel-link=              | =denote-sequence-link=                   |
-| r   | =my/zettel-reparent=          | =denote-sequence-reparent=               |
-| a   | =my/zettel-adopt=             | =denote-sequence-rename-as-parent=       |
+| f   | =my/zettel-find=                   | =denote-sequence-find=                   |
+| j   | =my/zettel-next-sibling=           | =denote-sequence-find-next-sibling=      |
+| k   | =my/zettel-previous-sibling=       | =denote-sequence-find-previous-sibling=  |
+| h   | =my/zettel-hierarchy=              | =denote-sequence-view-hierarchy=         |
+| H   | =my/zettel-hierarchy-prefix=       | =denote-sequence-view-hierarchy= + =C-u= |
+| d   | =my/zettel-dired=                  | =denote-sequence-dired=                  |
+| p   | =my/zettel-dired-prefix=           | =denote-sequence-dired= + =C-u=          |
+| P   | =my/zettel-dired-prefix-depth=     | =denote-sequence-dired= + =C-u C-u=      |
+| l   | =my/zettel-link=                   | =denote-sequence-link=                   |
+| r   | =my/zettel-reparent=               | =denote-sequence-reparent=               |
+| a   | =my/zettel-adopt=                  | =denote-sequence-rename-as-parent=       |
+| q   | —                                  | =transient-quit-one=                     |
 
 =j= and =k= are marked =:transient t= so the menu stays open while
 paging through siblings.
 
-**** Why =p= and =P= exist instead of =C-u=
+*** Why =p= and =P= exist instead of =C-u=
 
 =denote-sequence-dired= is documented to prompt for a sequence prefix
 under =C-u= and for prefix plus depth under =C-u C-u=. That does not
@@ -1928,7 +1931,7 @@ than hoping the argument survives the menu. Called directly with
 An empty string at the prefix prompt means no filtering, which is the
 documented way to reach the depth prompt without narrowing by prefix.
 
-**** Stale listings: previous invocations are killed first
+*** Stale listings: previous invocations are killed first
 
 Invoking =denote-sequence-dired= a second time with a different prefix
 shows the *previous* invocation's file list. The buffer name updates
@@ -1955,29 +1958,65 @@ To confirm the diagnosis independently, run =M-x denote-sequence-dired=
 directly with =C-u=, twice with different prefixes: the bug reproduces
 without any of this configuration's wrappers involved.
 
-**** Dired shows file names, not titles
-
-This is inherent to Dired, which lists a directory. Two things make
-it readable, both enabled globally in =04-denote.el=:
-=denote-dired-mode= font-locks the file name components (identifier,
-signature, title, keywords) in distinct faces, and
-=dired-hide-details-mode= strips the permission/owner/size/date
-columns.
-
-For an actual title-based view of a branch, use a =denote-sequence=
-dynamic block in a structure note, which renders Org links showing
-titles:
-
+*** Titles versus file names
+:PROPERTIES:
+:CUSTOM_ID: zettelkasten-views
+:END:
+ 
+Two views of the same tree, and the difference between them is not
+cosmetic.
+ 
+=d= / =p= / =P= list *file names* in Dired. That is inherent to Dired,
+which lists a directory. Two things make it readable, both enabled
+globally in =04-denote.el=: =denote-dired-mode= font-locks the file
+name components (identifier, signature, title, keywords) in distinct
+faces, and =dired-hide-details-mode= strips the
+permission/owner/size/date columns.
+ 
+=h= / =H= draw the tree indented by depth and show the *title as
+written*. =denote-sequence--hierarchy-insert= calls
+=denote-retrieve-title-or-filename=, which reads =#+title:= from the
+front matter and falls back to the file name only when there is none.
+So the title appears in full, punctuation and capitals intact, however
+the file happens to be named.
+ 
+That matters here more than it would elsewhere. Where a Zettelkasten
+title is a full sentence stating a claim, scanning the hierarchy is
+scanning the argument; scanning Dired is scanning storage. The
+completion prompts side with Dired: =denote-sequence-file-prompt=
+affixes the signature and the keywords, but the candidate text is the
+file name, and consult-denote states plainly that it will not prettify
+titles because doing so is expensive at this collection size.
+ 
+Inside the hierarchy buffer: =RET= visits, =TAB= folds a branch,
+=S-TAB= folds everything, =n= and =p= move between visible entries,
+=f= and =b= between siblings of the same level, =g= reverts, =q=
+quits. =H= prompts for a sequence prefix and shows that branch alone;
+an empty prefix means no restriction.
+ 
+Unlike =d=, the hierarchy needs no stale-buffer workaround. It derives
+its buffer name from the prefix and depth, and
+=denote-sequence--hierarchy-get-buffer= calls =erase-buffer= before
+inserting, so each invocation builds its own buffer from scratch.
+ 
+A third option, for a view that lives inside a note rather than in a
+buffer, is a =denote-sequence= dynamic block in a structure note; it
+renders Org links, so it shows titles too:
+ 
 #+begin_example
 ,#+BEGIN: denote-sequence :sequence "1" :depth 2
 ,#+END:
 #+end_example
-
+ 
 =:sequence= is required, =:depth= optional; an empty string or =".+"=
-collects every sequence. Refresh with =C-c C-x C-u=. Note the
-tradeoff already recorded elsewhere: =:sequence= is a hard-coded
-string, so a block pointing at a branch becomes wrong if that branch
-is later reparented.
+collects every sequence. Refresh with =C-c C-x C-u=. Note the tradeoff
+already recorded elsewhere: =:sequence= is a hard-coded string, so a
+block pointing at a branch becomes wrong if that branch is later
+reparented. The hierarchy view has no such problem because it is
+computed on each invocation, but it also cannot be saved into a note.
+ 
+Functions: =my/zettel-hierarchy=, =my/zettel-hierarchy-prefix=
+| Module: =modules/22-zettelkasten.el=
 
 =l= differs from the ordinary =C-c d l= (=denote-link=) only in
 narrowing minibuffer completion to files that *have* a signature.
@@ -5368,93 +5407,93 @@ table (=my/show-keybindings-help=, =C-c h k=), including the transient
 menu contents; re-audit both together if bindings change, rather than
 hand-editing either from memory.
 
-| Binding  | Function                     | Set in module                |
-|----------+-------------------------------+-------------------------------|
-| C-c n    | =my/notes-menu=               | =12-transient.el=            |
-| C-c n z  | =my/zettelkasten-menu=        | =22-zettelkasten.el= (appended) |
-| C-c c    | =org-capture=                 | =06-capture.el=              |
-| C-c x    | =my/zotero-menu=              | =18-zotero-transient.el=     |
-| C-c b c  | =my/cite-check-keys=          | =17-bibliography.el=         |
-| C-c r s  | =my/readwise-sync=            | =24-readwise.el=             |
-| C-c r r  | =my/readwise-review=          | =24-readwise.el=             |
-| C-c r o  | =my/readwise-open-directory=  | =24-readwise.el=             |
-| C-c X    | =my/inbox-extract=            | =25-inbox-review.el= (inbox notes only) |
-| C-c p    | =my/org-export-to-pdf=        | =16-org-export.el=           |
-| C-c d f  | =denote-open-or-create=       | =08-keybindings.el=          |
-| C-c d l  | =denote-link=                 | =08-keybindings.el=          |
-| C-c d b  | =denote-backlinks=            | =08-keybindings.el=          |
-| C-c d r  | =denote-rename-file=          | =08-keybindings.el=          |
-| C-c d t  | =denote-rename-file-keywords= | =08-keybindings.el=          |
-| C-c d s  | =my/desktop-save-now=         | =01-ui.el=                   |
-| C-c d k  | =my/desktop-toggle-keep-buffer= | =01-ui.el=                 |
-| C-c t n  | =tab-bar-new-tab=             | =01-ui.el=                   |
-| C-c t c  | =tab-bar-close-tab=           | =01-ui.el=                   |
-| C-c t o  | =tab-bar-switch-to-tab=       | =01-ui.el=                   |
-| C-c t r  | =tab-bar-rename-tab=          | =01-ui.el=                   |
-| C-c w d  | =my/open-notes-dashboard=     | =15-workspace.el=            |
-| C-c w x  | =my/notes-explore=            | =15-workspace.el=            |
-| C-c w r  | =denote-explore-random-note=  | =15-workspace.el=            |
-| C-c a k  | =keyfreq-show=                | =14-typing-analytics.el=     |
-| C-c a s  | =keylog-status=               | =14-typing-analytics.el=     |
-| C-c a t  | =keylog-disable=              | =14-typing-analytics.el=     |
-| C-c a T  | =keylog-enable=               | =14-typing-analytics.el=     |
-| <f8>     | =my/task-capture=             | =37-tasks.el=                |
-| <f9>     | =my/habit-log=                | =38-habits.el=               |
-| C-x g    | =magit-status=                | =07-git.el=                  |
-| C-x M-g  | =magit-dispatch=              | =07-git.el=                  |
-| C-c g s  | =magit-status=                | =07-git.el=                  |
-| C-c g l  | =magit-log-current=           | =07-git.el=                  |
-| C-c g b  | =magit-blame=                 | =07-git.el=                  |
-| C-c v s  | =my/notes-git-status=         | =07-git.el=                  |
-| C-c v c  | =my/commit-notes-now=         | =07-git.el=                  |
-| C-c v S  | =my/config-git-status=        | =07-git.el=                  |
-| C-c v C  | =my/commit-config-now=        | =07-git.el=                  |
-| C-c v d  | =magit-diff-buffer-file=      | =07-git.el=                  |
-| C-c v h  | =magit-log-buffer-file=       | =07-git.el=                  |
-| C-;      | =flyspell-correct-wrapper=    | =03-spelling.el= (flyspell-mode-map) |
-| C-c f b  | =my/spell-check-visible=      | =03-spelling.el=             |
-| C-a      | =mark-whole-buffer=           | =02-editing.el= (rebind)     |
-| C-f      | =isearch-forward=             | =02-editing.el= (rebind)     |
-| C-s      | =save-buffer=                 | =02-editing.el= (rebind)     |
-| C-z      | =undo=                        | =02-editing.el= (rebind)     |
-| C-x C-b  | =ibuffer=                     | =02-editing.el=              |
-| C-x u    | =vundo=                       | =02-editing.el=              |
-| C-S-z    | =undo-redo=                   | =02-editing.el=              |
-| M-Q      | =my/unfill-region=            | =02-editing.el=              |
-| C-c o i  | =open-init-el-bottom-split=   | =08-keybindings.el=          |
-| C-c e b  | =eval-buffer=                 | =08-keybindings.el=          |
-| C-c e r  | =eval-region=                 | =08-keybindings.el=          |
-| C-c h k  | =my/show-keybindings-help=    | =08-keybindings.el=          |
-| C-c s    | =my/spell-correct-previous=   | =08-keybindings.el=          |
-| C-c S    | =my/spell-add-previous-to-dict= | =08-keybindings.el=        |
-| C-c m c  | =my/notes-create-menu=        | =08-keybindings.el=          |
-| C-c m w  | =my/toggle-writeroom=         | =08-keybindings.el=          |
-| C-c m k  | =my/denote-keywords-edit=     | =08-keybindings.el= (duplicate of C-c d t) |
-| <f4>     | =my/theme-cycle-light=        | =09-theme.el=                |
-| <f5>     | =my/theme-cycle-dark=         | =09-theme.el=                |
-| S-<f4>   | =my/theme-cycle-all=          | =09-theme.el=                |
-| C-c u t  | =my/theme-toggle=             | =09-theme.el=                |
-| C-c u T  | =my/theme-select=             | =09-theme.el=                |
-| C-c u m  | =my/theme-favourite-toggle=   | =09-theme.el=                |
-| C-c u M  | =my/theme-cycle-favourites=   | =09-theme.el=                |
-| C-c u C  | =my/theme-classify=           | =09-theme.el=                |
-| C-c u R  | =my/theme-repair=             | =09-theme.el=                |
-| C-c n f j | =my/journal-gaps=            | =35-journal-gaps.el=         |
-| C-c n f s | =my/notes-stats=             | =36-notes-stats.el=          |
-| C-c w s  | =my/notes-stats=              | =36-notes-stats.el=          |
-| C-c u p  | =my/toggle-spacious-padding=  | =34-appearance.el=           |
-| C-c u f  | =my/font-size-adjust=         | =03b-fonts.el= (all frames)  |
-| C-c u s  | =my/text-scale-save-to-note=  | =03b-fonts.el=               |
-| C-c u w  | =my/text-width-adjust=        | =10-visual-fill.el=          |
-| C-c u +  | =text-scale-increase=         | =34-appearance.el= (this buffer) |
-| C-c u -  | =text-scale-decrease=         | =34-appearance.el= (this buffer) |
-| C-c u 0  | =my/text-scale-reset=         | =34-appearance.el=           |
-| C-M-=    | =default-text-scale-increase= | =34-appearance.el= (all frames) |
-| C-M--    | =default-text-scale-decrease= | =34-appearance.el= (all frames) |
-| C-x b    | =consult-buffer=              | =01-ui.el=                   |
-| M-g g    | =consult-goto-line=           | =01-ui.el=                   |
-| M-g i    | =consult-imenu=               | =01-ui.el=                   |
-| M-s l    | =consult-line=                | =01-ui.el=                   |
+| Binding   | Function                      | Set in module                            |
+|-----------+-------------------------------+------------------------------------------|
+| C-c n     | =my/notes-menu=                 | =12-transient.el=                          |
+| C-c n z   | =my/zettelkasten-menu=          | =22-zettelkasten.el= (appended)            |
+| C-c c     | =org-capture=                   | =06-capture.el=                            |
+| C-c x     | =my/zotero-menu=                | =18-zotero-transient.el=                   |
+| C-c b c   | =my/cite-check-keys=            | =17-bibliography.el=                       |
+| C-c r s   | =my/readwise-sync=              | =24-readwise.el=                           |
+| C-c r r   | =my/readwise-review=            | =24-readwise.el=                           |
+| C-c r o   | =my/readwise-open-directory=    | =24-readwise.el=                           |
+| C-c X     | =my/inbox-extract=              | =25-inbox-review.el= (inbox notes only)    |
+| C-c p     | =my/org-export-to-pdf=          | =16-org-export.el=                         |
+| C-c d f   | =denote-open-or-create=         | =08-keybindings.el=                        |
+| C-c d l   | =denote-link=                   | =08-keybindings.el=                        |
+| C-c d b   | =denote-backlinks=              | =08-keybindings.el=                        |
+| C-c d r   | =denote-rename-file=            | =08-keybindings.el=                        |
+| C-c d t   | =denote-rename-file-keywords=   | =08-keybindings.el=                        |
+| C-c d s   | =my/desktop-save-now=           | =01-ui.el=                                 |
+| C-c d k   | =my/desktop-toggle-keep-buffer= | =01-ui.el=                                 |
+| C-c t n   | =tab-bar-new-tab=               | =01-ui.el=                                 |
+| C-c t c   | =tab-bar-close-tab=             | =01-ui.el=                                 |
+| C-c t o   | =tab-bar-switch-to-tab=         | =01-ui.el=                                 |
+| C-c t r   | =tab-bar-rename-tab=            | =01-ui.el=                                 |
+| C-c w d   | =my/open-notes-dashboard=       | =15-workspace.el=                          |
+| C-c w x   | =my/notes-explore=              | =15-workspace.el=                          |
+| C-c w r   | =denote-explore-random-note=    | =15-workspace.el=                          |
+| C-c a k   | =keyfreq-show=                  | =14-typing-analytics.el=                   |
+| C-c a s   | =keylog-status=                 | =14-typing-analytics.el=                   |
+| C-c a t   | =keylog-disable=                | =14-typing-analytics.el=                   |
+| C-c a T   | =keylog-enable=                 | =14-typing-analytics.el=                   |
+| <f8>      | =my/task-capture=               | =37-tasks.el=                              |
+| <f9>      | =my/habit-log=                  | =38-habits.el=                             |
+| C-x g     | =magit-status=                  | =07-git.el=                                |
+| C-x M-g   | =magit-dispatch=                | =07-git.el=                                |
+| C-c g s   | =magit-status=                  | =07-git.el=                                |
+| C-c g l   | =magit-log-current=             | =07-git.el=                                |
+| C-c g b   | =magit-blame=                   | =07-git.el=                                |
+| C-c v s   | =my/notes-git-status=           | =07-git.el=                                |
+| C-c v c   | =my/commit-notes-now=           | =07-git.el=                                |
+| C-c v S   | =my/config-git-status=          | =07-git.el=                                |
+| C-c v C   | =my/commit-config-now=          | =07-git.el=                                |
+| C-c v d   | =magit-diff-buffer-file=        | =07-git.el=                                |
+| C-c v h   | =magit-log-buffer-file=         | =07-git.el=                                |
+| C-;       | =flyspell-correct-wrapper=      | =03-spelling.el= (flyspell-mode-map)       |
+| C-c f b   | =my/spell-check-visible=        | =03-spelling.el=                           |
+| C-a       | =mark-whole-buffer=             | =02-editing.el= (rebind)                   |
+| C-f       | =isearch-forward=               | =02-editing.el= (rebind)                   |
+| C-s       | =save-buffer=                   | =02-editing.el= (rebind)                   |
+| C-z       | =undo=                          | =02-editing.el= (rebind)                   |
+| C-x C-b   | =ibuffer=                       | =02-editing.el=                            |
+| C-x u     | =vundo=                         | =02-editing.el=                            |
+| C-S-z     | =undo-redo=                     | =02-editing.el=                            |
+| M-Q       | =my/unfill-region=              | =02-editing.el=                            |
+| C-c o i   | =open-init-el-bottom-split=     | =08-keybindings.el=                        |
+| C-c e b   | =eval-buffer=                   | =08-keybindings.el=                        |
+| C-c e r   | =eval-region=                   | =08-keybindings.el=                        |
+| C-c h k   | =my/show-keybindings-help=      | =08-keybindings.el=                        |
+| C-c s     | =my/spell-correct-previous=     | =08-keybindings.el=                        |
+| C-c S     | =my/spell-add-previous-to-dict= | =08-keybindings.el=                        |
+| C-c m c   | =my/notes-create-menu=          | =08-keybindings.el=                        |
+| C-c m w   | =my/toggle-writeroom=           | =08-keybindings.el=                        |
+| C-c m k   | =my/denote-keywords-edit=       | =08-keybindings.el= (duplicate of C-c d t) |
+| <f4>      | =my/theme-cycle-light=          | =09-theme.el=                              |
+| <f5>      | =my/theme-cycle-dark=           | =09-theme.el=                              |
+| S-<f4>    | =my/theme-cycle-all=            | =09-theme.el=                              |
+| C-c u t   | =my/theme-toggle=               | =09-theme.el=                              |
+| C-c u T   | =my/theme-select=               | =09-theme.el=                              |
+| C-c u m   | =my/theme-favourite-toggle=     | =09-theme.el=                              |
+| C-c u M   | =my/theme-cycle-favourites=     | =09-theme.el=                              |
+| C-c u C   | =my/theme-classify=             | =09-theme.el=                              |
+| C-c u R   | =my/theme-repair=               | =09-theme.el=                              |
+| C-c n f j | =my/journal-gaps=               | =35-journal-gaps.el=                       |
+| C-c n f s | =my/notes-stats=                | =36-notes-stats.el=                        |
+| C-c w s   | =my/notes-stats=                | =36-notes-stats.el=                        |
+| C-c u p   | =my/toggle-spacious-padding=    | =34-appearance.el=                         |
+| C-c u f   | =my/font-size-adjust=           | =03b-fonts.el= (all frames)                |
+| C-c u s   | =my/text-scale-save-to-note=    | =03b-fonts.el=                             |
+| C-c u w   | =my/text-width-adjust=          | =10-visual-fill.el=                        |
+| C-c u +   | =text-scale-increase=           | =34-appearance.el= (this buffer)           |
+| C-c u -   | =text-scale-decrease=           | =34-appearance.el= (this buffer)           |
+| C-c u 0   | =my/text-scale-reset=           | =34-appearance.el=                         |
+| C-M-=     | =default-text-scale-increase=   | =34-appearance.el= (all frames)            |
+| C-M--     | =default-text-scale-decrease=   | =34-appearance.el= (all frames)            |
+| C-x b     | =consult-buffer=                | =01-ui.el=                                 |
+| M-g g     | =consult-goto-line=             | =01-ui.el=                                 |
+| M-g i     | =consult-imenu=                 | =01-ui.el=                                 |
+| M-s l     | =consult-line=                  | =01-ui.el=                                 |
 
 *On the consult bindings:* the usual setup rebinds =C-s= to
 =consult-line=. It is not done here — =C-s= is =save-buffer= — and

@@ -157,6 +157,41 @@ Previous listings are killed first, see
    (let ((current-prefix-arg arg))
      (call-interactively #'denote-sequence-dired))))
 
+(defun my/zettel-hierarchy (&optional arg)
+  "Show the sequence tree, indented, with titles read from front matter.
+ARG is handed to `denote-sequence-view-hierarchy\=' as its prefix
+argument: nil shows everything, `(4)\=' prompts for a sequence prefix,
+`(16)\=' prompts for a prefix and a depth limit.  As with
+`my/zettel-dired\=', a transient prefix consumes the universal argument
+before the suffix sees it, which is why the menu binds the prompting
+variants as separate entries.
+
+This is the view where a long descriptive title pays for itself.  Dired
+and the completion prompts show FILE NAMES, so they show the shortened
+slug; `denote-sequence--hierarchy-insert\=' calls
+`denote-retrieve-title-or-filename\=', which reads `#+title:\=' from the
+front matter and only falls back to the file name.  The full sentence
+appears here whatever the file is called.
+
+No stale-buffer workaround is needed, unlike `my/zettel-dired\=': the
+hierarchy command derives its buffer name from the prefix and depth and
+calls `erase-buffer\=' before rebuilding, so each invocation produces its
+own buffer with its own contents.
+
+In the resulting buffer: RET visits, TAB folds, S-TAB folds everything,
+n/p move between visible entries, f/b move between siblings, g reverts,
+q quits."
+  (interactive "P")
+  (my/zettel--in-pks
+   (let ((current-prefix-arg arg))
+     (call-interactively #'denote-sequence-view-hierarchy))))
+
+(defun my/zettel-hierarchy-prefix ()
+  "Like `my/zettel-hierarchy\=', but always prompt for a sequence prefix.
+An empty prefix at the prompt means no filtering."
+  (interactive)
+  (my/zettel-hierarchy '(4)))
+
 (defun my/zettel-dired-prefix ()
   "Like `my/zettel-dired', but always prompt for a sequence prefix.
 An empty prefix at the prompt means no filtering."
@@ -203,10 +238,12 @@ follow with my/zettel-reparent to place it under an existing thread."
     ("f" "Find relative..."           my/zettel-find)
     ("j" "Next sibling"               my/zettel-next-sibling :transient t)
     ("k" "Previous sibling"           my/zettel-previous-sibling :transient t)]
-   ["Tree (Dired)"
-    ("d" "Whole tree"                 my/zettel-dired)
-    ("p" "Filter by prefix..."        my/zettel-dired-prefix)
-    ("P" "Prefix + depth..."          my/zettel-dired-prefix-depth)]
+   ["Tree"
+    ("h" "Hierarchy (titles)"         my/zettel-hierarchy)
+    ("H" "Hierarchy from prefix..."   my/zettel-hierarchy-prefix)
+    ("d" "Dired (file names)"         my/zettel-dired)
+    ("p" "Dired by prefix..."         my/zettel-dired-prefix)
+    ("P" "Dired prefix + depth..."    my/zettel-dired-prefix-depth)]
    ["Organize"
     ("l" "Link to sequence note"      my/zettel-link)
     ("r" "Reparent current"           my/zettel-reparent)

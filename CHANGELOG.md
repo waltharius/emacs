@@ -22,6 +22,164 @@ included.
 
 ---
 
+## Session 2026-08-31h — Documenting the Zettelkasten views
+ 
+### The measurement
+ 
+`function_helper.org` was audited whole: 5547 lines, 118 `CUSTOM_ID`
+anchors, no duplicate anchors, no internal link pointing at a missing
+one. Two structural defects and one systematic gap.
+ 
+The file uses two shapes. Six of the seven base `C-c n` menus document
+each key as its own `***` subsection with an `fn-` anchor — Create
+(13), Find (7), Insert (8), Document (4), Export (3), View (7). Tools
+and Philosophy do not, and neither does any of the large feature
+sections: Zettelkasten, Readwise, Inbox, Writing Projects, Tasks,
+Habits all use prose plus a command table, with **zero `fn-` anchors
+between them**.
+ 
+That is not simply neglect. The Zettelkasten section is one of the
+better ones — scope, signature semantics, why `p` and `P` exist, the
+stale-listing diagnosis, the workflow — and a workflow explanation is
+worth more there than fifteen one-paragraph stubs would be. What the
+shape costs is different: with no anchor, nothing can cross-reference
+a zettel command. A section written elsewhere that wanted to point at
+"the Dired view" had nowhere to point.
+ 
+### The two defects
+ 
+**A heading-level skip**, the only one in the file: under `**
+Commands`, three subsections were `****`, skipping level three.
+Demoted.
+ 
+**A stale command table**: thirteen rows for a menu that now has
+fifteen keys, and `q` was never listed.
+ 
+### `zettelkasten-views`
+ 
+The subsection formerly titled "Dired shows file names, not titles" is
+now "Titles versus file names", carries an anchor, and covers both
+views rather than apologising for one. The distinction it draws is the
+substantive one: `d`/`p`/`P` list file names because Dired lists a
+directory, `h`/`H` show titles because
+`denote-sequence--hierarchy-insert` calls
+`denote-retrieve-title-or-filename`, which reads the front matter. In
+a Zettelkasten where titles are sentences stating a claim, one view is
+the argument and the other is the storage.
+ 
+### A check for undocumented commands
+ 
+`hooks/lint.py` gains `coverage`: every command appearing in a
+transient suffix must be mentioned somewhere in `function_helper.org`.
+Commands whose names end in `-menu` are exempt, since submenus are
+documented as whole sections rather than as entries and requiring the
+symbol by name would flag every section that is in fact written.
+ 
+It reports ten, of which eight predate today: `my/csl-check-setup`,
+the five `my/philosophy-note-*` commands, `my/readwise-sync-all` and
+`my/inbox-open-reject-directory`. The Philosophy section describes all
+five note types in a table but never names their commands, which is
+exactly the gap the check is meant to catch — documentation that reads
+as complete while leaving the reader unable to find the function.
+ 
+Advisory, not blocking, for the same reason as `private`: a check that
+fails on arrival is a check that gets bypassed by reflex. Worth moving
+to blocking once the eight are written, since unlike the twenty-one
+private-symbol crossings this backlog is small and the fix is prose.
+ 
+---
+
+## Session 2026-08-31g — The sequence hierarchy view
+ 
+`denote-sequence-view-hierarchy` has been in the package since 0.3.0
+and was never exposed. It draws the sequence tree indented by depth,
+each line showing the signature, the title and the keywords. Wrapped
+as `my/zettel-hierarchy` (`C-c n z h`) and
+`my/zettel-hierarchy-prefix` (`H`), both bound to the pks silo like
+everything else in this module.
+ 
+### Why it matters more than another listing
+ 
+It is the only view in this configuration that shows a sequence note's
+title as written rather than as slugified.
+`denote-sequence--hierarchy-insert` calls
+`denote-retrieve-title-or-filename`, which reads `#+title:` from the
+front matter and falls back to the file name only when there is none.
+Dired and the completion prompts show file names —
+`denote-sequence-file-prompt` affixes the signature and keywords, but
+the candidate text is still the file name, and consult-denote states
+plainly that it will not prettify titles because doing so is
+expensive.
+ 
+So the Dired view answers "what is stored" and the hierarchy view
+answers "what does this thread say". For a Zettelkasten where titles
+are full sentences stating a claim, scanning the second is scanning
+the argument.
+ 
+The menu column was renamed from "Tree (Dired)" to "Tree" and the two
+views labelled by what they show — `h`/`H` for titles, `d`/`p`/`P` for
+file names — since the distinction is the reason both exist.
+ 
+### No stale-buffer workaround needed here
+ 
+`my/zettel-dired` has to kill previous listings first, because
+`denote-sequence-dired` ends in `denote-sort-dired--prepare-buffer`
+and an existing Dired buffer for the same directory gets reused and
+renamed rather than rebuilt. The hierarchy command has no such
+problem: it derives the buffer name from the prefix and depth, and
+`denote-sequence--hierarchy-get-buffer` calls `erase-buffer` before
+inserting, so every invocation builds its own buffer from scratch.
+Copying the workaround defensively would have been wrong.
+ 
+### File name lengths, measured
+ 
+Prompted by whether long Zettelkasten titles are a problem for the
+file system. They are not, and the top twenty file names in `pks/`
+show why the intuition misleads:
+ 
+| Longest of its kind | Bytes | Keywords | Headroom |
+|---------------------|-------|----------|----------|
+| Zettel (`==6b1a`)   | 162   | 8 (5%)   | 93 |
+| Zettel (`==6b`)     | 127   | 8 (6%)   | 128 |
+| Readwise import     | 200   | 21 (10%) | 55 |
+| Keyword-heavy note  | 161   | 47 (29%) | 94 |
+ 
+The limit is 255 **bytes** on btrfs, not characters, and Denote's
+`denote-sluggify-title` keeps non-ASCII, so Polish diacritics cost two
+bytes each — though at 8 bytes on a 162-byte name that is noise.
+Denote has no length guard of its own: an over-long name is not
+truncated or refused, the write simply fails with ENAMETOOLONG.
+ 
+Three populations, three different cost drivers, and cutting keywords
+addresses none of them for sequences: `llm_zk` is 5% of that file
+name. The long ones are Readwise imports, where the title is a book or
+article title that was never composed by hand. If a truncating slug
+function is ever needed it is needed there, not in the Zettelkasten —
+and a bibliographic note is also where truncation costs least, since
+its identity is the citation rather than the slug.
+ 
+### What was not built, and why it does not need to be
+ 
+A short filing title in the file name plus a long descriptive one in
+front matter was considered. Denote already separates these: `%t` in
+`denote-link-description-format` is the front-matter title and `%T`
+the file-name title, `denote-retrieve-title-or-filename` prefers the
+former, and `denote-sequence-link` goes through
+`denote-get-link-description` like every other link — one control
+point for Folgezettel and ordinary links alike. The only thing tying
+the two together is that Denote derives the file name from the title,
+through the replaceable `title` entry of
+`denote-file-name-slug-functions`.
+ 
+So the mechanism exists and is cheap. It was not used because the
+premise did not survive measurement, and because in a Zettelkasten a
+long title earns its keep precisely in list views — which show file
+names. Shortening the file name would remove the long title from the
+one place it is most useful. The hierarchy view solves the readability
+problem from the other direction, without touching a single file name.
+ 
+---
+
 ## Session 2026-08-31f — README
  
 A README describing what the configuration does, how it is put
