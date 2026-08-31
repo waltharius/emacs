@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Pre-commit checks for this configuration.
+#
+# INSTALL (once per clone):
+#
+#     git config core.hooksPath hooks
+#
+# A repository-local setting, written to .git/config, which home-manager
+# does not manage -- unlike ~/.config/git/config, which it symlinks
+# read-only, so `git config --global core.hooksPath' fails on NixOS.
+#
+# To set it for every repository declaratively instead, put it in
+# git.nix:
+#
+#     programs.git.extraConfig.core.hooksPath = "...";
+#
+# BYPASS with `git commit --no-verify' -- appropriate for a rollback or
+# a commit that deliberately leaves the tree inconsistent.
+#
+# WHAT THIS CHECKS AGAINST: the working tree, not the staged content.
+# The two differ when only some changes are staged, and then this
+# validates something that is not being committed.  For a repository
+# where commits are whole-tree in practice that is the right trade --
+# stashing unstaged work to get a clean check has failure modes of its
+# own, and losing work to a hook is worse than checking slightly the
+# wrong thing.  The CHANGELOG check is the exception: it reads the
+# staged file list, because that is the question it asks.
+
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+cd "$root" || exit 1
+
+status=0
+
+echo "pre-commit:"
+
+if command -v emacs >/dev/null 2>&1; then
+  emacs -Q --batch -l hooks/parens.el 2>&1 || status=1
+else
+  echo "  skipped  parens (no emacs on PATH)"
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+  python3 hooks/lint.py || status=1
+else
+  echo "  skipped  lint (no python3 on PATH)"
+  status=1
+fi
+
+if [ "$status" -ne 0 ]; then
+  echo
+  echo "Commit aborted.  Fix the above, or use --no-verify if this is deliberate."
+fi
+
+exit "$status"

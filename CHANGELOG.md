@@ -22,6 +22,67 @@ included.
 
 ---
 
+## Session 2026-08-31e — Pre-commit consistency checks
+ 
+`hooks/` holds a pre-commit hook, an Elisp reader check and a Python
+linter. Installed per clone with `git config core.hooksPath hooks` —
+repository-local, because home-manager symlinks `~/.config/git/config`
+read-only and `git config --global` fails on it, the same constraint
+that put the GitLab URL rewrite in `git.nix`.
+ 
+### What is and is not checkable
+ 
+Git validates nothing by itself; a hook is a script whose non-zero exit
+refuses the commit, and all the judgement is in the script. Only
+mechanical questions are worth automating: whether a name a document
+mentions still exists, whether a key a help text advertises is still
+bound, whether an anchor a module points at is present, whether a
+symbol whose name says "internal" is called from another file.
+ 
+Whether a docstring describes what a function does, whether a CHANGELOG
+entry is honest, whether a design note is still true — none of these
+are checkable and nothing here pretends otherwise.
+ 
+### The checks
+ 
+Blocking: `parens` (every module still reads as Lisp), `duplicates`,
+`anchors` (`Docs: ...::#id` resolves in `function_helper.org`),
+`functions` (`Function: =my/x=` names something that exists), `keys`
+(every key the help text lists is bound somewhere), `changelog`
+(modules not staged without an entry).
+ 
+Advisory: `private`, the twenty-one boundary crossings from session
+2026-08-31b. Blocking it would fail every commit until the backlog is
+cleared, and a hook that always fails is bypassed by reflex, at which
+point it stops catching what it was written for. It moves to blocking
+when the count reaches zero.
+ 
+Every check corresponds to something that has already gone wrong here
+at least once. A check for a failure that has never happened costs
+attention on every commit and buys nothing.
+ 
+### Deliberate limits
+ 
+`keys` reads only the flat reference section, stopping at the transient
+menu tree — menu keys are not global bindings and would all look
+unbound. It also asks only whether *something* binds the key, not
+whether it binds what the text claims; catching that would mean
+comparing a command name to a prose description, which is where a
+checker starts guessing. `EXTERNAL_KEYS` lists Magit's `C-x g` and
+`C-x M-g`, bound by the package rather than here.
+ 
+The content checks read the working tree rather than staged content.
+Getting that exactly right means stashing unstaged work for the
+duration, and a hook that moves work around has worse failure modes
+than the one it fixes. `changelog` is the exception, since its question
+is about the commit itself.
+ 
+Both exception lists carry a reason next to each entry. An exception
+list without reasons stops being a record of decisions and becomes a
+way to silence checks.
+ 
+---
+
 ## Session 2026-08-31d — The keybinding help text had drifted again
  
 `08-keybindings.el` holds a hand-written reference buffer (`C-c h k`).
