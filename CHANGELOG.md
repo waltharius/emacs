@@ -22,6 +22,71 @@ included.
 
 ---
 
+## Session 2026-09-03a — Two reports were evicting the place they were put in
+
+### The defect
+
+`my/notes-stats` and `my/journal-gaps-report` both opened in the
+History tab, alongside `*Note History*` and its preview pane.
+
+Not merely a shared tab. `my/notes-stats` ends with
+`delete-other-windows`, so opening statistics destroyed the two-pane
+layout that tab exists for, and getting it back meant running the
+history command again. Every `C-c n f s` cost a rebuild of something
+unrelated.
+
+The reasoning in 35-journal-gaps.el was half right and is worth
+keeping as a record of how: "a report is a place, not a document, and
+it belongs with the other places." True. It does not follow that it
+belongs with *that* place. A report is read and closed; a navigation
+buffer is worked in. Sharing a tab between them means one of the two
+is always being thrown away.
+
+### The fix
+
+A Stats tab, shared by both reports the way both journal commands
+share Journal.
+
+`my/reports-tab-name` and `my/reports-tab-position` live in 01-ui.el,
+beside `my/fixed-tab-goto`, rather than in either report module.
+Neither of the two is more the owner than the other, and defining a
+cross-module name in the earlier of them would make the later one
+depend on load order for nothing.
+
+### Absolute placement
+
+`my/fixed-tab-goto` gained an optional POSITION. Without it the
+behaviour is unchanged: a new tab appears to the right of whatever is
+current, which is right for tabs whose first opening is the only one
+that decides anything.
+
+Stats needed more. It is reachable from `C-c n f s`, `C-c w s`, the
+find menu and the gaps report, so relative placement would put it in a
+different position every time — and a fixed tab that moves is not a
+place, it is a tab you have to look for. `my/reports-tab-position` is
+2, directly after Dashboard.
+
+Note the two functions this required distinguishing:
+`tab-bar-new-tab-to` the *function* takes an absolute position;
+`tab-bar-new-tab` takes a relative one; and the variable named
+`tab-bar-new-tab-to` is what the relative branch consults. All three
+appear in eight lines, which is why they are named in a comment there.
+
+### On the freeze
+
+Made during the agreed week of no new code, as a repair rather than an
+exception to it. The test applied: one module was silently destroying
+another module's working state, and the cost was paid on every use.
+That is a defect, not a preference.
+
+The absolute-position argument is the part that could be argued either
+way. It went in because the alternative was fixing the collision and
+leaving the tab to appear in a different spot depending on where it was
+opened from — a fix that removes the loud problem and leaves a quiet
+one, which is the pattern this log keeps recording as the mistake.
+
+---
+
 ## Session 2026-09-01a — A refused kill took the whole session down
  
 ### The failure

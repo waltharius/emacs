@@ -84,7 +84,7 @@
 (declare-function my/denote--all-files "27-denote-identifiers" ())
 (declare-function my/maintenance--file-keywords "26-maintenance" (file))
 (declare-function my/maintenance-rename-keyword "26-maintenance" (&optional k r))
-(declare-function my/fixed-tab-goto "01-ui" (name))
+(declare-function my/fixed-tab-goto "01-ui" (name &optional position))
 (declare-function my/journal-gaps--required-keys "35-journal-gaps" ())
 (declare-function my/journal-gaps--missing-keys "35-journal-gaps" (file required))
 (declare-function my/org-export-to-pdf "16-org-export" ())
@@ -996,9 +996,14 @@ with working `denote:' links."
     (with-current-buffer buffer
       (my/notes-stats-mode)
       (my/notes-stats--render (my/notes-stats--collect)))
-    (when (and (fboundp 'my/fixed-tab-goto)
-               (boundp 'my/dashboards-tab-name))
-      (my/fixed-tab-goto my/dashboards-tab-name))
+    ;; Its own tab, not the History one.  Both used to land there, and
+    ;; because this command ends with `delete-other-windows' it did not
+    ;; merely replace the history buffer -- it destroyed the two-pane
+    ;; layout that tab exists for.  A report and a navigation buffer are
+    ;; not the same kind of place.
+    (when (fboundp 'my/fixed-tab-goto)
+      (my/fixed-tab-goto (or (bound-and-true-p my/reports-tab-name) "Stats")
+                         (bound-and-true-p my/reports-tab-position)))
     (switch-to-buffer buffer)
     (delete-other-windows)))
 

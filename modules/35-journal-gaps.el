@@ -70,7 +70,7 @@
 (declare-function my/journal-set-metrics "05b-journal-metrics" ())
 (declare-function my/denote-journal--create-backdated "05-notes" (date encoded-time))
 (declare-function my/journal-file-date "05-notes" (file))
-(declare-function my/fixed-tab-goto "01-ui" (name))
+(declare-function my/fixed-tab-goto "01-ui" (name &optional position))
 
 (defgroup my-journal-gaps nil
   "Reporting days missing from the journal series.
@@ -348,11 +348,14 @@ Keys in the report:
       (setq my/journal-gaps--days (or days my/journal-gaps-default-days))
       (setq my/journal-gaps--filter 'all)
       (my/journal-gaps-refresh))
-    ;; The history tab if 23-fixed-tabs.el is present, the current
-    ;; window otherwise.  A report is a place, not a document, and it
-    ;; belongs with the other places.
+    ;; The reports tab if 01-ui.el is present, the current window
+    ;; otherwise.  A report is a place, not a document, and it belongs
+    ;; with the other places -- but not with the History navigation
+    ;; buffer, which is a different place with a layout of its own that
+    ;; a report arriving in the same tab destroys.
     (when (fboundp 'my/fixed-tab-goto)
-      (my/fixed-tab-goto (bound-and-true-p my/dashboards-tab-name)))
+      (my/fixed-tab-goto (or (bound-and-true-p my/reports-tab-name) "Stats")
+                         (bound-and-true-p my/reports-tab-position)))
     (switch-to-buffer buffer)))
 
 ;;;###autoload

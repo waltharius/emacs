@@ -700,11 +700,50 @@ which loads after this file."
 ;; right place, and needs no global change to
 ;; `switch-to-buffer-obey-display-actions'.
 
-(defun my/fixed-tab-goto (name)
+(defgroup my-ui nil
+  "Interface conventions shared by several modules."
+  :group 'convenience)
+
+(defcustom my/reports-tab-name "Stats"
+  "Name of the tab holding reports about the note collection.
+
+Shared by the statistics buffer (36-notes-stats.el) and the journal
+gaps report (35-journal-gaps.el), the way both journal commands share
+the Journal tab: the tab is the place where reports are read, not one
+entry point into it.
+
+Defined here rather than in either module because neither is more its
+owner than the other, and because a name referenced across modules
+that is defined in the earlier of them makes the later one depend on
+load order for no reason."
+  :type 'string
+  :group 'my-ui)
+
+(defcustom my/reports-tab-position 2
+  "Absolute position of the reports tab when it has to be created.
+
+Counting from 1, so 2 puts it directly after Dashboard.  Nil places it
+to the right of whatever tab is current, which is the general rule for
+fixed tabs -- but a tab that is opened from anywhere would then appear
+in a different place every time, and the whole point of a fixed tab is
+that it is somewhere you return to."
+  :type '(choice integer (const nil))
+  :group 'my-ui)
+
+(defun my/fixed-tab-goto (name &optional position)
   "Switch to the tab called NAME, creating it if it does not exist.
-A new tab is created immediately to the right of the current one, so
-tabs accumulate in the order activities are first opened rather than
-jumping to the front.  Returns non-nil when the tab had to be created.
+Returns non-nil when the tab had to be created.
+
+POSITION, when a number, is the absolute position the tab is created
+at, counting from 1.  Without it a new tab is created immediately to
+the right of the current one, so tabs accumulate in the order
+activities are first opened rather than jumping to the front.
+
+Absolute placement matters for a tab reachable from several places: it
+would otherwise land wherever the previous tab happened to be, and a
+fixed tab that moves is not a place.  Relative placement stays the
+default because for most of these the first opening is the only one
+that decides anything.
 
 `tab-bar-new-tab-to' is bound explicitly rather than relying on its
 global value, so this placement holds even if that option is
@@ -718,8 +757,14 @@ customized elsewhere."
         (unless (equal (alist-get 'name (tab-bar--current-tab)) name)
           (tab-bar-switch-to-tab name))
         nil)
-    (let ((tab-bar-new-tab-to 'right))
-      (tab-bar-new-tab))
+    ;; `tab-bar-new-tab-to' the FUNCTION takes an absolute position;
+    ;; `tab-bar-new-tab' takes a relative one.  The variable of the same
+    ;; name as the former is what the relative branch consults, which is
+    ;; why both appear here.
+    (if (numberp position)
+        (tab-bar-new-tab-to (min position (1+ (length (tab-bar-tabs)))))
+      (let ((tab-bar-new-tab-to 'right))
+        (tab-bar-new-tab)))
     (tab-bar-rename-tab name)
     t))
 

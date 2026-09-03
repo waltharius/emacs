@@ -4731,7 +4731,51 @@ been written rather than to how many days are covered.
 |----------------+--------|
 | =05b-journal-metrics.el= | the metrics half turns off; days with no entry are still listed |
 | =05-notes.el= | a missing day can be opened but not created |
-| =21-dashboards.el= | the report opens in the current window instead of the History tab, and the menu entry is skipped |
+| =01-ui.el= | the report opens in the current window instead of the Stats tab |
+| =21-dashboards.el= | the menu entry is skipped |
+
+* Fixed tabs
+:PROPERTIES:
+:CUSTOM_ID: fixed-tabs
+:END:
+
+A tab is a place a particular activity lives, returned to rather than
+searched for. =my/fixed-tab-goto= is what makes the convention hold
+automatically; Emacs itself enforces nothing, since a tab is only a
+named window configuration and any buffer can appear in any of them.
+
+| Tab       | Holds                                | Set by                |
+|-----------+--------------------------------------+-----------------------|
+| Dashboard | the start page                       | =15-workspace.el=     |
+| Stats     | statistics and the journal gaps report | =01-ui.el=          |
+| History   | =*Note History*= and its preview pane | =21-dashboards.el=   |
+| Journal   | today's entry                        | =23-fixed-tabs.el=    |
+| Readwise  | imported highlights                  | =24-readwise.el=      |
+| Inbox     | the migration review queue           | =25-inbox-review.el=  |
+
+Several commands may share a tab: both journal commands land in
+Journal, and both reports land in Stats. The tab is the place where
+the activity happens, not one entry point into it.
+
+** Placement
+
+A new tab is created to the right of whatever is current, so tabs
+accumulate in the order activities are first opened.
+
+Stats is the exception: =my/reports-tab-position= is 2, so it is
+created directly after Dashboard wherever it was opened from. A tab
+reachable from several places would otherwise land somewhere different
+every time, and a fixed tab that moves is not a place.
+
+** Why Stats is separate from History
+
+They shared the History tab until 2026-08. =my/notes-stats= ends with
+=delete-other-windows=, so opening statistics did not merely replace
+the history buffer — it destroyed the two-pane layout that tab exists
+for, and rebuilding it meant reopening the history command.
+
+A report is read and closed. A navigation buffer is worked in. Sharing
+a tab between them means one of the two is always being thrown away.
 
 * Window splitting
 :PROPERTIES:
