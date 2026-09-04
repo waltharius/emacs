@@ -3406,6 +3406,170 @@ often look like ordinary words.
 =my/cite-check-directories= narrows the scan; nil means the whole
 notes tree.
 
+* Citing and the bibliography — how to
+:PROPERTIES:
+:CUSTOM_ID: citing-howto
+:END:
+
+The mechanics of footnotes, citations and the bibliography in a text
+that will be exported to PDF or DOCX. See [[#menu-zotero-detail][Zotero / Bibliography]] for the
+menu and [[#office-export][Office Export]] for the export itself.
+
+** The two kinds of footnote
+
+*** A discursive footnote — your own text
+
+=C-c C-x f= (=org-footnote-action=). Point where the marker goes; Org
+inserts =[fn:1]= and jumps to the definition at the bottom of the file.
+Pressing it again on an existing marker toggles between marker and
+definition.
+
+=C-u C-c C-x f= opens a menu: =s= sort the definitions into the order
+they are referenced, =r= renumber, =n= both, =d= delete the footnote
+with its definition. Numbering is automatic; the *order of the
+definitions* at the bottom is not, so run =n= after moving paragraphs
+around.
+
+*** A citation footnote — a work from Zotero
+
+=C-c C-x @= (=org-cite-insert=), or =i= in the Zotero menu. Write it
+inline, in the sentence:
+
+: Teza ta pojawia się już wcześniej [cite:@cioran2021].
+
+*Do not put it inside a footnote yourself.* The export style is a note
+style, so oc-csl wraps the citation in a footnote at export time. A
+citation typed inside =[fn:1]= would be wrapped again.
+
+With point inside an existing =[cite:...]=, =C-c C-x @= edits it rather
+than inserting another.
+
+*** Both at once — a comment that ends in a reference
+
+Reverse the order: make a normal footnote with =C-c C-x f=, write the
+comment in its definition, and insert the citation inside that
+definition. oc-csl checks =org-cite-inside-footnote-p= and does not
+wrap a second time, so the result is one footnote.
+
+** Where the mark lands
+
+*The footnote number appears exactly where the citation sits in the
+source, down to the space.* Reading a wrong-looking result backwards
+usually finds the typo:
+
+| Source                        | Output          |
+|-------------------------------+-----------------|
+| =...tekst[cite:@a].=          | =...tekst¹.=    |
+| =...tekst.[cite:@a]=          | =...tekst.¹=    |
+| =...tekst [cite:@a].=         | =...tekst ¹.=   |
+| =...tekst[cite:@a] .=         | =...tekst¹ .=   |
+
+A space before =[cite:= puts a space before the number; a space after
+the closing bracket puts one before the full stop. Neither is removed
+by the exporter.
+
+** Several works in one footnote
+
+*One footnote:*
+
+: [cite:@harding2025; @ravna2026]
+
+*Two separate footnotes, with two marks in the text:*
+
+: [cite:@harding2025] [cite:@ravna2026]
+
+This is the usual cause of a run of marks like =³ ⁴ .⁵= — three
+separate citation objects with punctuation between two of them, each
+placed exactly where it was written.
+
+Inside one citation the references are separated by =; =, which comes
+from the =delimiter= attribute of the =<citation><layout>= element in
+the CSL style, not from Org. Changing it means editing your copy of
+=chicago-notes-bibliography.csl=; that is a document-style decision,
+not a configuration one.
+
+** Page numbers and your own words in a citation
+
+Full syntax: =[cite:prefix @key locator, suffix]=
+
+| Intent           | Written                              |
+|------------------+--------------------------------------|
+| page             | =[cite:@cioran2021 45]=              |
+| range            | =[cite:@cioran2021 45-47]=           |
+| "see" before     | =[cite:zob. @cioran2021 45]=         |
+| comment after    | =[cite:@cioran2021 45, podkr. moje]= |
+| chapter          | =[cite:@cioran2021 chap. 3]=         |
+| two works        | =[cite:@a 45; @b 12-14]=             |
+
+Locator *labels are English only*: =p.=, =pp.=, =chap.=, =sec.=,
+=vol.=, =no.= and so on. Polish =s.= is not recognised as a page —
+in that list =s.v.= means /sub verbo/. Write the bare number instead:
+a locator with no label is assumed to be a page, and the Polish locale
+renders it as "s. 45".
+
+The locator ends at the last comma or digit in the suffix, which is
+what makes =45, podkr. moje= split correctly.
+
+** The bibliography
+
+Put this where it should appear, usually last:
+
+: #+LATEX: \clearpage
+: * Bibliografia
+: #+print_bibliography:
+
+Three things follow from the style rather than from Org, and answer
+the questions people ask about it:
+
+- *Only cited works appear.* Every =[cite:@key]= anywhere in the
+  document contributes its work once, however many times it is cited.
+- *Footnotes without a citation contribute nothing.* A discursive
+  footnote is your prose; it has no bibliographic record to add.
+- *Sorting is alphabetical by author*, then title, then source — the
+  =<sort>= block of =chicago-notes-bibliography.csl=. Org does not
+  reorder anything.
+
+Nothing has to be collected or maintained by hand. The list is built
+from the citations at export time.
+
+** Starting each chapter on a new page
+
+The =article= class does not break pages at =\section=. One header
+line changes that for the whole document:
+
+: #+LATEX_HEADER: \usepackage{titlesec}
+: #+LATEX_HEADER: \newcommand{\sectionbreak}{\clearpage}
+
+=\sectionbreak= is titlesec's hook, inserted before every sectioning
+command at section level. With it in place the =\clearpage= before the
+bibliography heading is redundant but harmless.
+
+For a document where subsections should also break, the same trick
+applies to =\subsectionbreak=.
+
+** Before submitting
+
+| Key       | Checks                                              |
+|-----------+-----------------------------------------------------|
+| =C-c x ?= | CSL export is configured and the style is real XML  |
+| =C-c b c= | citation keys used in notes but missing from refs.bib |
+| =C-u C-c C-x f= then =n= | footnote definitions sorted and renumbered |
+
+Also read one run of repeated citations. A discursive footnote sitting
+between two citations of the same work can confuse CSL position
+tracking, so the shortened form may appear where the full one belongs.
+
+** Known limits
+
+- "Tamże" is not produced. =chicago-notes-bibliography.csl= never
+  emits the =ibid= term — CMOS 17 deprecated it in favour of shortened
+  author–title citations, which is what a repeat reference becomes.
+  The Polish CSL locale renders =ibid= as "ibid." in any case.
+- URLs come from the =url= field of =refs.bib=, and a DOI takes
+  precedence over a URL when both are present. Better BibLaTeX exports
+  =url= and =urldate= natively; the plain Better BibTeX exporter drops
+  URLs unless "Add URLs to BibTeX export" is set.
+
 * Zotero / Bibliography (C-c x)
 :PROPERTIES:
 :CUSTOM_ID: menu-zotero-detail

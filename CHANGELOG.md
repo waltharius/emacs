@@ -22,6 +22,52 @@ included.
 
 ---
 
+## Session 2026-09-04c — A citation how-to, written from the questions that were asked
+
+### function_helper.org gains a Citing and the bibliography section
+
+Documentation only; no module changed.
+
+The questions it answers came from actually writing a thesis with this
+setup, which is why it is organised around symptoms rather than around
+the API:
+
+- **Where the footnote mark lands.** It appears exactly where the
+  citation sits in the source, down to the space. A run like `³ ⁴ .⁵`
+  is not the exporter misplacing anything — it is three separate
+  citation objects with punctuation written between two of them. The
+  table of four source/output pairs is there so the result can be read
+  backwards to the typo.
+- **One footnote or several.** `[cite:@a; @b]` is one; `[cite:@a]
+  [cite:@b]` is two. The `; ` between references inside one footnote
+  comes from the `delimiter` attribute of the style's
+  `<citation><layout>` element, not from Org, so changing it is a
+  document-style decision and means editing the local `.csl`.
+- **The bibliography answers three questions at once**, and all three
+  answers come from the style rather than from anything that has to be
+  maintained: only cited works appear, each once; footnotes without a
+  citation contribute nothing; sorting is by author, from the `<sort>`
+  block of `chicago-notes-bibliography.csl`.
+- **Chapters on a new page.** `titlesec` plus
+  `\newcommand{\sectionbreak}{\clearpage}`, two header lines, no
+  configuration change. The `article` class does not break at
+  `\section` and there is no Org setting that makes it.
+
+The known limits are recorded in the same place rather than left to be
+rediscovered: no "Tamże" from this style, and a DOI taking precedence
+over a URL.
+
+### Lesson
+
+**Write the reference from the failures, not from the feature list.**
+Every heading in this section exists because something looked broken
+and was not — the exporter placing a mark where the mark was written,
+a style deciding a delimiter, a class not breaking pages. A reference
+organised by API would have documented all of it and answered none of
+it.
+
+---
+
 ## Session 2026-09-04b — Twenty-one symbols were private and shared at the same time
 
 ### The backlog the hook was created to hold
