@@ -22,68 +22,56 @@ included.
 
 ---
 
-## Session 2026-09-03a — Two reports were evicting the place they were put in
+## Session 2026-09-04a — colorlinks=false does not mean what it sounds like
 
 ### The defect
 
-`my/notes-stats` and `my/journal-gaps-report` both opened in the
-History tab, alongside `*Note History*` and its preview pane.
+Every URL and every footnote number in an exported PDF sat inside a
+coloured rectangle: red for internal links, cyan for URLs. On screen it
+looks like debugging output; on the printed page of a thesis it is
+simply wrong.
 
-Not merely a shared tab. `my/notes-stats` ends with
-`delete-other-windows`, so opening statistics destroyed the two-pane
-layout that tab exists for, and getting it back meant running the
-history command again. Every `C-c n f s` cost a rebuild of something
-unrelated.
-
-The reasoning in 35-journal-gaps.el was half right and is worth
-keeping as a record of how: "a report is a place, not a document, and
-it belongs with the other places." True. It does not follow that it
-belongs with *that* place. A report is read and closed; a navigation
-buffer is worked in. Sharing a tab between them means one of the two
-is always being thrown away.
+The cause was `colorlinks=false` in `org-latex-hyperref-template`,
+which had been there since the module was written and reads as though
+it turns link decoration off. It does the opposite. In hyperref,
+`colorlinks=false` means *do not colour the text* — and the fallback
+for marking a link is then a coloured border. Turning the option off
+turns the boxes on.
 
 ### The fix
 
-A Stats tab, shared by both reports the way both journal commands
-share Journal.
+`colorlinks=true` with `linkcolor`, `urlcolor`, `citecolor` and
+`filecolor` all set to black. Links become indistinguishable from the
+surrounding text and stay clickable.
 
-`my/reports-tab-name` and `my/reports-tab-position` live in 01-ui.el,
-beside `my/fixed-tab-goto`, rather than in either report module.
-Neither of the two is more the owner than the other, and defining a
-cross-module name in the earlier of them would make the later one
-depend on load order for nothing.
+All four colours are named rather than relying on a default. hyperref
+has no single key meaning "every kind of link", and a missed one does
+not fail — it reappears as one coloured word somewhere in a long
+document, which is exactly the kind of thing found by a supervisor
+rather than by the author.
 
-### Absolute placement
+`hidelinks` does the same in one word and was not used: it is
+documented as a package option, and while current hyperref accepts it
+inside `\hypersetup`, that has not always been true. The explicit form
+carries no such history.
 
-`my/fixed-tab-goto` gained an optional POSITION. Without it the
-behaviour is unchanged: a new tab appears to the right of whatever is
-current, which is right for tabs whose first opening is the only one
-that decides anything.
+### The per-document override needs \AtBeginDocument
 
-Stats needed more. It is reachable from `C-c n f s`, `C-c w s`, the
-find menu and the gaps report, so relative placement would put it in a
-different position every time — and a fixed tab that moves is not a
-place, it is a tab you have to look for. `my/reports-tab-position` is
-2, directly after Dashboard.
+Worth recording because the obvious attempt fails silently. Org emits
+the hyperref block *after* `org-latex-make-preamble`, which is where
+`#+LATEX_HEADER:` lines land — so a `\hypersetup` written there is
+overwritten by the template a few lines later, with no warning and no
+error. Deferring it works:
 
-Note the two functions this required distinguishing:
-`tab-bar-new-tab-to` the *function* takes an absolute position;
-`tab-bar-new-tab` takes a relative one; and the variable named
-`tab-bar-new-tab-to` is what the relative branch consults. All three
-appear in eight lines, which is why they are named in a comment there.
+    #+LATEX_HEADER: \AtBeginDocument{\hypersetup{urlcolor=blue}}
 
-### On the freeze
+### Lesson
 
-Made during the agreed week of no new code, as a repair rather than an
-exception to it. The test applied: one module was silently destroying
-another module's working state, and the cost was paid on every use.
-That is a defect, not a preference.
-
-The absolute-position argument is the part that could be argued either
-way. It went in because the alternative was fixing the collision and
-leaving the tab to appear in a different spot depending on where it was
-opened from — a fix that removes the loud problem and leaves a quiet
-one, which is the pattern this log keeps recording as the mistake.
+**A negated option is not the absence of a feature.** `colorlinks=false`
+was read as "no link decoration" when it means "decorate links some
+other way". The setting had been wrong since the module was written and
+was never noticed, because the PDF was always read on screen, where a
+box around a link looks like something a PDF viewer might do.
 
 ---
 

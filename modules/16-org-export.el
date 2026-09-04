@@ -6,6 +6,7 @@
 ;; - 2.5cm margins via geometry package
 ;; - No author, no date, no section numbers, no inline ToC in document body
 ;; - PDF bookmarks/ToC visible in PDF reader (via hyperref template)
+;; - Links and footnote numbers print as plain black text, no boxes
 ;; - Output structure mirrors notes: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc.
 ;; - PDF filename taken from #+title: as-is (spaces preserved, safe chars only)
 ;; - Denote links stripped to their description text
@@ -43,9 +44,33 @@
 (setq org-export-with-toc             nil)
 (setq org-export-with-section-numbers nil)
 
-;; hyperref via Org's own template - avoids double-\usepackage clash
+;; hyperref via Org's own template - avoids double-\usepackage clash.
+;;
+;; LINK APPEARANCE.  `colorlinks=false' does NOT mean "links look like
+;; ordinary text": it means hyperref marks them with a coloured BORDER
+;; instead of coloured text.  So every URL and every footnote number
+;; came out of the PDF inside a red or cyan rectangle -- visible on
+;; paper, and wrong in a submitted thesis.
+;;
+;; `colorlinks=true' with every colour set to black gives what was
+;; actually wanted: links indistinguishable from the surrounding text,
+;; still clickable, no rectangles.  The four colours are named
+;; separately because hyperref has no single "all of them" key, and a
+;; missed one reappears as a coloured word somewhere in a long document.
+;;
+;; The package option `hidelinks' does the same thing in one word, but
+;; it is documented as a package option; setting it inside
+;; `\hypersetup' works in current hyperref and has not always. The
+;; explicit form has no such history.
+;;
+;; PER-DOCUMENT OVERRIDE.  This block is emitted AFTER the preamble
+;; that `#+LATEX_HEADER:' lines land in, so a `\hypersetup' there is
+;; overwritten by this one.  To change link colours for a single
+;; document, defer it to the body:
+;;
+;;   #+LATEX_HEADER: \AtBeginDocument{\hypersetup{urlcolor=blue}}
 (setq org-latex-hyperref-template
-      "\\hypersetup{\n  bookmarks=true,\n  bookmarksnumbered=true,\n  colorlinks=false,\n  pdfauthor={%a},\n  pdftitle={%t},\n  pdfkeywords={%k},\n  pdfsubject={%d},\n  pdfcreator={%c},\n  pdflang={%L}}\n")
+      "\\hypersetup{\n  bookmarks=true,\n  bookmarksnumbered=true,\n  colorlinks=true,\n  linkcolor=black,\n  urlcolor=black,\n  citecolor=black,\n  filecolor=black,\n  pdfauthor={%a},\n  pdftitle={%t},\n  pdfkeywords={%k},\n  pdfsubject={%d},\n  pdfcreator={%c},\n  pdflang={%L}}\n")
 
 (setq org-latex-default-class "article")
 (setq org-latex-compiler      "lualatex")
