@@ -317,7 +317,7 @@ previewed notes."
   "Switch to the history tab, creating it beside the current one if absent."
   (my/fixed-tab-goto my/dashboards-tab-name))
 
-(defun my/dashboards--show-navigation (entries title)
+(defun my/dashboards-show-navigation (entries title)
   "Display ENTRIES as clickable lines in the history tab, titled TITLE."
   (let ((buffer (get-buffer-create my/dashboards-nav-buffer-name)))
     (with-current-buffer buffer
@@ -344,7 +344,7 @@ previewed notes."
   "List ENTRIES under TITLE in the history tab and preview the newest."
   (if (null entries)
       (message "No matching notes for: %s" title)
-    (my/dashboards--show-navigation entries title)
+    (my/dashboards-show-navigation entries title)
     (my/dashboards-visit-at-point)))
 
 ;; ============================================================

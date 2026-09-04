@@ -44,7 +44,7 @@
 ;; LaTeX and hands it to lualatex, which knows about faces not at all.
 ;; The journal font in a PDF comes from
 ;; `\\setmainfont{Playpen Sans Hebrew}' in the `journal-article' class
-;; built by `my/--latex-preamble' (16-org-export.el), selected from the
+;; built by `my/latex-preamble' (16-org-export.el), selected from the
 ;; `:journal:' filetag.  Changing a font here does not change a PDF,
 ;; and vice versa -- see the note on the two selection criteria below.
 ;;
@@ -143,7 +143,7 @@ by the `:journal:' FILETAG.  For a journal note the two agree, because
 journal notes carry that tag.  For pks and docu there is currently no
 distinction to disagree about: both export through the `article'
 class.  Giving them distinct PDF fonts is a change to
-`my/--latex-preamble', not to this list."
+`my/latex-preamble', not to this list."
   :type '(alist :key-type directory :value-type plist)
   :group 'my/fonts)
 

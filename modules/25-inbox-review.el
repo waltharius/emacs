@@ -350,7 +350,7 @@ and might still be rejected.  Returns the number of links rewritten."
           ;; unique this happened for real: a journal note and an
           ;; accepted note shared YYYYMMDDT000000, so the rewrite
           ;; resolved the journal note's own link to its own identifier.
-          (when (and (not (equal (my/denote--file-identifier file) ident))
+          (when (and (not (equal (my/denote-file-identifier file) ident))
                      ;; Cheap containment check before visiting the file.
                      (with-temp-buffer
                        (insert-file-contents file)
@@ -382,15 +382,15 @@ Only the INBOX note ever moves.  Notes already filed in journal, pks or
 docu keep their identifiers, so every existing link in the collection
 keeps working.  Only the time part changes - the date is what the
 migration actually knew about the note."
-  (unless (fboundp 'my/denote--silo-identifier-table)
+  (unless (fboundp 'my/denote-silo-identifier-table)
     (user-error "27-denote-identifiers.el is not loaded - \
 cannot check identifier uniqueness"))
-  (let* ((id (my/denote--file-identifier file))
-         (table (and id (my/denote--silo-identifier-table)))
+  (let* ((id (my/denote-file-identifier file))
+         (table (and id (my/denote-silo-identifier-table)))
          (clash (and id (car (gethash id table)))))
     (if (null clash)
         file
-      (let ((new-id (my/denote--next-free-identifier id table)))
+      (let ((new-id (my/denote-next-free-identifier id table)))
         (message "%s is taken by %s - this note becomes %s"
                  id (file-relative-name clash my-notes-dir) new-id)
         (my/denote-change-identifier file new-id)))))
@@ -558,7 +558,7 @@ note records where it came from in :extracted_from:."
          (dir (cdr (assoc silo my/inbox-silos)))
          ;; `format-time-string' has second resolution, so two quick
          ;; extractions in the same second would collide.
-         (ident (my/denote--next-free-identifier
+         (ident (my/denote-next-free-identifier
                  (format-time-string "%Y%m%dT%H%M%S")))
          (slug (denote-sluggify-title title))
          (fname (if keywords

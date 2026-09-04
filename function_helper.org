@@ -1722,13 +1722,30 @@ loads (via =transient-append-suffix=). Five note types, each saved in
 
 Module: =modules/19-philosophy-notes.el=
 
-| Key | Note type  | Denote keyword | Scaffold headings                                            |
-|-----+------------+-----------------+---------------------------------------------------------------|
-| l   | Literature | =literatura=    | Streszczenie, Linki                                            |
-| p   | Concept    | =pojęcie=       | Definicja, Skąd się wzięło, Napięcia i krytyka, Powiązania    |
-| m   | Thinker    | =myśliciel=     | Centralny projekt, Problem, Kluczowe ruchy, Komu odpowiada    |
-| b   | Problem    | =problem=       | Geneza, Proponowane rozwiązania, Krytyka, Pytania otwarte     |
-| i   | Map / MOC  | =mapa=          | Wielkie pytania, Postacie, Pojęcia i problemy, Linki          |
+| Key | Note type  | Command                        | Denote keyword |
+|-----+------------+--------------------------------+----------------|
+| l   | Literature | =my/philosophy-note-literatura= | =literatura=   |
+| p   | Concept    | =my/philosophy-note-pojecie=    | =pojęcie=      |
+| m   | Thinker    | =my/philosophy-note-mysliciel=  | =myśliciel=    |
+| b   | Problem    | =my/philosophy-note-problem=    | =problem=      |
+| i   | Map / MOC  | =my/philosophy-note-mapa=       | =mapa=         |
+
+Each command writes a scaffold of empty headings, so the note starts
+with the questions its type is supposed to answer rather than with a
+blank page:
+
+| Note type  | Scaffold headings                                          |
+|------------+------------------------------------------------------------|
+| Literature | Streszczenie, Linki                                        |
+| Concept    | Definicja, Skąd się wzięło, Napięcia i krytyka, Powiązania |
+| Thinker    | Centralny projekt, Problem, Kluczowe ruchy, Komu odpowiada |
+| Problem    | Geneza, Proponowane rozwiązania, Krytyka, Pytania otwarte  |
+| Map / MOC  | Wielkie pytania, Postacie, Pojęcia i problemy, Linki       |
+
+The command names are Latin-script transliterations of the Polish
+keywords (=pojecie=, =mysliciel=), because a function name with
+diacritics is awkward to type at =M-x= and to grep for. The keyword
+written into the file keeps its diacritics.
 
 Epoch/tradition keywords offered at creation: =starożytność=,
 =średniowiecze=, =nowożytność=, =współczesność=, =analityczna=,
@@ -2097,7 +2114,13 @@ Imports Readwise highlights into one Org file per book, kept in
 | =C-c r s= | =my/readwise-sync=          | Incremental sync (=C-u= = full) |
 | =C-c r r= | =my/readwise-review=         | Books with unprocessed quotes  |
 | =C-c r o= | =my/readwise-open-directory= | Import folder in Dired         |
-| =s= / =S= | in the menu                 | Incremental / full sync         |
+| =s=       | =my/readwise-sync=          | Incremental sync, from the menu |
+| =S=       | =my/readwise-sync-all=      | Full re-import, from the menu   |
+
+=my/readwise-sync-all= re-imports every book from scratch, ignoring the
+stored sync state. Use it after an import that went wrong, or after
+editing highlights in Readwise itself; an incremental sync would not
+see those changes because the state file says the book is done.
 
 ** Why the files live outside the notes tree
 
@@ -2370,7 +2393,9 @@ rejected notes should be less visible still.
 
 Rejection *moves* rather than deletes. Several hundred decisions taken
 over weeks will contain mistakes; the folder gets emptied once, at the
-end.
+end. =O= in the menu (=my/inbox-open-reject-directory=) opens that
+folder in Dired, and says so plainly when nothing has been rejected
+yet rather than opening an empty buffer.
 
 ** Columns that come from the migration
 
@@ -3400,6 +3425,27 @@ Module: =modules/18-zotero-transient.el=
 | i   | =citar-insert-citation=     | Insert in-text citation [cite:@key]      |
 | R   | =my/insert-full-reference=  | Insert full bibliography at point        |
 | S   | =my/insert-short-reference= | Insert short reference (Author, Title)   |
+| c   | =my/cite-check-keys=        | Keys used in notes but absent from refs.bib |
+| C   | =my/cite-rename-key=        | Rename a citation key across the notes   |
+| ?   | =my/csl-check-setup=        | Report whether CSL export is ready       |
+
+** ? — Check CSL export setup
+
+Every failure in the citation pipeline is silent. A missing style
+directory, an unreadable =refs.bib=, a locale file that is really a
+404 page — none of them raises an error. They produce an export with
+no bibliography, which is easy not to notice until the document is
+finished.
+
+=my/csl-check-setup= reports, in one line each: whether =citeproc= and
+=oc-csl= loaded, whether =org-cite-export-processors= has a fallback
+entry, whether the style and locale directories exist, and whether the
+style and Polish locale files are real XML rather than error pages.
+The size test matters: a failed =curl -O= leaves a perfectly readable
+14-byte file containing =404: Not Found=, and citeproc then fails far
+from the cause with =Wrong type argument: numberp, nil=.
+
+Run it before submitting anything, and after changing a style.
 
 * Capture System
 :PROPERTIES:

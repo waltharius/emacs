@@ -53,7 +53,7 @@
 ;; DEPENDENCIES, ALL OPTIONAL
 ;; --------------------------
 ;;   05b-journal-metrics.el  the field list, and `my/journal-set-metrics'
-;;   05-notes.el             `my/denote-journal--create-backdated'
+;;   05-notes.el             `my/denote-journal-create-backdated'
 ;;   12-transient.el         the menu entry
 ;; Each is guarded.  Without 05b the report still lists days with no
 ;; entry and says so; without 05-notes a missing day can be opened but
@@ -68,9 +68,9 @@
 (require 'tabulated-list)
 
 (declare-function my/journal-set-metrics "05b-journal-metrics" ())
-(declare-function my/denote-journal--create-backdated "05-notes" (date encoded-time))
+(declare-function my/denote-journal-create-backdated "05-notes" (date encoded-time))
 (declare-function my/journal-file-date "05-notes" (file))
-(declare-function my/fixed-tab-goto "01-ui" (name &optional position))
+(declare-function my/fixed-tab-goto "01-ui" (name))
 
 (defgroup my-journal-gaps nil
   "Reporting days missing from the journal series.
@@ -98,7 +98,7 @@ written by something other than that command."
 ;; WHAT COUNTS AS COMPLETE
 ;; ============================================================
 
-(defun my/journal-gaps--required-keys ()
+(defun my/journal-gaps-required-keys ()
   "Return the metrics keywords a complete day must carry.
 Derived from `my/journal-metrics-fields' when 05b-journal-metrics.el is
 loaded; nil otherwise, which turns the metrics half of the report off
@@ -134,7 +134,7 @@ report, because its whole content is a claim about what is missing."
         (unless (gethash date map)
           (puthash date file map))))))
 
-(defun my/journal-gaps--missing-keys (file required)
+(defun my/journal-gaps-missing-keys (file required)
   "Return the members of REQUIRED absent from FILE's front matter.
 Reads the first kilobyte only: front matter is at the top by
 construction, and scanning whole files would make the report cost
@@ -175,7 +175,7 @@ Each record is (DATE WEEKDAY KIND DETAIL FILE), where KIND is
 report of what is missing, and a row per satisfactory day would bury
 the answer."
   (let* ((files    (my/journal-gaps--file-map))
-         (required (my/journal-gaps--required-keys))
+         (required (my/journal-gaps-required-keys))
          (earliest (car (sort (hash-table-keys files) #'string<)))
          (today    (time-convert nil 'integer))
          records)
@@ -196,7 +196,7 @@ the answer."
            ((null file)
             (push (list date weekday 'no-entry "" nil) records))
            (required
-            (when-let* ((missing (my/journal-gaps--missing-keys file required)))
+            (when-let* ((missing (my/journal-gaps-missing-keys file required)))
               (push (list date weekday 'no-metrics
                           (string-join missing ", ") file)
                     records)))))))
@@ -256,9 +256,9 @@ the file was absent."
          (files (my/journal-gaps--file-map))
          (file (gethash date files)))
     (unless file
-      (unless (fboundp 'my/denote-journal--create-backdated)
+      (unless (fboundp 'my/denote-journal-create-backdated)
         (user-error "05-notes.el is not loaded; cannot create a backdated note"))
-      (setq file (my/denote-journal--create-backdated
+      (setq file (my/denote-journal-create-backdated
                   date (my/journal-gaps--encode date))))
     (find-file file)))
 
@@ -348,14 +348,11 @@ Keys in the report:
       (setq my/journal-gaps--days (or days my/journal-gaps-default-days))
       (setq my/journal-gaps--filter 'all)
       (my/journal-gaps-refresh))
-    ;; The reports tab if 01-ui.el is present, the current window
-    ;; otherwise.  A report is a place, not a document, and it belongs
-    ;; with the other places -- but not with the History navigation
-    ;; buffer, which is a different place with a layout of its own that
-    ;; a report arriving in the same tab destroys.
+    ;; The history tab if 23-fixed-tabs.el is present, the current
+    ;; window otherwise.  A report is a place, not a document, and it
+    ;; belongs with the other places.
     (when (fboundp 'my/fixed-tab-goto)
-      (my/fixed-tab-goto (or (bound-and-true-p my/reports-tab-name) "Stats")
-                         (bound-and-true-p my/reports-tab-position)))
+      (my/fixed-tab-goto (bound-and-true-p my/dashboards-tab-name)))
     (switch-to-buffer buffer)))
 
 ;;;###autoload

@@ -296,8 +296,8 @@ the week the answer is \"sort of\"."
                                   (car labels))))
     (setq my/habits--pending-repeat
           (cdr (assoc answer my/habits-repeaters)))
-    (when (boundp 'my/capture--origin-window)
-      (setq my/capture--origin-window (selected-window)))
+    (when (boundp 'my/capture-origin-window)
+      (setq my/capture-origin-window (selected-window)))
     (org-capture nil my/habits-capture-key)))
 
 ;; ============================================================

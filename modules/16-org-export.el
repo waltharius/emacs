@@ -97,7 +97,7 @@
 ;;   fontspec     - must come BEFORE polyglossia with lualatex
 ;;   Playpen Sans Hebrew - handwriting-style font
 
-(defun my/--latex-preamble (language journal-p)
+(defun my/latex-preamble (language journal-p)
   "Build the LaTeX document preamble string.
 LANGUAGE is a polyglossia language name string (\"polish\" or \"english\").
 JOURNAL-P non-nil adds fontspec + Playpen Sans Hebrew before the rest."
@@ -131,27 +131,27 @@ JOURNAL-P non-nil adds fontspec + Playpen Sans Hebrew before the rest."
   (add-to-list 'org-latex-classes
                `("article"
                  ,(concat "\\documentclass[11pt,a4paper]{article}\n"
-                          (my/--latex-preamble "polish" nil))
+                          (my/latex-preamble "polish" nil))
                  ,@my/--latex-section-levels))
 
   ;; Journal class - language placeholder, replaced at export time
   (add-to-list 'org-latex-classes
                `("journal-article"
                  ,(concat "\\documentclass[11pt,a4paper]{article}\n"
-                          (my/--latex-preamble "polish" t))
+                          (my/latex-preamble "polish" t))
                  ,@my/--latex-section-levels))
 
   ;; English variants - same structure, English polyglossia
   (add-to-list 'org-latex-classes
                `("article-en"
                  ,(concat "\\documentclass[11pt,a4paper]{article}\n"
-                          (my/--latex-preamble "english" nil))
+                          (my/latex-preamble "english" nil))
                  ,@my/--latex-section-levels))
 
   (add-to-list 'org-latex-classes
                `("journal-article-en"
                  ,(concat "\\documentclass[11pt,a4paper]{article}\n"
-                          (my/--latex-preamble "english" t))
+                          (my/latex-preamble "english" t))
                  ,@my/--latex-section-levels)))
 
 ;; ============================================================
@@ -170,7 +170,7 @@ JOURNAL-P non-nil adds fontspec + Playpen Sans Hebrew before the rest."
 ;; Backends other than these three fall through to stripping tags,
 ;; which is wrong for none of them and right for most.
 
-(defun my/--filter-denote-link (link-str link-obj _info)
+(defun my/latex-filter-denote-link (link-str link-obj _info)
   "Reduce denote: links in LINK-STR to their description text.
 LINK-OBJ is the link element; returns nil for non-denote links so that
 other filters and backends handle them normally."
@@ -190,7 +190,7 @@ other filters and backends handle them normally."
      (t (string-trim (replace-regexp-in-string "<[^>]*>" "" link-str))))))
 
 (add-to-list 'org-export-filter-link-functions
-             #'my/--filter-denote-link)
+             #'my/latex-filter-denote-link)
 
 ;; ============================================================
 ;; OUTPUT DIRECTORY
@@ -242,7 +242,7 @@ Example: ~/notes/pks/foo.org -> ~/notes/pdf/pks/"
         (cl-incf n))
       candidate)))
 
-(defun my/--resolve-pdf-dest (pdf-dest)
+(defun my/org-export-resolve-destination (pdf-dest)
   "Prompt if PDF-DEST exists: overwrite, rename with index, or cancel.
 Returns resolved path or nil if cancelled."
   (if (not (file-exists-p pdf-dest))
@@ -262,7 +262,7 @@ Returns resolved path or nil if cancelled."
 ;; INTERNAL HELPERS
 ;; ============================================================
 
-(defun my/--org-title (org-file)
+(defun my/org-buffer-title (org-file)
   "Return #+title: value from ORG-FILE, or nil."
   (with-temp-buffer
     (insert-file-contents org-file)
@@ -270,7 +270,7 @@ Returns resolved path or nil if cancelled."
     (when (re-search-forward "^#\\+title:[ \t]*\\(.+\\)" nil t)
       (string-trim (match-string 1)))))
 
-(defun my/--title-to-filename (title)
+(defun my/org-export-title-to-filename (title)
   "Convert TITLE to a safe filename; keep spaces, diacritics, capitalisation.
 Strips only: / \\ : * ? \" < > | and control characters."
   (replace-regexp-in-string "[/\\\\:*?\"<>|[:cntrl:]]" "" title))
@@ -327,13 +327,13 @@ Class and language are chosen automatically from #+filetags::
 Filename from #+title:; fallback to Denote base name.
 Prompts on overwrite.  All build files go to /tmp and are deleted.
 Returns destination path on success, nil on failure or cancel."
-  (let* ((raw-title   (my/--org-title org-file))
+  (let* ((raw-title   (my/org-buffer-title org-file))
          (pdf-name    (if raw-title
-                          (my/--title-to-filename raw-title)
+                          (my/org-export-title-to-filename raw-title)
                         (file-name-base org-file)))
          (dest-dir    (my/--pdf-dest-dir org-file))
          (pdf-dest    (expand-file-name (concat pdf-name ".pdf") dest-dir))
-         (pdf-dest    (my/--resolve-pdf-dest pdf-dest)))
+         (pdf-dest    (my/org-export-resolve-destination pdf-dest)))
     (unless pdf-dest
       (message "Export cancelled: %s" (file-name-nondirectory org-file))
       (cl-return-from my/--export-file-to-pdf nil))

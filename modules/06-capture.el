@@ -30,7 +30,7 @@
 ;; org-capture-mode-hook fires after the capture buffer is created
 ;; and displayed. At that point we:
 ;;   1. Remember which window was selected when capture was invoked
-;;      (stored in my/capture--origin-window before org-capture runs).
+;;      (stored in my/capture-origin-window before org-capture runs).
 ;;   2. In the hook, delete all windows except the origin, then split
 ;;      right, and display the capture buffer in the new right window.
 ;; This bypasses display-buffer-alist entirely, which org-capture
@@ -52,7 +52,7 @@
 ;; CAPTURE WINDOW: track origin window before capture fires
 ;; ============================================================
 
-(defvar my/capture--origin-window nil
+(defvar my/capture-origin-window nil
   "Window that was selected when `my/capture-idea' was invoked.
 Used by `my/capture--show-right' to place the capture buffer
 to the right of the originating note window.")
@@ -60,16 +60,16 @@ to the right of the originating note window.")
 (defun my/capture--show-right ()
   "Place the just-created capture buffer to the right of the origin window.
 Called from `org-capture-mode-hook'.
-Only acts when `my/capture--origin-window' is set (i.e. capture was
+Only acts when `my/capture-origin-window' is set (i.e. capture was
 started via `my/capture-idea', not the generic org-capture menu)."
-  (when (and my/capture--origin-window
-             (window-live-p my/capture--origin-window))
+  (when (and my/capture-origin-window
+             (window-live-p my/capture-origin-window))
     (let ((cap-buf (current-buffer)))
-      (delete-other-windows my/capture--origin-window)
-      (let ((right-win (split-window my/capture--origin-window nil 'right)))
+      (delete-other-windows my/capture-origin-window)
+      (let ((right-win (split-window my/capture-origin-window nil 'right)))
         (set-window-buffer right-win cap-buf)
         (select-window right-win))
-      (setq my/capture--origin-window nil))))
+      (setq my/capture-origin-window nil))))
 
 (add-hook 'org-capture-mode-hook #'my/capture--show-right)
 
@@ -301,10 +301,10 @@ key is installed: a heading may contain a comma."
     (string-trim
      (minibuffer-with-setup-hook
          (:append (lambda ()
-                    (when (fboundp 'my/notes--completion-keys)
+                    (when (fboundp 'my/notes-completion-keys)
                       ;; No separator argument: a heading is a single
                       ;; value and may legitimately contain a comma.
-                      (my/notes--completion-keys))))
+                      (my/notes-completion-keys))))
        (completing-read
         "File under (TAB for existing, text for a new heading, empty for none): "
         headings nil nil)))))
@@ -445,7 +445,7 @@ where org-capture put it."
 Opens capture buffer to the RIGHT of the current window.
 Records SOURCE link to the originating note automatically."
   (interactive)
-  (setq my/capture--origin-window (selected-window))
+  (setq my/capture-origin-window (selected-window))
   (org-capture nil "j"))
 
 ;; ============================================================

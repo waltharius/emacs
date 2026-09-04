@@ -65,8 +65,8 @@
 ;; drill-down says which; a maintenance command changes it.
 ;;
 ;; DEPENDENCIES
-;;   27-denote-identifiers.el  `my/denote--all-files' (hard)
-;;   26-maintenance.el         `my/maintenance--file-keywords' (hard),
+;;   27-denote-identifiers.el  `my/denote-all-files' (hard)
+;;   26-maintenance.el         `my/maintenance-file-keywords' (hard),
 ;;                             `my/maintenance-rename-keyword' (soft)
 ;;   34-appearance.el          shared faces (soft)
 ;;   35-journal-gaps.el        metrics completeness (soft)
@@ -81,12 +81,12 @@
 (require 'time-date)
 (require 'button)
 
-(declare-function my/denote--all-files "27-denote-identifiers" ())
-(declare-function my/maintenance--file-keywords "26-maintenance" (file))
+(declare-function my/denote-all-files "27-denote-identifiers" ())
+(declare-function my/maintenance-file-keywords "26-maintenance" (file))
 (declare-function my/maintenance-rename-keyword "26-maintenance" (&optional k r))
-(declare-function my/fixed-tab-goto "01-ui" (name &optional position))
-(declare-function my/journal-gaps--required-keys "35-journal-gaps" ())
-(declare-function my/journal-gaps--missing-keys "35-journal-gaps" (file required))
+(declare-function my/fixed-tab-goto "01-ui" (name))
+(declare-function my/journal-gaps-required-keys "35-journal-gaps" ())
+(declare-function my/journal-gaps-missing-keys "35-journal-gaps" (file required))
 (declare-function my/org-export-to-pdf "16-org-export" ())
 
 (defgroup my-notes-stats nil
@@ -250,9 +250,9 @@ likely to be opened."
 
 (defun my/notes-stats--require ()
   "Signal unless the modules this one measures with are loaded."
-  (unless (fboundp 'my/denote--all-files)
+  (unless (fboundp 'my/denote-all-files)
     (user-error "27-denote-identifiers.el is not loaded"))
-  (unless (fboundp 'my/maintenance--file-keywords)
+  (unless (fboundp 'my/maintenance-file-keywords)
     (user-error "26-maintenance.el is not loaded")))
 
 (defun my/notes-stats--disk-rows ()
@@ -279,7 +279,7 @@ Every file, whatever its extension.  Dot directories skipped."
 (defun my/notes-stats--collect ()
   "Gather every figure the report shows.  Returns a plist."
   (my/notes-stats--require)
-  (let* ((files (my/denote--all-files))
+  (let* ((files (my/denote-all-files))
          (total (length files))
          (sizes (make-hash-table :test #'equal))
          (dirs (make-hash-table :test #'equal))
@@ -311,7 +311,7 @@ Every file, whatever its extension.  Dot directories skipped."
       (unless (member (my/notes-stats--top-directory file)
                       my/notes-stats-keyword-exclude-dirs)
         (setq keyword-total (1+ keyword-total))
-        (let ((keys (my/maintenance--file-keywords file)))
+        (let ((keys (my/maintenance-file-keywords file)))
           (if (null keys)
               (push file bare)
             (dolist (key keys)
@@ -656,9 +656,9 @@ calls it."
                               (number-to-string (- elapsed covered)))
         (my/notes-stats--line "Longest streak" (format "%d days" (car streaks)))
         (my/notes-stats--line "Current streak" (format "%d days" (cdr streaks)))
-        (when (and (fboundp 'my/journal-gaps--required-keys)
-                   (fboundp 'my/journal-gaps--missing-keys))
-          (let* ((required (my/journal-gaps--required-keys))
+        (when (and (fboundp 'my/journal-gaps-required-keys)
+                   (fboundp 'my/journal-gaps-missing-keys))
+          (let* ((required (my/journal-gaps-required-keys))
                  (cutoff (- (time-to-days (current-time)) 365))
                  (recent (seq-filter
                           (lambda (d) (> (my/notes-stats--day-number d) cutoff))
@@ -666,7 +666,7 @@ calls it."
                  (incomplete 0))
             (when required
               (dolist (day recent)
-                (when (my/journal-gaps--missing-keys (gethash day journal) required)
+                (when (my/journal-gaps-missing-keys (gethash day journal) required)
                   (setq incomplete (1+ incomplete))))
               (my/notes-stats--line "Missing metrics"
                                     (format "%d of %d" incomplete (length recent))
@@ -919,7 +919,7 @@ PDF font can be relied on to have."
   "Read every note and add word, link and orphan counts to the report."
   (interactive)
   (my/notes-stats--require)
-  (setq my/notes-stats--deep (my/notes-stats--deep-scan (my/denote--all-files)))
+  (setq my/notes-stats--deep (my/notes-stats--deep-scan (my/denote-all-files)))
   (my/notes-stats-refresh))
 
 (defun my/notes-stats-explore ()
@@ -996,14 +996,9 @@ with working `denote:' links."
     (with-current-buffer buffer
       (my/notes-stats-mode)
       (my/notes-stats--render (my/notes-stats--collect)))
-    ;; Its own tab, not the History one.  Both used to land there, and
-    ;; because this command ends with `delete-other-windows' it did not
-    ;; merely replace the history buffer -- it destroyed the two-pane
-    ;; layout that tab exists for.  A report and a navigation buffer are
-    ;; not the same kind of place.
-    (when (fboundp 'my/fixed-tab-goto)
-      (my/fixed-tab-goto (or (bound-and-true-p my/reports-tab-name) "Stats")
-                         (bound-and-true-p my/reports-tab-position)))
+    (when (and (fboundp 'my/fixed-tab-goto)
+               (boundp 'my/dashboards-tab-name))
+      (my/fixed-tab-goto my/dashboards-tab-name))
     (switch-to-buffer buffer)
     (delete-other-windows)))
 

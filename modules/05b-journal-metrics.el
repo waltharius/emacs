@@ -83,7 +83,7 @@
 (require 'seq)
 (require 'subr-x)
 
-(declare-function my/denote-journal--create-backdated "05-notes" (date encoded-time))
+(declare-function my/denote-journal-create-backdated "05-notes" (date encoded-time))
 
 ;; ============================================================
 ;; FIELDS
@@ -507,7 +507,7 @@ which is the cheapest available prompt to write the day up."
          (file       (my/journal--file-for-date day)))
     (unless file
       (if (y-or-n-p (format "Brak wpisu dla %s.  Utworzyć? " day))
-          (setq file (my/denote-journal--create-backdated day encoded))
+          (setq file (my/denote-journal-create-backdated day encoded))
         (user-error "Przerwano")))
     (find-file file)
     (my/journal-set-metrics)

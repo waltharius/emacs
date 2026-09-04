@@ -145,7 +145,7 @@ TAB inserts and the arrow keys navigate."
 (defvar vertico-map)
 
 (defvar my/notes--completion-separator nil
-  "Separator character bound by `my/notes--completion-keys', or nil.")
+  "Separator character bound by `my/notes-completion-keys', or nil.")
 
 (defun my/notes-completion-separate ()
   "Insert the highlighted candidate, then start the next entry.
@@ -167,7 +167,7 @@ renames it costs a keystroke rather than breaking the prompt."
     (vertico-insert))
   (insert (or (bound-and-true-p my/notes--completion-separator) ",")))
 
-(defun my/notes--completion-keys (&optional separator)
+(defun my/notes-completion-keys (&optional separator)
   "Install candidate-stepping keys in the current minibuffer.
 
 Called from `minibuffer-with-setup-hook' at each prompt that wants
@@ -219,7 +219,7 @@ failing on a missing function."
   (if (fboundp 'denote-keywords-prompt)
       (let* ((vertico-preselect my/notes-keyword-preselect)
              (keywords (minibuffer-with-setup-hook
-                           (:append (lambda () (my/notes--completion-keys ",")))
+                           (:append (lambda () (my/notes-completion-keys ",")))
                          (denote-keywords-prompt prompt initial))))
         ;; Older Denote sorts inside the prompt, newer exposes it
         ;; separately; call it when present and take the result as-is
@@ -250,7 +250,7 @@ without asking."
     (user-error "Denote is not available"))
   (let ((vertico-preselect my/notes-keyword-preselect))
     (minibuffer-with-setup-hook
-        (:append (lambda () (my/notes--completion-keys ",")))
+        (:append (lambda () (my/notes-completion-keys ",")))
       (call-interactively #'denote-rename-file-keywords))))
 
 
@@ -419,7 +419,7 @@ drift apart."
    "[^a-z0-9-]+" "-"
    (downcase (string-trim (my/journal-title date)))))
 
-(defun my/denote-journal--create-backdated (date encoded-time)
+(defun my/denote-journal-create-backdated (date encoded-time)
   "Write a backdated journal file for DATE and return its path.
 DATE is \"YYYY-MM-DD\"; ENCODED-TIME is the matching Lisp timestamp.
 Does not visit the file -- callers decide whether to open it.
@@ -463,7 +463,7 @@ Behaviour:
   \='* Uzupełnienie\=' heading with ADDED_AT and EVENT_DATE at the bottom,
   and place the cursor there - ready to write.
 - If no journal exists for that date: create one via
-  `my/denote-journal--create-backdated\=' and open it."
+  `my/denote-journal-create-backdated\=' and open it."
   (interactive)
   (let* ((date-input     (org-read-date nil nil nil "Date: "))
          (parsed-time    (org-parse-time-string date-input))
@@ -499,7 +499,7 @@ Behaviour:
       ;; --------------------------------------------------------
       ;; No journal for that date - create a fresh backdated file
       ;; --------------------------------------------------------
-      (let ((filepath (my/denote-journal--create-backdated
+      (let ((filepath (my/denote-journal-create-backdated
                        date-formatted encoded-time)))
         (find-file filepath)
         (goto-char (point-max))
@@ -848,7 +848,7 @@ so the indexer can tell them apart without guessing from content."
 ;; ============================================================
 ;; MOVE NOTE BETWEEN SILOS
 ;; ============================================================
-;; Reads identifiers with `my/denote--file-identifier', which belongs to
+;; Reads identifiers with `my/denote-file-identifier', which belongs to
 ;; 27-denote-identifiers.el -- the module that owns identifier integrity
 ;; and is also where 25-inbox-review.el gets it from.  A copy used to
 ;; live here as well.  Two copies of a four-line function is not a
@@ -945,12 +945,12 @@ clash: two notes sharing an identifier make `denote:' links to that
 identifier ambiguous.  The retitling path exists to unblock the move;
 the duplicate identifier still needs sorting out afterwards."
   (interactive)
-  (unless (fboundp 'my/denote--file-identifier)
+  (unless (fboundp 'my/denote-file-identifier)
     (user-error "27-denote-identifiers.el is not loaded"))
   (let ((file (buffer-file-name)))
     (unless file
       (user-error "This buffer is not visiting a file"))
-    (unless (my/denote--file-identifier file)
+    (unless (my/denote-file-identifier file)
       (user-error "Not a Denote file (no identifier in the file name)"))
     (when (buffer-modified-p)
       (if (y-or-n-p "Buffer has unsaved changes.  Save before moving? ")
@@ -967,7 +967,7 @@ the duplicate identifier still needs sorting out afterwards."
                     (mapcar #'car candidates) nil t))
            (target-dir (cdr (assoc choice my/denote-silo-alist)))
            (title (my/denote--file-title file))
-           (identifier (my/denote--file-identifier file)))
+           (identifier (my/denote-file-identifier file)))
 
       (unless (file-directory-p target-dir)
         (user-error "Target silo does not exist: %s" target-dir))
@@ -1002,7 +1002,7 @@ the duplicate identifier still needs sorting out afterwards."
              ;; Two notes can share a title only if their identifiers
              ;; differ; otherwise both file names would be identical.
              (when (seq-find (lambda (f)
-                               (equal identifier (my/denote--file-identifier f)))
+                               (equal identifier (my/denote-file-identifier f)))
                              title-matches)
                (let ((new-title
                       (read-string

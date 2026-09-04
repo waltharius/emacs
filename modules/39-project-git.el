@@ -209,16 +209,16 @@ visible, and it names the thing that needs configuring."
 
 (defun my/project-git--directory (slug)
   "Return the directory of project SLUG, or nil."
-  (when (fboundp 'my/writing--project-directory)
-    (ignore-errors (my/writing--project-directory slug))))
+  (when (fboundp 'my/writing-project-directory)
+    (ignore-errors (my/writing-project-directory slug))))
 
 (defun my/project-git--read-slug (prompt)
   "Prompt for a project slug."
   (let ((slugs (my/project-git--slugs)))
     (unless slugs (user-error "No writing projects"))
     (completing-read prompt slugs nil t nil nil
-                     (when (fboundp 'my/writing--current-project)
-                       (my/writing--current-project)))))
+                     (when (fboundp 'my/writing-current-project)
+                       (my/writing-current-project)))))
 
 (defun my/project-git--current-directory ()
   "Return the project directory the current buffer is in, or nil."

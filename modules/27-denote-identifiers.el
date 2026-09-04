@@ -57,7 +57,7 @@ ANY DIRECTORY WHOSE NAME STARTS WITH A DOT, NOT A NAMED LIST
 This used to name three: `.backups\=', `.autosaves\=' and `.git\='.  It
 therefore did NOT skip `.snapshots\=' -- the btrfs snapshot directory,
 which holds complete copies of the whole tree.  Every command reading
-`my/denote--all-files\=' was consequently scanning several hundred
+`my/denote-all-files\=' was consequently scanning several hundred
 thousand files, most of them older revisions of notes that are also
 present in their current form.
 
@@ -90,7 +90,7 @@ share an identifier with a filed note until it is accepted."
 ;; SCANNING
 ;; ============================================================
 
-(defun my/denote--all-files ()
+(defun my/denote-all-files ()
   "Return every .org file under `my-notes-dir', backups excluded."
   (seq-remove
    (lambda (f) (string-match-p my/denote-scan-exclude-regexp f))
@@ -110,7 +110,7 @@ between silos started failing with a wrong-number-of-arguments error."
                    (directory-files-recursively dir "\\.org\\'")))
                my/denote-silo-directories)))
 
-(defun my/denote--file-identifier (file)
+(defun my/denote-file-identifier (file)
   "Return the identifier in FILE's name, or nil.
 
 Owned here, and also called by 05-notes.el and 25-inbox-review.el:
@@ -121,11 +121,11 @@ integrity, and one definition is what stops the three from drifting."
                         name)
       (match-string 1 name))))
 
-(defun my/denote--identifier-table (&optional files)
+(defun my/denote-identifier-table (&optional files)
   "Return a hash of identifier -> list of files, from FILES."
   (let ((table (make-hash-table :test #'equal)))
-    (dolist (file (or files (my/denote--all-files)) table)
-      (when-let* ((id (my/denote--file-identifier file)))
+    (dolist (file (or files (my/denote-all-files)) table)
+      (when-let* ((id (my/denote-file-identifier file)))
         (puthash id (cons file (gethash id table)) table)))))
 
 (defun my/denote--duplicate-groups (&optional files)
@@ -135,21 +135,21 @@ FILES defaults to the silo files only - see the scope note above."
     (maphash (lambda (id files)
                (when (> (length files) 1)
                  (push (cons id (sort files #'string<)) groups)))
-             (my/denote--identifier-table
+             (my/denote-identifier-table
               (or files (my/denote--identifier-scope-files))))
     (sort groups (lambda (a b) (string< (car a) (car b))))))
 
-(defun my/denote--silo-identifier-table ()
+(defun my/denote-silo-identifier-table ()
   "Return a hash of identifier -> silo files."
-  (my/denote--identifier-table (my/denote--identifier-scope-files)))
+  (my/denote-identifier-table (my/denote--identifier-scope-files)))
 
 (defun my/denote--identifier-free-p (id &optional table)
   "Return non-nil when ID is used by no file in TABLE.
 TABLE defaults to the silo table, so freedom means \"free where
 uniqueness is required\"."
-  (null (gethash id (or table (my/denote--silo-identifier-table)))))
+  (null (gethash id (or table (my/denote-silo-identifier-table)))))
 
-(defun my/denote--next-free-identifier (id &optional table)
+(defun my/denote-next-free-identifier (id &optional table)
   "Return the first free identifier at or after ID, on the SAME DAY.
 
 The date part is never changed: it is the one piece of information the
@@ -160,7 +160,7 @@ notes.
 
 Signals an error in the impossible case of a day with 86,400 taken
 identifiers, rather than silently moving the note to another date."
-  (let* ((table (or table (my/denote--silo-identifier-table)))
+  (let* ((table (or table (my/denote-silo-identifier-table)))
          (day (substring id 0 8))
          (seconds (+ (* 3600 (string-to-number (substring id 9 11)))
                      (* 60 (string-to-number (substring id 11 13)))
@@ -221,8 +221,8 @@ This is what a collision leaves behind: a link meant for another note
 resolved to the identifier this file already had."
   (interactive)
   (let (hits)
-    (dolist (file (my/denote--all-files))
-      (when-let* ((id (my/denote--file-identifier file)))
+    (dolist (file (my/denote-all-files))
+      (when-let* ((id (my/denote-file-identifier file)))
         (with-temp-buffer
           (insert-file-contents file)
           (goto-char (point-min))
@@ -324,16 +324,16 @@ the old name, which `my/denote-check-identifiers' can still see."
    (let* ((file (or (and (derived-mode-p 'dired-mode) (dired-get-filename nil t))
                     buffer-file-name
                     (user-error "No file here")))
-          (old (or (my/denote--file-identifier file)
+          (old (or (my/denote-file-identifier file)
                    (user-error "Not a Denote file name: %s"
                                (file-name-nondirectory file))))
-          (suggestion (my/denote--next-free-identifier old)))
+          (suggestion (my/denote-next-free-identifier old)))
      (list file (read-string (format "New identifier for %s: "
                                      (file-name-nondirectory file))
                              suggestion nil suggestion))))
-  (let* ((old (or (my/denote--file-identifier file)
+  (let* ((old (or (my/denote-file-identifier file)
                   (user-error "Not a Denote file name")))
-         (table (my/denote--silo-identifier-table)))
+         (table (my/denote-silo-identifier-table)))
     (unless (string-match-p (concat "\\`" my/denote-identifier-regexp "\\'")
                             new-id)
       (user-error "Not a valid identifier: %s" new-id))
@@ -346,7 +346,7 @@ the old name, which `my/denote-check-identifiers' can still see."
                   (mapconcat (lambda (f) (file-relative-name f my-notes-dir))
                              (gethash new-id table) ", ")))
     (let ((files 0) (links 0))
-      (dolist (other (my/denote--all-files))
+      (dolist (other (my/denote-all-files))
         ;; The file's own `denote:OLD' links are self-links created by
         ;; an earlier bad resolution; they are rewritten too, and
         ;; `my/denote-find-self-links' will show whether any remain.
@@ -379,7 +379,7 @@ shares an identifier with a filed note is not one, and is not listed."
               (keeper (car (cdr group)))
               (others (cdr (cdr group))))
           (dolist (file others)
-            (let ((suggestion (my/denote--next-free-identifier id)))
+            (let ((suggestion (my/denote-next-free-identifier id)))
               (when (y-or-n-p
                      (format "%s: keep on %s, move %s to %s? "
                              id

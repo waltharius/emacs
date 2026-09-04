@@ -138,11 +138,15 @@ TITLE falls back to the file base name, TAGS to nil, on any error."
               (my/denote--parse-tags)))
     (error (cons (file-name-base file) nil))))
 
-(defun my/denote-file-identifier (file)
-  "Return the Denote identifier string from FILE basename, or nil."
-  (let ((base (file-name-base file)))
-    (when (string-match "^\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)" base)
-      (match-string 1 base))))
+(declare-function my/denote-file-identifier "27-denote-identifiers" (file))
+
+;; The identifier extractor used to be defined here as well, with its
+;; own hard-coded regexp.  Two definitions of the same thing, in two
+;; modules, differing in how they matched -- and the `duplicates' check
+;; could not see it, because the names differed only by the dashes that
+;; marked one of them private.  Identifier parsing belongs to the module
+;; responsible for identifier integrity; 27-denote-identifiers.el owns
+;; it and this file calls it.
 
 (defun my/denote-identifier< (file-a file-b)
   "Return t if FILE-A was created before FILE-B by Denote identifier."
@@ -683,7 +687,7 @@ The buffers are returned left to right; arranging them into windows is
 
 The tab is reset to a single window before the columns are split off,
 so the layout is the same whatever the tab held before -- the same
-reasoning as `my/dashboards--show-navigation' in 21-dashboards.el.
+reasoning as `my/dashboards-show-navigation' in 21-dashboards.el.
 Point ends up in the leftmost column."
   (interactive)
   (my/fixed-tab-goto my/dashboard-tab-name)

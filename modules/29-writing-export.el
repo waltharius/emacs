@@ -99,8 +99,8 @@ rest, since LibreOffice starts a headless instance."
 
 (defun my/office--org-title (org-file)
   "Return the #+title: of ORG-FILE, or nil."
-  (if (fboundp 'my/--org-title)
-      (my/--org-title org-file)
+  (if (fboundp 'my/org-buffer-title)
+      (my/org-buffer-title org-file)
     (with-temp-buffer
       (insert-file-contents org-file nil 0 2000)
       (goto-char (point-min))
@@ -109,14 +109,14 @@ rest, since LibreOffice starts a headless instance."
 
 (defun my/office--safe-name (title)
   "Turn TITLE into a file name, keeping spaces and diacritics."
-  (if (fboundp 'my/--title-to-filename)
-      (my/--title-to-filename title)
+  (if (fboundp 'my/org-export-title-to-filename)
+      (my/org-export-title-to-filename title)
     (replace-regexp-in-string "[/\\\\:*?\"<>|[:cntrl:]]" "" title)))
 
 (defun my/office--resolve-dest (dest)
   "Prompt when DEST exists; return the path to use, or nil to cancel."
-  (if (fboundp 'my/--resolve-pdf-dest)
-      (my/--resolve-pdf-dest dest)
+  (if (fboundp 'my/org-export-resolve-destination)
+      (my/org-export-resolve-destination dest)
     (if (not (file-exists-p dest))
         dest
       (when (y-or-n-p (format "%s exists.  Overwrite? "
@@ -127,9 +127,9 @@ rest, since LibreOffice starts a headless instance."
   "Return the writing project ORG-FILE belongs to, or nil.
 Nil whenever 28-writing-projects.el is absent, which makes the project
 directory an enhancement rather than a requirement."
-  (when (and (fboundp 'my/writing--file-projects)
-             (fboundp 'my/writing--project-directory))
-    (car (my/writing--file-projects org-file))))
+  (when (and (fboundp 'my/writing-file-projects)
+             (fboundp 'my/writing-project-directory))
+    (car (my/writing-file-projects org-file))))
 
 (defun my/office--dest-dir (org-file)
   "Return the output directory for ORG-FILE, creating it if needed.
@@ -141,7 +141,7 @@ Everything else mirrors the silo structure under `my/office-output-dir'."
          (dir
           (if project
               (expand-file-name my/office-project-subdirectory
-                                (my/writing--project-directory project))
+                                (my/writing-project-directory project))
             (let* ((root (expand-file-name my-notes-dir))
                    (here (expand-file-name (file-name-directory org-file)))
                    (rel (when (string-prefix-p root here)
@@ -276,7 +276,7 @@ produces a document with no bibliography at all."
                (not (eq (cadr (assq t org-cite-export-processors)) 'csl)))
       (push "org-cite fallback processor is not csl -- citations will export unformatted"
             problems))
-    (unless (fboundp 'my/--filter-denote-link)
+    (unless (fboundp 'my/latex-filter-denote-link)
       (push "denote link filter missing (16-org-export.el not loaded)" problems))
     (if problems
         (message "Office export NOT ready:\n- %s"

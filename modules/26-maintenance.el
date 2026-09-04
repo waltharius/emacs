@@ -50,7 +50,7 @@
 ;;
 ;; SCOPE: INBOX YES, ATTACHMENTS NO
 ;;
-;; Everything here reads `my/denote--all-files' from 27, which walks
+;; Everything here reads `my/denote-all-files' from 27, which walks
 ;; `my-notes-dir' directly and returns .org files only.  Two
 ;; consequences, both wanted:
 ;;
@@ -100,8 +100,8 @@
 
 (defun my/maintenance--require-identifiers ()
   "Signal unless 27-denote-identifiers.el has been loaded."
-  (unless (and (fboundp 'my/denote--all-files)
-               (fboundp 'my/denote--identifier-table))
+  (unless (and (fboundp 'my/denote-all-files)
+               (fboundp 'my/denote-identifier-table))
     (user-error "27-denote-identifiers.el is not loaded")))
 
 ;; ============================================================
@@ -164,7 +164,7 @@ where `denote-sequence' writes Folgezettel values such as 1a1."
   "Return ((SIGNATURE . FILES) ...) for signatures used more than once."
   (let ((table (make-hash-table :test #'equal))
         groups)
-    (dolist (file (my/denote--all-files))
+    (dolist (file (my/denote-all-files))
       (when-let* ((signature (my/maintenance--file-signature file)))
         (unless (string-empty-p signature)
           (puthash signature (cons file (gethash signature table)) table))))
@@ -215,7 +215,7 @@ suffix -- `denote:ID#heading' or `denote:ID::heading' -- and only the
 identifier is collected, since that is the part that has to resolve."
   (let ((table (make-hash-table :test #'equal))
         (regexp (concat "denote:\\(" my/denote-identifier-regexp "\\)")))
-    (dolist (file (my/denote--all-files))
+    (dolist (file (my/denote-all-files))
       (with-temp-buffer
         (insert-file-contents file)
         (goto-char (point-min))
@@ -240,7 +240,7 @@ Both sides are scanned across the whole of `my-notes-dir', inbox
 included, since staged notes link to filed ones and to each other."
   (interactive)
   (my/maintenance--require-identifiers)
-  (let* ((known (my/denote--identifier-table (my/denote--all-files)))
+  (let* ((known (my/denote-identifier-table (my/denote-all-files)))
          (targets (my/maintenance--link-targets))
          groups)
     (maphash (lambda (id files)
@@ -270,7 +270,7 @@ included, since staged notes link to filed ones and to each other."
 ;; them borrowing an accessor from Denote.  See the Commentary above for
 ;; what the scope includes.
 
-(defun my/maintenance--file-keywords (file)
+(defun my/maintenance-file-keywords (file)
   "Return FILE's keywords, read from its file name, as a list of strings.
 
 The inverse of `my/maintenance--new-file-name'.  Both find the keyword
@@ -286,8 +286,8 @@ file it misread."
   "Return a hash of keyword -> list of files using it."
   (my/maintenance--require-identifiers)
   (let ((table (make-hash-table :test #'equal)))
-    (dolist (file (my/denote--all-files))
-      (dolist (keyword (my/maintenance--file-keywords file))
+    (dolist (file (my/denote-all-files))
+      (dolist (keyword (my/maintenance-file-keywords file))
         (puthash keyword (cons file (gethash keyword table)) table)))
     table))
 
@@ -324,7 +324,7 @@ Each keyword is a button that starts a rename of it."
           (erase-buffer)
           (insert (format "%d keyword(s) across %d note(s) under %s.\n"
                           (length names)
-                          (length (my/denote--all-files))
+                          (length (my/denote-all-files))
                           my-notes-dir))
           (insert "Attachments are not listed: they carry identifiers, not keywords.\n")
           (insert "Click a keyword to rename or remove it everywhere.\n")
@@ -350,8 +350,8 @@ Each keyword is a button that starts a rename of it."
   "Report notes carrying no keywords at all."
   (interactive)
   (my/maintenance--require-identifiers)
-  (let ((files (seq-remove #'my/maintenance--file-keywords
-                           (my/denote--all-files))))
+  (let ((files (seq-remove #'my/maintenance-file-keywords
+                           (my/denote-all-files))))
     (if (my/maintenance--report
          "*Denote Notes Without Keywords*"
          (format "%d note(s) under %s carry no keywords."
@@ -576,7 +576,7 @@ read-only state is preserved across `set-visited-file-name', and
      (let ((file (plist-get entry :file)))
        (list entry
              (vector (plist-get entry :status)
-                     (string-join (my/maintenance--file-keywords file) ",")
+                     (string-join (my/maintenance-file-keywords file) ",")
                      (file-name-nondirectory
                       (directory-file-name (file-name-directory file)))
                      (file-name-nondirectory file)))))
@@ -685,7 +685,7 @@ that no longer exists."
         (progn
           (message "Already %s" (plist-get entry :status))
           (forward-line 1))
-      (let* ((current (my/maintenance--file-keywords file))
+      (let* ((current (my/maintenance-file-keywords file))
              (kept (remove my/maintenance--keyword-old current))
              (wanted (if (string-empty-p my/maintenance--keyword-new)
                          kept

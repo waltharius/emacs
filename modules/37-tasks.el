@@ -46,7 +46,7 @@
 ;;   28-writing-projects is present its hub files are included; that
 ;;   module's own setter defers to this one, so the two cannot fight
 ;;   whichever loads first.
-;; - Sets `my/capture--origin-window' (06-capture.el) when it exists, so
+;; - Sets `my/capture-origin-window' (06-capture.el) when it exists, so
 ;;   the capture buffer opens beside the note instead of over it.  Only
 ;;   when bound; without 06-capture, org-capture places its own window.
 ;; - Appends to the menus of 12-transient via `my/transient-append', so
@@ -258,13 +258,13 @@ where the repetition comes from."
 
 (defun my/tasks--current-project ()
   "Return the project slug of the current buffer, or nil."
-  (when (fboundp 'my/writing--current-project)
-    (ignore-errors (my/writing--current-project))))
+  (when (fboundp 'my/writing-current-project)
+    (ignore-errors (my/writing-current-project))))
 
 (defun my/tasks--hub-file (slug)
   "Return the hub file of SLUG when it exists, or nil."
-  (when (and slug (fboundp 'my/writing--hub-file))
-    (let ((hub (ignore-errors (my/writing--hub-file slug))))
+  (when (and slug (fboundp 'my/writing-hub-file))
+    (let ((hub (ignore-errors (my/writing-hub-file slug))))
       (when (and hub (file-exists-p hub)) hub))))
 
 (defun my/tasks--project-tasks-heading ()
@@ -472,8 +472,8 @@ buffer's `#+project:' line."
     ;; 06-capture.el reads this in `org-capture-mode-hook' to put the
     ;; capture buffer beside the note rather than over it.  Optional:
     ;; without that module org-capture places its own window.
-    (when (boundp 'my/capture--origin-window)
-      (setq my/capture--origin-window (selected-window)))
+    (when (boundp 'my/capture-origin-window)
+      (setq my/capture-origin-window (selected-window)))
     (org-capture nil my/tasks-capture-key)))
 
 ;;;###autoload
@@ -540,8 +540,8 @@ Works in an Org buffer and in the agenda."
    (delete-dups
     (append (list my/tasks-file)
             my/tasks-extra-agenda-files
-            (when (fboundp 'my/writing--hub-file)
-              (mapcar #'my/writing--hub-file (my/tasks--project-slugs)))))))
+            (when (fboundp 'my/writing-hub-file)
+              (mapcar #'my/writing-hub-file (my/tasks--project-slugs)))))))
 
 ;;;###autoload
 (defun my/tasks-update-agenda-files ()

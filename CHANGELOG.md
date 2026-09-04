@@ -22,6 +22,96 @@ included.
 
 ---
 
+## Session 2026-09-04b — Twenty-one symbols were private and shared at the same time
+
+### The backlog the hook was created to hold
+
+`hooks/lint.py` has carried the `private` check as advisory since it
+was written, with a comment saying the violations were "a known
+backlog" and that the check should become blocking once the count
+reached zero. Twenty-seven call sites, twenty-one symbols. They are
+now zero.
+
+### Renaming, not suppressing
+
+The double dash means one thing in Elisp: private to the file that
+defines it. A symbol called from another file is not private, so the
+`--` was a misnomer rather than a boundary being violated. Correcting
+the name is the fix; adding an allowlist to the linter would have been
+a way of writing down that the names are wrong and keeping them.
+
+| Was | Now |
+|---|---|
+| `my/--latex-preamble` | `my/latex-preamble` |
+| `my/--filter-denote-link` | `my/latex-filter-denote-link` |
+| `my/--org-title` | `my/org-buffer-title` |
+| `my/--resolve-pdf-dest` | `my/org-export-resolve-destination` |
+| `my/--title-to-filename` | `my/org-export-title-to-filename` |
+| `my/denote--all-files` | `my/denote-all-files` |
+| `my/denote--file-identifier` | `my/denote-file-identifier` |
+| `my/denote--identifier-table` | `my/denote-identifier-table` |
+| `my/denote--next-free-identifier` | `my/denote-next-free-identifier` |
+| `my/denote--silo-identifier-table` | `my/denote-silo-identifier-table` |
+| `my/denote-journal--create-backdated` | `my/denote-journal-create-backdated` |
+| `my/notes--completion-keys` | `my/notes-completion-keys` |
+| `my/dashboards--show-navigation` | `my/dashboards-show-navigation` |
+| `my/writing--current-project` | `my/writing-current-project` |
+| `my/writing--hub-file` | `my/writing-hub-file` |
+| `my/writing--project-directory` | `my/writing-project-directory` |
+| `my/writing--file-projects` | `my/writing-file-projects` |
+| `my/journal-gaps--missing-keys` | `my/journal-gaps-missing-keys` |
+| `my/journal-gaps--required-keys` | `my/journal-gaps-required-keys` |
+| `my/maintenance--file-keywords` | `my/maintenance-file-keywords` |
+| `my/capture--origin-window` | `my/capture-origin-window` |
+
+156 replacements across 17 modules and `function_helper.org`.
+Mechanical, with the substitution anchored on symbol characters at both
+ends so that a name which is a prefix of another cannot be eaten.
+
+Symbols still called `my/--something` inside 16-org-export.el were left
+alone. They really are private: nothing outside that file calls them,
+which is why the check never flagged them.
+
+### The rename uncovered a duplicate the duplicate check could not see
+
+`my/denote-file-identifier` already existed in 15-workspace.el, with
+its own hard-coded regexp, while 27-denote-identifiers.el defined
+`my/denote--file-identifier` doing the same job against
+`my/denote-identifier-regexp`.
+
+Two implementations of one thing, free to drift, and the `duplicates`
+check was blind to it because the names differed only by the dashes
+that marked one of them private. The docstring of the 27 version even
+claimed "one definition is what stops the three from drifting" — while
+a fourth sat two modules away.
+
+15-workspace.el now calls the owner's version and declares it. The
+regexps agreed, so nothing changes at runtime.
+
+**A private name can hide a duplicate from a duplicate checker.** The
+check compares symbols, and two symbols spelled differently are two
+symbols however identical their bodies. Worth remembering the next
+time a check reports clean.
+
+### Documentation coverage: zero as well
+
+Eight menu commands that `function_helper.org` never named:
+
+- the five philosophy note types (19-philosophy-notes.el) — the table
+  listed keys and keywords but no function names, so the commands were
+  undiscoverable by `M-x` and invisible to the check
+- `my/readwise-sync-all` — full re-import, needed after editing
+  highlights in Readwise itself, which an incremental sync cannot see
+- `my/inbox-open-reject-directory`
+- `my/csl-check-setup` — the whole Maintenance block of the Zotero menu
+  was missing from its table
+
+All seven checks now report ok. `private` and `coverage` stay advisory
+for the moment; the decision about promoting them is separate from
+clearing them.
+
+---
+
 ## Session 2026-09-04a — colorlinks=false does not mean what it sounds like
 
 ### The defect

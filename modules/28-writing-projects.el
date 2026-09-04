@@ -264,7 +264,7 @@ membership scans needlessly slow."
           (insert-file-contents file nil 0 2000)
           (my/writing--keyword-in-buffer keyword))))))
 
-(defun my/writing--file-projects (file)
+(defun my/writing-file-projects (file)
   "Return the list of project slugs FILE declares membership in."
   (when-let ((value (my/writing--read-keyword file "project")))
     (split-string value "[ \t]+" t)))
@@ -293,7 +293,7 @@ block instead of landing in the body."
 A note routinely belongs to more than one project: a section written
 for a chapter is often reused in a talk, and both should find it.
 Returns non-nil when the buffer changed."
-  (let ((current (my/writing--file-projects (buffer-file-name))))
+  (let ((current (my/writing-file-projects (buffer-file-name))))
     (unless (member slug current)
       (my/writing--set-file-projects (append current (list slug)))
       t)))
@@ -316,20 +316,20 @@ transliteration rule applied inconsistently is worse than none."
     (setq s (replace-regexp-in-string "[ \t]+" "-" s))
     (downcase s)))
 
-(defun my/writing--project-directory (slug)
+(defun my/writing-project-directory (slug)
   "Return the directory of project SLUG."
   (file-name-as-directory
    (expand-file-name slug my/writing-projects-directory)))
 
-(defun my/writing--hub-file (slug)
+(defun my/writing-hub-file (slug)
   "Return the hub file of project SLUG."
-  (expand-file-name (concat slug ".org") (my/writing--project-directory slug)))
+  (expand-file-name (concat slug ".org") (my/writing-project-directory slug)))
 
 (defun my/writing-project-slugs ()
   "Return the slugs of all projects that have a hub file."
   (when (file-directory-p my/writing-projects-directory)
     (seq-filter
-     (lambda (slug) (file-exists-p (my/writing--hub-file slug)))
+     (lambda (slug) (file-exists-p (my/writing-hub-file slug)))
      (seq-remove
       (lambda (name) (string-prefix-p "." name))
       (seq-filter
@@ -345,7 +345,7 @@ default."
     (unless slugs
       (user-error "No writing projects yet -- create one with `my/writing-project-new'"))
     (completing-read (or prompt "Project: ") slugs nil t nil nil
-                     (my/writing--current-project))))
+                     (my/writing-current-project))))
 
 (defun my/writing--read-section (&optional prompt)
   "Prompt for one of the two materials sections, using PROMPT."
@@ -353,17 +353,17 @@ default."
                    (list my/writing-heading-text my/writing-heading-sources)
                    nil t nil nil my/writing-heading-text))
 
-(defun my/writing--current-project ()
+(defun my/writing-current-project ()
   "Return the slug of the project the current buffer belongs to, or nil.
 A buffer inside the project directory belongs to it; so does a note
 whose front matter names exactly one project."
   (let ((file (buffer-file-name)))
     (when file
       (or (seq-find (lambda (slug)
-                      (string-prefix-p (my/writing--project-directory slug)
+                      (string-prefix-p (my/writing-project-directory slug)
                                        (expand-file-name file)))
                     (my/writing-project-slugs))
-          (let ((declared (my/writing--file-projects file)))
+          (let ((declared (my/writing-file-projects file)))
             (when (= (length declared) 1) (car declared)))))))
 
 ;; ============================================================
@@ -433,8 +433,8 @@ and nothing here depends on that module being loaded."
          (read-number "Target characters: " 20000)
          (org-read-date nil nil nil "Deadline: ")))
   (let* ((slug (my/writing--slugify title))
-         (dir (my/writing--project-directory slug))
-         (hub (my/writing--hub-file slug)))
+         (dir (my/writing-project-directory slug))
+         (hub (my/writing-hub-file slug)))
     (when (file-exists-p hub)
       (user-error "Project `%s' already exists" slug))
     (make-directory dir t)
@@ -458,13 +458,13 @@ and nothing here depends on that module being loaded."
 (defun my/writing-project-open (slug)
   "Open the hub file of project SLUG."
   (interactive (list (my/writing--read-project "Open project: ")))
-  (find-file (my/writing--hub-file slug)))
+  (find-file (my/writing-hub-file slug)))
 
 ;;;###autoload
 (defun my/writing-project-dired (slug)
   "Open the directory of project SLUG in Dired."
   (interactive (list (my/writing--read-project "Project directory: ")))
-  (dired (my/writing--project-directory slug)))
+  (dired (my/writing-project-directory slug)))
 
 ;; ============================================================
 ;; HUB SECTIONS
@@ -557,7 +557,7 @@ the project is finished."
       (let ((id (my/writing--keyword-in-buffer "identifier")))
         (if (null id)
             (message "Note created, but it has no identifier -- not linked")
-          (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
+          (with-current-buffer (find-file-noselect (my/writing-hub-file slug))
             (if (my/writing--append-link section id title)
                 (progn (save-buffer)
                        (message "Created and listed under %s / %s" slug section))
@@ -591,7 +591,7 @@ lost."
       (when (my/writing--add-file-project slug)
         (save-buffer))
       ;; Hub side.
-      (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
+      (with-current-buffer (find-file-noselect (my/writing-hub-file slug))
         (unless (my/writing--section-bounds section)
           (user-error "Hub has no `%s' section" section))
         (if (my/writing--append-link section id title)
@@ -614,10 +614,10 @@ know whether a note is deliverable text or a source."
       (when (file-directory-p silo)
         (dolist (file (directory-files-recursively silo "\\.org\\'"))
           (setq scanned (1+ scanned))
-          (when (member slug (my/writing--file-projects file))
+          (when (member slug (my/writing-file-projects file))
             (push file found)))))
     (let ((added 0))
-      (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
+      (with-current-buffer (find-file-noselect (my/writing-hub-file slug))
         (let ((known (my/writing--member-ids)))
           (dolist (file (nreverse found))
             (let ((id (my/writing--read-keyword file "identifier"))
@@ -641,7 +641,7 @@ chapter leaves the hub showing the old wording.  This resynchronises it.
 Purely cosmetic: nothing depends on the description."
   (interactive (list (my/writing--read-project "Refresh titles in: ")))
   (let ((updated 0))
-    (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
+    (with-current-buffer (find-file-noselect (my/writing-hub-file slug))
       (save-excursion
         (goto-char (point-min))
         (while (re-search-forward "\\[\\[denote:\\([^]]+\\)\\]\\[\\([^]]*\\)\\]\\]" nil t)
@@ -693,7 +693,7 @@ hand -- anything worth keeping belongs under materials."
   (interactive (list (my/writing--read-project "Refresh mentions of: ")))
   (let ((files (my/writing--mention-files slug))
         (listed 0))
-    (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
+    (with-current-buffer (find-file-noselect (my/writing-hub-file slug))
       (let ((bounds (my/writing--section-bounds my/writing-heading-mentions))
             (members (my/writing--member-ids)))
         (unless bounds
@@ -775,7 +775,7 @@ Negative once the date has passed."
 
 (defun my/writing-project-stats (slug)
   "Return a plist of progress figures for SLUG."
-  (with-current-buffer (find-file-noselect (my/writing--hub-file slug))
+  (with-current-buffer (find-file-noselect (my/writing-hub-file slug))
     (let* ((target (string-to-number
                     (or (my/writing--keyword-in-buffer "target_chars") "0")))
            (date (my/writing--keyword-in-buffer "target_date"))
@@ -794,7 +794,7 @@ Below the target the message says how much to write per day; above it,
 how much to cut.  There is no notion of a drafting or editing phase,
 because in practice the two alternate from one session to the next and
 a flag would spend most of its life set wrongly."
-  (interactive (list (or (my/writing--current-project)
+  (interactive (list (or (my/writing-current-project)
                          (my/writing--read-project "Progress of: "))))
   (let* ((s (my/writing-project-stats slug))
          (target (plist-get s :target))
@@ -849,7 +849,7 @@ a flag would spend most of its life set wrongly."
 (defun my/writing-projects-agenda-files ()
   "Return the hub file of every writing project that has one."
   (seq-filter #'file-exists-p
-              (mapcar #'my/writing--hub-file (my/writing-project-slugs))))
+              (mapcar #'my/writing-hub-file (my/writing-project-slugs))))
 
 (defun my/writing-projects-update-agenda-files ()
   "Set `org-agenda-files' to the hub file of every writing project.
