@@ -128,6 +128,71 @@ feels slow."
   :group 'my/markdown)
 
 ;; ============================================================
+;; FILES THAT ARE NOT NOTES
+;; ============================================================
+;; A README, a CHANGELOG, an export from some other program: Markdown
+;; with no Denote identifier, no front matter, and no business getting
+;; one.  Fontification reaches these already -- headings, links and
+;; emphasis are markdown-mode's job and it does not care where a file
+;; lives -- but two layers of this configuration are keyed to location
+;; and so skip them:
+;;
+;;   `my/visual-fill-notes-setup' (10-visual-fill.el) turns the text
+;;   column OFF outside ~/notes/, on purpose, as a visual signal that
+;;   the notes tree has been left.  `visual-line-mode' is still on from
+;;   02-editing.el, so the text wraps -- at the window edge, across a
+;;   full-width frame.
+;;
+;;   `my/notes-font-setup' (03b-fonts.el) applies a typeface per SILO.
+;;   A file in no silo keeps `default', which is JetBrains Mono, while
+;;   its headings still inherit `variable-pitch'.  Proportional
+;;   headings over monospaced prose is the mismatch that reads as
+;;   "unformatted".
+;;
+;; Both are corrected below, for Markdown buffers only.  Org files
+;; outside the notes tree keep the existing behaviour untouched.
+
+(defcustom my/markdown-outside-notes-layout 'column
+  "Text layout for Markdown files outside `my-notes-dir'.
+
+  `column'    Wrapped to `my/markdown-outside-notes-width', left
+              aligned, with the leftover space as a right margin.
+  `centered'  The same width, centred like a note.
+  `plain'     Nothing: full width, as before this module existed.
+
+The default is `column' rather than `centered' deliberately.
+10-visual-fill.el makes full width outside ~/notes/ a signal that the
+notes tree has been left, and that signal is worth keeping; but
+unreadable 300-column lines are a poor way to carry it.  A left-aligned
+column reads as well as a centred one and still looks nothing like a
+note, so the signal survives in a form that costs nothing.
+
+Set to `centered' for one uniform reading layout everywhere."
+  :type '(choice (const column) (const centered) (const plain))
+  :group 'my/markdown)
+
+(defcustom my/markdown-outside-notes-width nil
+  "Width of the text column for Markdown files outside `my-notes-dir'.
+Nil means `my-fill-column', the same width notes use.  As in
+10-visual-fill.el this is a count of CHARACTERS in the buffer's default
+face, so a proportional body renders the same number narrower."
+  :type '(choice (const :tag "Same as notes" nil) integer)
+  :group 'my/markdown)
+
+(defcustom my/markdown-unsiloed-body 'proportional
+  "Body typeface for a Markdown file that matches no `my/font-silo-styles' entry.
+
+`proportional' turns on `variable-pitch-mode', so prose is set in
+`my/font-variable-pitch' while code, tables and markup stay monospaced
+through `my/font-fixed-faces'.  `monospace' leaves the buffer in
+`default'.
+
+Files that DO match a silo entry are untouched by this: a Markdown
+file in docu is meant to be monospaced and stays so."
+  :type '(choice (const proportional) (const monospace))
+  :group 'my/markdown)
+
+;; ============================================================
 ;; BUFFER SETUP
 ;; ============================================================
 ;; Defined before the `use-package' form because its `:config' calls
@@ -158,30 +223,71 @@ what an Obsidian export looks like before it is renamed."
           (let ((case-fold-search t))
             (and (re-search-forward "^tags\\s-*[:=].*\\bdocu\\b" 2000 t) t))))))
 
-(defun my/markdown--visual-fill-adjust ()
-  "Give docu Markdown notes the wider text column.
+(defun my/markdown--in-notes-p ()
+  "Return non-nil when the current buffer visits a file under `my-notes-dir'."
+  (when-let* ((file (buffer-file-name)))
+    (string-prefix-p (expand-file-name my-notes-dir)
+                     (expand-file-name file))))
 
-`my/visual-fill-notes-setup' (10-visual-fill.el) already turns the
-centred column on in every notes buffer, Markdown included, because it
-tests for `text-mode' and markdown-mode derives from it.  What it
-cannot do is recognise a docu note: it looks for `#+filetags:', which
-is Org front matter.
+(defun my/markdown--siloed-p ()
+  "Return non-nil when this file matches an entry in `my/font-silo-styles'.
 
-Rather than teaching that function a second syntax -- and putting the
-Org path at risk for the sake of the Markdown one -- this widens the
-column afterwards, and only in Markdown buffers.  Runs at depth 90 on
-`find-file-hook' so that it lands after the setup it is adjusting."
-  (when (and (derived-mode-p 'markdown-mode)
-             (buffer-file-name)
-             (bound-and-true-p visual-fill-column-mode)
-             (boundp 'my/fill-column-docu)
-             (string-prefix-p (expand-file-name my-notes-dir)
-                              (expand-file-name (buffer-file-name)))
-             (my/markdown--docu-note-p))
-    (setq-local visual-fill-column-width my/fill-column-docu)
-    (setq fill-column my/fill-column-docu)
+Reads that module's `defcustom' rather than calling its lookup
+function, which is private to 03b-fonts.el.  The five lines of
+duplication are the price of not reaching across a module boundary;
+the list itself has one owner and is not copied."
+  (when-let* ((file (buffer-file-name))
+              ((boundp 'my/font-silo-styles)))
+    (let ((path (expand-file-name file)))
+      (and (seq-find (lambda (entry)
+                       (string-prefix-p (expand-file-name (car entry)) path))
+                     my/font-silo-styles)
+           t))))
+
+(defun my/markdown--set-column (width center)
+  "Wrap this buffer at WIDTH, centred when CENTER is non-nil."
+  (when (fboundp 'visual-fill-column-mode)
+    (setq fill-column width)
+    (setq-local visual-fill-column-width width)
+    (setq-local visual-fill-column-center-text center)
+    (visual-line-mode 1)
+    (visual-fill-column-mode 1)
     (when (fboundp 'visual-fill-column--adjust-window)
       (visual-fill-column--adjust-window))))
+
+(defun my/markdown--layout-adjust ()
+  "Fix up the text column of a Markdown buffer, after the notes rules ran.
+
+Two cases, and neither can be handled by `my/visual-fill-notes-setup'
+without changing what that function does for Org.
+
+INSIDE the notes tree, a docu note should get the wider column.  That
+function decides by searching for `#+filetags:', which is Org front
+matter; here the keyword is read from the Denote FILE NAME instead,
+which survives `denote-rename-file'.
+
+OUTSIDE the notes tree, the column is switched off entirely -- see
+`my/markdown-outside-notes-layout' for why that is right for Org files
+and wrong for Markdown ones.
+
+Runs at depth 90 on `find-file-hook', after the setup it is adjusting,
+and again from `my/markdown--setup' so that the layout survives
+`revert-buffer' -- which re-runs mode hooks but not `find-file-hook'.
+The two together mean the column is briefly set, cleared and set again
+when a file is opened; that is invisible and cheaper than a second
+copy of the notes rules living here."
+  (when (and (derived-mode-p 'markdown-mode) (buffer-file-name))
+    (cond
+     ((my/markdown--in-notes-p)
+      (when (and (bound-and-true-p visual-fill-column-mode)
+                 (boundp 'my/fill-column-docu)
+                 (my/markdown--docu-note-p))
+        (my/markdown--set-column my/fill-column-docu
+                                 visual-fill-column-center-text)))
+     ((not (eq my/markdown-outside-notes-layout 'plain))
+      (my/markdown--set-column
+       (or my/markdown-outside-notes-width my-fill-column)
+       (eq my/markdown-outside-notes-layout 'centered))))))
 
 (defun my/markdown--setup ()
   "Bring a Markdown buffer in line with how Org buffers are set up.
@@ -201,13 +307,33 @@ falls through, which is the intended degradation rather than an
 oversight."
   (when (fboundp 'my/notes-font-setup)
     (my/notes-font-setup))
+  ;; A file in no silo got no typeface from that call, so its prose is
+  ;; still `default' -- monospaced -- while its headings inherit
+  ;; `variable-pitch'.  Turning the mode on here makes body text follow
+  ;; the session proportional family, and `my/font-fixed-faces' keeps
+  ;; code, tables and markup monospaced as it does in a note.
+  ;;
+  ;; Tested against `my/font-silo-styles' rather than against
+  ;; `variable-pitch-mode' itself: docu SETS that mode off deliberately,
+  ;; and "off" would otherwise be indistinguishable from "never
+  ;; considered".
+  (when (and (eq my/markdown-unsiloed-body 'proportional)
+             (not (my/markdown--siloed-p)))
+    (variable-pitch-mode 1))
   (setq line-spacing 0.2)
   (electric-indent-local-mode -1)
   (setq-local electric-indent-chars nil)
   (when (and my/markdown-display-images-on-open
              (display-graphic-p)
              (fboundp 'markdown-display-inline-images))
-    (ignore-errors (markdown-display-inline-images))))
+    (ignore-errors (markdown-display-inline-images)))
+  ;; The notes column rules, then this module's corrections to them.
+  ;; Called here as well as from `find-file-hook' because `revert-buffer'
+  ;; re-runs mode hooks only, and without this a revert would leave an
+  ;; opened note full width.
+  (when (fboundp 'my/visual-fill-notes-setup)
+    (my/visual-fill-notes-setup))
+  (my/markdown--layout-adjust))
 
 ;; ============================================================
 ;; PACKAGE
@@ -282,11 +408,22 @@ oversight."
   ;;
   ;; `add-to-list' on that module's `defcustom' rather than a private
   ;; copy: one list, one owner, and this module contributes to it.
+  ;;
+  ;; The code and table faces are on the list rather than left to
+  ;; `modus-themes-mixed-fonts', which covers Org's block faces by name.
+  ;; Naming them here costs nothing when the theme already handles them
+  ;; -- the remap asks for the same family -- and is what keeps a fenced
+  ;; block monospaced in a buffer running `variable-pitch-mode', which
+  ;; every unsiloed Markdown file now does.
   (when (boundp 'my/font-fixed-faces)
     (dolist (face '(markdown-metadata-key-face
                     markdown-metadata-value-face
                     markdown-markup-face
-                    markdown-language-keyword-face))
+                    markdown-language-keyword-face
+                    markdown-code-face
+                    markdown-inline-code-face
+                    markdown-pre-face
+                    markdown-table-face))
       (add-to-list 'my/font-fixed-faces face)))
 
   ;; A theme reassigns every face it covers when it loads, heading faces
@@ -325,7 +462,7 @@ oversight."
 
 ;; Depth 90: `my/visual-fill-notes-setup' is on the same hook at the
 ;; default depth, and this adjusts what that function decided.
-(add-hook 'find-file-hook #'my/markdown--visual-fill-adjust 90)
+(add-hook 'find-file-hook #'my/markdown--layout-adjust 90)
 
 ;; ============================================================
 ;; CREATING A MARKDOWN NOTE

@@ -22,6 +22,118 @@ included.
 
 ---
 
+## Session 2026-09-07b — Markdown that is not a note was still not being formatted
+
+### The defect
+
+Markdown support landed in session 2026-09-07a and was tested on
+Denote notes, which is where the interesting integration questions
+were. Files without an identifier — a README, a CHANGELOG, an export
+from another program — came out looking untouched.
+
+They were not untouched. Fontification had been working the whole
+time: markdown-mode does not care where a file lives, so headings,
+links and emphasis were all being applied. What was missing was
+everything this configuration keys to LOCATION rather than to syntax,
+and the two layers that do that are the two that carry most of the
+visual weight.
+
+`my/visual-fill-notes-setup` switches the text column off outside
+`~/notes/`, on purpose, as a signal that the notes tree has been left.
+`visual-line-mode` is still on from 02-editing.el, so the text wrapped
+— at the window edge, across a full-width frame. Long paragraphs in a
+300-column line.
+
+`my/notes-font-setup` applies a family per SILO. A file in no silo
+keeps `default`, which is JetBrains Mono, while its headings still
+inherit `variable-pitch` because `markdown-header-scaling` is on.
+Proportional headings sitting over monospaced prose is precisely the
+mismatch that reads as "unformatted", and it was worse than having
+done nothing at all.
+
+The lesson is about how the first session was tested. Both layers were
+verified in a silo, where both fire, and the case where neither fires
+was never opened. A location-keyed rule needs testing from outside the
+location, not only from inside it.
+
+### The column, and the signal it was carrying
+
+The full-width rule outside `~/notes/` is deliberate and documented,
+and the argument for it is good: leaving the notes tree should be
+visible without reading the mode line.
+
+It is still worth keeping. What is not worth keeping is carrying it
+with unreadable line lengths. `my/markdown-outside-notes-layout`
+defaults to `column`: wrapped to `my-fill-column`, LEFT aligned, the
+leftover space left as a right margin. That reads as well as a centred
+column and looks nothing like a note, so the signal survives in a form
+that costs nothing. `centered` and `plain` are the other two values.
+
+Only Markdown buffers are affected. 10-visual-fill.el is not touched
+and Org files outside the notes tree behave exactly as before.
+
+### Distinguishing "no silo" from "silo says monospace"
+
+The obvious test for whether a buffer needs a proportional body is
+whether `variable-pitch-mode` is off after `my/notes-font-setup` has
+run. It is wrong, and wrong in a way that only shows up in one silo:
+docu switches that mode off *deliberately*, so "off" is
+indistinguishable from "never considered", and a docu Markdown note
+would have been silently converted to proportional prose — the exact
+opposite of what that silo is for.
+
+`my/markdown--siloed-p` tests the file against `my/font-silo-styles`
+instead. That means five lines duplicating a lookup 03b-fonts.el
+already performs, which is a real cost; the alternative was calling
+`my/font--silo-style` across a module boundary, and that function's
+name says it is private. The list itself is a `defcustom` with one
+owner and is read, not copied.
+
+Generally: a mode being off is not evidence that the question was
+asked. Test the input that decides, not the output it produced.
+
+### Where the layout is applied from, and why twice
+
+From `markdown-mode-hook` and again at depth 90 on `find-file-hook`.
+
+Either one alone is wrong. The mode hook alone is overwritten:
+`my/visual-fill-notes-setup` runs later, from `find-file-hook` at the
+default depth, and switches the column back off. The `find-file-hook`
+entry alone is lost to `revert-buffer`, which re-runs mode hooks but
+not `find-file-hook` — so reverting an opened file would leave it full
+width.
+
+The cost is that opening a file sets the column, clears it and sets it
+again. That is invisible, and it is cheaper than the alternative,
+which is a second copy of the notes column rules living in this
+module and drifting from the first.
+
+### Code stays monospaced
+
+`variable-pitch-mode` in a buffer full of fenced code blocks is only
+tolerable if the code is exempt, so `markdown-code-face`,
+`markdown-inline-code-face`, `markdown-pre-face` and
+`markdown-table-face` join `my/font-fixed-faces` alongside the four
+metadata and markup faces added in the previous session.
+
+`modus-themes-mixed-fonts` covers Org's block faces by name and may
+well cover these too; naming them here costs nothing when it does, as
+the remap asks for the same family, and covers the case where it does
+not. Cheaper than depending on a theme option to know about a package
+it does not ship with.
+
+### Files
+
+- `modules/40-markdown.el` — three new options, `my/markdown--in-notes-p`,
+  `my/markdown--siloed-p`, `my/markdown--set-column`;
+  `my/markdown--visual-fill-adjust` renamed to `my/markdown--layout-adjust`
+  now that it decides more than one thing.
+- `function_helper.org` — new `#markdown-outside` subsection.
+
+Checks: `parens`, `anchors`, `functions`, `duplicates` and `keys` pass.
+
+---
+
 ## Session 2026-09-07a — Markdown notes, without a second note system
 
 ### The request

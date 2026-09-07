@@ -5903,6 +5903,72 @@ YAML =tags:= line for files that have front matter but no Denote name
 yet. It runs at depth 90 on =find-file-hook=, after the setup it
 adjusts, so the Org path is untouched.
 
+** Markdown files that are not notes
+:PROPERTIES:
+:CUSTOM_ID: markdown-outside
+:END:
+
+A README, a CHANGELOG, an export from some other program: Markdown
+with no Denote identifier, no front matter, and no reason to acquire
+either. Fontification reaches these already — headings, links and
+emphasis are markdown-mode's job and it does not care where a file
+lives — but two layers of this configuration are keyed to LOCATION and
+so used to skip them.
+
+*The text column.* =my/visual-fill-notes-setup= switches the column
+off outside =~/notes/=, deliberately, as a signal that the notes tree
+has been left. =visual-line-mode= is still on from =02-editing.el=, so
+the text wrapped — at the window edge, across a full-width frame.
+
+*The typeface.* =my/notes-font-setup= applies a family per SILO. A
+file in no silo kept =default=, which is JetBrains Mono, while its
+headings still inherited =variable-pitch=. Proportional headings over
+monospaced prose is the mismatch that reads as unformatted.
+
+Both are now corrected, for Markdown buffers only. Org files outside
+the notes tree are untouched.
+
+| Option                            | Default        | Effect                                    |
+|-----------------------------------+----------------+-------------------------------------------|
+| =my/markdown-outside-notes-layout= | =column=       | =column= / =centered= / =plain=           |
+| =my/markdown-outside-notes-width=  | nil            | nil means =my-fill-column=                |
+| =my/markdown-unsiloed-body=        | =proportional= | =proportional= / =monospace=              |
+
+The layout default is =column= — wrapped, left aligned, leftover space
+as a right margin — rather than =centered=. The full-width signal from
+10-visual-fill.el is worth keeping, but unreadable 300-column lines
+are a poor way to carry it; a left-aligned column reads as well as a
+centred one and still looks nothing like a note. Set the option to
+=centered= for one uniform reading layout everywhere.
+
+=my/markdown-unsiloed-body= is tested against =my/font-silo-styles=,
+not against =variable-pitch-mode= itself: the docu silo switches that
+mode off on purpose, and “off” would otherwise be indistinguishable
+from “never considered”. A Markdown file in =docu= therefore stays
+monospaced, as a docu note should.
+
+Three cases fall out of this, all of them handled:
+
+- *In a silo* — the silo typeface and the notes column, exactly as an
+  Org note in the same directory.
+- *Under =~/notes/= but in no silo* (a README at the root) — the notes
+  column, since =my/visual-fill-notes-setup= keys on the tree rather
+  than the silo, plus proportional prose from this module.
+- *Outside =~/notes/= entirely* — the column and typeface described
+  above; no Denote features, because there is no identifier to hang
+  them on.
+
+Code, tables, inline code and markup stay monospaced in every case:
+those faces are on =my/font-fixed-faces=, so =variable-pitch-mode=
+does not reach them. See [[#org-faces][Org Faces and Fonts]].
+
+The layout is applied from =markdown-mode-hook= as well as at depth 90
+on =find-file-hook=. The hook alone would be lost to =revert-buffer=,
+which re-runs mode hooks but not =find-file-hook=; the =find-file-hook=
+entry alone would be overwritten by =my/visual-fill-notes-setup=
+running at the default depth. Together the column is set, cleared and
+set again when a file is opened, which is invisible and cheaper than
+keeping a second copy of the notes rules in this module.
 ** What Markdown notes do NOT get
 :PROPERTIES:
 :CUSTOM_ID: markdown-limits
