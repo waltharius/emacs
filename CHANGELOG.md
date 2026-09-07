@@ -21,7 +21,86 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-07c — CHANGELOG.md was never in markdown-mode at all
 
+### The report
+
+One `.md` file rendered as plain monospaced text with literal `##`,
+while a byte-identical copy inside the pks silo rendered correctly.
+The obvious reading was that session 2026-09-07b had missed a case.
+
+It had not. The mode line named the cause: `Change Log`, not
+`Markdown`. Nothing in this module ever ran on that buffer, because
+every function in it is gated on `derived-mode-p 'markdown-mode'`.
+
+The general point: when a file-type feature fails on one file and
+works on a copy of it, read the mode line before reading the module.
+A mode that never activated and a mode that activated and did nothing
+look identical from the text.
+
+### Two causes, compounding
+
+**Emacs claims some Markdown file names for other modes.** `files.el`
+ships `("[cC]hange[lL]og[-.][-0-9a-z]+\\'" . change-log-mode)`, and
+`set-auto-mode` retries case-insensitively when the case-sensitive
+pass finds nothing. Before markdown-mode was installed there was no
+case-sensitive match for `.md`, so `CHANGELOG.md` matched that entry
+and opened in `change-log-mode`; `README.md` fell through to
+`fundamental-mode`. Verified in batch against Emacs 29.3.
+
+This half is self-correcting. markdown-mode's autoloads prepend its
+own entry, which wins the case-sensitive pass, so a fresh open has
+been correct since the package was installed.
+
+**The session remembers the old answer.** `desktop-save` records each
+buffer's major mode and `desktop-read` calls that mode function again
+rather than consulting `auto-mode-alist` afresh. Almost always right —
+it is how a buffer deliberately put into another mode comes back in it
+— but a buffer whose correct mode *changed between sessions* comes
+back in the old one indefinitely, because every save writes the stale
+mode out again. Reopening does not help: the buffer is already there.
+
+Installing a package that claims an extension is exactly such a
+change, which makes this a general hazard rather than a Markdown one.
+Any package adding to `auto-mode-alist` leaves already-open buffers
+behind, and `desktop-save-mode` then preserves the mistake across
+restarts.
+
+### The fix, and what it refuses to do
+
+`my/markdown-restore-modes` re-modes a buffer only when all three
+hold: it visits a file, `auto-mode-alist` would give that file
+`markdown-mode` now, and its current mode is on
+`my/markdown-stale-modes` — `fundamental-mode`, `text-mode`,
+`change-log-mode`.
+
+The third condition is the important one. Without it the command would
+be "force every `.md` buffer into markdown-mode", which would silently
+undo a deliberate `M-x conf-mode` on a fixture. Restricting it to the
+modes a `.md` file lands in *when markdown-mode is absent* means it
+only ever corrects its own absence.
+
+It calls `normal-mode`, not `markdown-mode`. The buffer then ends up
+exactly as reopening the file would leave it — file-local variables
+re-read, `markdown-mode-hook` run, and this module's layout applied
+through it — rather than in a mode set by a different code path from
+the one every other Markdown buffer goes through.
+
+It runs from `desktop-after-read-hook` at depth 95, so the correction
+happens once per session restore rather than being remembered.
+`my/markdown-restore-modes-on-desktop` turns that off.
+
+### Files
+
+- `modules/40-markdown.el` — `my/markdown-restore-modes`,
+  `my/markdown--auto-mode-for`, `my/markdown--restore-modes-maybe`,
+  two options, and menu entry `R` under Tools -> Markdown.
+- `function_helper.org` — new `#markdown-stale-modes` subsection.
+
+Checks: all blocking checks pass; `coverage` reports the same eight
+pre-existing entries.
+
+---
 ## Session 2026-09-07b — Markdown that is not a note was still not being formatted
 
 ### The defect

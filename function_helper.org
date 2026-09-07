@@ -5993,6 +5993,64 @@ syntax. Markdown notes are outside all of them, deliberately:
 
 Widening any of those scans is a separate decision per module.
 
+** When a .md file opens in the wrong mode
+:PROPERTIES:
+:CUSTOM_ID: markdown-stale-modes
+:END:
+
+Symptom: one =.md= file shows literal =##=, no heading faces and a
+monospaced full-width column, while an identical file elsewhere
+renders correctly. The mode line names the culprit — it will read
+=Change Log= or nothing rather than =Markdown=.
+
+Two causes compound.
+
+*Emacs claims some Markdown file names for other modes.* =files.el=
+ships
+
+: ("[cC]hange[lL]og[-.][-0-9a-z]+\\'" . change-log-mode)
+
+and =set-auto-mode= retries case-insensitively when the case-sensitive
+pass finds nothing. Before markdown-mode was installed there was no
+case-sensitive match for =.md=, so =CHANGELOG.md= matched that entry
+and opened in =change-log-mode=. =README.md= fell through to
+=fundamental-mode=. Once markdown-mode is installed its own
+=auto-mode-alist= entry is prepended and wins, so a *fresh* open is
+correct.
+
+*The session remembers the old answer.* =desktop-save= records each
+buffer's major mode and =desktop-read= calls that mode function again
+rather than consulting =auto-mode-alist= afresh. That is right almost
+always — it is how a buffer deliberately put into another mode comes
+back in it — but a buffer whose correct mode *changed between
+sessions* comes back in the old one indefinitely, because every save
+writes the stale mode out again. Reopening the file does not help;
+the buffer is already there.
+
+=my/markdown-restore-modes= (=C-c n t m R=) fixes it. It acts on a
+buffer only when all three hold: it visits a file, =auto-mode-alist=
+would give that file =markdown-mode= now, and its current mode is on
+=my/markdown-stale-modes= (=fundamental-mode=, =text-mode=,
+=change-log-mode=). The third condition is what keeps a deliberate
+mode choice deliberate — a =.md= fixture put into =conf-mode= by hand
+is left alone.
+
+It calls =normal-mode=, not =markdown-mode=, so the buffer ends up
+exactly as reopening the file would leave it: file-local variables
+re-read, =markdown-mode-hook= run, and this module's layout applied
+through it.
+
+It also runs from =desktop-after-read-hook= at depth 95, so the
+correction happens once per session restore without having to be
+remembered. =my/markdown-restore-modes-on-desktop= turns that off and
+leaves it as a manual command.
+
+To check the first cause in isolation:
+
+: M-: (assoc-default "CHANGELOG.md" auto-mode-alist #'string-match)
+
+=markdown-mode= means =auto-mode-alist= is correct and the buffer's
+mode came from the session.
 ** M — Markdown note (C-c n c M)
 :PROPERTIES:
 :CUSTOM_ID: fn-my-markdown-new-note

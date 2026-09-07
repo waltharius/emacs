@@ -193,6 +193,50 @@ file in docu is meant to be monospaced and stays so."
   :group 'my/markdown)
 
 ;; ============================================================
+;; BUFFERS A SAVED SESSION RESTORED IN THE WRONG MODE
+;; ============================================================
+;; `desktop-save' records each buffer's MAJOR MODE and `desktop-read'
+;; calls that mode function again on restore, rather than consulting
+;; `auto-mode-alist' afresh.  That is correct almost always -- it is how
+;; a buffer deliberately put into some other mode comes back in it --
+;; but it means a buffer whose correct mode CHANGED between sessions
+;; comes back in the old one, indefinitely, because every save writes
+;; the stale mode out again.
+;;
+;; Installing markdown-mode is exactly such a change, and Emacs makes it
+;; visible in one specific place.  A `.md' file that markdown-mode has
+;; no claim on falls through to whatever else matches, and files.el
+;; ships this:
+;;
+;;   ("[cC]hange[lL]og[-.][-0-9a-z]+\\'" . change-log-mode)
+;;
+;; `set-auto-mode' retries case-insensitively when the case-sensitive
+;; pass finds nothing, so CHANGELOG.md matched it and opened in
+;; `change-log-mode' -- monospaced, no heading faces, literal `##'.
+;; README.md landed in `fundamental-mode' by the same route.  Those
+;; modes are now in the desktop file and outlive the fix.
+;;
+;; Reopening the file does not help: the buffer is already there.  The
+;; command below re-runs `normal-mode' on the buffers this applies to,
+;; and the hook does it once per session restore so that it does not
+;; have to be remembered.
+
+(defcustom my/markdown-stale-modes
+  '(fundamental-mode text-mode change-log-mode)
+  "Major modes a Markdown file falls into when markdown-mode is absent.
+A restored buffer is re-moded by `my/markdown-restore-modes' only when
+its current mode is on this list, so a file deliberately put into some
+other mode -- `conf-mode' on a `.md' fixture, say -- is left alone."
+  :type '(repeat symbol)
+  :group 'my/markdown)
+
+(defcustom my/markdown-restore-modes-on-desktop t
+  "Whether to fix up stale Markdown buffers after a session is restored.
+Nil leaves `my/markdown-restore-modes' as a manual command."
+  :type 'boolean
+  :group 'my/markdown)
+
+;; ============================================================
 ;; BUFFER SETUP
 ;; ============================================================
 ;; Defined before the `use-package' form because its `:config' calls
@@ -514,9 +558,58 @@ Afterwards `language:' is added to the front matter, mirroring what
   (my/markdown--add-front-matter-language))
 
 ;; ============================================================
-;; TOGGLES
+;; RESTORING A MODE THE SESSION GOT WRONG
 ;; ============================================================
 
+(defun my/markdown--auto-mode-for (file)
+  "Return the major mode `auto-mode-alist' would give FILE today."
+  (assoc-default (file-name-nondirectory file) auto-mode-alist #'string-match))
+
+(defun my/markdown-restore-modes ()
+  "Re-mode buffers that a restored session left out of `markdown-mode'.
+
+Acts on a buffer only when all three hold: it visits a file,
+`auto-mode-alist' would give that file `markdown-mode' now, and its
+current mode is on `my/markdown-stale-modes'.  The third condition is
+what keeps a deliberate mode choice deliberate.
+
+Calls `normal-mode' rather than `markdown-mode' directly, so the
+buffer ends up exactly as reopening the file would leave it -- file
+local variables re-read, `markdown-mode-hook' run, and this module's
+layout applied through it.
+
+Run it once after installing the module; the desktop file keeps the
+correct mode from the next save onwards.  Returns the number of
+buffers changed."
+  (interactive)
+  (let ((count 0))
+    (dolist (buffer (buffer-list))
+      (with-current-buffer buffer
+        (when (and buffer-file-name
+                   (memq major-mode my/markdown-stale-modes)
+                   (eq (my/markdown--auto-mode-for buffer-file-name)
+                       'markdown-mode))
+          (normal-mode)
+          (setq count (1+ count)))))
+    (when (called-interactively-p 'interactive)
+      (message (if (zerop count)
+                   "Markdown: nothing to re-mode"
+                 (format "Markdown: %d buffer(s) re-moded" count))))
+    count))
+
+(defun my/markdown--restore-modes-maybe ()
+  "Run `my/markdown-restore-modes' unless the option says not to."
+  (when my/markdown-restore-modes-on-desktop
+    (my/markdown-restore-modes)))
+
+;; Depth 95: 01-ui.el has its own work on this hook, and re-moding a
+;; buffer should happen after the session has finished assembling
+;; itself rather than in the middle of it.
+(add-hook 'desktop-after-read-hook #'my/markdown--restore-modes-maybe 95)
+
+;; ============================================================
+;; TOGGLES
+;; ============================================================
 (defun my/markdown-toggle-markup ()
   "Toggle Markdown markup hiding.
 
@@ -548,10 +641,11 @@ preferable to reimplementing a buffer-local version."
 
 (transient-define-prefix my/markdown-menu ()
   "Markdown display toggles and link conversions."
-  [["Display"
+  [["Buffer"
     ("m" "Markup hiding" my/markdown-toggle-markup)
     ("u" "URL hiding"    markdown-toggle-url-hiding)
-    ("i" "Inline images" markdown-toggle-inline-images)]
+    ("i" "Inline images" markdown-toggle-inline-images)
+    ("R" "Re-mode stale buffers" my/markdown-restore-modes)]
    ["Links"
     :if (lambda () (fboundp 'denote-markdown-convert-links-to-denote-type))
     ("d" "→ denote: links"    denote-markdown-convert-links-to-denote-type)
