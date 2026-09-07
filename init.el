@@ -126,6 +126,13 @@
   ;; hook it uses; without that module every command reports that there
   ;; are no projects and does nothing.
   (load (concat modules-dir "39-project-git.el") t) ; Project git (C-c n p G)
+  ;; Optional (NOERROR): markdown-mode set up to match the Org notes,
+  ;; and a Markdown note-creation command.  Loaded last because it only
+  ;; borrows -- the per-silo typeface from 03b-fonts.el, the docu column
+  ;; width from 10-visual-fill.el, two menu entries via 12-transient.el,
+  ;; `my/denote-base' from 05-notes.el -- and every borrow is guarded, so
+  ;; deleting the file removes Markdown support and nothing else.
+  (load (concat modules-dir "40-markdown.el") t) ; Markdown notes (C-c n t m)
   )
 
 (add-hook 'emacs-startup-hook

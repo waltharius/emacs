@@ -22,6 +22,174 @@ included.
 
 ---
 
+## Session 2026-09-07a — Markdown notes, without a second note system
+
+### The request
+
+Markdown files should render the way Org notes do — headings, links,
+emphasis, code — while the file search keeps finding them and the tags
+stay shared. Org remains the format of the collection; Markdown is the
+occasional file that has to be read or written anyway.
+
+The constraint attached to the request is the important part: no
+change that risks the Org path. Roughly 3,700 notes depend on it and a
+regression there costs more than Markdown support is worth.
+
+### What turned out to need no code at all
+
+Four things, and finding them is what made this a 400-line module
+instead of a refactor.
+
+**Denote indexes by file name, not by extension.** Its own
+`denote-directory-files` says so: files only need an identifier, and
+the result may include file types other than the one `denote-file-type`
+implies. `denote-open-or-create`, `denote-link`, the keyword prompts
+and `consult-denote-grep` were already listing `.md` files.
+
+**Keywords live in the file name.** `__tag1_tag2` is format-neutral, so
+there was never a second tag vocabulary to reconcile. Tag integration
+was not a feature to build; it was a consequence of the naming scheme.
+
+**Links resolve by identifier.** `[[denote:ID]]` from Org and
+`[text](denote:ID)` from Markdown both find the target regardless of
+its format, and Denote registers itself on
+`markdown-follow-link-functions` as soon as markdown-mode loads.
+
+**`markdown-mode` derives from `text-mode`.** Both
+`my/visual-fill-notes-setup` and the flyspell hook in 03-spelling.el
+are gated on `text-mode`, so the centred column and spell checking
+already fired in Markdown buffers.
+
+The lesson generalises: before writing an integration layer, check
+whether the two systems are already integrated by a shared key. Here
+the shared key is the Denote identifier, and every question about
+cross-format behaviour reduced to whether the operation goes through
+it.
+
+### The module
+
+40-markdown.el, loaded last and with NOERROR. It installs
+markdown-mode with settings that mirror the Org ones, calls
+`my/notes-font-setup` from `markdown-mode-hook`, and adds two menu
+entries.
+
+The mirrored settings are deliberate pairs rather than tasteful
+defaults: `markdown-hide-markup` against `org-hide-emphasis-markers`,
+`markdown-max-image-size` at the same 1100 px as
+`org-image-actual-width`, and `markdown-header-scaling-values` at
+`(1.3 1.2 1.1 1.0 1.0 1.0)` — the figures already in
+`modus-themes-headings`. A level-two heading is the same size in both
+formats because the same number produces it in both, not because two
+independent choices happened to land near each other.
+
+### Why the settings are in `:init` and not `:custom`
+
+Two reasons, both discovered rather than assumed.
+
+`markdown-header-face-1` through `-6` come from a `defface` whose spec
+*reads* `markdown-header-scaling` at load time. The value must be in
+place before the package loads. `:init` is the phase that runs before
+the load; `:custom` would be too late for the deffaces and the scaling
+would silently not apply.
+
+`:custom` also expands to `customize-set-variable`, which calls
+`custom-load-symbol` — and that pulls the defining library in at
+startup, defeating the `:defer t` the form asks for. A cosmetic
+package for an occasional file type should not be on the startup path.
+
+This is safe rather than fragile because `defcustom` initialised with
+`custom-initialize-default` leaves an already-bound value alone.
+
+### The lexical-binding trap in the wrapper command
+
+`my/markdown-new-note` binds `denote-use-file-type` — the variable
+Denote documents for wrapper commands that fix one piece of the note
+data — and otherwise calls `my/denote-base`, so the title prompt,
+keyword completion and silo choice are the existing ones rather than
+copies of them.
+
+The byte-compiler caught what a runtime test would not have. With
+lexical binding, `(let ((denote-use-file-type ...)) ...)` in a file
+that has not seen denote.el compiles to a **lexical** binding: a local
+variable nothing reads. The warning was "Unused lexical variable
+`denote-use-file-type`", which is exactly right and easy to skim past.
+
+Loaded as source it would have worked, because interpreted `let`
+checks specialness at runtime and denote.el has loaded by then. So the
+failure mode was: works today, produces Org notes silently the day the
+configuration is byte-compiled. A valueless `(defvar
+denote-use-file-type)` fixes it — the same declaration 05-notes.el
+already makes for `vertico-preselect`, and the reason hooks/lint.py
+has an exception list for valueless `defvar` at all.
+
+Worth recording as a general point: `let`-binding another package's
+variable from a module that does not `require` it is a compile-time
+question, not a runtime one.
+
+### The docu width, and why 10-visual-fill.el was not touched
+
+`my/visual-fill-notes-setup` recognises a docu note by searching for
+`#+filetags:`, which is Org front matter. Teaching it a second syntax
+would put the Org path — the one every note in the collection depends
+on — at risk for the sake of the Markdown one.
+
+Instead `my/markdown--visual-fill-adjust` widens the column
+afterwards, at depth 90 on `find-file-hook`, and only in Markdown
+buffers. It reads the keyword from the Denote **file name**, which
+survives `denote-rename-file`, and falls back to the YAML `tags:` line
+only for files that have front matter but no Denote name yet — an
+Obsidian export before it is renamed.
+
+The general shape: when a rule needs an exception for a minority case,
+adding a second pass after the rule is safer than making the rule
+branch. The rule keeps one code path and the exception is deletable.
+
+### What Markdown notes deliberately do not get
+
+Stated in the module header and in function_helper.org rather than
+left to be discovered:
+
+- Not counted by `my/notes-stats`, not checked by `C-c n !`. Both read
+  Org front matter.
+- No export, transclusion, citations or org-noter — all Org
+  facilities.
+- No journal machinery. The journal template only emits Org.
+- No `word*` auto-wrap. 02b-bold-marker.el stays gated on `org-mode`;
+  Markdown bold is `**` and the trigger would produce broken markup.
+
+Each of those is a `\.org\'` scan in a module whose subject *is* Org
+syntax. Widening them is a separate decision per module, argued on its
+own terms, not a side effect of turning Markdown editing on.
+
+### denote-markdown
+
+Added as an optional package rather than reimplemented. Markdown has
+no standard way to define custom link types, so a `denote:` link means
+nothing outside Emacs; the package converts a whole file between
+`denote:` links, file paths and Obsidian `[[wiki]]` links. Its author
+is Denote's author, it is on GNU ELPA, and it is loaded on first use.
+
+The Links column of the menu carries an `:if` on
+`fboundp`, so an absent package hides the column instead of offering
+four entries that would signal on invocation.
+
+Obsidian wiki links stay switched off (`markdown-enable-wiki-links`
+nil). They carry no identifier and break the moment
+`denote-rename-file` runs, so converting them once is better than
+reading them in place.
+
+### Files
+
+- `modules/40-markdown.el` — new.
+- `init.el` — one `load` line, with NOERROR.
+- `modules/08-keybindings.el` — two lines in the menu tree help text.
+- `function_helper.org` — new `#markdown` section.
+
+Checks: `parens`, `anchors`, `functions`, `duplicates` and `keys` all
+pass; `coverage` reports only the eight entries it reported before.
+
+---
+
 ## Session 2026-09-04c — A citation how-to, written from the questions that were asked
 
 ### function_helper.org gains a Citing and the bibliography section

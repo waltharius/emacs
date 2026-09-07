@@ -289,7 +289,7 @@ C-c n -- NOTES TRANSIENT MENU TREE
 -----------------------------------
   c  Create ->
        n  New note        j  Journal today     J  Journal (date)
-       e  Essay            L  Linked note
+       e  Essay            L  Linked note       M  Markdown note
        i  Ideas capture    c  Capture menu      m  Promote to note
   f  Find ->
        f  Find file        g  Grep notes        b  Backlinks
@@ -319,6 +319,8 @@ C-c n -- NOTES TRANSIENT MENU TREE
        F  Detach whole tab to its own frame
   t  Tools ->
        z  Zotero/Bib ->  (same submenu as C-c x, see below)
+       m  Markdown ->  m Markup hiding  u URL hiding  i Inline images
+                       d/p/o/O link conversions (denote-markdown)
        r  Readwise ->  s Sync (incremental)  S Sync everything
                        r Review books        o Open import folder
           In *Readwise Books*: RET/mouse open, S sort, / filter,

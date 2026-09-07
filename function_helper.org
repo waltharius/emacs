@@ -3271,15 +3271,15 @@ process waiting on a prompt that has no terminal to appear on.
 
 ** Configuration
 
-| Variable                        | Meaning                          |
-|---------------------------------+----------------------------------|
-| =my/project-git-remote-format=  | Remote URL, =%s= is the slug     |
-| =my/project-git-remote-name=    | Remote name (=origin=)           |
-| =my/project-git-branch=         | Branch pushed and tracked        |
-| =my/project-git-gitignore=      | Lines written into a new project |
-| =my/project-git-auto-pull=      | Warn only, or fast-forward       |
+| Variable                      | Meaning                            |
+|-------------------------------+------------------------------------|
+| =my/project-git-remote-format=  | Remote URL, =%s= is the slug         |
+| =my/project-git-remote-name=    | Remote name (=origin=)               |
+| =my/project-git-branch=         | Branch pushed and tracked          |
+| =my/project-git-gitignore=      | Lines written into a new project   |
+| =my/project-git-auto-pull=      | Warn only, or fast-forward         |
 | =my/project-git-check-interval= | Seconds between checks of one repo |
-| =my/project-git-check-on-visit= | Check when a project file opens  |
+| =my/project-git-check-on-visit= | Check when a project file opens    |
 
 Exports are not ignored. A =.docx= sent to a supervisor is a thing
 that happened on a date, and a repository that holds it can answer
@@ -3457,12 +3457,12 @@ wrap a second time, so the result is one footnote.
 source, down to the space.* Reading a wrong-looking result backwards
 usually finds the typo:
 
-| Source                        | Output          |
-|-------------------------------+-----------------|
-| =...tekst[cite:@a].=          | =...tekst¹.=    |
-| =...tekst.[cite:@a]=          | =...tekst.¹=    |
-| =...tekst [cite:@a].=         | =...tekst ¹.=   |
-| =...tekst[cite:@a] .=         | =...tekst¹ .=   |
+| Source              | Output      |
+|---------------------+-------------|
+| =...tekst[cite:@a].=  | =...tekst¹.=  |
+| =...tekst.[cite:@a]=  | =...tekst.¹=  |
+| =...tekst [cite:@a].= | =...tekst ¹.= |
+| =...tekst[cite:@a] .= | =...tekst¹ .= |
 
 A space before =[cite:= puts a space before the number; a space after
 the closing bracket puts one before the full stop. Neither is removed
@@ -3492,14 +3492,14 @@ not a configuration one.
 
 Full syntax: =[cite:prefix @key locator, suffix]=
 
-| Intent           | Written                              |
-|------------------+--------------------------------------|
-| page             | =[cite:@cioran2021 45]=              |
-| range            | =[cite:@cioran2021 45-47]=           |
-| "see" before     | =[cite:zob. @cioran2021 45]=         |
-| comment after    | =[cite:@cioran2021 45, podkr. moje]= |
-| chapter          | =[cite:@cioran2021 chap. 3]=         |
-| two works        | =[cite:@a 45; @b 12-14]=             |
+| Intent        | Written                            |
+|---------------+------------------------------------|
+| page          | =[cite:@cioran2021 45]=              |
+| range         | =[cite:@cioran2021 45-47]=           |
+| "see" before  | =[cite:zob. @cioran2021 45]=         |
+| comment after | =[cite:@cioran2021 45, podkr. moje]= |
+| chapter       | =[cite:@cioran2021 chap. 3]=         |
+| two works     | =[cite:@a 45; @b 12-14]=             |
 
 Locator *labels are English only*: =p.=, =pp.=, =chap.=, =sec.=,
 =vol.=, =no.= and so on. Polish =s.= is not recognised as a page —
@@ -3549,11 +3549,11 @@ applies to =\subsectionbreak=.
 
 ** Before submitting
 
-| Key       | Checks                                              |
-|-----------+-----------------------------------------------------|
-| =C-c x ?= | CSL export is configured and the style is real XML  |
-| =C-c b c= | citation keys used in notes but missing from refs.bib |
-| =C-u C-c C-x f= then =n= | footnote definitions sorted and renumbered |
+| Key                  | Checks                                                |
+|----------------------+-------------------------------------------------------|
+| =C-c x ?=              | CSL export is configured and the style is real XML    |
+| =C-c b c=              | citation keys used in notes but missing from refs.bib |
+| =C-u C-c C-x f= then =n= | footnote definitions sorted and renumbered            |
 
 Also read one run of repeated citations. A discursive footnote sitting
 between two citations of the same work can confuse CSL position
@@ -5816,3 +5816,201 @@ dropped: the Air75 V2 is a 75 % board with a real arrow cluster and
 dedicated navigation keys, so the layer was duplicating keys that
 already exist under the same hand. That reasoning does not carry over
 to 60 % boards, where the cluster would be worth having.
+
+* Markdown notes (C-c n t m)
+:PROPERTIES:
+:CUSTOM_ID: markdown
+:END:
+
+Org is the format of this collection and nothing here changes that.
+This section covers the case where a =.md= file has to be read or
+written anyway — a repository README, a document that came from
+Obsidian, something a collaborator sent — and should look and behave
+like the rest of the notes while it is open.
+
+Module: =modules/40-markdown.el=
+
+** What already worked before the module existed
+:PROPERTIES:
+:CUSTOM_ID: markdown-free
+:END:
+
+Four things needed no code and are worth knowing, because they explain
+why the module is as small as it is.
+
+*Search sees =.md= files.* Denote indexes by file name, not by
+extension. Its own =denote-directory-files= states that files only
+need an identifier and that the result may include file types other
+than the one =denote-file-type= implies. =denote-open-or-create=,
+=denote-link=, the keyword prompts and =consult-denote-grep= therefore
+list Markdown notes without being told to.
+
+*Tags are shared by construction.* Denote keeps keywords in the file
+name (=__tag1_tag2=), not in the front matter, so an Org note and a
+Markdown note tagged =filozofia= appear under the same keyword in
+every prompt and in =denote-explore=. There is no second vocabulary
+and nothing to synchronise.
+
+*Links resolve in both directions.* An Org note links out with
+=[[denote:ID]]=, a Markdown note with =[text](denote:ID)=. Both are
+resolved by identifier, so the target's format is irrelevant; renaming
+either file leaves both links working. Denote registers itself on
+=markdown-follow-link-functions= as soon as markdown-mode loads, which
+is what makes =RET= on a link work inside a =.md= buffer.
+
+*The centred column and the spell checker were already there.*
+=markdown-mode= derives from =text-mode=, and both
+=my/visual-fill-notes-setup= ([[#per-note-appearance][Per-note
+appearance]]) and the flyspell hook in =03-spelling.el= are gated on
+=text-mode=.
+
+** What the module adds
+:PROPERTIES:
+:CUSTOM_ID: markdown-added
+:END:
+
+Settings that mirror the Org ones, so that the two formats do not read
+as two different applications:
+
+| Org                            | Markdown                              |
+|--------------------------------+---------------------------------------|
+| =org-hide-emphasis-markers=      | =markdown-hide-markup=                  |
+| =modus-themes-headings= sizes    | =markdown-header-scaling-values=        |
+| =org-image-actual-width= 1100    | =markdown-max-image-size= 1100          |
+| =org-startup-with-inline-images= | =my/markdown-display-images-on-open=    |
+| src block fontification        | =markdown-fontify-code-blocks-natively= |
+
+Heading sizes use the same figures as =modus-themes-headings= in
+=09-theme.el= — 1.3, 1.2, 1.1, then 1.0 — so a level-two heading is
+the same size in both formats. The scaling is re-applied from
+=my/theme-after-load-hook=, for the reason =my/fonts-apply= is: a
+theme reassigns every face it covers when it loads.
+
+The per-silo typeface works in Markdown too. =my/notes-font-setup= is
+written against =org-mode-hook= but reads only the file name, so it is
+format-agnostic in practice; the module simply calls it from
+=markdown-mode-hook= as well. Four Markdown faces — the front-matter
+key and value, the markup characters, the fenced-block language tag —
+are added to =my/font-fixed-faces= so that structure stays monospaced
+while prose follows the silo, exactly as in Org. See [[#org-faces][Org
+Faces and Fonts]].
+
+Notes tagged =docu= get the wider column (=my/fill-column-docu=). This
+could not be left to =my/visual-fill-notes-setup=, which looks for
+=#+filetags:=; the module reads the keyword from the Denote file name
+instead — which survives =denote-rename-file= — and falls back to the
+YAML =tags:= line for files that have front matter but no Denote name
+yet. It runs at depth 90 on =find-file-hook=, after the setup it
+adjusts, so the Org path is untouched.
+
+** What Markdown notes do NOT get
+:PROPERTIES:
+:CUSTOM_ID: markdown-limits
+:END:
+
+Several modules scan for =\.org\'= because what they read is Org
+syntax. Markdown notes are outside all of them, deliberately:
+
+- *Not counted* by =my/notes-stats= ([[#notes-stats][Notes
+  statistics]]) and *not checked* by =C-c n != ([[#maintenance][Maintenance]]).
+  A Markdown note is invisible to the integrity checks and to the
+  collection totals.
+- *No export.* =my/org-export-to-pdf= and the ODT/DOCX path run
+  through Org's exporters. Use =markdown-export= or Pandoc directly.
+- *No transclusion, no citations, no org-noter.* All three are Org
+  facilities.
+- *No journal machinery.* Journal entries come from an Org template;
+  metrics, dashboards and gap reports read Org front matter.
+- *No =word*= auto-wrap.* =02b-bold-marker.el= stays gated on
+  =org-mode=: Markdown bold is =**= and the trigger would produce
+  broken markup.
+
+Widening any of those scans is a separate decision per module.
+
+** M — Markdown note (C-c n c M)
+:PROPERTIES:
+:CUSTOM_ID: fn-my-markdown-new-note
+:END:
+
+Function: =my/markdown-new-note=
+
+Creates a Denote note in Markdown instead of Org. Everything except
+the file type is [[#fn-my-denote-base][=my/denote-base=]]: the same
+title prompt, the same keyword completion, the same silo choice.
+
+Only =denote-use-file-type= is bound, which is the variable Denote
+documents for this exact case — a wrapper that fixes one piece of the
+note data and leaves the rest to the prompts. =denote-file-type=
+itself is never touched; it stays =nil=, so every other creation
+command in this configuration goes on producing Org. That is the whole
+safety argument for the module: Markdown is opt-in per note, not a
+mode the collection is put into.
+
+Front matter is YAML by default (=my/markdown-denote-file-type=), the
+variant Obsidian, Hugo and Pandoc read. Afterwards =language:= is
+added, mirroring what =my/note-add-front-matter-extras= writes into an
+Org note. =#+schema:= has no counterpart: it records which generation
+of the journal template produced a file, and that template only emits
+Org.
+
+The =let= that binds =denote-use-file-type= is preceded by a valueless
+=(defvar denote-use-file-type)= in the module. Without it the binding
+compiles as a lexical one — a local variable nothing reads — and the
+command would silently produce Org notes. Same pattern as
+=vertico-preselect= in =05-notes.el=; see [[#symbol-collisions][One symbol, one
+owner]].
+
+** C-c n t m — Markdown menu
+:PROPERTIES:
+:CUSTOM_ID: menu-markdown
+:END:
+
+Display toggles in the first column, link conversions in the second.
+The Links column is drawn only when =denote-markdown= is installed, so
+a missing package hides the entries rather than binding commands that
+would signal.
+
+*** m — Markup hiding
+:PROPERTIES:
+:CUSTOM_ID: fn-my-markdown-toggle-markup
+:END:
+
+Function: =my/markdown-toggle-markup=
+
+The Markdown counterpart of
+[[#fn-my-toggle-emphasis-markers][=my/toggle-emphasis-markers=]].
+Hidden — the default — renders =**bold**= as bold with the asterisks
+invisible. Visible shows the raw syntax, which is what to reach for
+when a line will not fontify and the reason is a stray character.
+
+Like the Org toggle it changes a global variable, so it affects every
+Markdown buffer. That is upstream's design for
+=markdown-toggle-markup-hiding=; matching it is preferable to
+maintaining a buffer-local reimplementation.
+
+*** u, i — URL hiding, inline images
+
+=markdown-toggle-url-hiding= collapses =[text](url)= to just the text.
+=markdown-toggle-inline-images= shows or removes the image overlays;
+images are displayed on open by default, which
+=my/markdown-display-images-on-open= turns off.
+
+*** d, p, o, O — link conversions
+
+From the =denote-markdown= package (GNU ELPA, Denote's own author),
+loaded on first use. Markdown has no standard way to define custom
+link types, so a =denote:= link is meaningless outside Emacs; these
+four commands convert a whole file between the three representations:
+
+- =d= — =denote-markdown-convert-links-to-denote-type= — file paths
+  back to =denote:= links.
+- =p= — =denote-markdown-convert-links-to-file-paths= — for handing a
+  file to something that is not Emacs.
+- =o= — =denote-markdown-convert-links-to-obsidian-type=.
+- =O= — =denote-markdown-convert-obsidian-links-to-denote-type= — the
+  one to run on a note imported from Obsidian.
+
+Obsidian =[[wiki links]]= are otherwise left switched off
+(=markdown-enable-wiki-links= is nil): they carry no identifier and
+break the moment =denote-rename-file= runs. Converting them once is
+better than reading them in place.
