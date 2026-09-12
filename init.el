@@ -133,6 +133,12 @@
   ;; `my/denote-base' from 05-notes.el -- and every borrow is guarded, so
   ;; deleting the file removes Markdown support and nothing else.
   (load (concat modules-dir "40-markdown.el") t) ; Markdown notes (C-c n t m)
+  ;; Optional (NOERROR): the advanced search commands.  Loaded after
+  ;; 12-transient.el because it takes over the "g" entry of the Find
+  ;; menu through `my/transient-replace'; without this file that entry
+  ;; keeps its original `consult-denote-grep' binding, which is the
+  ;; intended degradation.
+  (load (concat modules-dir "41-notes-search.el") t) ; Search (C-c n f g / n)
   )
 
 (add-hook 'emacs-startup-hook

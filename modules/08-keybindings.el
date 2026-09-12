@@ -293,6 +293,9 @@ C-c n -- NOTES TRANSIENT MENU TREE
        i  Ideas capture    c  Capture menu      m  Promote to note
   f  Find ->
        f  Find file        g  Grep notes        b  Backlinks
+       n  Find by title/tag  (title:kant tag:filozofia, C-u = Dired)
+          g takes a query: "quoted phrase", plain words (AND),
+            date:2014, date:2012-01..2015-05, date:<2015, from:/to:
        d  Dashboard         t  Tag stats         r  Random note
        h  History ->  (t/j = this-day-in-history, m/M = same-day-every-month)
   i  Insert ->

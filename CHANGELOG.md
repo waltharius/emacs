@@ -19,7 +19,142 @@ there to avoid, and skipping `a` reintroduces it.
 
 Cross-references elsewhere in this file name the full label, letter
 included.
----------- 
+
+---
+## Session 2026-09-12b — The grep was searching every snapshot of every note
+
+### The report
+
+Three requests in one: stop searching `.snapshots`, add date ranges to
+the content search, and make a quoted phrase mean the phrase rather than
+its words. A fourth for the file-name search: say whether a term is a
+title or a tag.
+
+### Why the snapshots were being searched
+
+`consult-denote-grep` runs whatever `consult-denote-grep-command` names,
+and that defaults to `consult-grep` — plain `grep -r`. The only
+directories grep skips are the ones consult passes as `--exclude-dir`,
+and those come from `grep-find-ignored-directories`: `.git`, `CVS`,
+`.hg` and friends. `.snapshots` was never on that list, so every btrfs
+snapshot of the notes tree was searched and a note that had existed for
+a year came back once per snapshot.
+
+This is the same mistake recorded for `my/denote-scan-exclude-regexp` in
+Session 2026-08-30c, and it is fixed the same way: by the convention
+(any dot directory), not by naming the current offenders. Three levels,
+widest last:
+
+1. `grep-find-ignored-directories` gains `.snapshots`, `.stversions` and
+   `.stfolder`. That helps every grep-based command in Emacs — `rgrep`,
+   `project-find-regexp`, the plain `consult-grep` — not only the new
+   ones.
+2. This module's own invocations pass `--exclude-dir=.*` (grep) or
+   `-g '!.*'` (ripgrep), which covers dot directories that do not exist
+   yet.
+3. ripgrep is preferred when `rg` is installed. It skips hidden
+   directories and honours `.gitignore` by default, and is substantially
+   faster on a tree of this size. `consult-denote-grep-command` is
+   pointed at it as well, so the command that is no longer on the menu
+   improves too.
+
+Denote's own listing (`denote--directory-all-files-recursively`) has
+always skipped dot directories unconditionally, which is why
+`denote-open-or-create` was never affected and why the new file-name
+search needed no exclusion logic at all.
+
+### Phrases: a notation, not a feature
+
+Consult already has the notion of a multi-word pattern that must not be
+split — a backslash-escaped space, handled by `consult--split-escaped`.
+So `"wspólnie z innymi"` did not need a new search path; it needed
+translating to `wspólnie\ z\ innymi` before consult ever sees it, with
+`regexp-quote` applied first because consult takes Emacs regexp syntax
+at the prompt and converts it to the back end's dialect itself.
+
+The rejected alternative was replacing `consult--regexp-compiler`, which
+is what the consult wiki uses for orderless integration. Two reasons
+against. It is declared under "Internal variables" in consult.el. And a
+dynamic binding of it would not have survived consult's input
+debouncing: the command is rebuilt from a timer, outside the `let`.
+
+The same reasoning does *not* apply to `consult-ripgrep-args` and
+`consult-grep-args`, which are let-bound here. Those are read once, when
+consult builds the command line, and that happens synchronously inside
+the call — which is also why `consult-denote` binds them the same way.
+
+### Dates come from the identifier
+
+The range filters on the `YYYYMMDDTHHMMSS` in the file name, so
+`date:2014` means "the note is from 2014", not "the file was written in
+2014". A 2014 journal entry edited yesterday is still a 2014 note, and
+that is the question being asked.
+
+It is also the cheap reading. The range compiles to file-name globs that
+grep and ripgrep apply themselves: no `stat` per file, no file list on
+the command line. Whole years cost one glob each, partial years up to
+twelve, and above `my/notes-search-max-globs` the search is refused —
+`date:1900..2030` is a typo, not a question.
+
+Filesystem mtime was considered and dropped. It answers a different
+question, it needs a `stat` per candidate, and it would have meant
+passing an explicit file list to the search program on every keystroke.
+
+Two consequences, both documented rather than fixed: Obsidian-migrated
+notes carry `T000000` but a correct date, so they filter correctly; and
+files with no identifier are excluded whenever a range is given, because
+there is nothing to compare.
+
+### The lexical-binding trap, again
+
+`(let ((consult-ripgrep-args …)) …)` in a file that has not seen
+consult.el compiles, under `lexical-binding`, to a *lexical* binding — a
+local variable consult never reads. Byte-compiled, the extra arguments
+would silently do nothing; loaded as source it would work, because
+interpreted `let` checks specialness at runtime. Exactly the
+`denote-use-file-type` failure from Session 2026-09-07a. Two valueless
+`defvar` forms at the top of the module are the fix.
+
+### Taking a key over instead of adding one beside it
+
+`g` in the Find menu now runs `my/notes-grep`. With an empty date range
+and no quotes it does what the old entry did, so two entries would have
+differed only in which one is remembered.
+
+The takeover goes through `my/transient-replace`, added in Session
+2026-09-12a for this purpose. 12-transient.el keeps declaring the plain
+`consult-denote-grep` on `g`, so deleting 41-notes-search.el restores
+the previous menu on the next start instead of leaving a void command on
+the key.
+
+### A bug the tests caught
+
+`my/notes-search--parse-range` read both ends of `2012-01..2015-05` out
+of the match data — but parsing the first end runs `string-match`
+itself, which replaces that match data, so the second end came back as
+`01` and the whole range errored out. Both call sites now bind the
+strings before parsing. The same precaution is in the file-name
+selectors, where the sluggifier is the function that would clobber.
+
+### Files
+
+- `modules/41-notes-search.el` — new.
+- `modules/08-keybindings.el` — the Find branch of the menu tree text.
+- `tests/test-notes-search.el` — new, 29 ERT tests over the tokeniser,
+  the date grammar, the glob list, the query translation, the back-end
+  arguments and the name selectors.
+- `init.el` — one `load` line, with NOERROR.
+- `function_helper.org` — `#fn-notes-grep` and `#fn-notes-find-by-name`.
+
+Verification beyond the unit tests: the translated patterns were run
+through the real `consult--command-split` and
+`consult--default-regexp-compiler` extracted from consult.el, and the
+resulting command lines through real `grep` and `rg` against a scratch
+tree containing a `.snapshots` copy — which reproduced the reported
+duplicate and then stopped reproducing it.
+
+---
+
 ## Session 2026-09-12a — A menu entry a module can supersede
 
 ### The gap
@@ -62,6 +197,7 @@ complete removal rather than a repair job.
 First caller is `41-notes-search.el` in Session 2026-09-12b.
 
 ---
+
 ## Session 2026-09-07a — Markdown notes, without a second note system
 
 ### The request
