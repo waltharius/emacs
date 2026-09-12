@@ -33,6 +33,9 @@
  '(display-battery-mode t)
  '(display-line-numbers-type 'relative)
  '(display-time-mode t)
+ '(my/tasks-extra-agenda-files
+   '("/home/marcin/notes/planner/habits.org"
+     "/home/marcin/projects/mapa-sporu/lektury.org"))
  '(package-selected-packages nil)
  '(recentf-filename-handlers '(abbreviate-file-name))
  '(safe-local-variable-values
