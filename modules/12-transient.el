@@ -206,6 +206,35 @@ during development harmless."
          (message "transient: could not add `%s' to %s: %s"
                   key prefix (error-message-string err))))))))
 
+(defun my/transient-replace (prefix key suffix)
+  "Replace the entry bound to KEY in PREFIX with SUFFIX, without signalling.
+
+SUFFIX is a transient suffix specification such as
+\\='(\"g\" \"Label\" some-command).  Does nothing when PREFIX is not
+defined, when KEY is not bound in it, or when SUFFIX names a command
+that does not exist -- the last case being what stops a half-loaded
+feature module from leaving a void command on a key that used to work.
+
+The counterpart of `my/transient-append', for the case where a feature
+module supersedes a command declared here rather than adding one beside
+it.  The entry declared in this file stays the fallback: it is what the
+menu carries when the feature module is absent."
+  (let ((command (nth 2 suffix)))
+    (cond
+     ((not (fboundp prefix))
+      (message "transient: no %s, keeping `%s'" prefix key))
+     ((not (fboundp command))
+      (message "transient: %s is not defined, keeping `%s' in %s"
+               command key prefix))
+     ((not (ignore-errors (transient-get-suffix prefix key)))
+      (message "transient: %s has no `%s' to replace, skipping" prefix key))
+     (t
+      (condition-case err
+          (transient-replace-suffix prefix key suffix)
+        (error
+         (message "transient: could not replace `%s' in %s: %s"
+                  key prefix (error-message-string err))))))))
+
 (transient-define-prefix my/notes-menu ()
   "Unified menu for all note operations."
   [["Notes"

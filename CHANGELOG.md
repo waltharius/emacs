@@ -19,200 +19,49 @@ there to avoid, and skipping `a` reintroduces it.
 
 Cross-references elsewhere in this file name the full label, letter
 included.
+---------- 
+## Session 2026-09-12a — A menu entry a module can supersede
 
----
-## Session 2026-09-07c — CHANGELOG.md was never in markdown-mode at all
+### The gap
 
-### The report
+`my/transient-append` covers the common case: a module adds an entry
+beside the ones already there, and skips rather than signals when the
+anchor is missing. There was no counterpart for the other case — a
+module that supersedes an entry the base menu declares.
 
-One `.md` file rendered as plain monospaced text with literal `##`,
-while a byte-identical copy inside the pks silo rendered correctly.
-The obvious reading was that session 2026-09-07b had missed a case.
+Without one, a module in that position has two bad options. It can edit
+12-transient.el directly, which couples the base menu to an optional
+module and leaves a void command on the key when that module is removed.
+Or it can claim a second key for what is the same command with better
+defaults, which leaves the user with two entries differing only in which
+one they happen to remember.
 
-It had not. The mode line named the cause: `Change Log`, not
-`Markdown`. Nothing in this module ever ran on that buffer, because
-every function in it is gated on `derived-mode-p 'markdown-mode'`.
+### The contract, unchanged
 
-The general point: when a file-type feature fails on one file and
-works on a copy of it, read the mode line before reading the module.
-A mode that never activated and a mode that activated and did nothing
-look identical from the text.
+`my/transient-replace` reports and skips when the prefix does not exist,
+when the key is not bound in it, or when the replacement command is not
+defined — the last being what stops a half-loaded feature module from
+leaving a void command on a key that used to work. Errors from transient
+itself are caught and reported the same way.
 
-### Two causes, compounding
+The point is the one already made for `my/transient-append`: a menu
+entry is not worth aborting init.el partway through, and a message
+naming the module is a better failure than a backtrace at startup.
 
-**Emacs claims some Markdown file names for other modes.** `files.el`
-ships `("[cC]hange[lL]og[-.][-0-9a-z]+\\'" . change-log-mode)`, and
-`set-auto-mode` retries case-insensitively when the case-sensitive
-pass finds nothing. Before markdown-mode was installed there was no
-case-sensitive match for `.md`, so `CHANGELOG.md` matched that entry
-and opened in `change-log-mode`; `README.md` fell through to
-`fundamental-mode`. Verified in batch against Emacs 29.3.
-
-This half is self-correcting. markdown-mode's autoloads prepend its
-own entry, which wins the case-sensitive pass, so a fresh open has
-been correct since the package was installed.
-
-**The session remembers the old answer.** `desktop-save` records each
-buffer's major mode and `desktop-read` calls that mode function again
-rather than consulting `auto-mode-alist` afresh. Almost always right —
-it is how a buffer deliberately put into another mode comes back in it
-— but a buffer whose correct mode *changed between sessions* comes
-back in the old one indefinitely, because every save writes the stale
-mode out again. Reopening does not help: the buffer is already there.
-
-Installing a package that claims an extension is exactly such a
-change, which makes this a general hazard rather than a Markdown one.
-Any package adding to `auto-mode-alist` leaves already-open buffers
-behind, and `desktop-save-mode` then preserves the mistake across
-restarts.
-
-### The fix, and what it refuses to do
-
-`my/markdown-restore-modes` re-modes a buffer only when all three
-hold: it visits a file, `auto-mode-alist` would give that file
-`markdown-mode` now, and its current mode is on
-`my/markdown-stale-modes` — `fundamental-mode`, `text-mode`,
-`change-log-mode`.
-
-The third condition is the important one. Without it the command would
-be "force every `.md` buffer into markdown-mode", which would silently
-undo a deliberate `M-x conf-mode` on a fixture. Restricting it to the
-modes a `.md` file lands in *when markdown-mode is absent* means it
-only ever corrects its own absence.
-
-It calls `normal-mode`, not `markdown-mode`. The buffer then ends up
-exactly as reopening the file would leave it — file-local variables
-re-read, `markdown-mode-hook` run, and this module's layout applied
-through it — rather than in a mode set by a different code path from
-the one every other Markdown buffer goes through.
-
-It runs from `desktop-after-read-hook` at depth 95, so the correction
-happens once per session restore rather than being remembered.
-`my/markdown-restore-modes-on-desktop` turns that off.
+The division of responsibility follows from that. The entry declared in
+12-transient.el stays the fallback — it is what the menu carries when
+the replacing module is absent — and the replacing module owns nothing
+but the takeover. That is what makes deleting a feature module a
+complete removal rather than a repair job.
 
 ### Files
 
-- `modules/40-markdown.el` — `my/markdown-restore-modes`,
-  `my/markdown--auto-mode-for`, `my/markdown--restore-modes-maybe`,
-  two options, and menu entry `R` under Tools -> Markdown.
-- `function_helper.org` — new `#markdown-stale-modes` subsection.
+- `modules/12-transient.el` — `my/transient-replace`.
+- `function_helper.org` — the shared-helpers table.
 
-Checks: all blocking checks pass; `coverage` reports the same eight
-pre-existing entries.
+First caller is `41-notes-search.el` in Session 2026-09-12b.
 
 ---
-## Session 2026-09-07b — Markdown that is not a note was still not being formatted
-
-### The defect
-
-Markdown support landed in session 2026-09-07a and was tested on
-Denote notes, which is where the interesting integration questions
-were. Files without an identifier — a README, a CHANGELOG, an export
-from another program — came out looking untouched.
-
-They were not untouched. Fontification had been working the whole
-time: markdown-mode does not care where a file lives, so headings,
-links and emphasis were all being applied. What was missing was
-everything this configuration keys to LOCATION rather than to syntax,
-and the two layers that do that are the two that carry most of the
-visual weight.
-
-`my/visual-fill-notes-setup` switches the text column off outside
-`~/notes/`, on purpose, as a signal that the notes tree has been left.
-`visual-line-mode` is still on from 02-editing.el, so the text wrapped
-— at the window edge, across a full-width frame. Long paragraphs in a
-300-column line.
-
-`my/notes-font-setup` applies a family per SILO. A file in no silo
-keeps `default`, which is JetBrains Mono, while its headings still
-inherit `variable-pitch` because `markdown-header-scaling` is on.
-Proportional headings sitting over monospaced prose is precisely the
-mismatch that reads as "unformatted", and it was worse than having
-done nothing at all.
-
-The lesson is about how the first session was tested. Both layers were
-verified in a silo, where both fire, and the case where neither fires
-was never opened. A location-keyed rule needs testing from outside the
-location, not only from inside it.
-
-### The column, and the signal it was carrying
-
-The full-width rule outside `~/notes/` is deliberate and documented,
-and the argument for it is good: leaving the notes tree should be
-visible without reading the mode line.
-
-It is still worth keeping. What is not worth keeping is carrying it
-with unreadable line lengths. `my/markdown-outside-notes-layout`
-defaults to `column`: wrapped to `my-fill-column`, LEFT aligned, the
-leftover space left as a right margin. That reads as well as a centred
-column and looks nothing like a note, so the signal survives in a form
-that costs nothing. `centered` and `plain` are the other two values.
-
-Only Markdown buffers are affected. 10-visual-fill.el is not touched
-and Org files outside the notes tree behave exactly as before.
-
-### Distinguishing "no silo" from "silo says monospace"
-
-The obvious test for whether a buffer needs a proportional body is
-whether `variable-pitch-mode` is off after `my/notes-font-setup` has
-run. It is wrong, and wrong in a way that only shows up in one silo:
-docu switches that mode off *deliberately*, so "off" is
-indistinguishable from "never considered", and a docu Markdown note
-would have been silently converted to proportional prose — the exact
-opposite of what that silo is for.
-
-`my/markdown--siloed-p` tests the file against `my/font-silo-styles`
-instead. That means five lines duplicating a lookup 03b-fonts.el
-already performs, which is a real cost; the alternative was calling
-`my/font--silo-style` across a module boundary, and that function's
-name says it is private. The list itself is a `defcustom` with one
-owner and is read, not copied.
-
-Generally: a mode being off is not evidence that the question was
-asked. Test the input that decides, not the output it produced.
-
-### Where the layout is applied from, and why twice
-
-From `markdown-mode-hook` and again at depth 90 on `find-file-hook`.
-
-Either one alone is wrong. The mode hook alone is overwritten:
-`my/visual-fill-notes-setup` runs later, from `find-file-hook` at the
-default depth, and switches the column back off. The `find-file-hook`
-entry alone is lost to `revert-buffer`, which re-runs mode hooks but
-not `find-file-hook` — so reverting an opened file would leave it full
-width.
-
-The cost is that opening a file sets the column, clears it and sets it
-again. That is invisible, and it is cheaper than the alternative,
-which is a second copy of the notes column rules living in this
-module and drifting from the first.
-
-### Code stays monospaced
-
-`variable-pitch-mode` in a buffer full of fenced code blocks is only
-tolerable if the code is exempt, so `markdown-code-face`,
-`markdown-inline-code-face`, `markdown-pre-face` and
-`markdown-table-face` join `my/font-fixed-faces` alongside the four
-metadata and markup faces added in the previous session.
-
-`modus-themes-mixed-fonts` covers Org's block faces by name and may
-well cover these too; naming them here costs nothing when it does, as
-the remap asks for the same family, and covers the case where it does
-not. Cheaper than depending on a theme option to know about a package
-it does not ship with.
-
-### Files
-
-- `modules/40-markdown.el` — three new options, `my/markdown--in-notes-p`,
-  `my/markdown--siloed-p`, `my/markdown--set-column`;
-  `my/markdown--visual-fill-adjust` renamed to `my/markdown--layout-adjust`
-  now that it decides more than one thing.
-- `function_helper.org` — new `#markdown-outside` subsection.
-
-Checks: `parens`, `anchors`, `functions`, `duplicates` and `keys` pass.
-
----
-
 ## Session 2026-09-07a — Markdown notes, without a second note system
 
 ### The request

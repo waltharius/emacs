@@ -325,9 +325,16 @@ Function: =my/capture-promote-to-note= | Module: =modules/06-capture.el=
 :CUSTOM_ID: menu-notes-find
 :END:
 
-Search, navigate, and review notes. =f/g/b= locate specific notes;
+Search, navigate, and review notes. =f/g/n/b= locate specific notes;
 =d/t/r= give overview/serendipity views; =h= opens historical
 dashboards (dynamic submenu).
+
+=g= and =n= come from =41-notes-search.el=. =g= is a *replacement*: the
+entry declared in =12-transient.el= runs the plain
+=consult-denote-grep=, and =41-notes-search.el= takes the key over at
+load time through =my/transient-replace=. Deleting that module
+therefore restores the plain command on the next start rather than
+leaving a void command behind; =n= disappears with it.
 
 Module: =modules/12-transient.el=
 
@@ -342,12 +349,124 @@ Function: =denote-open-or-create= (Denote package)
 
 *** g — Grep notes
 :PROPERTIES:
-:CUSTOM_ID: fn-consult-denote-grep
+:CUSTOM_ID: fn-notes-grep
 :END:
 
-Full-text search across notes with live preview.
+Full-text search across the notes, with a small query language in front
+of it. The query is read in one prompt, translated, and handed to
+consult as initial input — so the search stays live from there: editing
+the pattern re-runs it, text after a second =#= filters the results
+without re-running anything.
 
-Function: =consult-denote-grep= | Module: =modules/04-denote.el=
+**** The query language
+
+| Query | Meaning |
+|-------+---------|
+| =kot pies= | both words, anywhere on the same line |
+| ="wspólnie z innymi"= | that exact sequence, as a literal |
+| =date:2014= | notes created in 2014 |
+| =date:2012-01..2015-05= | that closed range, months included |
+| =date:<2015= | everything before 2015 |
+| =date:>=2012-03= | everything from March 2012 on |
+| =from:2012 to:2015= | the same as =date:2012..2015= |
+
+Dates are written =YYYY=, =YYYY-MM= or =YYYYMM=. A bare year means
+January at the start of a range and December at its end, so
+=date:2012..2015= covers all of 2015. Several directives narrow each
+other rather than replacing.
+
+Anything that is not a date directive is a search term. A quoted phrase
+is taken literally — regexp metacharacters are escaped — while unquoted
+words keep their regexp meaning, so =kot.*pies= still works. Unquoted
+words must all appear on the same line, in any order.
+
+**** Why quotes work at all
+
+Consult already has the notion of a multi-word pattern that must not be
+split: a space escaped with a backslash. A quoted phrase is therefore
+not a feature but a notation — ="a b c"= is rewritten to =a\ b\ c=
+before consult sees it. Nothing private to consult is touched.
+
+Practical limit: with three or more separate terms and a search program
+without PCRE support, consult reports "Too many regexps" and keeps the
+first three. A phrase counts as one term, which is another reason to
+quote.
+
+**** What the date range actually filters
+
+The Denote identifier in the file name, not the file's modification
+time. =date:2014= means "the note is from 2014", not "the file was
+written in 2014" — a 2014 journal entry edited yesterday is still a
+2014 note.
+
+It is also the cheap reading: the range becomes a list of file-name
+globs that grep and ripgrep apply themselves, with no =stat= per file
+and no file list on the command line. A year entirely inside the range
+costs one glob, a partial year up to twelve. Above
+=my/notes-search-max-globs= (200) the search is refused rather than run,
+on the assumption that a range that wide is a typo.
+
+Two consequences. Notes migrated from Obsidian carry =T000000= as their
+time but a correct date, so they filter correctly. Files with no
+identifier are excluded whenever a date range is given, because there is
+nothing to compare.
+
+**** Which program runs
+
+ripgrep when =rg= is installed and =my/notes-search-prefer-ripgrep= is
+non-nil, otherwise plain grep. Both support everything above; ripgrep
+is faster and skips hidden directories on its own.
+
+**** .snapshots, and why it used to appear in results
+
+=consult-denote-grep= defaults to =consult-grep=, which is =grep -r=.
+Grep skips only what it is told to skip, and that list —
+=grep-find-ignored-directories= — never contained =.snapshots=. Every
+btrfs snapshot of the notes tree was therefore searched, and a note that
+had existed for a year came back once per snapshot.
+
+Fixed at three levels: =.snapshots=, =.stversions= and =.stfolder= are
+added to =grep-find-ignored-directories= (which helps =rgrep=,
+=project-find-regexp= and the plain =consult-grep= too); this module's
+own invocations pass =--exclude-dir=.*= or =-g '!.*'=, covering dot
+directories that do not exist yet; and ripgrep is preferred, which
+ignores hidden directories by default.
+
+Denote's own file listing always skipped dot directories, which is why
+=denote-open-or-create= was never affected.
+
+Function: =my/notes-grep= | Module: =modules/41-notes-search.el=
+
+*** n — Find by title/tag
+:PROPERTIES:
+:CUSTOM_ID: fn-notes-find-by-name
+:END:
+
+Searches file *names* rather than contents, with a selector saying which
+part of the name is meant.
+
+| Query | Matches |
+|-------+---------|
+| =title:kant= | =kant= inside the title component |
+| =tag:filozofia= | that whole keyword |
+| =kant= | anywhere in the file name |
+| =title:kant tag:filozofia= | both, on the same note |
+
+The prompt completes over =title:=, =tag:= and every keyword already in
+use (=tag:bhp=, =tag:emacs=, …), and accepts free text as well — so a
+tag can be picked from the list or typed. Several selectors are ANDed.
+
+With a prefix argument (=C-u=), every match is listed in a Dired buffer
+instead of a completion prompt. Without it, the matches are offered for
+completion, newest first, and the chosen one is opened.
+
+A tag selector matches a *whole* keyword, not a prefix: =tag:praca= does
+not match =pracownia=. The prompt completes over the real vocabulary, so
+prefix matching would only add false hits. Values are sluggified the way
+Denote sluggifies them, which is why =title:"prawo pracy"= finds
+=--prawo-pracy--=.
+
+Function: =my/notes-find-by-name= | Module: =modules/41-notes-search.el=
 
 *** b — Backlinks
 :PROPERTIES:
@@ -5449,6 +5568,7 @@ rather than defines, and repeating it is harmless.
 | =my/notes--completion-keys= | =05-notes.el= | 06-capture.el |
 | =my/fixed-tab-goto= | =01-ui.el= | 15-workspace.el, 21-dashboards.el |
 | =my/transient-append= | =12-transient.el= | every module adding a menu entry |
+| =my/transient-replace= | =12-transient.el= | 41-notes-search.el |
 
 Resolution is at call time, so load order does not constrain these —
 only whether the owning module is loaded at all. Callers that would
@@ -5903,72 +6023,6 @@ YAML =tags:= line for files that have front matter but no Denote name
 yet. It runs at depth 90 on =find-file-hook=, after the setup it
 adjusts, so the Org path is untouched.
 
-** Markdown files that are not notes
-:PROPERTIES:
-:CUSTOM_ID: markdown-outside
-:END:
-
-A README, a CHANGELOG, an export from some other program: Markdown
-with no Denote identifier, no front matter, and no reason to acquire
-either. Fontification reaches these already — headings, links and
-emphasis are markdown-mode's job and it does not care where a file
-lives — but two layers of this configuration are keyed to LOCATION and
-so used to skip them.
-
-*The text column.* =my/visual-fill-notes-setup= switches the column
-off outside =~/notes/=, deliberately, as a signal that the notes tree
-has been left. =visual-line-mode= is still on from =02-editing.el=, so
-the text wrapped — at the window edge, across a full-width frame.
-
-*The typeface.* =my/notes-font-setup= applies a family per SILO. A
-file in no silo kept =default=, which is JetBrains Mono, while its
-headings still inherited =variable-pitch=. Proportional headings over
-monospaced prose is the mismatch that reads as unformatted.
-
-Both are now corrected, for Markdown buffers only. Org files outside
-the notes tree are untouched.
-
-| Option                            | Default        | Effect                                    |
-|-----------------------------------+----------------+-------------------------------------------|
-| =my/markdown-outside-notes-layout= | =column=       | =column= / =centered= / =plain=           |
-| =my/markdown-outside-notes-width=  | nil            | nil means =my-fill-column=                |
-| =my/markdown-unsiloed-body=        | =proportional= | =proportional= / =monospace=              |
-
-The layout default is =column= — wrapped, left aligned, leftover space
-as a right margin — rather than =centered=. The full-width signal from
-10-visual-fill.el is worth keeping, but unreadable 300-column lines
-are a poor way to carry it; a left-aligned column reads as well as a
-centred one and still looks nothing like a note. Set the option to
-=centered= for one uniform reading layout everywhere.
-
-=my/markdown-unsiloed-body= is tested against =my/font-silo-styles=,
-not against =variable-pitch-mode= itself: the docu silo switches that
-mode off on purpose, and “off” would otherwise be indistinguishable
-from “never considered”. A Markdown file in =docu= therefore stays
-monospaced, as a docu note should.
-
-Three cases fall out of this, all of them handled:
-
-- *In a silo* — the silo typeface and the notes column, exactly as an
-  Org note in the same directory.
-- *Under =~/notes/= but in no silo* (a README at the root) — the notes
-  column, since =my/visual-fill-notes-setup= keys on the tree rather
-  than the silo, plus proportional prose from this module.
-- *Outside =~/notes/= entirely* — the column and typeface described
-  above; no Denote features, because there is no identifier to hang
-  them on.
-
-Code, tables, inline code and markup stay monospaced in every case:
-those faces are on =my/font-fixed-faces=, so =variable-pitch-mode=
-does not reach them. See [[#org-faces][Org Faces and Fonts]].
-
-The layout is applied from =markdown-mode-hook= as well as at depth 90
-on =find-file-hook=. The hook alone would be lost to =revert-buffer=,
-which re-runs mode hooks but not =find-file-hook=; the =find-file-hook=
-entry alone would be overwritten by =my/visual-fill-notes-setup=
-running at the default depth. Together the column is set, cleared and
-set again when a file is opened, which is invisible and cheaper than
-keeping a second copy of the notes rules in this module.
 ** What Markdown notes do NOT get
 :PROPERTIES:
 :CUSTOM_ID: markdown-limits
@@ -5993,64 +6047,6 @@ syntax. Markdown notes are outside all of them, deliberately:
 
 Widening any of those scans is a separate decision per module.
 
-** When a .md file opens in the wrong mode
-:PROPERTIES:
-:CUSTOM_ID: markdown-stale-modes
-:END:
-
-Symptom: one =.md= file shows literal =##=, no heading faces and a
-monospaced full-width column, while an identical file elsewhere
-renders correctly. The mode line names the culprit — it will read
-=Change Log= or nothing rather than =Markdown=.
-
-Two causes compound.
-
-*Emacs claims some Markdown file names for other modes.* =files.el=
-ships
-
-: ("[cC]hange[lL]og[-.][-0-9a-z]+\\'" . change-log-mode)
-
-and =set-auto-mode= retries case-insensitively when the case-sensitive
-pass finds nothing. Before markdown-mode was installed there was no
-case-sensitive match for =.md=, so =CHANGELOG.md= matched that entry
-and opened in =change-log-mode=. =README.md= fell through to
-=fundamental-mode=. Once markdown-mode is installed its own
-=auto-mode-alist= entry is prepended and wins, so a *fresh* open is
-correct.
-
-*The session remembers the old answer.* =desktop-save= records each
-buffer's major mode and =desktop-read= calls that mode function again
-rather than consulting =auto-mode-alist= afresh. That is right almost
-always — it is how a buffer deliberately put into another mode comes
-back in it — but a buffer whose correct mode *changed between
-sessions* comes back in the old one indefinitely, because every save
-writes the stale mode out again. Reopening the file does not help;
-the buffer is already there.
-
-=my/markdown-restore-modes= (=C-c n t m R=) fixes it. It acts on a
-buffer only when all three hold: it visits a file, =auto-mode-alist=
-would give that file =markdown-mode= now, and its current mode is on
-=my/markdown-stale-modes= (=fundamental-mode=, =text-mode=,
-=change-log-mode=). The third condition is what keeps a deliberate
-mode choice deliberate — a =.md= fixture put into =conf-mode= by hand
-is left alone.
-
-It calls =normal-mode=, not =markdown-mode=, so the buffer ends up
-exactly as reopening the file would leave it: file-local variables
-re-read, =markdown-mode-hook= run, and this module's layout applied
-through it.
-
-It also runs from =desktop-after-read-hook= at depth 95, so the
-correction happens once per session restore without having to be
-remembered. =my/markdown-restore-modes-on-desktop= turns that off and
-leaves it as a manual command.
-
-To check the first cause in isolation:
-
-: M-: (assoc-default "CHANGELOG.md" auto-mode-alist #'string-match)
-
-=markdown-mode= means =auto-mode-alist= is correct and the buffer's
-mode came from the session.
 ** M — Markdown note (C-c n c M)
 :PROPERTIES:
 :CUSTOM_ID: fn-my-markdown-new-note
