@@ -323,6 +323,7 @@ C-c n -- NOTES TRANSIENT MENU TREE
   t  Tools ->
        z  Zotero/Bib ->  (same submenu as C-c x, see below)
        m  Markdown ->  m Markup hiding  u URL hiding  i Inline images
+                       R Re-mode stale buffers (after a session restore)
                        d/p/o/O link conversions (denote-markdown)
        r  Readwise ->  s Sync (incremental)  S Sync everything
                        r Review books        o Open import folder

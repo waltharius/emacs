@@ -21,6 +21,82 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-12c — Two features that shipped without documentation
+
+### How they were found
+
+The `coverage` check fired on the two commits of Sessions 2026-09-12a
+and 2026-09-12b: `'R' 'Re-mode stale buffers' runs
+my/markdown-restore-modes, undocumented`. It reports on the whole tree
+rather than on what is staged, so it was flagging something older than
+the commit it interrupted.
+
+It was right, and it understated the gap. 40-markdown.el had grown two
+features after Session 2026-09-07a was written — the layout for Markdown
+files outside the notes tree, and the re-moding of buffers a restored
+session got wrong — and neither is mentioned in this file or in
+function_helper.org. Only `coverage` noticed, and only for the one that
+reached a menu; the three `defcustom` forms of the other were invisible
+to every check.
+
+The module's own header commentary was the sole record of both. That is
+not nothing, but it is the one place a reader does not look first.
+
+### Why the blocking check did not catch it at the time
+
+`check_changelog` blocks a commit that touches `modules/*.el` without
+staging CHANGELOG.md. CHANGELOG.md is byte-identical to its state before
+those features existed, so the commit carrying them was either made with
+`--no-verify` or on a checkout where `hooks/lint.py` is not installed as
+the pre-commit hook.
+
+Worth knowing which: a hook that lives in the repository but is wired up
+per clone protects only the clones where somebody remembered to wire it
+up. `git config core.hooksPath hooks` on each checkout makes it follow
+the repository instead.
+
+### What the two features are
+
+Recorded here because the reasoning behind them was only in the module.
+
+**Markdown outside the notes tree.** `my/visual-fill-notes-setup` turns
+the text column off outside `~/notes/` deliberately, as a signal that
+the notes tree has been left — but `visual-line-mode` is still on, so a
+README wrapped at the window edge across a full-width frame. And
+`my/notes-font-setup` applies a typeface per silo, so a file in no silo
+kept monospaced prose under proportional headings.
+
+`my/markdown-outside-notes-layout` defaults to `column`: wrapped and
+left-aligned, not centred. The full-width signal is worth keeping, but
+300-column lines are a poor way to carry it; a left-aligned column reads
+as well as a centred one and still looks nothing like a note. Both fixes
+are Markdown-only, so the Org path outside the notes tree is untouched.
+
+**Modes a restored session got wrong.** `desktop-save` records each
+buffer's major mode and `desktop-read` calls it again rather than
+consulting `auto-mode-alist` afresh, so a buffer whose correct mode
+changed between sessions comes back in the old one indefinitely.
+Installing markdown-mode is such a change: before it, `CHANGELOG.md`
+matched the `change-log-mode` entry in files.el on `set-auto-mode`'s
+case-insensitive retry, and `README.md` fell to `fundamental-mode`.
+
+`my/markdown-restore-modes` re-runs `normal-mode` where the buffer
+visits a file, `auto-mode-alist` would give it `markdown-mode` today,
+and its current mode is on `my/markdown-stale-modes`. The third
+condition is what keeps a deliberate mode choice deliberate. A
+`desktop-after-read-hook` entry at depth 95 runs it once per restore.
+
+### Files
+
+- `function_helper.org` — `#markdown-outside-notes` and
+  `#fn-my-markdown-restore-modes`.
+- `modules/08-keybindings.el` — `R` in the Markdown branch of the menu
+  tree, which had the same omission.
+
+No behaviour changed in this session. The two features were already
+committed and working.
+
+---
 ## Session 2026-09-12b — The grep was searching every snapshot of every note
 
 ### The report

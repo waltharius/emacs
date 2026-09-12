@@ -6023,6 +6023,42 @@ YAML =tags:= line for files that have front matter but no Denote name
 yet. It runs at depth 90 on =find-file-hook=, after the setup it
 adjusts, so the Org path is untouched.
 
+** Markdown files that are not notes
+:PROPERTIES:
+:CUSTOM_ID: markdown-outside-notes
+:END:
+
+A README, a CHANGELOG, an export from some other program: Markdown with
+no Denote identifier and no business getting one. Fontification reaches
+these already — headings and emphasis are markdown-mode's job and it
+does not care where a file lives — but two layers of this configuration
+are keyed to location and skip them:
+
+- =my/visual-fill-notes-setup= (=10-visual-fill.el=) turns the text
+  column *off* outside =~/notes/=, on purpose, as a signal that the
+  notes tree has been left. =visual-line-mode= is still on, so the text
+  wrapped at the window edge, across a full-width frame.
+- =my/notes-font-setup= (=03b-fonts.el=) applies a typeface per silo. A
+  file in no silo kept =default= — JetBrains Mono — while its headings
+  still inherited =variable-pitch=. Proportional headings over
+  monospaced prose is the mismatch that reads as "unformatted".
+
+Both are corrected for Markdown buffers only, from =find-file-hook= at
+depth 90. Org files outside the notes tree keep the existing behaviour.
+
+| Option | Default | Meaning |
+|--------+---------+---------|
+| =my/markdown-outside-notes-layout= | =column= | =column= wraps left-aligned with the leftover space as a right margin; =centered= centres it like a note; =plain= restores full width |
+| =my/markdown-outside-notes-width= | nil | nil means =my-fill-column=, the width notes use. Characters in the buffer's default face, so a proportional body renders the same number narrower |
+| =my/markdown-unsiloed-body= | =proportional= | =variable-pitch-mode= for prose, with code and tables kept monospaced through =my/font-fixed-faces=; =monospace= leaves the buffer in =default= |
+
+=column= rather than =centered= is deliberate. Full width outside
+=~/notes/= is a signal worth keeping, but 300-column lines are a poor
+way to carry it; a left-aligned column reads as well as a centred one
+and still looks nothing like a note, so the signal survives in a form
+that costs nothing. Files that *do* match a silo entry are untouched —
+a Markdown file in =docu= is meant to be monospaced and stays so.
+
 ** What Markdown notes do NOT get
 :PROPERTIES:
 :CUSTOM_ID: markdown-limits
@@ -6114,6 +6150,52 @@ maintaining a buffer-local reimplementation.
 =markdown-toggle-inline-images= shows or removes the image overlays;
 images are displayed on open by default, which
 =my/markdown-display-images-on-open= turns off.
+
+*** R — Re-mode stale buffers
+:PROPERTIES:
+:CUSTOM_ID: fn-my-markdown-restore-modes
+:END:
+
+Function: =my/markdown-restore-modes=
+
+=desktop-save= records each buffer's *major mode* and =desktop-read=
+calls that mode function again on restore, rather than consulting
+=auto-mode-alist= afresh. That is right almost always — it is how a
+buffer deliberately put into some other mode comes back in it — but a
+buffer whose correct mode *changed between sessions* comes back in the
+old one indefinitely, because every save writes the stale mode out
+again.
+
+Installing markdown-mode is exactly such a change. Before it, a =.md=
+file fell through to whatever else matched, and files.el ships
+
+: ("[cC]hange[lL]og[-.][-0-9a-z]+\\'" . change-log-mode)
+
+=set-auto-mode= retries case-insensitively when the case-sensitive pass
+finds nothing, so =CHANGELOG.md= opened in =change-log-mode= —
+monospaced, no heading faces, literal =##=. =README.md= landed in
+=fundamental-mode= by the same route. Both modes were then in the
+desktop file and outlived the fix, and reopening the file does not help
+because the buffer is already there.
+
+This command re-runs =normal-mode= on the buffers where all three of
+these hold: the buffer visits a file, =auto-mode-alist= would give that
+file =markdown-mode= today, and its current mode is on
+=my/markdown-stale-modes= (=fundamental-mode=, =text-mode=,
+=change-log-mode=). The third condition is what keeps a deliberate mode
+choice deliberate — a =.md= fixture put into =conf-mode= is left alone.
+
+=normal-mode= rather than =markdown-mode= directly, so the buffer ends
+up exactly as reopening the file would leave it: file local variables
+re-read, =markdown-mode-hook= run, this module's layout applied through
+it.
+
+It also runs itself once per session restore, from
+=desktop-after-read-hook= at depth 95, so it does not have to be
+remembered; =my/markdown-restore-modes-on-desktop= set to nil leaves it
+a manual command. Either way the desktop file carries the correct mode
+from the next save onwards, so the fix is needed once per stale buffer,
+not once per session.
 
 *** d, p, o, O — link conversions
 
