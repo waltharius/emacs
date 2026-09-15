@@ -21,6 +21,24 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-15b - README: import from Obsidian documented
+
+README.md gains a section on `tools/obsidian_import.py`, placed with the
+note types rather than with the module map, because what a reader needs
+first is what the tool is for and what it deliberately is not.
+
+The boundaries are stated explicitly, since all three were easy to
+assume otherwise: it is not the migration script (that job is different
+and was done once), it is not a sync layer (conflicts and replication
+belong below it, wherever the vault is shared from), and it keeps no
+state beyond the location of the Markdown file. The section also drops
+the assumption that the source is a phone - the importer reads a folder,
+and a local Obsidian on the same machine reaches it by the same path.
+
+External requirements are given per distribution rather than as the
+NixOS invocation this configuration happens to use, so that the tool can
+be installed by a reader on any Linux.
+
 ## Session 2026-09-15a - Import note from Obsidian
 
 Notes written in Obsidian on the phone are pulled into the org/Denote

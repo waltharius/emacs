@@ -170,7 +170,8 @@ missing one disables a feature rather than breaking the configuration:
 | `hunspell` | spell checking (Polish and English dictionaries) | `03-spelling.el` |
 | `magick` or `convert` (ImageMagick) | image attachment compression | `31-org-images.el` |
 | `libreoffice` / `soffice` | ODT → DOCX conversion | `29-writing-export.el` |
-| `pandoc` | Obsidian migration script only | `convert_journal.py` |
+| `pandoc` | Markdown → Org conversion for the Obsidian import, and for the one-off migration | `tools/obsidian_import.py`, `convert_journal.py` |
+| `python3` with PyYAML | runs the Obsidian import script | `42-obsidian-import.el` |
 | LaTeX | PDF export | `16-org-export.el` |
 
 Optional and non-obvious: `keylog` (typing analytics) is not on any
@@ -343,6 +344,7 @@ startup. Optional ones can be removed.
 | `18-zotero-transient.el` | required | The bibliography menu (`C-c x`). |
 | `24-readwise.el` | required | Incremental import of Readwise highlights. |
 | `25-inbox-review.el` | required | Review queue for notes migrated from Obsidian. |
+| `42-obsidian-import.el` | optional | Front end for `tools/obsidian_import.py`: dry run, import, report (`C-c n t o`). |
 | `26-maintenance.el` | required | Integrity checks, keyword inventory, keyword renames. |
 | `27-denote-identifiers.el` | required | Duplicate identifiers, broken links, self-links. |
 
@@ -407,7 +409,7 @@ d  Document    rename / keywords / change silo / delete
 x  Export      PDF / batch by any keyword / batch by all keywords / ODT / DOCX
 v  View        centre text / writing mode / indent / emphasis markers /
                tooltips / theme / padding / detach to frame
-t  Tools       Zotero / spelling / Readwise / inbox
+t  Tools       Zotero / spelling / Readwise / inbox / Obsidian import
 l  Philosophy  five note types                     (19-philosophy-notes.el)
 z  Zettelkasten                                    (22-zettelkasten.el)
 p  Projects                                        (28-writing-projects.el)
@@ -566,6 +568,142 @@ to a full Denote note, carrying the source line across.
 
 ---
 
+## Writing somewhere else: the Obsidian import
+
+Emacs on a phone is not a serious proposition. Obsidian is: it is a very
+good notes application, it runs on Android and iOS, and it stores plain
+Markdown files rather than a proprietary database. The gap it leaves is
+that those files are not Org, carry YAML front matter instead of Org
+keywords, and know nothing about Denote identifiers.
+
+`tools/obsidian_import.py`, driven from `C-c n t o`, closes that gap in
+one direction: a note written in Obsidian is converted to Org and filed
+into the silos, and a daily note is merged into the journal entry for its
+own date under an `* Obsidian` heading, where it can be read, edited and
+folded into the rest of the day.
+
+Nothing about this is phone-specific. The importer reads one folder in a
+vault; whether that vault is on a phone, a tablet, another computer, or
+installed locally on the same laptop is not something it can tell or
+needs to. A second Obsidian on the desktop, used when Emacs is not the
+right tool for the moment, goes through exactly the same path.
+
+### What it does
+
+| Source in the vault | Destination |
+|---------------------|-------------|
+| `YYYY-MM-DD.md` (a daily note) | the journal note for that date, under `* Obsidian`; the note is created if the day has none |
+| any other note | `~/notes/inbox/`, for review with `25-inbox-review.el` |
+| images linked from the note | copied into `~/notes/attachments/` with the note's identifier as prefix |
+| the Markdown file itself | moved to `Imported2Emacs/<year>` inside the vault |
+
+A day that already holds imported material gets the new entry appended
+inside the existing `* Obsidian` subtree, as another `** HH:MM` heading
+with its own `:SOURCE:` and `:IMPORTED_AT:` properties, so several
+imports of one day stay in one place.
+
+### What it does not do
+
+- **It is not a migration tool.** Converting an entire vault of thousands
+  of notes one-to-one is a different problem with different rules —
+  folder-derived dates, wikilink resolution across the whole tree, tag
+  normalisation, duplicate identifiers at scale — and it was done once,
+  by `convert_journal.py`, which is kept in the repository as a record
+  rather than as a tool. The importer assumes a handful of notes in a
+  dedicated folder and an existing collection to merge them into.
+- **It is not a sync tool.** Getting the vault from one device to the
+  machine running Emacs belongs to a layer below this one: Syncthing
+  here, but Obsidian Sync, Git, or any shared folder would serve.
+  Replication delay, offline edits and conflict files are that layer's
+  business and are not something Emacs can decide about. The one
+  concession is `--settle`: files modified within the last minute are
+  skipped, so a note still being written or still being replicated is
+  never imported in half.
+- **It is not two-way.** Nothing is written back into the vault except
+  the move of the imported file, and attachments are copied rather than
+  moved, so everything the vault used to render it still renders.
+  Editing an imported note in Emacs has no effect in Obsidian, and is
+  not meant to.
+- **It keeps no state of its own.** Whether a note has been imported is
+  answered by where the note is: still in the inbox folder means
+  pending, in `Imported2Emacs/<year>` means done. There is no database,
+  no ledger file, no marker written into the Markdown. The consequence
+  worth knowing: move a file back and it will be imported again, as a
+  second entry rather than as an overwrite.
+- **It does not understand everything Obsidian can write.** Conversion
+  is pandoc's, so wikilinks, embeds and transclusions (`![[note]]`),
+  Dataview queries, and plugin-specific syntax pass through as text or
+  as links that resolve nowhere. Two constructs are repaired before
+  pandoc sees them — the horizontal rule the daily template puts under
+  its time heading, which pandoc would otherwise read as a setext
+  underline, and callouts (`> [!NOTE] Title`) — and everything else is
+  as pandoc leaves it.
+
+### Requirements
+
+Two programs beyond Emacs, both packaged everywhere:
+
+| Distribution | Command |
+|--------------|---------|
+| Debian, Ubuntu | `sudo apt install pandoc python3 python3-yaml` |
+| Fedora, RHEL | `sudo dnf install pandoc python3 python3-pyyaml` |
+| Arch | `sudo pacman -S pandoc-cli python python-yaml` |
+| openSUSE | `sudo zypper install pandoc python3 python3-PyYAML` |
+| NixOS, or any distribution with Nix | `nix-shell -p pandoc python3Packages.pyyaml` |
+| any, via pip | `pip install --user pyyaml` (pandoc still has to come from the distribution) |
+
+Both are checked before anything runs; a missing one is reported as a
+message, and the rest of the configuration is unaffected.
+
+### Vault setup
+
+The importer reads what Obsidian writes, so Obsidian decides most of
+this. In *Settings → Daily notes*:
+
+| Setting | Value | Why |
+|---------|-------|-----|
+| Date format | `YYYY-MM-DD` | the file name is where the date is read from |
+| New file location | `10 Emacs Inbox` | the only folder the importer looks at |
+| Template file location | a template with `date`, `created` and `tags` | `created` supplies the Denote identifier |
+
+The daily template used here writes `created` with seconds
+(`{{date:YYYY-MM-DDTHH:mm:ss}}`), because an identifier is
+`YYYYMMDDTHHMMSS` and a template without seconds leaves the last two
+digits to be invented. In *Settings → Files and links*, Markdown links
+(*Use [[Wikilinks]]* off) and *Absolute path in vault* keep links
+readable outside Obsidian; an attachment folder fixed per note
+(`./attachments`) keeps images findable.
+
+Any other folder name works — `my/obsidian-vault-directory` and
+`my/obsidian-inbox-subdir` are customisable, and the script takes
+`--vault` and `--notes` — but the folder must be dedicated to pending
+imports. Pointing the importer at a folder that also holds finished
+notes would empty it into the silos.
+
+### Use
+
+```
+C-c n t o  d   dry run — reports what would happen, writes nothing
+           i   import
+           l   the last report again
+           o   the vault inbox folder in Dired
+```
+
+Modified buffers under `~/notes/` are saved before the import starts and
+the written files are reverted afterwards, because the files being
+appended to are usually open. The list of files to revert comes from the
+script, which knows what it wrote.
+
+The script runs on its own as well, which is the way to use it from a
+machine where this configuration is not installed:
+
+```sh
+python3 tools/obsidian_import.py                 # dry run
+python3 tools/obsidian_import.py --write
+```
+
+---
+
 ## What happens without being asked
 
 - **Auto-commit and push.** Five minutes idle and on exit, for `~/notes`
@@ -663,7 +801,10 @@ function_helper.org      user-facing command reference (C-c n h)
 CHANGELOG.md             session log: what changed and why
 tests/                   ERT tests, run with emacs -Q --batch
 hooks/                   pre-commit consistency checks
-convert_journal.py       one-off Obsidian → Denote migration script
+tools/                   scripts driven from Emacs
+  obsidian_import.py     incremental Obsidian → Denote import (C-c n t o)
+convert_journal.py       one-off Obsidian → Denote migration script, kept
+                         as a record of the 2026-07 migration
 ui-state.el              persisted UI choices (theme, sizes)
 theme-state.el           persisted theme choice
 .gitignore               privacy-oriented: session state, typing data,
