@@ -21,6 +21,58 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-15a - Import note from Obsidian
+
+Notes written in Obsidian on the phone are pulled into the org/Denote
+silos by `tools/obsidian_import.py`, driven from `C-c n t o`
+(`modules/42-obsidian-import.el`). A daily note is merged into the
+journal note for its date under an `* Obsidian` heading; anything else
+lands in `~/notes/inbox/` for review by 25-inbox-review.el. The source
+markdown then moves to `Imported2Emacs/<year>` in the vault, the year
+directory being created on demand.
+
+That move is the only idempotence mechanism. A checksum ledger, as used
+by the 2026-07 migration, was considered and rejected: the import runs
+deliberately and on a handful of files, so a ledger would be a second
+piece of state to keep in step with the one the directory layout already
+shows.
+
+Merging into a note that already carries an `* Obsidian` heading appends
+the new material at the end of that subtree as another time heading with
+its own `:SOURCE:`/`:IMPORTED_AT:` drawer. A second `* Obsidian` heading
+was the alternative; it would scatter one source across several places in
+the file.
+
+Two Obsidian constructs need repairing before pandoc sees them. The `---`
+the daily template puts under the time heading makes pandoc read that
+heading line as setext-underlined text, yielding `** # (00:16)` instead
+of a first-level heading; a rule directly below a heading is therefore
+removed, while a rule the note itself contains is left alone. The callout
+form `> [!NOTE] Title` is not syntax pandoc knows, so the marker and the
+title end up glued to the first line of the quote; it is rewritten to a
+bold first line inside the quote.
+
+The script uses the full set of disabled pandoc extensions
+(`-yaml_metadata_block-blank_before_header-blank_before_blockquote`).
+The copy of `convert_journal.py` in this repository still carries the
+pre-fix flags: the 2026-07 correction reached `convert_vault.py` and
+`apply_journal_fixes.py` but never came back to that file, so it is not a
+usable model for new conversion code.
+
+YAML front matter is parsed with PyYAML rather than by hand. Quoting,
+colons inside values and the three list forms Obsidian writes for tags are
+where a hand-rolled parser fails silently, and a silent failure here means
+a wrong date on a real note.
+
+The Emacs side saves every modified buffer under `~/notes/` before the
+process starts and reverts the written files afterwards, for the reason
+recorded for the auto-commit in 07-git.el: the script appends to files
+that are very likely open, and an unsaved buffer would overwrite the
+imported material on its next save. The list of files to revert comes
+from the script's `--touched` output rather than from a watcher, because
+the script knows what it wrote and anything else would be guessing.
+
+---
 ## Session 2026-09-12c — Two features that shipped without documentation
 
 ### How they were found

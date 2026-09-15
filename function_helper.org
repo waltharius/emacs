@@ -6216,3 +6216,59 @@ Obsidian =[[wiki links]]= are otherwise left switched off
 (=markdown-enable-wiki-links= is nil): they carry no identifier and
 break the moment =denote-rename-file= runs. Converting them once is
 better than reading them in place.
+
+* Obsidian import (C-c n t o)
+:PROPERTIES:
+:CUSTOM_ID: obsidian-import
+:END:
+
+Pulls notes written in Obsidian on the phone into the org/Denote silos.
+Daily notes (~YYYY-MM-DD.md~) are merged into the journal note for that
+date under an ~* Obsidian~ heading; other notes go to ~~/notes/inbox/~.
+The markdown file moves to ~Imported2Emacs/<year>~ in the vault.
+
+Requires pandoc and PyYAML: ~nix-shell -p pandoc python3Packages.pyyaml~.
+
+** Commands
+:PROPERTIES:
+:CUSTOM_ID: obsidian-import-commands
+:END:
+
+| Command                        | Effect                                         |
+|--------------------------------+------------------------------------------------|
+| ~my/obsidian-import-dry-run~     | report only, nothing is written                |
+| ~my/obsidian-import~             | write notes, copy attachments, move the source |
+| ~my/obsidian-import-show-report~ | show the report of the last run                |
+| ~my/obsidian-import-open-inbox~  | open the vault inbox folder in Dired           |
+
+Modified buffers under ~~/notes/~ are saved before the run and the
+written files are reverted after it.
+
+** Menu (C-c n t o)
+:PROPERTIES:
+:CUSTOM_ID: menu-obsidian-import
+:END:
+
+| Key | Entry                    |
+|-----+--------------------------|
+| ~d~   | Dry run (writes nothing) |
+| ~i~   | Import                   |
+| ~l~   | Last report              |
+| ~o~   | Vault inbox in Dired     |
+
+** Script
+:PROPERTIES:
+:CUSTOM_ID: obsidian-import-script
+:END:
+
+~tools/obsidian_import.py~ can also be run directly:
+
+#+begin_src sh
+python3 tools/obsidian_import.py                      # dry run
+python3 tools/obsidian_import.py --write
+python3 tools/obsidian_import.py --write --touched /tmp/imported.txt
+#+end_src
+
+Options: ~--vault~, ~--notes~, ~--limit~, ~--settle~ (skip files younger
+than N seconds), ~--report~ (write the report to a file), ~--touched~
+(list of org files created or modified, read by the Emacs front end).

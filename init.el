@@ -139,6 +139,12 @@
   ;; keeps its original `consult-denote-grep' binding, which is the
   ;; intended degradation.
   (load (concat modules-dir "41-notes-search.el") t) ; Search (C-c n f g / n)
+  ;; Optional (NOERROR): the front end for tools/obsidian_import.py.
+  ;; Loaded after 12-transient.el, whose Tools menu it appends to, and
+  ;; after 00-core.el, whose `my-notes-dir' it passes to the script.
+  ;; Without this file the import is still available from a shell; only
+  ;; the menu entry and the buffer handling around it disappear.
+  (load (concat modules-dir "42-obsidian-import.el") t) ; Obsidian import (C-c n t o)
   )
 
 (add-hook 'emacs-startup-hook
