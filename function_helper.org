@@ -5884,14 +5884,14 @@ stored in the keyboard's EEPROM and are *not* reproducible from any
 repository — this table is the only written record, so update it here
 whenever the layer changes.
 
-| Key | Types    | Command                          |
-|-----+----------+----------------------------------|
-| =M= | C-c m c  | =my/notes-create-menu=           |
-| =F= | C-c d f  | =denote-open-or-create=          |
-| =S= | C-c s    | =my/spell-correct-previous=      |
-| =A= | C-c S    | =my/spell-add-previous-to-dict=  |
-| =W= | C-c m w  | =my/toggle-writeroom=            |
-| =L= | C-c d l  | =denote-link=                    |
+| Key | Types   | Command                       |
+|-----+---------+-------------------------------|
+| =M=   | C-c m c | =my/notes-create-menu=          |
+| =F=   | C-c d f | =denote-open-or-create=         |
+| =S=   | C-c s   | =my/spell-correct-previous=     |
+| =A=   | C-c S   | =my/spell-add-previous-to-dict= |
+| =W=   | C-c m w | =my/toggle-writeroom=           |
+| =L=   | C-c d l | =denote-link=                   |
 
 Everything here is firmware: the macros type ordinary chords, so the
 same commands work identically from the ThinkPad's built-in keyboard,
