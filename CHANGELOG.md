@@ -21,6 +21,63 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-17b — org-drill from MELPA: cram mode broken in the NonGNU ELPA release
+
+Installing org-drill from NonGNU ELPA reported, among many warnings,
+`org-drill.el:2983:10: Warning: attempt to set non-variable
+'(oref session cram-mode)'` in `org-drill-cram`. Reproduced on Emacs
+30.2 with Org 9.7.11: the released `org-drill-cram` contains
+`(setq (oref session cram-mode) t)` with `session` unbound, and every
+call signals `(wrong-type-argument symbolp (oref session cram-mode))`.
+`C-c n r c` (`my/drill-cram-all`) therefore never worked.
+
+Cause: both archives label the package 2.7.0, but the NonGNU ELPA tarball
+matches the upstream commit of 2020-04-08. Upstream fixed cram mode on
+2020-04-12 (merge of `branweb/fix-cram-mode`; `org-drill` gained a CRAM
+argument) and added missing autoload cookies on 2021-04-27, its last
+commit. No release followed. MELPA builds from that repository.
+
+The test recorded in 2026-09-17a ran against the upstream master branch
+fetched from a mirror, not against the NonGNU ELPA tarball, which is why
+it did not catch this. Its claim of testing "org-drill 2.7.0" was true of
+the version string and false of the code.
+
+Decision: pin org-drill to MELPA (`package-pinned-packages`, applied only
+when the `melpa` archive is configured, for the same reason `:pin` was
+avoided in 2026-09-17a). The general preference for stable ELPA releases
+over MELPA protects against snapshots taken mid-refactor; a repository
+without commits for five years cannot produce one, and here the release
+is the defective artefact. Alternatives rejected:
+
+- Keeping NonGNU ELPA and dropping cram mode: loses the feature most
+  needed in the days before an exam.
+- Reimplementing cram mode around the released code, e.g. by wrapping
+  the session constructor: depends on org-drill internals and duplicates
+  a fix that already exists upstream.
+- `package-vc-install` pinned to commit e554152: equivalent code, but a
+  second installation mechanism in a configuration that otherwise uses
+  only package archives.
+
+Since an existing installation is not replaced by a pin,
+`my/drill-cram-all` now checks the loaded build
+(`my/drill--cram-supported-p`: whether `org-drill` accepts a `cram`
+argument, the version strings being identical) and refuses with
+instructions instead of failing inside org-drill.
+
+The remaining installation output was classified and left alone: the
+`assess` error and most warnings come from `test/` and `robot/` files
+shipped in the package and never loaded; the obsolete Org API used by
+`org-drill.el` still resolves in Org 9.7. Suppressing byte-compiler
+warnings was rejected, as it would also hide the day those aliases are
+removed.
+
+Verified on Emacs 30.2 / Org 9.7.11: the release source compiles with
+the warning and fails on `org-drill-cram`; the upstream master compiles
+without it and starts a cram session (`cram-mode` t). A plain
+`org-drill` session works with both.
+
+Files: `modules/43-drill.el`, `function_helper.org`.
+
 ## Session 2026-09-17a — Flashcards with org-drill
 
 New optional module `modules/43-drill.el`: spaced repetition over

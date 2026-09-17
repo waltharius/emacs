@@ -105,17 +105,29 @@ The name only has to be recognisable when a deck is read as a note."
 ;; ============================================================
 ;; PACKAGE
 ;; ============================================================
-;; org-drill 2.7.0 is on NonGNU ELPA, which Emacs 28 and later carry in
-;; the default `package-archives'.  It is pinned there when that archive
-;; is present, because MELPA's date-based version numbers always look
-;; newer and would otherwise win: the stable release is the one wanted,
-;; for the same reason as Denote.
+;; FROM MELPA, NOT NONGNU ELPA.  Both archives carry "2.7.0", but not
+;; the same code.  The NonGNU ELPA tarball was cut from the upstream
+;; commit of 2020-04-08.  Its `org-drill-cram' reads
 ;;
-;; NOT `:pin nongnu'.  `use-package' signals when a pinned archive is
-;; missing from `package-archives', and an error here aborts init.el --
-;; the NOERROR argument of `load' covers a missing file, not a failing
-;; one.  Adding to `package-pinned-packages' conditionally gives the same
-;; result without that failure mode.
+;;   (setq (oref session cram-mode) t)
+;;
+;; with `session' unbound -- the byte compiler warns "attempt to set
+;; non-variable" and every call signals (wrong-type-argument symbolp).
+;; Upstream fixed it four days later (merge of branweb/fix-cram-mode,
+;; 2020-04-12: `org-drill' gained a CRAM argument) and added the missing
+;; autoload cookies in 2021-04; no release followed.  MELPA builds from
+;; that repository, which has had no commit since 2021-04-27, so the
+;; usual objection to MELPA -- a rolling snapshot caught mid-refactor --
+;; does not apply: the snapshot is frozen and is the fixed code.
+;;
+;; The pin goes through `package-pinned-packages', and only when the
+;; archive is present.  NOT `:pin melpa': `use-package' signals when a
+;; pinned archive is missing, and an error here aborts init.el -- the
+;; NOERROR argument of `load' covers a missing file, not a failing one.
+;;
+;; An installation already made from NonGNU ELPA is not replaced by the
+;; pin.  `my/drill--cram-supported-p' detects it, and the cram command
+;; refuses with instructions instead of failing inside org-drill.
 ;;
 ;; SETTINGS GO IN `:config', NOT `:custom'.  `:custom' loads the library
 ;; to apply them, which would defeat `:defer'.  Three are changed:
@@ -134,9 +146,9 @@ The name only has to be recognisable when a deck is read as a note."
 ;; other option keep org-drill's defaults.
 
 (when (and (boundp 'package-archives)
-           (assoc "nongnu" package-archives)
+           (assoc "melpa" package-archives)
            (boundp 'package-pinned-packages))
-  (add-to-list 'package-pinned-packages '(org-drill . "nongnu")))
+  (add-to-list 'package-pinned-packages '(org-drill . "melpa")))
 
 (use-package org-drill
   :defer t
@@ -227,12 +239,29 @@ buffer state alone."
       (user-error "No Org note carries the keyword `%s'" my/drill-keyword))
     (my/drill--run (lambda () (org-drill files)) files)))
 
+(defun my/drill--cram-supported-p ()
+  "Return non-nil when the loaded org-drill has a working cram mode.
+
+The fixed code passes cram mode to `org-drill' as its fourth argument;
+the NonGNU ELPA 2.7.0 release has no such argument and a broken
+`org-drill-cram'.  The argument list is the cheapest reliable marker --
+both versions report the same version string."
+  (and (fboundp 'org-drill)
+       (memq 'cram (help-function-arglist 'org-drill t))))
+
 (defun my/drill-cram-all ()
   "Review every card from every deck, due or not.
 Cram mode skips only cards reviewed within `org-drill-cram-hours'.  Meant
 for the days right before an exam; it does not replace regular
-sessions, and the ratings still reschedule the cards."
+sessions, and the ratings still reschedule the cards.
+
+Refuses, with instructions, when the installed org-drill is the NonGNU
+ELPA 2.7.0 release, whose cram mode always fails; see the PACKAGE
+section of this file."
   (interactive)
+  (my/drill--ensure-package)
+  (unless (my/drill--cram-supported-p)
+    (user-error "This org-drill build has a broken cram mode (NonGNU ELPA 2.7.0): M-x package-delete RET org-drill, then restart Emacs to reinstall it from MELPA"))
   (let ((files (my/drill-card-files)))
     (unless files
       (user-error "No Org note carries the keyword `%s'" my/drill-keyword))

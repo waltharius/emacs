@@ -6279,7 +6279,7 @@ than N seconds), ~--report~ (write the report to a file), ~--touched~
 :END:
 
 Spaced repetition over flashcards kept in ordinary Denote notes, on top
-of the =org-drill= package (NonGNU ELPA). A note is a card deck when its
+of the =org-drill= package (installed from MELPA; see [[#drill-package-source][Package source]]). A note is a card deck when its
 file name carries the Denote keyword =karty= (=my/drill-keyword=); the
 set of decks is read from the file names each time and never stored.
 
@@ -6350,6 +6350,44 @@ then =my/drill-buffer=, or place point on the subject heading and use
 
 Appended to the main menu by =my/transient-append=, anchored on =x=.
 Without =12-transient.el= the commands remain available through =M-x=.
+
+** Package source
+:PROPERTIES:
+:CUSTOM_ID: drill-package-source
+:END:
+
+Both NonGNU ELPA and MELPA list org-drill as version 2.7.0, but the code
+differs. The NonGNU ELPA tarball predates the upstream fix of cram mode:
+its =org-drill-cram= fails on every call with
+=(wrong-type-argument symbolp (oref session cram-mode))=, announced at
+installation by the byte-compiler warning /attempt to set non-variable/.
+MELPA builds from the upstream repository, frozen since 2021-04, which
+contains the fix. =org-drill= is pinned to MELPA through
+=package-pinned-packages= when that archive is configured.
+
+The pin does not replace an existing installation. To switch:
+
+#+begin_src emacs-lisp
+;; 1. M-x package-delete RET org-drill
+;; 2. restart Emacs: use-package reinstalls it from MELPA
+#+end_src
+
+Check of the installed build — the fixed code passes cram mode as a
+fourth argument of =org-drill=:
+
+#+begin_src sh
+grep -n 'org-drill scope drill-match nil t' ~/.emacs.d/elpa/org-drill-*/org-drill.el
+#+end_src
+
+=my/drill-cram-all= performs the same check at run time and refuses
+with these instructions instead of failing inside org-drill.
+
+The remaining byte-compiler output at installation is not a fault of
+the installed code: warnings and the =assess= error come from =test/=
+and =robot/= files shipped in the package, which nothing loads; the
+obsolete Org functions used by =org-drill.el= (=org-show-entry=,
+=org-show-subtree=, =org-bracket-link-regexp= and others) are still
+defined as aliases in Org 9.7.
 
 ** Settings changed from org-drill defaults
 :PROPERTIES:
