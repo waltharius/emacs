@@ -6272,3 +6272,114 @@ python3 tools/obsidian_import.py --write --touched /tmp/imported.txt
 Options: ~--vault~, ~--notes~, ~--limit~, ~--settle~ (skip files younger
 than N seconds), ~--report~ (write the report to a file), ~--touched~
 (list of org files created or modified, read by the Emacs front end).
+
+* Flashcards (C-c n r)
+:PROPERTIES:
+:CUSTOM_ID: drill
+:END:
+
+Spaced repetition over flashcards kept in ordinary Denote notes, on top
+of the =org-drill= package (NonGNU ELPA). A note is a card deck when its
+file name carries the Denote keyword =karty= (=my/drill-keyword=); the
+set of decks is read from the file names each time and never stored.
+
+Module: =modules/43-drill.el=
+
+** Card format
+:PROPERTIES:
+:CUSTOM_ID: drill-card-format
+:END:
+
+A simple org-drill card: a heading tagged =drill=, the question as its
+body, the answer in a subheading.
+
+#+begin_example
+,**** Karta :drill:
+Question text.
+
+,***** Odpowiedź
+Answer text.
+#+end_example
+
+- The heading title is shown while the answer is hidden, so it stays
+  neutral (=my/drill-card-title=); a title naming the topic gives the
+  answer away.
+- The answer subheading title (=my/drill-answer-heading=) is not read by
+  org-drill, which hides every subheading of a card.
+- Text in square brackets is hidden as a cloze deletion during review.
+- =drill= must not be placed in =#+filetags:=. Tag inheritance would
+  then mark every heading of the file, answers included.
+
+** Commands
+:PROPERTIES:
+:CUSTOM_ID: drill-commands
+:END:
+
+| Command              | Effect                                                        |
+|----------------------+---------------------------------------------------------------|
+| =my/drill-all=         | review due cards from every deck                              |
+| =my/drill-buffer=      | review due cards in the current buffer, respecting narrowing |
+| =my/drill-tree=        | review due cards in the subtree at point                      |
+| =my/drill-resume=      | resume the session last left with =q= or =e=                  |
+| =my/drill-cram-all=    | review every card from every deck, due or not                 |
+| =my/drill-insert-card= | insert a card and leave point in its answer                   |
+| =my/drill-card-files=  | return the list of deck files (used by the commands above)    |
+
+=my/drill-insert-card= places a new card after the card containing
+point, answer included; under any other heading as its last child; and
+before the first heading as a top-level heading at the end of the
+buffer.
+
+A session limited to one subject: narrow to its subtree with =C-x n s=,
+then =my/drill-buffer=, or place point on the subject heading and use
+=my/drill-tree=.
+
+** Menu (C-c n r)
+:PROPERTIES:
+:CUSTOM_ID: menu-drill
+:END:
+
+| Key | Entry            |
+|-----+------------------|
+| =r=   | All decks        |
+| =b=   | This buffer      |
+| =t=   | Subtree at point |
+| =R=   | Resume last      |
+| =c=   | Cram all decks   |
+| =n=   | New card here    |
+
+Appended to the main menu by =my/transient-append=, anchored on =x=.
+Without =12-transient.el= the commands remain available through =M-x=.
+
+** Settings changed from org-drill defaults
+:PROPERTIES:
+:CUSTOM_ID: drill-settings
+:END:
+
+| Variable                                         | Value  | Reason                                                       |
+|--------------------------------------------------+--------+--------------------------------------------------------------|
+| =org-drill-save-buffers-after-drill-sessions-p= | =nil=  | replaced by a silent save of the touched decks               |
+| =org-drill-add-random-noise-to-intervals-p=     | =t=    | cards added in bulk would otherwise come due on the same days |
+| =org-drill-leech-method=                        | =warn= | =skip= removes repeatedly failed cards from every session     |
+
+The scheduling algorithm (SM5) and the session limits (30 items, 20
+minutes) keep their defaults: =org-drill-maximum-items-per-session= and
+=org-drill-maximum-duration=.
+
+** What org-drill writes
+:PROPERTIES:
+:CUSTOM_ID: drill-side-effects
+:END:
+
+- An =:ID:= property on every card at its first review. The first session
+  over a large deck pauses once while the IDs are created.
+- A =SCHEDULED= date and =DRILL_*= properties on every reviewed card.
+  Decks must therefore stay out of =org-agenda-files=, owned by
+  [[#tasks][37-tasks.el]]; otherwise every card appears in the agenda.
+- The SM5 matrix of optimal factors in =~/.emacs.d/persist/=, updated at
+  the end of each session. Ignored by git: learning data, not
+  configuration.
+
+Every session started from this module saves the modified deck buffers
+when it ends — also after =q=, =e= or =C-g= — and reports the count in
+the echo area. A deck buffer modified before the session is saved too.

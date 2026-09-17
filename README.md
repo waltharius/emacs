@@ -159,7 +159,7 @@ Nothing is vendored and there is no lockfile.
 | Version control | `magit` |
 | Appearance | `modus-themes`, `ef-themes`, `standard-themes`, `doric-themes`, `doom-themes`, `spacious-padding`, `lin`, `pulsar`, `visual-fill-column`, `default-text-scale` |
 | Editing | `which-key`, `vundo`, `undo-fu-session`, `flyspell-correct` |
-| Other | `keyfreq`, `nov` |
+| Other | `keyfreq`, `nov`, `org-drill` |
 
 **External programs.** Each is looked up with `executable-find`, and a
 missing one disables a feature rather than breaking the configuration:
@@ -364,6 +364,12 @@ startup. Optional ones can be removed.
 | `37-tasks.el` | optional | Task capture without leaving the buffer, routed by `#+project:`; owns `org-agenda-files`. |
 | `38-habits.el` | optional | org-habit setup, fast logging, history derived from journal file names. |
 | `39-project-git.el` | optional | Remotes and staleness checks for project repositories. |
+
+### Learning
+
+| Module | | Purpose |
+|--------|---|---------|
+| `43-drill.el` | optional | Flashcards in Denote notes tagged `karty`, reviewed with `org-drill` (`C-c n r`). |
 
 ### Appearance and comfort
 

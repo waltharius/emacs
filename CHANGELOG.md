@@ -21,6 +21,80 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-17a — Flashcards with org-drill
+
+New optional module `modules/43-drill.el`: spaced repetition over
+flashcards kept in Denote notes, on top of the `org-drill` package, with
+a menu under `C-c n r`. Loaded from `init.el` with NOERROR after
+`42-obsidian-import.el`.
+
+**Package choice.** `org-drill` is used rather than a purpose-built
+scheduler: it keeps cards and their scheduling data in the Org files
+themselves, which suits notes synchronised by Syncthing and versioned by
+the idle auto-commit. `org-fc` (history in a separate file) and
+`anki-editor` (cards pushed to Anki) were considered; the first adds a
+second store of state, the second an external application and a sync
+step, neither of which is needed for review on the laptop.
+
+**Source pinning.** org-drill 2.7.0 is on NonGNU ELPA. MELPA's date-based
+version numbers would always win the version comparison, so the stable
+release is pinned through `package-pinned-packages` when the `nongnu`
+archive is present. `:pin nongnu` was rejected: `use-package` signals
+when the archive is missing, and an error in a module aborts `init.el`
+regardless of the NOERROR argument of `load`, which covers only a
+missing file.
+
+**Lazy loading.** `:defer t` with `:commands`; settings in `:config`
+rather than `:custom`, which would load the library at startup to apply
+them (the same reasoning as in `40-markdown.el`).
+
+**Decks by keyword.** A note is a deck when its file name carries the
+Denote keyword `karty` (`my/drill-keyword`). The list is derived from
+file names through `denote-directory-files` and
+`denote-extract-keywords-from-path` on every call, as hub membership is
+in `33-denote-hubs.el`. A fixed file list in `org-drill-scope` was
+rejected because it drifts as decks are renamed or moved between silos;
+the `directory` scope was rejected because decks may live in more than
+one silo.
+
+**Saving.** org-drill ends a session with a `save-some-buffers` prompt.
+That is switched off and replaced by `my/drill--run`, which saves the
+modified deck buffers in `unwind-protect` and reports the count, so a
+session left with `q`, `e` or `C-g` still writes the scheduling data of
+the cards already rated. Relying on the idle auto-commit alone was
+rejected: it saves before committing, but only when Emacs goes idle,
+and a crash in between loses the session.
+
+**Changed defaults.** Random interval noise on, because cards imported
+in bulk share a creation day and would otherwise keep coming due
+together. Leech handling `warn` instead of `skip`, because silently
+dropping the cards failed most often is the wrong behaviour before an
+exam. Algorithm and session limits unchanged.
+
+**Card insertion.** `my/drill-insert-card` inserts a card with a neutral
+heading title (org-drill shows the title while the answer is hidden)
+and an answer subheading, placed after the card containing point or as
+the last child of any other heading. A warning is shown when the
+question contains square brackets, which org-drill hides as a cloze.
+
+**Constraints recorded in the module and in `function_helper.org`.**
+Reviewed cards receive `SCHEDULED` dates, so decks must stay out of
+`org-agenda-files` (37-tasks.el). org-drill adds an `:ID:` to every card
+at its first review. persist.el state (`~/.emacs.d/persist/`) is added to
+`.gitignore`. The `drill` tag must not go into `#+filetags:`.
+
+Not changed: the menu tree in the `08-keybindings.el` help text, which
+already omits the other dynamically appended menus (`p`, `A`, `H`, `!`);
+listing only this one would make the omission less visible, not smaller.
+
+Tested in `emacs -Q --batch` (Emacs 29.3) with Denote and org-drill 2.7.0:
+deck discovery with a dot directory excluded, menu append, both card
+placements, tag alignment, the save after a session, and settings
+applied on load. An interactive review session was not exercised.
+
+Files: `modules/43-drill.el` (new), `init.el`, `function_helper.org`,
+`README.md`, `.gitignore`.
+
 ## Session 2026-09-15b - README: import from Obsidian documented
 
 README.md gains a section on `tools/obsidian_import.py`, placed with the

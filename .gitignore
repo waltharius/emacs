@@ -73,6 +73,10 @@ eln-cache/
 
 auto-save-list/
 transient/
+# persist.el state, written by org-drill (43-drill.el): the SM5 matrix of
+# optimal factors, updated at the end of every review session.  Per-user
+# learning data, not configuration, and it would change on every commit.
+persist/
 url/
 eshell/
 network-security.data

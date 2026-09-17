@@ -145,6 +145,12 @@
   ;; Without this file the import is still available from a shell; only
   ;; the menu entry and the buffer handling around it disappear.
   (load (concat modules-dir "42-obsidian-import.el") t) ; Obsidian import (C-c n t o)
+  ;; Optional (NOERROR): spaced repetition with org-drill.  Loaded after
+  ;; 12-transient.el, whose main menu it appends to, and after
+  ;; 04-denote.el, whose file-name keywords identify the card decks.
+  ;; Without this file org-drill is simply not installed; nothing else
+  ;; refers to it.
+  (load (concat modules-dir "43-drill.el") t) ; Flashcards (C-c n r)
   )
 
 (add-hook 'emacs-startup-hook
