@@ -87,6 +87,18 @@ the pre-commit duplicate scan cannot tell the two apart."
   "Name of the report buffer."
   :type 'string :group 'my-journal-gaps)
 
+(defcustom my/journal-gaps-tab-name "Stats"
+  "Tab the gap report opens in.
+
+Its own option rather than a reference to `my/notes-stats-tab-name',
+so that this module keeps working with 36-notes-stats.el deleted --
+the default merely happens to name the same tab, because both reports
+answer questions about the collection rather than showing a note.
+
+Set to nil to open the report in the current window."
+  :type '(choice (const :tag "Current window" nil) string)
+  :group 'my-journal-gaps)
+
 (defcustom my/journal-gaps-extra-required nil
   "Metrics keywords required in addition to `my/journal-metrics-fields'.
 Normally empty: the required set is derived, so that adding a field in
@@ -348,11 +360,12 @@ Keys in the report:
       (setq my/journal-gaps--days (or days my/journal-gaps-default-days))
       (setq my/journal-gaps--filter 'all)
       (my/journal-gaps-refresh))
-    ;; The history tab if 23-fixed-tabs.el is present, the current
-    ;; window otherwise.  A report is a place, not a document, and it
-    ;; belongs with the other places.
-    (when (fboundp 'my/fixed-tab-goto)
-      (my/fixed-tab-goto (bound-and-true-p my/dashboards-tab-name)))
+    ;; The tab named by `my/journal-gaps-tab-name' if 23-fixed-tabs.el
+    ;; is present, the current window otherwise.  A report is a place,
+    ;; not a document, and it belongs with the other places.
+    (when (and my/journal-gaps-tab-name
+               (fboundp 'my/fixed-tab-goto))
+      (my/fixed-tab-goto my/journal-gaps-tab-name))
     (switch-to-buffer buffer)))
 
 ;;;###autoload

@@ -97,6 +97,21 @@
   "Name of the statistics buffer."
   :type 'string :group 'my-notes-stats)
 
+(defcustom my/notes-stats-tab-name "Stats"
+  "Tab the report, its drill-down lists and its export open in.
+
+Its own tab rather than the History tab of 21-dashboards.el, which is
+where this used to land.  A tab is a place (see 23-fixed-tabs.el), and
+the two are different places: History holds the list-and-preview panes
+for reading old entries, statistics hold one screen of figures about
+the collection.  Sharing a tab meant every run of the report replaced
+whatever the History tab was showing.
+
+Set to nil to open the report in the current window and leave tabs
+alone."
+  :type '(choice (const :tag "Current window" nil) string)
+  :group 'my-notes-stats)
+
 (defcustom my/notes-stats-top-keywords 12
   "How many of the most-used keywords to list."
   :type 'integer :group 'my-notes-stats)
@@ -254,6 +269,15 @@ likely to be opened."
     (user-error "27-denote-identifiers.el is not loaded"))
   (unless (fboundp 'my/maintenance-file-keywords)
     (user-error "26-maintenance.el is not loaded")))
+
+(defun my/notes-stats--goto-tab ()
+  "Switch to `my/notes-stats-tab-name' when tabs are available.
+Does nothing when 23-fixed-tabs.el is absent or the option is nil, so
+the report still opens -- in the current window -- with either
+missing."
+  (when (and my/notes-stats-tab-name
+             (fboundp 'my/fixed-tab-goto))
+    (my/fixed-tab-goto my/notes-stats-tab-name)))
 
 (defun my/notes-stats--disk-rows ()
   "Return (NAME COUNT BYTES) for each top-level entry under `my-notes-dir'.
@@ -498,6 +522,10 @@ FILE, when non-nil, as a button beneath it."
                                          (my/notes-stats--title (cdr entry)))
             (insert "\n")))
         (goto-char (point-min))))
+    ;; The lists belong with the report they were opened from, so they
+    ;; follow it into the Stats tab rather than landing wherever the
+    ;; report happened to be invoked from.
+    (my/notes-stats--goto-tab)
     (switch-to-buffer buffer)))
 
 (defun my/notes-stats-show-singletons ()
@@ -959,6 +987,7 @@ them here would be a second place to keep them right."
       ;; pressing `c'.
       (setq-local my/notes-stats--deep deep)
       (my/notes-stats--render-org data))
+    (my/notes-stats--goto-tab)
     (find-file target)
     (message "Written.  C-c p exports it to PDF")))
 
@@ -996,9 +1025,7 @@ with working `denote:' links."
     (with-current-buffer buffer
       (my/notes-stats-mode)
       (my/notes-stats--render (my/notes-stats--collect)))
-    (when (and (fboundp 'my/fixed-tab-goto)
-               (boundp 'my/dashboards-tab-name))
-      (my/fixed-tab-goto my/dashboards-tab-name))
+    (my/notes-stats--goto-tab)
     (switch-to-buffer buffer)
     (delete-other-windows)))
 
