@@ -116,6 +116,29 @@ alone."
   "How many of the most-used keywords to list."
   :type 'integer :group 'my-notes-stats)
 
+(defcustom my/notes-stats-silos '("journal" "pks" "docu")
+  "Top-level directories treated as silos in the LARGEST NOTES section.
+
+Only these three, deliberately.  `inbox' holds notes that have not been
+filed yet and `attachments' holds no notes at all, so a ranking that
+included them would answer \"which staged file is biggest\" rather than
+\"which note have I written most in\".
+
+Names as they appear under `my-notes-dir', the same spelling
+`my/notes-stats--top-directory' returns."
+  :type '(repeat string) :group 'my-notes-stats)
+
+(defcustom my/notes-stats-largest-overall 5
+  "How many notes the overall LARGEST NOTES ranking lists."
+  :type 'integer :group 'my-notes-stats)
+
+(defcustom my/notes-stats-largest-per-silo 3
+  "How many notes each per-silo LARGEST NOTES ranking lists.
+Org and Markdown are ranked separately, so a silo shows up to twice
+this many rows.  A silo holding fewer notes than this shows all of
+them rather than padding the list."
+  :type 'integer :group 'my-notes-stats)
+
 (defcustom my/notes-stats-growth-months 12
   "How many recent months the monthly chart covers."
   :type 'integer :group 'my-notes-stats)
@@ -393,20 +416,90 @@ yesterday is still a streak at nine in the morning."
 (defvar-local my/notes-stats--deep nil
   "Cached plist from `my/notes-stats-compute-deep', or nil.")
 
+(defun my/notes-stats--silo-markdown-files ()
+  "Return the Markdown notes in the silos named by `my/notes-stats-silos'.
+
+`my/denote-all-files' lists `.org' only, which is right for every other
+figure in this report -- the collection is an Org collection and the
+Markdown notes are what the Obsidian import has not converted yet.  The
+LARGEST NOTES section is the one place they are counted, and they are
+counted in a ranking of their own rather than mixed into the Org one,
+because \"the longest thing I have written\" and \"the longest thing
+still waiting to be converted\" are different questions."
+  (let ((root (file-name-as-directory (expand-file-name my-notes-dir))))
+    (seq-remove
+     (lambda (file) (string-match-p my/denote-scan-exclude-regexp file))
+     (seq-mapcat
+      (lambda (silo)
+        (let ((dir (expand-file-name silo root)))
+          (when (file-directory-p dir)
+            (directory-files-recursively dir "\\.md\\'"))))
+      my/notes-stats-silos))))
+
+(defun my/notes-stats--rank (records count)
+  "Return the COUNT entries of RECORDS with the most words.
+RECORDS is a list of (FILE . WORDS).  Fewer entries are returned when
+RECORDS holds fewer, rather than the list being padded."
+  (seq-take (sort (copy-sequence records)
+                  (lambda (a b) (> (cdr a) (cdr b))))
+            count))
+
+(defun my/notes-stats--largest (records)
+  "Build the LARGEST NOTES rankings from RECORDS, a list of (FILE . WORDS).
+
+Returns a plist:
+
+  :overall  the longest notes across all silos, either extension
+  :silos    an alist of (SILO . (:org RECORDS :md RECORDS))
+
+Ranked by words rather than by bytes, because bytes answer a question
+about disk and this section is asked to answer one about writing: a
+note carrying one photograph outweighs a chapter when counted in
+bytes."
+  (let ((in-silos (seq-filter
+                   (lambda (record)
+                     (member (my/notes-stats--top-directory (car record))
+                             my/notes-stats-silos))
+                   records)))
+    (list
+     :overall (my/notes-stats--rank in-silos my/notes-stats-largest-overall)
+     :silos
+     (mapcar
+      (lambda (silo)
+        (let ((here (seq-filter
+                     (lambda (record)
+                       (equal silo (my/notes-stats--top-directory (car record))))
+                     in-silos)))
+          (cons silo
+                (list :org (my/notes-stats--rank
+                            (seq-filter (lambda (r) (equal "org" (file-name-extension (car r))))
+                                        here)
+                            my/notes-stats-largest-per-silo)
+                      :md (my/notes-stats--rank
+                           (seq-filter (lambda (r) (equal "md" (file-name-extension (car r))))
+                                       here)
+                           my/notes-stats-largest-per-silo)))))
+      my/notes-stats-silos))))
+
 (defun my/notes-stats--deep-scan (files)
   "Read every file in FILES and return a plist of content statistics."
-  (let ((words 0) (links 0) (no-links 0)
-        (targets (make-hash-table :test #'equal))
-        (identifiers (make-hash-table :test #'equal))
-        (reporter (make-progress-reporter "Reading notes... " 0 (length files)))
-        (index 0))
+  (let* ((markdown (my/notes-stats--silo-markdown-files))
+         (words 0) (links 0) (no-links 0)
+         (records nil)
+         (targets (make-hash-table :test #'equal))
+         (identifiers (make-hash-table :test #'equal))
+         (reporter (make-progress-reporter
+                    "Reading notes... " 0 (+ (length files) (length markdown))))
+         (index 0))
     (dolist (file files)
       (progress-reporter-update reporter (setq index (1+ index)))
       (when-let* ((id (my/notes-stats--identifier file)))
         (puthash id file identifiers))
       (with-temp-buffer
         (insert-file-contents file)
-        (setq words (+ words (count-words (point-min) (point-max))))
+        (let ((here-words (count-words (point-min) (point-max))))
+          (setq words (+ words here-words))
+          (push (cons file here-words) records))
         (goto-char (point-min))
         (let ((here 0))
           (while (re-search-forward "denote:\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)" nil t)
@@ -414,6 +507,14 @@ yesterday is still a streak at nine in the morning."
             (puthash (match-string 1) t targets))
           (setq links (+ links here))
           (when (zerop here) (setq no-links (1+ no-links))))))
+    ;; Markdown notes are read for their length only: they take no part
+    ;; in the word, link or orphan totals, which describe the Org
+    ;; collection.  See `my/notes-stats--silo-markdown-files'.
+    (dolist (file markdown)
+      (progress-reporter-update reporter (setq index (1+ index)))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (push (cons file (count-words (point-min) (point-max))) records)))
     (progress-reporter-done reporter)
     ;; An orphan is a note nothing links TO.  Distinct from a note that
     ;; links to nothing: a reference note may legitimately have no
@@ -423,7 +524,8 @@ yesterday is still a streak at nine in the morning."
       (maphash (lambda (id _file)
                  (unless (gethash id targets) (setq orphans (1+ orphans))))
                identifiers)
-      (list :words words :links links :no-links no-links :orphans orphans))))
+      (list :words words :links links :no-links no-links :orphans orphans
+            :largest (my/notes-stats--largest (nreverse records))))))
 
 ;; ============================================================
 ;; OPENING NOTES FROM THE REPORT
@@ -563,6 +665,19 @@ calls it."
                ""))
      (mapcar (lambda (file) (cons (my/notes-stats--top-directory file) file))
              bare))))
+
+(defun my/notes-stats--largest-rows (records indent)
+  "Insert RECORDS, a list of (FILE . WORDS), one per line under INDENT.
+The title is a button, like every other note in this report; the word
+count is written first so that the numbers line up and the ranking can
+be read down the column."
+  (if (null records)
+      (insert indent (my/notes-stats--dim "none\n"))
+    (dolist (record records)
+      (insert (format "%s%6d  " indent (cdr record)))
+      (my/notes-stats--note-button (car record)
+                                   (my/notes-stats--title (car record)))
+      (insert "\n"))))
 
 (defun my/notes-stats--heading (text)
   "Insert TEXT as a section heading."
@@ -784,6 +899,32 @@ calls it."
                               (number-to-string (plist-get deep :orphans))
                               "unreachable by following links")))
 
+    ;; -- Largest notes -----------------------------------------
+    ;; Only after `c': the ranking is by words, and words are what the
+    ;; deep scan is for.  Counting by bytes instead would need no scan
+    ;; and answer a different question -- one photograph outweighs a
+    ;; chapter in bytes.
+    (when my/notes-stats--deep
+      (let ((largest (plist-get my/notes-stats--deep :largest)))
+        (my/notes-stats--heading
+         (format "Largest notes, in words (silos: %s)"
+                 (string-join my/notes-stats-silos ", ")))
+        (insert "  " (propertize "across all silos" 'face
+                                 (my/notes-stats--face 'my/dashboard-hint 'shadow))
+                "\n")
+        (my/notes-stats--largest-rows (plist-get largest :overall) "    ")
+        (dolist (entry (plist-get largest :silos))
+          (dolist (pair '((:org . ".org") (:md . ".md")))
+            (let ((records (plist-get (cdr entry) (car pair))))
+              ;; A silo with no Markdown at all prints no heading for
+              ;; it, rather than a heading over the word "none".
+              (when records
+                (insert "\n  " (propertize (format "%s %s" (car entry) (cdr pair))
+                                           'face (my/notes-stats--face
+                                                  'my/dashboard-hint 'shadow))
+                        "\n")
+                (my/notes-stats--largest-rows records "    ")))))))
+
     (insert "\n" (my/notes-stats--dim
                   "  g refresh   c content   e denote-explore   x export   q quit\n"))
     (goto-char (point-min))))
@@ -932,7 +1073,21 @@ PDF font can be relied on to have."
         (insert (format "| Words | %d |\n" (plist-get deep :words)))
         (insert (format "| Denote links | %d |\n" (plist-get deep :links)))
         (insert (format "| Link to nothing | %d |\n" (plist-get deep :no-links)))
-        (insert (format "| Nothing links to | %d |\n" (plist-get deep :orphans)))))))
+        (insert (format "| Nothing links to | %d |\n" (plist-get deep :orphans)))
+        (let ((largest (plist-get deep :largest)))
+          (insert "\n* Largest notes, in words\n")
+          (insert "\n** Across all silos\n\n| Words | Note |\n|---|---|\n")
+          (dolist (record (plist-get largest :overall))
+            (insert (format "| %d | %s |\n" (cdr record)
+                            (my/notes-stats--org-link (car record)))))
+          (dolist (entry (plist-get largest :silos))
+            (dolist (pair '((:org . ".org") (:md . ".md")))
+              (when-let* ((records (plist-get (cdr entry) (car pair))))
+                (insert (format "\n** %s %s\n\n| Words | Note |\n|---|---|\n"
+                                (car entry) (cdr pair)))
+                (dolist (record records)
+                  (insert (format "| %d | %s |\n" (cdr record)
+                                  (my/notes-stats--org-link (car record)))))))))))))
 
 ;; ============================================================
 ;; COMMANDS
