@@ -21,6 +21,116 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-18c — Largest notes by words, standard pages in the mode line, quoted phrases wrapped whole
+
+The three remaining items from the list of accumulated irritations.
+
+### 36-notes-stats.el — which notes are the longest
+
+New section, filled by `c` along with Content: the longest notes across
+the three silos, then the longest per silo, Org and Markdown ranked
+separately.
+
+Ranked by WORDS, not bytes. Bytes answer a question about disk and the
+answer is dominated by whichever note carries a photograph; the question
+here is about writing. Words are also why the section needs `c` — every
+note has to be read, which is the pass that already fills Content, so
+the per-file counts are recorded there rather than scanned twice.
+
+`my/notes-stats-silos` is `journal`, `pks`, `docu` and deliberately not
+`inbox`: a staged note answers "what is waiting to be filed", not "what
+have I written most in". `my/notes-stats-largest-overall` (5) and
+`my/notes-stats-largest-per-silo` (3) set the lengths; a silo holding
+fewer notes than that shows what it has rather than padding.
+
+Markdown needed its own scan. `my/denote-all-files` lists `.org` only,
+which is correct for every other figure in the report — the collection
+is an Org collection and the Markdown notes are what the Obsidian import
+has not converted yet. Widening it would have changed the word, link and
+orphan totals as a side effect of adding a ranking. So
+`my/notes-stats--silo-markdown-files` collects them separately, they are
+read for length only, and they are ranked apart: "the longest thing I
+have written" and "the longest thing still waiting to be converted" are
+different questions and a merged ranking would answer neither.
+
+Both renderers carry the section; the Org export lists the same
+rankings as tables of `denote:` links.
+
+### 45-standard-pages.el — 1800 characters, in the mode line
+
+The Polish publishing unit (`strona znormalizowana`, 1800 characters
+including spaces) shown beside the word count, so the figure a
+commission is written in is on screen while writing.
+`my/standard-page-characters` holds the divisor for the 1600 convention.
+
+Prose only, which is the whole difficulty. Skipped: `#+keyword:` lines
+(which covers `#+begin_` and `#+end_` directives), property and LOGBOOK
+drawers, Org comments, Markdown fences and YAML front matter. Kept:
+paragraphs, headline text without its stars, table rows, and the BODY of
+quote and source blocks — block contents are exported and read as text,
+only the directives around them are machinery.
+
+Each counted line contributes its trimmed length plus one character for
+the break, which is the space that break becomes once the paragraph is
+exported. A note written with hard line breaks therefore differs from
+the same text soft-wrapped by a fraction of a percent. No counter
+reading Org source can match what a publisher counts in the exported
+file, and pretending otherwise by exporting to measure would cost
+seconds per keystroke.
+
+Cost: the mode line is redrawn after every keystroke, so the result is
+cached against `buffer-chars-modified-tick`, which changes exactly when
+the text does. The region bounds are part of the key, so a region and
+the whole buffer do not evict each other.
+
+`my/word-count-modeline` in 01-ui.el became region-aware at the same
+time and shows both figures in brackets when a region is active. One
+number describing the region and the other the buffer would be a
+reading trap. The page figure is asked for through `fboundp`: 01-ui.el
+owns the mode line and must not depend on what contributes to it, so
+without 45-standard-pages.el the segment is the word count alone.
+
+Rejected: putting the counter in `mode-line-misc-info`, which is the
+seam 13-centered-writing.el uses. It would have placed the pages at the
+far end of the mode line, away from the word count they belong beside.
+
+### 02b-bold-marker.el — a quoted phrase wraps whole
+
+Typing a trigger after a closing quote did nothing, because the hook
+required a word constituent in front of the trigger and a quote is not
+one. It now walks back to the quote that opened the phrase and puts the
+marker in front of it:
+
+    "a quoted phrase"*   ->   *"a quoted phrase"*
+
+Markers outside the quotes, so one keystroke after the closing quote
+emphasises the phrase together with its punctuation. Org renders it: the
+default `org-emphasis-regexp-components` forbids only whitespace at the
+border of an emphasised span.
+
+The backward search crosses hard-broken lines, which docu notes need,
+but stops at a blank line
+(`my/inline-marker-quote-stop-at-paragraph`, nil to search the whole
+buffer). A quote that appears to open in an earlier paragraph is in
+practice a stray quote somewhere above, and wrapping everything between
+it and the cursor in bold is a worse outcome than leaving the typed
+character alone.
+
+When no opening quote is found nothing happens and the typed character
+stays, so the buffer shows `"*`. That was asked for explicitly and it is
+the right behaviour: the mark says either the opening quote is missing
+or the search did not reach it. Wrapping the last word instead would
+hide both.
+
+ASCII double quote only. That is what `electric-pair-mode` inserts in
+these buffers; the typographic pairs are produced at export time by
+`org-export-with-smart-quotes`, not typed.
+
+The wrapping arithmetic that both branches share was extracted as
+`my/inline-marker--wrap`, so the marker positions recorded for `C-=`
+cannot drift between the word case and the quote case.
+
+---
 ## Session 2026-09-18b — Deleting a note offers to take its attachments; helper tables narrowed
 
 ### 05-notes.el, 31-org-images.el — attachments follow the note

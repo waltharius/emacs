@@ -5365,6 +5365,32 @@ anyway.
 | Keywords | distinct, assignments, singletons and no-keyword notes (both clickable), top 12 |
 | Notes created | per month for the last 12, then per year for the whole history |
 | Content | words, links, notes linking to nothing, notes nothing links to — after =c= |
+| Largest notes | the longest notes in words, overall and per silo — after =c= |
+
+** Largest notes
+
+Which notes have the most *words* in them, listed after =c=. Three
+rankings:
+
+- across all silos, the longest =my/notes-stats-largest-overall= (5)
+- per silo, the longest =my/notes-stats-largest-per-silo= (3) Org notes
+- per silo, the same number of Markdown notes, when the silo has any
+
+Silos are =my/notes-stats-silos=, which is =journal=, =pks=, =docu= and
+deliberately not =inbox=: staged notes answer "what is waiting to be
+filed", not "what have I written most in".
+
+*Why words and not bytes.* Bytes answer a question about disk, and one
+photograph outweighs a chapter. Words are also why the section needs
+=c=: every note has to be read, which is the same pass that fills
+[[#notes-stats][Content]].
+
+*Why Org and Markdown are ranked separately.* =my/denote-all-files=
+lists =.org= only, and every other figure in this report describes the
+Org collection. Markdown notes are scanned here alone, for their length,
+and kept in a ranking of their own — "the longest thing I have written"
+and "the longest thing still waiting to be converted" are different
+questions. A silo with no Markdown shows no Markdown ranking.
 
 ** Keys
 
@@ -5909,6 +5935,123 @@ Keyword sorting is not lost with =denote-explore-sort-keywords= gone:
 Denote sorts keywords on every rename while =denote-sort-keywords= is
 non-nil, so the commands above maintain it note by note.
 
+* Standard Pages
+:PROPERTIES:
+:CUSTOM_ID: standard-pages
+:END:
+
+How long the text is, in *standard pages* — the Polish publishing and
+translation unit of *1800 characters including spaces* (=strona
+znormalizowana=). Shown in the mode line beside the word count, so the
+figure a commission or a requirement is written in is on screen while
+writing rather than worked out afterwards.
+
+Module: =modules/45-standard-pages.el= | mode line owned by
+=modules/01-ui.el=
+
+=my/standard-page-characters= holds the divisor; some literary contracts
+use 1600, which is one setting away.
+
+** What counts as prose
+
+Only what ends up in the exported document. Skipped:
+
+- =#+keyword:= lines, which includes =#+begin_= and =#+end_= directives
+- property and =LOGBOOK= drawers, opener to =:END:=
+- Org comment lines (=#=)
+- Markdown code fences and YAML front matter
+
+Kept: paragraphs, headline text without its stars, table rows, and the
+*body* of a quote or source block. Block contents are exported and read
+as text; only the two directives around them are machinery.
+
+** The approximation
+
+Each counted line contributes its trimmed length plus one character for
+the line break, which is the space that break becomes once the paragraph
+is exported. A note written with hard line breaks therefore counts a
+fraction of a percent differently from the same text soft-wrapped. No
+counter reading Org source can match what a publisher counts in the
+exported file; this one answers "roughly how long is this" while typing.
+
+** Region, and the cost of asking
+
+With a region active, the word count *and* the page count describe the
+region, and both are shown in brackets: =[412 0.3p]=. One of each would
+be a reading trap. Without a region, both describe the buffer: =3124
+2.1p=.
+
+The mode line is redrawn after every keystroke, so the count is cached
+against =buffer-chars-modified-tick=, which changes exactly when the
+text does. The region bounds are part of the cache key, so a region and
+the whole buffer do not evict each other.
+
+=M-x my/standard-pages-report= prints the exact figures: prose
+characters, words, pages, and the divisor in use.
+
+Function: =my/standard-pages-report= | Module: =modules/45-standard-pages.el=
+
+* Inline Emphasis Markers
+:PROPERTIES:
+:CUSTOM_ID: inline-markers
+:END:
+
+Obsidian-style emphasis: typing a trigger character straight after a
+word wraps that word in Org markup, with no selecting and no second
+keystroke.
+
+Module: =modules/02b-bold-marker.el= | Org buffers only
+
+| Typed | Becomes | Meaning |
+|-------+---------+---------|
+| =word*= | =*word*= | bold |
+| =word~= | =~word~= | code |
+| =word== | ===word=== | verbatim |
+
+=/= and =_= were triggers and were removed in 2026-08: both occur far
+more often as ordinary punctuation — paths, URLs, dates, this/that,
+file names — and a trigger that fires unasked costs an undo and breaks
+the sentence being written.
+
+** A quoted phrase is wrapped whole
+
+Typing the trigger right after a *closing quote* walks back to the quote
+that opened the phrase and puts the marker in front of it:
+
+: "a quoted phrase"*   ->   *"a quoted phrase"*
+
+The markers land *outside* the quotes, so one keystroke after the
+closing quote emphasises the phrase together with its punctuation. Org
+renders that: the default =org-emphasis-regexp-components= forbids only
+whitespace at the border of an emphasised span, and a quote is not
+whitespace.
+
+The search walks back over as many hard-broken lines as the phrase
+needs — docu notes are written that way — but stops at a blank line.
+=my/inline-marker-quote-stop-at-paragraph= set to nil searches to the
+beginning of the buffer instead. The limit is there because a quote that
+appears to open in an earlier paragraph is in practice a stray quote
+somewhere above, and wrapping everything between it and the cursor in
+bold is a worse outcome than leaving the typed character alone.
+
+*When no opening quote is found, nothing happens* and the typed
+character stays where it was, so the buffer shows ="*=. That is the
+signal: either the opening quote is missing, or it is further away than
+the search reached. Silently wrapping the last word instead would hide
+the problem.
+
+Only the ASCII double quote is handled. That is what =electric-pair-mode=
+inserts in these buffers; the typographic pairs are produced at export
+time by =org-export-with-smart-quotes=, not typed.
+
+** C-= extends the span backward
+
+After a wrap, =C-= moves the opening marker one word further left, and
+repeats. The state is dropped as soon as point leaves the end of the
+wrapped span, so the key is only ever live immediately after a wrap.
+
+Function: =my/inline-marker-expand-backward= | Module: =modules/02b-bold-marker.el=
+
 * Inline Images On and Off
 :PROPERTIES:
 :CUSTOM_ID: image-display
@@ -6300,7 +6443,9 @@ syntax. Markdown notes are outside all of them, deliberately:
 - *Not counted* by =my/notes-stats= ([[#notes-stats][Notes
   statistics]]) and *not checked* by =C-c n != ([[#maintenance][Maintenance]]).
   A Markdown note is invisible to the integrity checks and to the
-  collection totals.
+  collection totals. The one exception is the Largest notes ranking,
+  which scans Markdown in the silos separately and lists it in a
+  ranking of its own.
 - *No export.* =my/org-export-to-pdf= and the ODT/DOCX path run
   through Org's exporters. Use =markdown-export= or Pandoc directly.
 - *No transclusion, no citations, no org-noter.* All three are Org
