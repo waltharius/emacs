@@ -35,19 +35,34 @@ commands — =M-UP=, =M-RET= and the rest below. =C-c C-c= is needed only
 after editing the text directly, which is what deleting lines with
 =C-k= or a region is.
 
-| Key | Command | Effect |
-|-----+---------+--------|
-| =C-c C-c= | =org-ctrl-c-ctrl-c= | On a numbered item: renumber the list. On an item with a checkbox: toggle it. Either way: verify bullets and indentation in the whole list |
-| =M-RET= | =org-meta-return= | New item at the same level. In the middle of an item, splits it |
-| =M-S-RET= | =org-insert-todo-heading= | New item with a checkbox |
-| =M-UP= / =M-DOWN= | =org-move-item-up= / =org-move-item-down= | Move the item with its subitems; renumbering is automatic |
-| =M-LEFT= / =M-RIGHT= | =org-do-promote= / =org-do-demote= | Indent or outdent the item, leaving its children where they are |
-| =M-S-LEFT= / =M-S-RIGHT= | =org-promote-subtree= / =org-demote-subtree= | The same, taking the subitems along |
-| =C-c -= | =org-cycle-list-bullet= | Cycle the whole list through =-=, =+=, =*=, =1.=, =1)=. With an active region, turn every line into an item; on an ordinary line, turn it into one |
-| =C-c ^= | =org-sort-list= | Sort the list. Prompts: numerically, alphabetically, by time, by checkbox state, or a custom function. A capital letter reverses the order |
-| =C-c *= | =org-ctrl-c-star= | Turn the item into a headline |
-| =C-c C-*= | =org-list-make-subtree= | Turn the whole list into a subtree; checkboxes become =TODO= / =DONE= |
-| =TAB= | =org-cycle= | Fold the item. In a new, empty item, demote it into the one above |
+- =C-c C-c= (=org-ctrl-c-ctrl-c=) ::
+  On a numbered item: renumber the list. On an item with a checkbox:
+  toggle it. Either way: verify bullets and indentation in the whole
+  list.
+- =M-RET= (=org-meta-return=) ::
+  New item at the same level. Used in the middle of an item, splits it.
+- =M-S-RET= (=org-insert-todo-heading=) ::
+  New item with a checkbox.
+- =M-UP= / =M-DOWN= (=org-move-item-up= / =org-move-item-down=) ::
+  Move the item with its subitems. Renumbering is automatic.
+- =M-LEFT= / =M-RIGHT= (=org-do-promote= / =org-do-demote=) ::
+  Indent or outdent the item, leaving its children where they are.
+- =M-S-LEFT= / =M-S-RIGHT= (=org-promote-subtree= / =org-demote-subtree=) ::
+  The same, taking the subitems along.
+- =C-c -= (=org-cycle-list-bullet=) ::
+  Cycle the whole list through =-=, =+=, =*=, =1.=, =1)=. With an active
+  region, turn every line into an item; on an ordinary line, turn that
+  line into one.
+- =C-c ^= (=org-sort-list=) ::
+  Sort the list. Prompts for the method: numerically, alphabetically, by
+  time, by checkbox state, or a custom function. A capital letter
+  reverses the order.
+- =C-c *= (=org-ctrl-c-star=) ::
+  Turn the item into a headline.
+- =C-c C-*= (=org-list-make-subtree=) ::
+  Turn the whole list into a subtree; checkboxes become =TODO= / =DONE=.
+- =TAB= (=org-cycle=) ::
+  Fold the item. In a new, empty item, demote it into the one above.
 
 To make a list start at a number other than 1, write =[@20]= at the
 beginning of the item text. Any item may carry one, which forces the
@@ -60,10 +75,13 @@ numbering from there on.
 
 =C-c C-x C-v= is Org's own key, and what it does changed with Org 9.8:
 
-| Org | Command | Default scope |
-|-----+---------+---------------|
-| up to 9.7 | =org-toggle-inline-images-command= | the image at point, or the current section. =C-u= for the whole buffer |
-| 9.8 and later | =org-link-preview= | the image at point, the active region, or the current entry. =C-u= clears instead of showing; =C-u C-u= shows the whole buffer; =C-u C-u C-u= clears the whole buffer |
+- Org up to 9.7 — =org-toggle-inline-images-command= ::
+  Acts on the image at point, or on the current section. =C-u= for the
+  whole buffer.
+- Org 9.8 and later — =org-link-preview= ::
+  Acts on the image at point, the active region, or the current entry.
+  =C-u= clears instead of showing, =C-u C-u= shows the whole buffer,
+  =C-u C-u C-u= clears the whole buffer.
 
 Neither default is "turn the pictures off for the whole note while I
 write", and neither is remembered when the file is closed. That is what
@@ -1682,13 +1700,47 @@ Identifiers are read with =my/denote--file-identifier=, which lives in
 :CUSTOM_ID: fn-my-denote-delete-note
 :END:
 
-Deletes current note file and kills its buffer. If tracked by Git, uses
-=git rm -f=; otherwise plain =delete-file=. Prompts for confirmation.
+Deletes the current note file and kills its buffer. If tracked by Git,
+uses =git rm -f=; otherwise plain =delete-file=. Prompts for
+confirmation.
 
 *Warning:* =git rm -f= bypasses staging — deletion is immediate in the
 working tree. Commit or stash important changes first.
 
+**** Attachments go with it, if they are the note's alone
+
+After the note is confirmed, a second question offers to delete the
+attachments belonging to it. Nothing else in the configuration collects
+orphaned attachments, so without the offer they stay in
+=my/org-image-attachments-directory= until the folder is audited by
+hand — a job nobody schedules.
+
+A file counts as belonging to the note when *either* its name begins
+with the note's Denote identifier, which is how =my/org-image-insert=
+names everything it stores, *or* a link in the note resolves to it
+inside the attachments directory. The union, not the intersection: an
+image whose link was deleted from the text still belongs to the note by
+its name, and a hand-named image still belongs to it by the link.
+Requiring both would leave exactly the orphans this is for.
+
+*Shared attachments are never offered.* Every candidate is searched for
+across the notes tree first, and one that any other note mentions is
+kept and reported. Ripgrep does the search when installed, plain =grep=
+otherwise; when neither is present nothing is offered and the message
+says why, because deleting a file another note points at is worse than
+leaving a stray one behind.
+
+The live buffer is read rather than the file on disk, so a link added
+and not yet saved still counts.
+
+=my/denote-delete-attachments= controls the offer: =ask= (default),
+=always=, or =never=. The discovery lives in
+=my/org-image-note-attachments= (=31-org-images.el=), the module that
+owns the attachments directory; with that module absent the note is
+deleted on its own, as before.
+
 Function: =my/denote-delete-note= | Module: =modules/05-notes.el=
+Function: =my/org-image-note-attachments= | Module: =modules/31-org-images.el=
 
 ** C-c n x — Export
 :PROPERTIES:
@@ -5919,10 +5971,10 @@ Markdown notes is =my/markdown-display-images-on-open=
 
 | Missing module | Effect |
 |----------------+--------|
-| =12-transient.el= | no =m= entry in the View menu; =C-c u i= still works |
-| =40-markdown.el= | the Markdown half is never reached, since no buffer is in =markdown-mode= |
+| =12-transient.el= | no =m= entry; =C-c u i= still works |
+| =40-markdown.el= | no Markdown buffer exists to toggle |
 | =00-core.el= | the choice is applied but not recorded |
-| =31-org-images.el= | none — the two modules share no code on purpose |
+| =31-org-images.el= | none; no code is shared, on purpose |
 
 * Global Keybindings
 :PROPERTIES:

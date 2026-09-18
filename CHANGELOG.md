@@ -21,6 +21,69 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-18b — Deleting a note offers to take its attachments; helper tables narrowed
+
+### 05-notes.el, 31-org-images.el — attachments follow the note
+
+`my/denote-delete-note` (`C-c n d d`) removed the note and left its
+pictures behind. Nothing else in the configuration collects orphaned
+attachments, so `my/org-image-attachments-directory` grew with every
+deletion until somebody audited it by hand.
+
+The command now asks a second question, after the note is confirmed and
+before anything is deleted, so that answering no still leaves a coherent
+state. `my/denote-delete-attachments` sets the behaviour: `ask`
+(default), `always`, `never`.
+
+Discovery lives in 31-org-images.el, as `my/org-image-note-attachments`,
+because that module owns the attachments directory; 05-notes.el reaches
+it through `fboundp`, so deleting the image module leaves the old
+note-only behaviour rather than a void-function backtrace. The reverse
+split — putting the deletion in 31 — was rejected: the git-aware
+deletion already existed in 05 and duplicating it would have been a
+second place to keep right. It was extracted as `my/denote--delete-file`
+and is now used for the note and for each attachment alike.
+
+A file belongs to a note when EITHER its name begins with the note's
+identifier (which is how `my/org-image--target` names what it stores) OR
+a link in the note resolves to it inside the attachments directory
+(which covers files put there by hand or by the Obsidian import). Union
+rather than intersection: an image whose link was deleted from the text
+still belongs by name, a hand-named image still belongs by link, and
+requiring both would leave precisely the orphans this is meant to catch.
+
+Shared attachments are held back. Every candidate is searched for across
+the notes tree by bare file name — not by path, because the same file is
+linked relatively from different silos and the written paths therefore
+differ — and one mentioned by any other note is kept and reported.
+Ripgrep when installed, for the reasons 41-notes-search.el gives; plain
+`grep -rlF --exclude-dir=.*` otherwise. With neither available the check
+cannot run, and rather than guess, nothing is offered and the message
+says why: deleting a file another note points at is a worse failure than
+leaving a stray one on disk.
+
+The note text is read from the live buffer when one is visiting the
+file, so a link added and not yet saved still counts. Markdown inline
+links are matched alongside Org bracket links, since the collection
+holds both. Targets carrying a scheme (`denote:`, `https:`, `id:`) are
+skipped — only a path can name a file on disk.
+
+Not done, deliberately: no trash-can deletion. The configuration relies
+on btrfs snapshots and git for recovery, and introducing a third
+mechanism for one command would make the recovery story less clear
+rather than more.
+
+### function_helper.org — two tables rewritten as description lists
+
+The plain-list and image-preview tables added in 2026-09-18a were far
+wider than the centred text column, so Org wrapped every row and the
+result was unreadable. Org tables do not wrap by design; the fix is not
+to use a table where the cells are sentences. Both are now description
+lists, which reflow with the column. The degradation table in the
+Inline Images section kept its table shape and had its cells shortened
+instead — three short columns still fit.
+
+---
 ## Session 2026-09-18a — Inline images off while writing; pixel-accurate recentring; statistics get their own tab
 
 Three items from a list of accumulated irritations, plus one

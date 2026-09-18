@@ -626,6 +626,136 @@ links keep working."
                (file-size-human-readable after))))))
 
 ;; ============================================================
+;; WHICH ATTACHMENTS BELONG TO A NOTE
+;; ============================================================
+;; Asked by `my/denote-delete-note' (05-notes.el) before it removes a
+;; note.  Once the note is gone, the pictures only it used are dead
+;; weight that nothing else in the configuration ever collects, and the
+;; attachments folder grows until somebody audits it by hand.
+;;
+;; A file in the attachments directory counts as belonging to a note
+;; when EITHER
+;;
+;;   - its name begins with the note's Denote identifier, which is how
+;;     `my/org-image--target' names everything it stores, or
+;;   - a link in the note resolves to it inside that directory, which
+;;     covers files put there by hand or by an import.
+;;
+;; The two are unioned rather than intersected on purpose.  An image
+;; whose link was deleted from the text still belongs to the note by its
+;; name; an image linked from the note but named by something else still
+;; belongs to it by the link.  Requiring both would leave exactly the
+;; orphans this is meant to catch.
+;;
+;; SHARED FILES ARE NEVER REPORTED AS THE NOTE'S OWN
+;; One attachment can be linked from several notes -- a diagram used in
+;; a hub and in the note that produced it, say.  Every candidate is
+;; therefore searched for across the whole notes tree first, and one
+;; found anywhere but in this note is returned under `:shared' so the
+;; caller can say why it was kept.  When no search program is available
+;; the check cannot run, and `:checked' comes back nil so the caller can
+;; say THAT instead of quietly deleting a file another note points at.
+
+(defun my/org-image--search-command (pattern)
+  "Return the argument list searching the notes tree for PATTERN, or nil.
+Ripgrep when installed, for the reason 41-notes-search.el prefers it:
+it is faster and skips hidden directories, which keeps btrfs
+`.snapshots' out of the answer.  Plain grep otherwise, with the same
+exclusion spelled its way."
+  (let ((root (expand-file-name my-notes-dir)))
+    (cond
+     ((executable-find "rg")
+      (list "rg" "--files-with-matches" "--fixed-strings" "--no-messages"
+            "-g" "!.*" "--" pattern root))
+     ((executable-find "grep")
+      (list "grep" "-rlF" "--exclude-dir=.*" "--" pattern root)))))
+
+(defun my/org-image--referenced-by (attachment)
+  "Return the files under `my-notes-dir' that mention ATTACHMENT by name.
+The search is for the bare file name, not for a path, because the same
+attachment is linked relatively from notes in different silos and the
+written paths therefore differ.  Returns the symbol `unchecked' when no
+search program is installed."
+  (let* ((needle (file-name-nondirectory attachment))
+         (command (my/org-image--search-command needle)))
+    (if (null command)
+        'unchecked
+      (with-temp-buffer
+        (apply #'call-process (car command) nil t nil (cdr command))
+        (split-string (buffer-string) "\n" t)))))
+
+(defun my/org-image--attachments-named-for (identifier)
+  "Return attachments whose file name begins with IDENTIFIER."
+  (let ((dir my/org-image-attachments-directory))
+    (when (and identifier (file-directory-p dir))
+      (mapcar (lambda (name) (expand-file-name name dir))
+              (directory-files
+               dir nil (concat "\\`" (regexp-quote identifier)) t)))))
+
+(defun my/org-image--attachments-linked-from (file)
+  "Return attachments that links inside note FILE point at.
+
+Reads the live buffer when one is visiting FILE, so that links added
+but not yet saved still count.  Org bracket links and Markdown inline
+links are both matched; a target carrying a scheme -- `denote:',
+`https:', `id:' -- is skipped, since only a path can name a file on
+disk."
+  (let* ((dir (file-name-as-directory
+               (expand-file-name my/org-image-attachments-directory)))
+         (base (file-name-directory (expand-file-name file)))
+         (buffer (find-buffer-visiting file))
+         (text (if buffer
+                   (with-current-buffer buffer
+                     (buffer-substring-no-properties (point-min) (point-max)))
+                 (with-temp-buffer
+                   (insert-file-contents file)
+                   (buffer-string))))
+         found)
+    (with-temp-buffer
+      (insert text)
+      (dolist (regexp '("\\[\\[\\([^]\n]+\\)\\]" "\\]([ \t]*\\([^)\n]+\\))"))
+        (goto-char (point-min))
+        (while (re-search-forward regexp nil t)
+          (let ((target (string-trim (match-string-no-properties 1))))
+            (when (string-prefix-p "file:" target)
+              (setq target (substring target 5)))
+            (unless (string-match-p "\\`[a-zA-Z][a-zA-Z0-9+.-]*:" target)
+              (let ((path (expand-file-name target base)))
+                (when (and (string-prefix-p dir path)
+                           (file-regular-p path))
+                  (push path found))))))))
+    (nreverse (delete-dups found))))
+
+(defun my/org-image-note-attachments (file)
+  "Return the attachments of note FILE as a plist.
+
+  :own      files in the attachments directory that only FILE refers to
+  :shared   candidates another note refers to as well, kept back
+  :checked  nil when no search program was available to tell the two
+            apart, in which case everything found is under `:shared'
+
+Nothing is deleted or modified here; this only answers the question."
+  (let* ((identifier (and (fboundp 'denote-retrieve-filename-identifier)
+                          (denote-retrieve-filename-identifier file)))
+         (candidates (delete-dups
+                      (append (my/org-image--attachments-named-for identifier)
+                              (my/org-image--attachments-linked-from file))))
+         (checked t)
+         own shared)
+    (dolist (candidate candidates)
+      (let ((users (my/org-image--referenced-by candidate)))
+        (cond
+         ((eq users 'unchecked)
+          (setq checked nil)
+          (push candidate shared))
+         ((seq-some (lambda (user)
+                      (not (file-equal-p user file)))
+                    users)
+          (push candidate shared))
+         (t (push candidate own)))))
+    (list :own (nreverse own) :shared (nreverse shared) :checked checked)))
+
+;; ============================================================
 ;; DIAGNOSTICS
 ;; ============================================================
 

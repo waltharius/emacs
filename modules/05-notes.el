@@ -21,6 +21,11 @@
 
 ;;; Code:
 
+;; `seq-take' and `string-join' are used when reporting which
+;; attachments a deletion would take with it.
+(require 'seq)
+(require 'subr-x)
+
 ;; ============================================================
 ;; KEYWORD PROMPT — shared by the note commands in this file
 ;; ============================================================
@@ -823,27 +828,114 @@ so the indexer can tell them apart without guessing from content."
 ;; HELPER: Delete current note (Git-aware)
 ;; ============================================================
 
+(defcustom my/denote-delete-attachments 'ask
+  "What `my/denote-delete-note' does with the note's attachments.
+
+  ask     offer to delete them, listing what would go (default)
+  always  delete them without a second question
+  never   leave them alone and say nothing
+
+Only files the note is the sole user of are ever offered.  One linked
+from another note as well is kept and reported, because an attachment
+is shared far more easily than it looks -- the same diagram in a hub
+and in the note that produced it is the ordinary case, not the odd one.
+
+The question is asked at all because nothing else collects orphaned
+attachments: delete a note by hand and its pictures stay in
+`my/org-image-attachments-directory' until somebody audits the folder,
+which is a job nobody schedules.
+
+Answering is only possible when 31-org-images.el is loaded; without it
+attachments are left alone whatever this says."
+  :type '(choice (const :tag "Ask" ask)
+                 (const :tag "Always delete" always)
+                 (const :tag "Never delete" never))
+  :group 'my/notes)
+
+(defun my/denote--delete-file (file)
+  "Delete FILE with `git rm -f' when it is tracked, plain deletion otherwise.
+Returns the word describing what happened, for the report.
+
+`call-process' is used rather than a shell command so that a file name
+containing an apostrophe or a space needs no quoting and cannot be
+re-read as syntax."
+  (if (and (executable-find "git")
+           (= 0 (call-process "git" nil nil nil
+                              "ls-files" "--error-unmatch" file)))
+      (progn (call-process "git" nil nil nil "rm" "-f" file) "git")
+    (progn (delete-file file) "disk")))
+
+(defun my/denote--attachment-prompt (own)
+  "Return the question asked about deleting the attachments OWN.
+Names up to three of them; the full list has already gone to
+*Messages*, which is where a long one can actually be read."
+  (let ((names (mapcar #'file-name-nondirectory own)))
+    (format "Delete %d attachment%s as well (%s)? "
+            (length own)
+            (if (= 1 (length own)) "" "s")
+            (if (<= (length names) 3)
+                (string-join names ", ")
+              (format "%s and %d more"
+                      (string-join (seq-take names 3) ", ")
+                      (- (length names) 3))))))
+
 (defun my/denote-delete-note ()
-  "Delete current note file and buffer.
-  Uses 'git rm' if file is tracked, otherwise regular delete."
+  "Delete the current note, and offer to delete its attachments with it.
+
+Uses `git rm -f' when a file is tracked, plain deletion otherwise, for
+the note and for every attachment alike.
+
+Which files count as the note's attachments, and which are held back
+for being linked from elsewhere, is decided by
+`my/org-image-note-attachments' in 31-org-images.el -- the module that
+owns the attachments directory.  Without that module loaded the note is
+deleted on its own, exactly as before.  See
+`my/denote-delete-attachments' for turning the offer off.
+
+WARNING: `git rm -f' bypasses staging.  The deletion is immediate in
+the working tree."
   (interactive)
-  (let* ((file (buffer-file-name))
-         (name (file-name-nondirectory file)))
+  (let ((file (buffer-file-name)))
     (if (not file)
         (message "This is not a file!")
-      (when (yes-or-no-p (format "Delete note: %s? " name))
-        ;; Check if in Git repo — call-process is safe against filenames
-        ;; with apostrophes or other special characters (no shell involved).
-        (if (and (executable-find "git")
-                 (= 0 (call-process "git" nil nil nil
-                                   "ls-files" "--error-unmatch" file)))
-            (progn
-              (call-process "git" nil nil nil "rm" "-f" file)
-              (message "Deleted from Git: %s" name))
-          (progn
-            (delete-file file)
-            (message "Deleted: %s" name)))
-        (kill-buffer (current-buffer))))))
+      (let* ((name (file-name-nondirectory file))
+             (report (and (not (eq my/denote-delete-attachments 'never))
+                          (fboundp 'my/org-image-note-attachments)
+                          (my/org-image-note-attachments file)))
+             (own (plist-get report :own))
+             (shared (plist-get report :shared))
+             (checked (plist-get report :checked)))
+        (when own
+          (message "Attachments of %s: %s" name
+                   (string-join (mapcar #'file-name-nondirectory own) ", ")))
+        (when (yes-or-no-p (format "Delete note: %s? " name))
+          ;; Asked before anything is deleted, so that answering no to
+          ;; the second question still leaves a coherent state.
+          (let* ((also (and own
+                            (or (eq my/denote-delete-attachments 'always)
+                                (yes-or-no-p (my/denote--attachment-prompt own)))))
+                 (where (my/denote--delete-file file))
+                 (removed 0))
+            (when also
+              (dolist (attachment own)
+                (when (file-exists-p attachment)
+                  (my/denote--delete-file attachment)
+                  (setq removed (1+ removed)))))
+            (message "Deleted (%s): %s%s%s"
+                     where name
+                     (if (> removed 0)
+                         (format " + %d attachment%s" removed
+                                 (if (= removed 1) "" "s"))
+                       "")
+                     (cond
+                      ((not checked)
+                       (format "  -- %d attachment(s) left: no search program to check whether other notes use them"
+                               (length shared)))
+                      (shared
+                       (format "  -- %d attachment(s) left: also used by other notes"
+                               (length shared)))
+                      (t "")))
+            (kill-buffer (current-buffer))))))))
 
 ;; ============================================================
 ;; MOVE NOTE BETWEEN SILOS
