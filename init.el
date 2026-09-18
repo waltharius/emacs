@@ -158,6 +158,11 @@
   ;; governed by `org-startup-with-inline-images' and Org's own
   ;; C-c C-x C-v alone.
   (load (concat modules-dir "44-image-display.el") t) ; Images on/off (C-c u i)
+  ;; Optional (NOERROR): standard-page counter beside the word count.
+  ;; 01-ui.el asks for it through `fboundp', so without this file the
+  ;; mode line shows the word count alone, which is what it showed
+  ;; before the module existed.
+  (load (concat modules-dir "45-standard-pages.el") t) ; Standard pages (M-x report)
   )
 
 (add-hook 'emacs-startup-hook

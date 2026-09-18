@@ -835,10 +835,26 @@ active theme through a light/dark toggle.  The previous literal
   :group 'mode-line-faces)
 
 (defun my/word-count-modeline ()
-  "Display word count in modeline for text modes."
+  "Display word count, and standard pages when available, in the mode line.
+
+Describes the ACTIVE REGION when there is one, and says so by putting
+the figures in brackets; otherwise the whole buffer.  Both numbers
+always describe the same span, since one of each would be a reading
+trap rather than two measurements.
+
+The page figure comes from `my/standard-pages-string'
+(45-standard-pages.el) and is simply absent when that module is not
+loaded -- this file owns the mode line and must not depend on what
+contributes to it."
   (when (derived-mode-p 'org-mode 'text-mode)
-    (let ((words (count-words (point-min) (point-max))))
-      (propertize (format "%d " words) 'face 'my/modeline-word-count))))
+    (let* ((region (use-region-p))
+           (beg (if region (region-beginning) (point-min)))
+           (end (if region (region-end) (point-max)))
+           (words (count-words beg end))
+           (pages (and (fboundp 'my/standard-pages-string)
+                       (my/standard-pages-string beg end))))
+      (propertize (format (if region "[%d%s] " "%d%s ") words (or pages ""))
+                  'face 'my/modeline-word-count))))
 
 ;; ============================================================
 ;; THE MODE LINE: ONE DEFINITION, HERE
