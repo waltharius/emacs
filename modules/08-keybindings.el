@@ -265,6 +265,14 @@ Spelling:
   (check-full-buffer / toggle: only via the C-c n menu, see below --
    there is no C-c F prefix)
 
+Appearance and UI (C-c u ...):
+  C-c u i - Show/hide inline images in this buffer (recorded in the note)
+  C-c u w - Adjust the text column width (+ - 0 d s)
+  C-c u f - Adjust font size in all frames
+  C-c u p - Toggle spacious padding
+  C-c u t - Toggle light/dark theme
+  C-c u T - Choose a theme
+
 Menus and modes (C-c m ...):
   C-c m c - Create submenu directly (skips C-c n)
   C-c m w - Toggle centred writing mode (same as C-c n v w)

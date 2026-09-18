@@ -151,6 +151,13 @@
   ;; Without this file org-drill is simply not installed; nothing else
   ;; refers to it.
   (load (concat modules-dir "43-drill.el") t) ; Flashcards (C-c n r)
+  ;; Optional (NOERROR): hide or show inline images in the buffer being
+  ;; written in.  Loaded after 12-transient.el, whose View menu it
+  ;; appends to, and after 40-markdown.el, so that the Markdown half is
+  ;; there when the command asks for it.  Without this file images are
+  ;; governed by `org-startup-with-inline-images' and Org's own
+  ;; C-c C-x C-v alone.
+  (load (concat modules-dir "44-image-display.el") t) ; Images on/off (C-c u i)
   )
 
 (add-hook 'emacs-startup-hook
