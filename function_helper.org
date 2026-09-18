@@ -4,6 +4,71 @@
 #+options: toc:2 num:nil
 #+property: header-args :eval never-export
 
+* Built-in Emacs and Org Commands
+:PROPERTIES:
+:CUSTOM_ID: builtin-commands
+:END:
+
+Commands that Emacs and Org ship with. Nothing in =modules/= defines
+them, which is exactly why they are listed here: the rest of this file
+documents custom functions, so a stock command that is easy to forget
+has had nowhere to be written down.
+
+The section grows as commands turn out to be worth remembering. Where
+behaviour depends on the Org version, the version is named. Source for
+everything below: the GNU Org manual (sections /Plain Lists/ and
+/Images/) and the Org 9.8 release notes.
+
+** Plain lists
+:PROPERTIES:
+:CUSTOM_ID: builtin-plain-lists
+:END:
+
+The question this answers most often: *a numbered list reads 1, 2, 5, 6
+after two items were deleted from the middle.* Put point on any item of
+the list and press =C-c C-c=. The list is renumbered from the top, and
+bullet and indentation consistency is verified across the whole list at
+the same time.
+
+Renumbering is automatic whenever the list is edited through Org's own
+commands — =M-UP=, =M-RET= and the rest below. =C-c C-c= is needed only
+after editing the text directly, which is what deleting lines with
+=C-k= or a region is.
+
+| Key | Command | Effect |
+|-----+---------+--------|
+| =C-c C-c= | =org-ctrl-c-ctrl-c= | On a numbered item: renumber the list. On an item with a checkbox: toggle it. Either way: verify bullets and indentation in the whole list |
+| =M-RET= | =org-meta-return= | New item at the same level. In the middle of an item, splits it |
+| =M-S-RET= | =org-insert-todo-heading= | New item with a checkbox |
+| =M-UP= / =M-DOWN= | =org-move-item-up= / =org-move-item-down= | Move the item with its subitems; renumbering is automatic |
+| =M-LEFT= / =M-RIGHT= | =org-do-promote= / =org-do-demote= | Indent or outdent the item, leaving its children where they are |
+| =M-S-LEFT= / =M-S-RIGHT= | =org-promote-subtree= / =org-demote-subtree= | The same, taking the subitems along |
+| =C-c -= | =org-cycle-list-bullet= | Cycle the whole list through =-=, =+=, =*=, =1.=, =1)=. With an active region, turn every line into an item; on an ordinary line, turn it into one |
+| =C-c ^= | =org-sort-list= | Sort the list. Prompts: numerically, alphabetically, by time, by checkbox state, or a custom function. A capital letter reverses the order |
+| =C-c *= | =org-ctrl-c-star= | Turn the item into a headline |
+| =C-c C-*= | =org-list-make-subtree= | Turn the whole list into a subtree; checkboxes become =TODO= / =DONE= |
+| =TAB= | =org-cycle= | Fold the item. In a new, empty item, demote it into the one above |
+
+To make a list start at a number other than 1, write =[@20]= at the
+beginning of the item text. Any item may carry one, which forces the
+numbering from there on.
+
+** Images and link previews
+:PROPERTIES:
+:CUSTOM_ID: builtin-image-previews
+:END:
+
+=C-c C-x C-v= is Org's own key, and what it does changed with Org 9.8:
+
+| Org | Command | Default scope |
+|-----+---------+---------------|
+| up to 9.7 | =org-toggle-inline-images-command= | the image at point, or the current section. =C-u= for the whole buffer |
+| 9.8 and later | =org-link-preview= | the image at point, the active region, or the current entry. =C-u= clears instead of showing; =C-u C-u= shows the whole buffer; =C-u C-u C-u= clears the whole buffer |
+
+Neither default is "turn the pictures off for the whole note while I
+write", and neither is remembered when the file is closed. That is what
+=C-c u i= is for — see [[#image-display][Inline Images On and Off]].
+
 * Notes Menus (C-c n)
 :PROPERTIES:
 :CUSTOM_ID: menu-notes-main
@@ -1698,12 +1763,13 @@ Function: =my/org-export-pdf-by-all-keywords= | Module: =modules/16-org-export.e
 
 Toggle visual appearance settings for comfortable writing.
 
-Three entries are not defined in =12-transient.el=: they are appended at
+Four entries are not defined in =12-transient.el=: they are appended at
 load time through =my/transient-append=, so removing the module that
 contributes one leaves the rest of the submenu intact.
 
 | Key | Contributed by |
 |-----+----------------|
+| =m= Images in buffer | =44-image-display.el= |
 | =T= Link tooltips | =30-link-tooltips.el= |
 | =t= Theme light/dark | =34-appearance.el= |
 | =p= Padding | =34-appearance.el= |
@@ -1731,9 +1797,33 @@ Function: =my/toggle-visual-fill-column-center= | Module: =modules/13-centered-w
 :CUSTOM_ID: fn-my-toggle-writeroom
 :END:
 
-Toggles full-screen distraction-free writing mode (=writeroom-mode=).
+Keeps the line being typed at a fixed height on screen: after every
+inserted character the window is recentred, while scrolling, clicking
+and navigation are left alone. Shows =W= in the mode line. Despite the
+alias, no =writeroom-mode= is involved — the name is historical.
+
+*In notes containing images*, plain =recenter= misplaces the cursor,
+because it counts screen lines and an inline image is one screen line
+several hundred pixels tall. =my/writing-recenter= corrects the result
+by measuring in pixels and scrolling one screen line at a time until
+the cursor is within one line height of where it should be; in a buffer
+of uniform line heights the correction never runs.
+=my/writing-recenter-pixelwise= turns it off. The other way out is to
+stop drawing the images at all — =C-c u i=, see
+[[#image-display][Inline Images On and Off]].
 
 Function: =my/toggle-writeroom= | Module: =modules/13-centered-writing.el=
+
+*** m — Images in buffer
+:PROPERTIES:
+:CUSTOM_ID: fn-my-image-display-toggle
+:END:
+
+Shows or hides inline images in the whole buffer, and records the
+choice in the note. Full description: [[#image-display][Inline Images On and Off]].
+Same command as =C-c u i=.
+
+Function: =my/image-display-toggle= | Module: =modules/44-image-display.el=
 
 *** i — Indent headings
 :PROPERTIES:
@@ -5082,7 +5172,8 @@ been written rather than to how many days are covered.
 |----------------+--------|
 | =05b-journal-metrics.el= | the metrics half turns off; days with no entry are still listed |
 | =05-notes.el= | a missing day can be opened but not created |
-| =21-dashboards.el= | the report opens in the current window instead of the History tab, and the menu entry is skipped |
+| =21-dashboards.el= | the menu entry is skipped |
+| =23-fixed-tabs.el= | the report opens in the current window instead of the tab named by =my/journal-gaps-tab-name= (default =Stats=) |
 
 * Window splitting
 :PROPERTIES:
@@ -5190,6 +5281,25 @@ One screen answering "how big is this thing, and is it healthy", with
 the interesting numbers clickable.
 
 Module: =modules/36-notes-stats.el= | also =C-c w s=
+
+** Where it opens
+
+In a tab of its own, named by =my/notes-stats-tab-name= (default
+=Stats=). The drill-down lists and the Org export open there too, so
+the report and everything reached from it stay in one place.
+
+It used to open in the History tab of =21-dashboards.el=, which meant
+that asking for statistics replaced whatever was being read there.
+Under the model of =23-fixed-tabs.el= a tab is a place, and these are
+two different places: History holds the list-and-preview panes for
+reading old entries, Stats holds figures about the collection.
+=my/journal-gaps= (=35-journal-gaps.el=) moved to the same tab for the
+same reason, through its own =my/journal-gaps-tab-name= so that neither
+module depends on the other.
+
+Set either option to nil to open the report in the current window and
+leave tabs alone. With =23-fixed-tabs.el= absent, that is what happens
+anyway.
 
 ** Sections
 
@@ -5747,6 +5857,73 @@ Keyword sorting is not lost with =denote-explore-sort-keywords= gone:
 Denote sorts keywords on every rename while =denote-sort-keywords= is
 non-nil, so the commands above maintain it note by note.
 
+* Inline Images On and Off
+:PROPERTIES:
+:CUSTOM_ID: image-display
+:END:
+
+=C-c u i= (=my/image-display-toggle=) shows or hides inline images in
+the whole buffer. In an Org note the decision is written into the
+note's =#+startup:= line, so the note opens the same way next time.
+
+Module: =modules/44-image-display.el= | menu: [[#fn-my-image-display-toggle][C-c n v m]] | key table:
+[[#global-keybindings][Global Keybindings]]
+
+** Why a command of its own
+
+Org has =C-c C-x C-v=, but its default scope is the image at point or
+the current section rather than the buffer, it needs different prefix
+arguments depending on the Org version, and it is forgotten as soon as
+the file is closed — see [[#builtin-image-previews][Images and link previews]] for what the
+stock key does in each version. What is wanted while drafting is
+simpler: no pictures in this note until the text is finished.
+
+Turning them off also removes the cause of the recentring problem
+described under [[#fn-my-toggle-writeroom][Writing mode]]: with no image overlays every line in
+the window is the same height again.
+
+** Where the choice is stored
+
+In the note, as a =#+startup:= token:
+
+: #+startup: noinlineimages
+
+Org reads that keyword when it opens the file, so nothing else has to
+remember anything — no state file, no registry keyed by path, nothing
+to break when Denote renames the note. The setting travels with the
+file through Syncthing, git and any other editor.
+
+One of the two tokens is always written rather than the line being
+removed, so a note that has been decided about says so, instead of
+silently falling back to =org-startup-with-inline-images= (=t=, set in
+=11-org-appearance.el=). Other tokens already on the line are kept in
+place.
+
+*The buffer is left modified and unsaved*, matching
+=my/text-width-save-to-note= in =10-visual-fill.el=: the command
+changes the note, saving it stays a separate decision.
+
+With a prefix argument (=C-u C-c u i=) the front matter is not touched
+and the change lasts for this session only.
+
+** Markdown
+
+The command works in Markdown buffers too, and there it is always
+session-only: markdown-mode has no startup keyword, so there is nowhere
+in a =.md= file to record the choice without inventing a convention
+only this configuration would understand. The global default for
+Markdown notes is =my/markdown-display-images-on-open=
+(=40-markdown.el=).
+
+** Degradation
+
+| Missing module | Effect |
+|----------------+--------|
+| =12-transient.el= | no =m= entry in the View menu; =C-c u i= still works |
+| =40-markdown.el= | the Markdown half is never reached, since no buffer is in =markdown-mode= |
+| =00-core.el= | the choice is applied but not recorded |
+| =31-org-images.el= | none — the two modules share no code on purpose |
+
 * Global Keybindings
 :PROPERTIES:
 :CUSTOM_ID: global-keybindings
@@ -5837,6 +6014,7 @@ hand-editing either from memory.
 | C-c u f   | =my/font-size-adjust=           | =03b-fonts.el= (all frames)                |
 | C-c u s   | =my/text-scale-save-to-note=    | =03b-fonts.el=                             |
 | C-c u w   | =my/text-width-adjust=          | =10-visual-fill.el=                        |
+| C-c u i   | =my/image-display-toggle=       | =44-image-display.el=                      |
 | C-c u +   | =text-scale-increase=           | =34-appearance.el= (this buffer)           |
 | C-c u -   | =text-scale-decrease=           | =34-appearance.el= (this buffer)           |
 | C-c u 0   | =my/text-scale-reset=           | =34-appearance.el=                         |

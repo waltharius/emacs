@@ -21,6 +21,135 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-18a — Inline images off while writing; pixel-accurate recentring; statistics get their own tab
+
+Three items from a list of accumulated irritations, plus one
+documentation gap. Two of them turned out to be the same problem seen
+from different sides: an inline image is one screen line several hundred
+pixels tall, and both the writing-mode recentring and the readability of
+a draft suffer from it.
+
+### 44-image-display.el — turning inline images off, per note
+
+Drafting a note with pictures in it means the pictures are in the way.
+Org already has `C-c C-x C-v`, but its default scope is the image at
+point or the current section rather than the buffer, the prefix
+arguments needed for the whole buffer differ between Org 9.7
+(`org-toggle-inline-images-command`, `C-u`) and Org 9.8
+(`org-link-preview`, `C-u C-u`), and nothing survives closing the file.
+
+`my/image-display-toggle` (`C-c u i`, and `m` in the View menu) applies
+the choice to the whole buffer and writes it into the note as a
+`#+startup: noinlineimages` token. Org reads that keyword when opening
+a file, so the setting needs no storage of its own and cannot drift from
+the note when Denote renames it; it also travels through Syncthing, git
+and any other editor. One of the two tokens is always written rather
+than the line being deleted, so a note that has been decided about says
+so instead of falling back to the global `org-startup-with-inline-images`
+in 11-org-appearance.el. Other tokens on the line are preserved. The
+buffer is left modified and unsaved, matching
+`my/text-width-save-to-note` in 10-visual-fill.el.
+
+Alternatives rejected:
+
+- Rebinding `C-c C-x C-v` to the old `org-toggle-inline-images`: gets
+  buffer scope back but not persistence, and pins the configuration to a
+  command Org 9.8 marks obsolete.
+- A state file or registry keyed by note path: a second place to keep
+  right, and Denote renames notes as a matter of course.
+- Adding the command to 31-org-images.el: that module owns *producing*
+  images — copying, compressing, naming. Whether they are drawn is a
+  different question, applies to Markdown as well, and is wanted with
+  31-org-images.el absent. The three-line version shim is duplicated
+  rather than calling `my/org-image--preview-region`, which is private to
+  that module, so neither file needs the other.
+
+Markdown buffers are handled but are session-only: markdown-mode has no
+startup keyword, and inventing a file-local convention that only this
+configuration understands would put a line into every `.md` file that
+Obsidian on the phone would then have to ignore.
+
+### 13-centered-writing.el — recentring measured in pixels
+
+Writing mode stopped holding its position in notes containing images.
+Cause: `recenter` counts SCREEN LINES. An image is one screen line and
+several hundred pixels tall, so the line `recenter` calls the middle of
+the window can be drawn anywhere on screen, usually far too low because
+the image above it consumed the space the line count assumed.
+
+`my/writing-recenter` now runs `recenter` first, then corrects the
+result: while the cursor's pixel offset (`pos-visible-in-window-p` with
+PARTIALLY non-nil) is further from the wanted offset than one default
+line height, the window start moves one screen line, via
+`vertical-motion` so that soft-wrapped paragraphs count correctly. The
+loop stops when a step changes nothing, when the cursor's own line would
+scroll out of sight, or after 60 steps — an image taller than the window
+makes the wanted position unreachable, and looping forever is not an
+acceptable answer to that.
+
+The tolerance is one full line height on purpose. `recenter` is accurate
+to within half a line in a buffer of uniform heights, so at that
+tolerance the correction never runs on ordinary text: the cost there is
+one `pos-visible-in-window-p` call per keystroke, and there is no
+one-line jitter from the two mechanisms disagreeing. A tighter tolerance
+traded the image problem for a visible twitch on every keystroke and was
+dropped.
+
+All five call sites now go through `my/writing-recenter` rather than
+`recenter` directly, so the position presets behave the same way as
+typing does. `my/writing-recenter-pixelwise` turns the correction off.
+
+Alternatives rejected:
+
+- `centered-cursor-mode` from MELPA: it recentres by lines as well, so
+  it inherits the same failure; adding a package to keep the bug is not
+  a trade.
+- Constraining image width to the text column instead: a different
+  setting (`org-image-actual-width` is `'(1100)`, deliberately) and it
+  does not fix the vertical arithmetic, which is what breaks.
+
+### 36-notes-stats.el, 35-journal-gaps.el — a Stats tab
+
+`my/notes-stats` opened in the History tab, because it called
+`my/fixed-tab-goto` with `my/dashboards-tab-name` ("History", set in
+21-dashboards.el). Asking for statistics therefore replaced whatever was
+being read in History.
+
+Under the model of 23-fixed-tabs.el a tab is a place, and these are two
+places: History holds the list-and-preview panes for reading old
+entries, Stats holds one screen of figures about the collection. New
+`my/notes-stats-tab-name` (default "Stats") routes the report, the
+drill-down lists and the Org export; `my/notes-stats--goto-tab`
+centralises the guard so the three call sites cannot drift.
+
+`my/journal-gaps` moved to the same tab for the same reason, but through
+its own `my/journal-gaps-tab-name` rather than by reading the statistics
+module's option. The default merely happens to name the same tab; a
+cross-module reference would have made 35-journal-gaps.el stop routing
+correctly if 36-notes-stats.el were deleted, which is precisely what the
+module system exists to prevent. Either option set to nil, or
+23-fixed-tabs.el absent, means the report opens in the current window.
+
+### function_helper.org — a section for stock commands
+
+New top section, `#builtin-commands`: commands Emacs and Org ship with,
+which nothing in `modules/` defines and which therefore had nowhere to
+be written down. Seeded with plain lists and with image previews, both
+taken from the GNU Org manual rather than from memory.
+
+The entry that prompted it: a numbered list reading 1, 2, 5, 6 after two
+items were deleted is repaired by `C-c C-c` on any item of the list,
+which renumbers it and verifies bullet and indentation consistency at
+the same time. Renumbering is already automatic when the list is edited
+through Org's own commands; it is direct text editing — `C-k`, a killed
+region — that leaves the numbering stale. No code was written for this.
+
+Also corrected while in the file: the View menu documented `w` as
+toggling `writeroom-mode`, which it never did. The alias
+`my/toggle-writeroom` is historical; the command is
+`my/toggle-centered-writing`.
+
+---
 ## Session 2026-09-17b — org-drill from MELPA: cram mode broken in the NonGNU ELPA release
 
 Installing org-drill from NonGNU ELPA reported, among many warnings,
