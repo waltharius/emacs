@@ -9,6 +9,8 @@
 ;; - Keyboard scrolling works perfectly
 ;; - Works with soft wrapping
 ;; - Works when editing anywhere in document
+;; - Holds its position in notes containing inline images (see
+;;   `my/writing-recenter-pixelwise')
 ;; - Shows "W" indicator in mode line
 ;; - Buffer-local: enable per note
 ;;
@@ -28,6 +30,38 @@ nil = center of window (default)
 Number = specific line from top (e.g., 10 = 10 lines from top)
 
 Recommended: nil (center) - works well for all window sizes.")
+
+(defvar my/writing-recenter-pixelwise t
+  "When non-nil, correct the recentring afterwards by pixel position.
+
+WHY THIS EXISTS
+`recenter' counts SCREEN LINES.  An inline image is one screen line
+several hundred pixels tall, so in a note containing pictures the line
+that `recenter' calls the middle of the window can sit anywhere on
+screen -- typically far too low, because the image above it has eaten
+the space the line count assumed.  The cursor then stops holding its
+position while typing, which is the whole point of the mode.
+
+The correction below scrolls the window one screen line at a time until
+the cursor is within `my/writing-recenter-tolerance' of where it should
+be measured in PIXELS.  In a buffer of uniform line heights `recenter'
+is already inside that tolerance, so the loop does not run and costs one
+`pos-visible-in-window-p' call per keystroke.
+
+The other half of the same problem is solved by not drawing the images
+at all: `C-c u i' (44-image-display.el).")
+
+(defvar my/writing-recenter-tolerance nil
+  "How far from the wanted pixel position the cursor may sit, in pixels.
+nil means one default line height, which is the smallest value that does
+not make the window scroll an extra line on ordinary text -- `recenter'
+is accurate to within half a line there, and a tighter tolerance would
+trade the image problem for visible jitter.")
+
+(defvar my/writing-recenter-max-steps 60
+  "Upper bound on scrolling steps per correction.
+An image taller than the window can make the wanted position
+unreachable; the loop then stops rather than scrolling forever.")
 
 ;; ============================================================
 ;; BUFFER-LOCAL MODE VARIABLE
@@ -75,9 +109,70 @@ was invisible against a dark mode line."
 ;; SIMPLE RECENTERING ON TYPING
 ;; ============================================================
 
+(defun my/writing--target-pixel (window)
+  "Return where in WINDOW the cursor should sit, in pixels from the top.
+Derived from `my/writing-recenter-position' so that both spellings of
+the setting -- nil for the middle, a line number from the top --
+continue to mean the same thing."
+  (let ((height (window-body-height window t)))
+    (if (null my/writing-recenter-position)
+        (/ height 2)
+      (max 0 (min height (* my/writing-recenter-position (default-line-height)))))))
+
+(defun my/writing--point-pixel (window)
+  "Return the cursor's pixel offset from the top of WINDOW, or nil.
+Nil when point is not visible, which is the signal to stop correcting
+rather than to scroll blindly."
+  (let ((posn (pos-visible-in-window-p (point) window t)))
+    (and posn (nth 1 posn))))
+
+(defun my/writing--screen-line (position window lines)
+  "Return the buffer position LINES screen lines from POSITION in WINDOW.
+Nil when the buffer ends first.  Screen lines rather than logical ones,
+because notes are soft-wrapped and a paragraph is one logical line."
+  (save-excursion
+    (goto-char position)
+    (and (= (abs lines) (abs (vertical-motion lines window)))
+         (point))))
+
+(defun my/writing-recenter ()
+  "Put the cursor where `my/writing-recenter-position' asks, in pixels.
+
+`recenter' does the coarse work, which is enough whenever every line in
+the window is the same height.  The loop then corrects what a tall line
+-- in practice an inline image -- has thrown off, by moving the window
+start one screen line at a time.  It stops when the cursor is close
+enough, when a step changes nothing, when the cursor would leave the
+window, or after `my/writing-recenter-max-steps' steps."
+  (recenter my/writing-recenter-position)
+  (when my/writing-recenter-pixelwise
+    (let* ((window (selected-window))
+           (target (my/writing--target-pixel window))
+           (tolerance (or my/writing-recenter-tolerance (default-line-height)))
+           (steps my/writing-recenter-max-steps)
+           (previous nil)
+           (current (my/writing--point-pixel window)))
+      (while (and current
+                  (> steps 0)
+                  (not (equal current previous))
+                  (> (abs (- current target)) tolerance))
+        (setq previous current
+              steps (1- steps))
+        (let* ((start (window-start window))
+               (next (my/writing--screen-line
+                      start window (if (> current target) 1 -1))))
+          (if (and next
+                   (/= next start)
+                   ;; Never scroll the cursor's own line out of sight.
+                   (or (< current target) (< next (point))))
+              (set-window-start window next t)
+            (setq steps 0)))
+        (setq current (my/writing--point-pixel window))))))
+
 (defun my/recenter-on-typing ()
   "Recenter cursor ONLY when typing new characters.
-This is simple and reliable - just calls (recenter) after typing.
+Calls `my/writing-recenter' after typing, which is `recenter' plus a
+pixel correction for buffers containing images.
 Does NOT interfere with scrolling, clicking, or navigation."
   (when (and my/centered-writing-mode
              ;; Only trigger on actual text insertion
@@ -91,7 +186,7 @@ Does NOT interfere with scrolling, clicking, or navigation."
                  (eq this-command 'backward-delete-char-untabify)))
     ;; Only recenter if in a writable buffer
     (unless buffer-read-only
-      (recenter my/writing-recenter-position))))
+      (my/writing-recenter))))
 
 ;; ============================================================
 ;; ENABLE/DISABLE FUNCTIONS
@@ -102,7 +197,7 @@ Does NOT interfere with scrolling, clicking, or navigation."
 Only recenters when typing - all scrolling works normally!"
   (setq my/centered-writing-mode t)
   ;; Recenter immediately
-  (recenter my/writing-recenter-position)
+  (my/writing-recenter)
   ;; Add hook that ONLY recenters when typing
   (add-hook 'post-command-hook #'my/recenter-on-typing nil t)
   ;; Update mode line
@@ -158,7 +253,7 @@ This is buffer-local, so each note can have it on or off."
   (interactive)
   (setq my/writing-recenter-position nil)
   (when my/centered-writing-mode
-    (recenter my/writing-recenter-position))
+    (my/writing-recenter))
   (message "Writing position: center"))
 
 (defun my/set-writing-position-upper ()
@@ -166,7 +261,7 @@ This is buffer-local, so each note can have it on or off."
   (interactive)
   (setq my/writing-recenter-position (round (/ (window-height) 3)))
   (when my/centered-writing-mode
-    (recenter my/writing-recenter-position))
+    (my/writing-recenter))
   (message "Writing position: upper third"))
 
 (defun my/set-writing-position-lower ()
@@ -174,7 +269,7 @@ This is buffer-local, so each note can have it on or off."
   (interactive)
   (setq my/writing-recenter-position (round (* 2 (/ (window-height) 3))))
   (when my/centered-writing-mode
-    (recenter my/writing-recenter-position))
+    (my/writing-recenter))
   (message "Writing position: lower third"))
 
 ;; ============================================================
@@ -195,6 +290,13 @@ This is buffer-local, so each note can have it on or off."
 ;; - Keyboard scrolling (C-v, M-v) works perfectly
 ;; - Clicking to move cursor works normally
 ;; - All navigation commands work normally
+;;
+;; NOTES CONTAINING IMAGES:
+;; - An image is one screen line but many pixels tall, so plain
+;;   `recenter' misplaces the cursor.  `my/writing-recenter' corrects
+;;   that afterwards by measuring in pixels.
+;; - To take the images out of the way entirely: C-c u i
+;;   (`my/image-display-toggle', 44-image-display.el).
 ;;
 ;; WHY CENTER?
 ;; - Simple and works for all window sizes
