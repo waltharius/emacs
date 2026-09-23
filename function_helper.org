@@ -1813,9 +1813,9 @@ Function: =my/org-export-pdf-by-all-keywords= | Module: =modules/16-org-export.e
 :CUSTOM_ID: menu-notes-export-blog
 :END:
 
-Publishes notes carrying the Denote keyword =blog= as posts of a Hugo
-site. Present only when =modules/46-blog.el= is loaded. Full
-description: [[#blog][Blog (C-c n x b)]].
+Publishes notes to one or more Hugo sites; a section keyword such as
+=blog= or =pubdoc= decides where a note goes. Present only when
+=modules/46-blog.el= is loaded. Full description: [[#blog][Blog (C-c n x b)]].
 
 ** C-c n v — View
 :PROPERTIES:
@@ -6811,11 +6811,13 @@ the echo area. A deck buffer modified before the session is saved too.
 :CUSTOM_ID: blog
 :END:
 
-Selected notes published as a static Hugo site, built locally and
-copied to a web server with rsync. Org to Markdown conversion is done by
-=ox-hugo= (MELPA, [[https://github.com/kaushalmodi/ox-hugo]]); the module
-adds what is specific to a Denote notes tree: which notes are public,
-how =denote:= links between them are resolved, and what is refused.
+Selected notes published as static Hugo sites, built locally and, for
+sites that have a server, copied there with rsync. Org to Markdown
+conversion is done by =ox-hugo= (MELPA,
+[[https://github.com/kaushalmodi/ox-hugo]]); the module adds what is
+specific to a Denote notes tree: which notes go to which site and
+section, how =denote:= links between them are resolved, and what is
+refused.
 
 Module: =modules/46-blog.el=
 
@@ -6824,11 +6826,14 @@ Module: =modules/46-blog.el=
 :CUSTOM_ID: blog-setup
 :END:
 
-Programs, in home-manager:
+Programs, in home-manager (not =nix-shell=: Emacs started from the
+desktop does not see programs of a nix shell):
 
 #+begin_src nix
 home.packages = [ pkgs.hugo pkgs.rsync ];
 #+end_src
+
+The theme used below, PaperMod, needs Hugo 0.146.0 or newer.
 
 The site, outside the notes tree (it is a git repository and git
 repositories are kept out of Syncthing):
@@ -6837,73 +6842,118 @@ repositories are kept out of Syncthing):
 cd ~/projects
 hugo new site blog --format toml
 cd blog && git init
-# any Hugo theme; check its README for the minimum Hugo version
 git submodule add https://github.com/adityatelange/hugo-PaperMod themes/PaperMod
+printf 'public/\nresources/\n.hugo_build.lock\n' > .gitignore
 #+end_src
 
-Minimal =hugo.toml=:
+=hugo.toml= for a site with a =posts= and a =docs= section:
 
 #+begin_src toml
-baseURL = 'http://blog.home.lan/'
-languageCode = 'pl'
+baseURL = 'http://localhost:1313/'
+languageCode = 'pl-PL'
+defaultContentLanguage = 'pl'
 title = 'Blog'
 theme = 'PaperMod'
+
+[params]
+  # Home page and archive list posts only; docs are reached by the menu.
+  mainSections = ['posts']
+  ShowReadingTime = true
+  ShowToc = true
+
+[[menu.main]]
+  name = 'Blog'
+  url = '/posts/'
+  weight = 10
+[[menu.main]]
+  name = 'Dokumentacja'
+  url = '/docs/'
+  weight = 20
+[[menu.main]]
+  name = 'Tagi'
+  url = '/tags/'
+  weight = 30
 #+end_src
 
-Then =M-x customize-group RET my/blog= for =my/blog-remote=, at least.
 =ox-hugo= itself is installed at start-up by the =use-package= form in
 the module.
 
-** Which notes are public
+** Sites and sections
 :PROPERTIES:
 :CUSTOM_ID: blog-public
 :END:
 
-Both conditions are required:
+=my/blog-sites= lists the sites. A site is a Hugo directory, an
+optional rsync destination (=:remote=) and a list of sections; a
+section is a directory under =content/= with its own keyword and
+silos. A note lands in a section when both hold:
 
-- the file name carries the keyword =blog= (=my/blog-keyword=), added
-  with the usual keyword editor, =C-c n d k=;
-- the note lives in a silo from =my/blog-silos= (default =pks=, =docu=).
+- the file name carries the section's keyword, added with the usual
+  keyword editor, =C-c n d k=;
+- the note lives in one of the section's silos.
 
-The silo list is an allowlist. =journal= and =inbox= are not on it, so
-a journal note tagged =blog= by mistake stays private. The keyword is
-removed from the tags the post shows; the other keywords become Hugo
-tags.
+#+begin_src emacs-lisp
+(setq my/blog-sites
+      '(("blog"
+         :directory "~/projects/blog/"
+         :remote nil                    ; laptop-only for now
+         :port 1313
+         :sections (("posts" :keyword "blog"   :silos ("pks" "docu"))
+                    ("docs"  :keyword "pubdoc" :silos ("pks" "docu"))))))
+#+end_src
 
-Removing the keyword unpublishes the note at the next full export: the
-section directory =content/posts/= is owned by the module, and every
-=.md= file there that no public note produced is deleted, after a
-confirmation. Hand-written pages (about, contact) belong elsewhere under
-=content/=.
+A note carrying the keywords of two sections of one site is refused
+and listed in the report: which section was meant is not guessed. One
+note may be on several sites. Section keywords are removed from the
+tags a page shows; the other keywords become Hugo tags.
 
-Headings tagged =:noexport:= and =COMMENT= headings stay out of the post,
-as in every Org export.
+Rules checked before every command, so that a mistake stops the
+command instead of publishing something:
+
+| Rule                                                        | Why                                                            |
+|-------------------------------------------------------------+----------------------------------------------------------------|
+| a site with =:remote= takes no notes from a private silo    | =my/blog-private-silos= (=journal=, =inbox=) stay on the laptop |
+| a section keyword is not a silo name                        | =docu= is carried by every docu note: it would publish the silo |
+| two sections of one site do not share a keyword             | every such note would be ambiguous                             |
+
+Removing the keyword unpublishes the note at the next full export of
+the site: section directories are owned by the module, and every =.md=
+file there that no note produced is deleted, after a confirmation.
+Hand-written pages (about, contact) belong elsewhere under =content/=.
+A section removed from =my/blog-sites= is no longer pruned; delete its
+directory by hand.
+
+Headings tagged =:noexport:= and =COMMENT= headings stay out of the
+page, as in every Org export.
 
 ** Links, images, includes
 :PROPERTIES:
 :CUSTOM_ID: blog-links
 :END:
 
-| In the note                       | In the post                                   |
-|-----------------------------------+-----------------------------------------------|
-| =denote:= link to a public note     | link to its post (Hugo =relref=)              |
-| =denote:ID::#custom-id=             | link to that heading of the post              |
-| =denote:= link to any other note    | the link description, as plain text           |
-| image under =~/notes/attachments/=  | copied by ox-hugo to =static/ox-hugo/=        |
-| =#+INCLUDE:= of a public note       | included text, links resolved as above        |
-| =#+INCLUDE:= of any other note      | the whole note is refused                     |
+| In the note                                  | On the page                                    |
+|----------------------------------------------+------------------------------------------------|
+| =denote:= link to a note on the same site      | link to its page, in whichever section (=relref=) |
+| =denote:ID::#custom-id=                        | link to that heading of the page               |
+| =denote:= link to a private note or another site | the link description, as plain text          |
+| image under =~/notes/attachments/=             | copied by ox-hugo to =static/ox-hugo/=         |
+| =#+INCLUDE:= of a note on the same site        | included text, links resolved as above         |
+| =#+INCLUDE:= of any other note                 | the whole note is refused                      |
+
+Links between sections of one site work in both directions: a post can
+point at a documentation page and the page back at the post.
 
 The replacement link export is active only for exports started from
 this module. PDF, ODT and =C-c C-e= exports are unchanged, and the
 denote-link filter of =16-org-export.el= is switched off for the blog
 export only (see the CHANGELOG entry of session 2026-09-23a for why).
 
-Transclusions reach the post through the =#+INCLUDE:= line that
+Transclusions reach the page through the =#+INCLUDE:= line that
 =20-transclusion.el= pairs with each =#+transclude:=, so transcluding a
-private note into a public one is caught by the include rule.
+private note into a published one is caught by the include rule.
 
 A private note's description text is still published, since it is part
-of the public note's sentence. Anything that must not appear belongs
+of the published note's sentence. Anything that must not appear belongs
 outside the link description.
 
 ** URLs
@@ -6911,15 +6961,16 @@ outside the link description.
 :CUSTOM_ID: blog-urls
 :END:
 
-=my/blog-url-source=:
+=/<section>/<slug>/=, the slug set by =my/blog-url-source=:
 
 - =title= (default): the title part of the Denote file name,
   transliterated to ASCII: =zazolc-gesla-jazn= →
   =/posts/zazolc-gesla-jazn/=. Renaming the note changes the URL.
 - =identifier=: =/posts/20260901t100000/=. Stable across renames.
 
-Two public notes with the same URL: the older one (by identifier) keeps
-it, the newer one is refused and listed in the report.
+Two notes with the same URL in one section: the older one (by
+identifier) keeps it, the newer one is refused and listed in the
+report. The same slug in two sections is not a collision.
 
 Each note is exported from a temporary copy with an
 =#+export_file_name:= line added on top. Storing that line in the note
@@ -6930,16 +6981,23 @@ would duplicate a value derived from the file name.
 :CUSTOM_ID: blog-commands
 :END:
 
-| Command                      | Effect                                                       |
-|------------------------------+--------------------------------------------------------------|
-| =my/blog-export-current=     | export the note in the current buffer                        |
-| =my/blog-export-all-dry-run= | report what a full export would write and remove             |
-| =my/blog-export-all=         | export every public note, remove posts no longer public      |
-| =my/blog-preview=            | run =hugo server=, open =http://localhost:1313/=             |
-| =my/blog-preview-stop=       | stop that server                                             |
-| =my/blog-publish=            | full export, then =hugo --minify= and =rsync --delete=       |
-| =my/blog-open-site=          | site directory in Dired                                      |
-| =my/blog-show-report=        | report of the last export (=*Blog export*=)                  |
+| Command                      | Effect                                                        |
+|------------------------------+---------------------------------------------------------------|
+| =my/blog-export-current=     | export the note in the current buffer to its site             |
+| =my/blog-export-all-dry-run= | report what a full export of a site would write and remove    |
+| =my/blog-export-all=         | export a whole site, remove pages no longer published         |
+| =my/blog-preview=            | run =hugo server= for a site on its =:port=, open the browser |
+| =my/blog-preview-stop=       | stop a running preview                                        |
+| =my/blog-publish=            | full export, then =hugo --minify= and =rsync --delete=        |
+| =my/blog-open-site=          | site directory in Dired                                       |
+| =my/blog-show-report=        | report of the last export (=*Blog export*=)                   |
+
+With more than one site the commands ask which; the last site used is
+offered first, =my/blog-default-site= before that. =my/blog-export-current=
+takes the site from the note's keywords and asks only when the note is
+on several. A site without =:remote= cannot be published; its preview
+is reachable from the laptop only, since =hugo server= listens on
+=127.0.0.1=.
 
 Modified buffers under =~/notes/= are saved before any export: the
 export reads files from disk.
@@ -6958,8 +7016,8 @@ Function: =my/blog-publish= | Module: =modules/46-blog.el=
 | Key | Entry                 |
 |-----+-----------------------|
 | =e= | This note             |
-| =d= | All - dry run         |
-| =a= | All public notes      |
+| =d= | Site - dry run        |
+| =a= | Whole site            |
 | =v= | Preview (hugo server) |
 | =s= | Stop preview          |
 | =p= | Publish to server     |
@@ -6971,8 +7029,9 @@ Function: =my/blog-publish= | Module: =modules/46-blog.el=
 :CUSTOM_ID: blog-server
 :END:
 
-The server only serves files; nothing is built there. The directory
-must be writable by the SSH user rsync logs in as.
+The server only serves files; nothing is built there and Hugo is not
+needed on it. The directory must be writable by the SSH user rsync
+logs in as.
 
 Plain nginx:
 
@@ -7006,14 +7065,11 @@ the server.
 :CUSTOM_ID: blog-config
 :END:
 
-| Variable                  | Default               | Meaning                              |
-|---------------------------+-----------------------+--------------------------------------|
-| =my/blog-site-directory= | =~/projects/blog/=    | Hugo site root                       |
-| =my/blog-section=        | =posts=               | section under =content/=             |
-| =my/blog-keyword=        | =blog=                | keyword that makes a note public     |
-| =my/blog-silos=          | =("pks" "docu")=      | silos allowed to publish from        |
-| =my/blog-url-source=     | =title=               | =title= or =identifier=              |
-| =my/blog-remote=         | =nil=                 | rsync target, =user@host:/var/www/blog/= |
-| =my/blog-hugo-program=   | =hugo=                | executable                           |
-| =my/blog-rsync-program=  | =rsync=               | executable                           |
-| =my/blog-preview-url=    | =http://localhost:1313/= | address of =hugo server=          |
+| Variable                 | Default                    | Meaning                                  |
+|--------------------------+----------------------------+------------------------------------------|
+| =my/blog-sites=          | one site, =posts= and =docs= | sites, sections, keywords, silos         |
+| =my/blog-default-site=   | =blog=                     | site offered first                       |
+| =my/blog-private-silos=  | =("journal" "inbox")=      | silos only laptop-only sites may use     |
+| =my/blog-url-source=     | =title=                    | =title= or =identifier=                  |
+| =my/blog-hugo-program=   | =hugo=                     | executable                               |
+| =my/blog-rsync-program=  | =rsync=                    | executable                               |

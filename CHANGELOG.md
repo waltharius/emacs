@@ -21,6 +21,86 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-23b — Blog: several sites, a keyword per section, links across sections
+
+### 46-blog.el — sites and sections replace the single blog
+
+`my/blog-sites` replaces `my/blog-site-directory`, `my/blog-section`,
+`my/blog-keyword`, `my/blog-silos`, `my/blog-remote` and
+`my/blog-preview-url`. Each site has a Hugo directory, an optional
+`:remote`, a preview `:port` and a list of sections; each section has
+its own keyword and silos. The default is one site, `blog`, with
+`posts` (keyword `blog`) and `docs` (keyword `pubdoc`), both fed from
+`pks` and `docu`. Values of the removed variables set through Customize
+are ignored rather than migrated: the module was a day old and used
+for laptop testing only, with no `:remote` configured, so a migration
+path would have served no existing setup.
+
+**A keyword per section, not a silo per section.** The alternative was
+one marker, `blog`, with the section taken from the silo. It needs no
+new keyword, but ties the section to where the note lives: a `pks`
+note could never appear under documentation. A keyword per section
+lets the note choose.
+
+**Links across sections.** The identifier index now maps to section
+and slug, so a `denote:` link resolves to `relref "/<section>/<slug>"`
+in whichever section of the same site the target sits. Hugo resolves
+a leading-slash relref against `content/`, so the two directions (post
+to docs, docs back to post) were checked in a built site. A link to a
+note published only on another site becomes plain text, like a link
+to a private note: sites are built and deployed independently, and a
+cross-site URL would depend on the other site's `baseURL` and on its
+having been published at all.
+
+**Ambiguity is refused.** A note carrying the keywords of two sections
+of one site is listed as refused. Rejected: first matching section
+wins — the order of `:sections` would silently decide where a note is
+published.
+
+**Configuration rules, checked before every command.** A site with a
+`:remote` may not take notes from `my/blog-private-silos` (`journal`,
+`inbox`), so a private silo can only ever feed a laptop-only site;
+this replaces the previous silo allowlist as the guard against
+publishing the journal, and prepares a local journal site. A section
+keyword may not be a silo name: `docu` is in `my-denote-keywords` and
+carried by docu notes (10-visual-fill.el, 40-markdown.el read it), so
+as a marker it would publish the whole silo — the reason the default
+documentation keyword is `pubdoc` and not `docu`. Two sections of one
+site may not share a keyword. Each rule stops the command with a
+message naming the site and section.
+
+**Include rule per site.** An `#+INCLUDE:` is allowed when the target
+is published on the same site, in any section; otherwise the including
+note is refused, as before.
+
+**Commands take a site.** With one site nothing changes; with several
+they ask, offering the last site used. `my/blog-export-current` finds
+the site from the note's keywords and asks only when the note is on
+several. Previews get a buffer and a `:port` per site, so two can run
+at once; `my/blog-preview-stop` asks which when several run. Publishing
+a site without `:remote` is refused with a message saying it is
+laptop-only.
+
+**Closures instead of a global.** The link export function and the tag
+filter are now built per export as closures over the index and the
+site's keywords, which removed `my/blog--index`, a variable that only
+existed to carry state into those two functions.
+
+Verified in batch Emacs 29.3 with Org 9.6, Denote 4.2.3, ox-hugo
+0.12.1 and Hugo 0.166.0: two sites, a note per section, links post to
+docs with and without an anchor and docs back to post, a link to a
+note on the other site, a note with both section keywords, pruning of
+a stale page, and the three configuration rules. Not verified: the
+module inside the full configuration.
+
+### function_helper.org
+
+Blog section rewritten for sites and sections: `hugo.toml` with
+`mainSections` and menu entries for PaperMod, the site/section
+configuration and its rules, links across sections, per-site commands
+and preview ports, and the Hugo version PaperMod requires.
+
+---
 ## Session 2026-09-23a — Selected notes published as a Hugo blog
 
 ### 46-blog.el — new module, optional (NOERROR)
