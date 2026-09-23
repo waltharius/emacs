@@ -21,6 +21,18 @@
 ;; refused rather than placed in either: which one was meant is not
 ;; something to guess.  One note may appear on several sites.
 ;;
+;; FILES OUTSIDE THE SILOS
+;; -----------------------
+;; Any Org file -- function_helper.org, a README -- can be placed on
+;; sites by hand, section by section, without a keyword: `f' in the menu
+;; picks the file, the sites and the section, and records the choice in
+;; `my/blog-extra-files-file' (hugo/extra-files.eld in this repository,
+;; readable and editable by hand); `F' takes a file off again.  Such a
+;; file is exported like a note.  Its URL comes from its file name, as
+;; it has no Denote title, and a file without `#+date:' is dated by its
+;; modification time.  A file in a private silo is refused on a site
+;; with a server, whatever the list says.
+;;
 ;; WHAT THE CONFIGURATION MAY NOT SAY
 ;; ----------------------------------
 ;; Checked before every command, so a mistake stops the command instead
@@ -179,7 +191,8 @@
 ;;   d  dry run of a site         s  stop a preview
 ;;   a  export a site (changes)   p  export, build, upload
 ;;   A  export a site (all)       t  sync site files from hugo/
-;;                                o  site folder in Dired
+;;   f  place a file on sites     o  site folder in Dired
+;;   F  take a placed file off
 ;;                                l  last report
 ;; With more than one site, commands ask which; the last one used is
 ;; the default.  `e' picks the site from the note's keywords.
@@ -296,6 +309,14 @@ the same rebuild (see the Commentary)."
   "Directory holding the site files declared in this repository.
 common/ is copied into every site, sites/<name>/ into site <name>."
   :type 'directory
+  :group 'my/blog)
+
+(defcustom my/blog-extra-files-file
+  (expand-file-name "extra-files.eld" my/blog-template-directory)
+  "File listing Org files placed on sites by hand, outside the silos.
+Each entry is (FILE (SITE . SECTION) ...).  Written by `f' and `F' in
+the menu; may be edited by hand."
+  :type 'file
   :group 'my/blog)
 
 (defcustom my/blog-autostart-delay 5
@@ -474,19 +495,22 @@ Uses the rule of 27-denote-identifiers.el when it is loaded, so that
 
 (defun my/blog--sections-of (site file)
   "Return the names of the sections of SITE that FILE belongs to.
-Nil when FILE is not a note of that site."
+By keyword and silo, plus any placement in `my/blog-extra-files-file'.
+Nil when FILE is not on that site."
   (when (and (stringp file)
              (string-suffix-p ".org" file)
-             (file-exists-p file)
-             (string-prefix-p (my/blog--notes-root) (expand-file-name file))
-             (not (my/blog--excluded-p file)))
-    (let ((silo (my/blog--silo-of file))
-          (keywords (denote-extract-keywords-from-path file))
-          (found '()))
-      (dolist (sec (my/blog--sections site))
-        (when (and (member silo (plist-get (cdr sec) :silos))
-                   (member (plist-get (cdr sec) :keyword) keywords))
-          (push (car sec) found)))
+             (file-exists-p file))
+    (let ((found '()))
+      (when (and (string-prefix-p (my/blog--notes-root) (expand-file-name file))
+                 (not (my/blog--excluded-p file)))
+        (let ((silo (my/blog--silo-of file))
+              (keywords (denote-extract-keywords-from-path file)))
+          (dolist (sec (my/blog--sections site))
+            (when (and (member silo (plist-get (cdr sec) :silos))
+                       (member (plist-get (cdr sec) :keyword) keywords))
+              (push (car sec) found)))))
+      (dolist (section (my/blog--extra-sections site file))
+        (unless (member section found) (push section found)))
       (nreverse found))))
 
 (defun my/blog--sites-of (file)
@@ -505,11 +529,152 @@ Sorted by file name, which for Denote notes is creation order."
           (dolist (file (directory-files-recursively dir "\\.org\\'"))
             (when (my/blog--sections-of site file)
               (push file files))))))
+    (dolist (entry (my/blog--extra-files))
+      (when (and (file-exists-p (car entry))
+                 (my/blog--extra-sections site (car entry)))
+        (push (car entry) files)))
     ;; The order decides which of two colliding URLs is kept: the
     ;; older note's.
     (sort (delete-dups files)
           (lambda (a b) (string< (file-name-nondirectory a)
                                  (file-name-nondirectory b))))))
+
+;; ============================================================
+;; FILES PLACED BY HAND
+;; ============================================================
+
+(defvar my/blog--extra-cache nil
+  "(FILE MTIME . ENTRIES) of the last read of `my/blog-extra-files-file'.
+A plan asks for every note whether it was placed by hand; reading the
+list once per note would mean thousands of reads per journal export.")
+
+(defun my/blog--extra-files ()
+  "Return the entries of `my/blog-extra-files-file', paths expanded.
+Each entry is (FILE (SITE . SECTION) ...).  A missing or unreadable
+list is an empty one.  Re-read only when the file changes."
+  (let ((mtime (my/blog--mtime my/blog-extra-files-file)))
+    (if (and my/blog--extra-cache
+             (equal (car my/blog--extra-cache) my/blog-extra-files-file)
+             (equal (cadr my/blog--extra-cache) mtime))
+        (cddr my/blog--extra-cache)
+      (let* ((data (and mtime
+                        (condition-case nil
+                            (with-temp-buffer
+                              (insert-file-contents my/blog-extra-files-file)
+                              (read (current-buffer)))
+                          (error
+                           (message "Blog: %s is not a readable list"
+                                    my/blog-extra-files-file)
+                           nil))))
+             (entries (mapcar (lambda (entry)
+                                (cons (expand-file-name (car entry)) (cdr entry)))
+                              (seq-filter (lambda (entry)
+                                            (and (consp entry) (stringp (car entry))))
+                                          (and (listp data) data)))))
+        (setq my/blog--extra-cache (cons my/blog-extra-files-file (cons mtime entries)))
+        entries))))
+
+(defun my/blog--extra-sections (site file)
+  "Return the sections of SITE that FILE was placed in by hand."
+  (let ((entry (assoc (expand-file-name file) (my/blog--extra-files))))
+    (delq nil (mapcar (lambda (placement)
+                        (when (equal (car placement) (car site)) (cdr placement)))
+                      (cdr entry)))))
+
+(defun my/blog--write-extra-files (entries)
+  "Write ENTRIES, a list of (FILE (SITE . SECTION) ...), as the list."
+  (let ((entries (sort (seq-filter #'cdr entries)
+                       (lambda (a b) (string< (car a) (car b))))))
+    (make-directory (file-name-directory my/blog-extra-files-file) t)
+    (with-temp-file my/blog-extra-files-file
+      (insert ";; -*- mode: lisp-data -*-\n"
+              ";; Org files outside the silos, placed on Hugo sites by hand.\n"
+              ";; Read by modules/46-blog.el; written by C-c n x b f / F.\n"
+              ";; Entry: (FILE (SITE . SECTION) ...)\n(")
+      (let ((first t))
+        (dolist (entry entries)
+          (insert (if first "" "\n "))
+          (setq first nil)
+          (prin1 (cons (abbreviate-file-name (car entry)) (cdr entry)) (current-buffer))))
+      (insert ")\n"))
+    ;; Two writes within the file system's time resolution would keep
+    ;; the same modification time; forget the cached copy outright.
+    (setq my/blog--extra-cache nil)))
+
+;;;###autoload
+(defun my/blog-place-file (file site-names section)
+  "Place Org FILE on the sites SITE-NAMES, in SECTION of each.
+For files outside the silos, which no keyword can reach.  The choice
+is recorded in `my/blog-extra-files-file' and replaces any earlier
+placement of FILE on those sites.  The page appears at the site's next
+export; an autostart site exports at once."
+  (interactive
+   (let* ((file (expand-file-name
+                 (read-file-name "Org file to publish: " nil
+                                 (and buffer-file-name
+                                      (string-suffix-p ".org" buffer-file-name)
+                                      buffer-file-name)
+                                 t nil
+                                 (lambda (f) (or (file-directory-p f)
+                                                 (string-suffix-p ".org" f))))))
+          (names (progn (my/blog--check-config) (mapcar #'car my/blog-sites)))
+          (sites (completing-read-multiple
+                  (format "Sites (comma-separated, default all: %s): "
+                          (string-join names ","))
+                  names nil t nil nil (string-join names ",")))
+          ;; Only sections every chosen site has: one answer for all.
+          (common (seq-reduce
+                   (lambda (acc name)
+                     (seq-intersection
+                      acc (mapcar #'car (my/blog--sections (my/blog--site name)))))
+                   (cdr sites)
+                   (mapcar #'car (my/blog--sections (my/blog--site (car sites)))))))
+     (unless common
+       (user-error "The chosen sites share no section"))
+     (list file sites (completing-read "Section: " common nil t))))
+  (unless (string-suffix-p ".org" file)
+    (user-error "Only Org files can be exported: %s" file))
+  (let* ((path (expand-file-name file))
+         (entries (my/blog--extra-files))
+         (old (cdr (assoc path entries)))
+         (kept (seq-remove (lambda (p) (member (car p) site-names)) old))
+         (placements (append kept (mapcar (lambda (name) (cons name section))
+                                          site-names))))
+    (my/blog--write-extra-files
+     (cons (cons path placements) (assoc-delete-all path entries)))
+    (message "%s -> %s"
+             (file-name-nondirectory path)
+             (mapconcat (lambda (p) (format "%s/%s" (car p) (cdr p))) placements ", "))
+    (my/blog--export-autostart-sites site-names)))
+
+;;;###autoload
+(defun my/blog-unplace-file (file)
+  "Take FILE, placed by hand, off every site.
+Its pages disappear at each site's next export; an autostart site
+exports at once."
+  (interactive
+   (let ((entries (my/blog--extra-files)))
+     (unless entries (user-error "No files placed by hand"))
+     (list (completing-read "Take off the sites: "
+                            (mapcar (lambda (e) (abbreviate-file-name (car e))) entries)
+                            nil t))))
+  (let* ((path (expand-file-name file))
+         (entries (my/blog--extra-files))
+         (sites (mapcar #'car (cdr (assoc path entries)))))
+    (my/blog--write-extra-files (assoc-delete-all path entries))
+    (message "%s taken off %s" (file-name-nondirectory path) (string-join sites ", "))
+    (my/blog--export-autostart-sites sites)))
+
+(defun my/blog--export-autostart-sites (site-names)
+  "Start a background export of each autostart site among SITE-NAMES."
+  (dolist (name site-names)
+    (let ((site (assoc name my/blog-sites)))
+      (when (and site
+                 (my/blog--prop site :autostart)
+                 (file-directory-p (my/blog--directory site)))
+        (condition-case err
+            (my/blog--start name (list :write t :quiet t))
+          (error (message "Blog, %s: %s" name (error-message-string err))))))))
 
 ;; ============================================================
 ;; URLS
@@ -530,16 +695,19 @@ decompose, is mapped by hand.  Whatever is still not ASCII goes."
     (string-trim s "-" "-")))
 
 (defun my/blog--slug (file)
-  "Return the URL slug of FILE according to `my/blog-url-source'."
-  (let* ((id (or (denote-retrieve-filename-identifier file)
-                 (file-name-base file)))
-         (title (denote-retrieve-filename-title file))
-         (from-title (and title (my/blog--ascii title))))
-    (if (and (eq my/blog-url-source 'title)
-             from-title
-             (not (string-empty-p from-title)))
-        from-title
-      (downcase id))))
+  "Return the URL slug of FILE according to `my/blog-url-source'.
+A file that is not a Denote note has neither identifier nor title in
+its name; its whole base name, transliterated, is the slug."
+  (let ((id (denote-retrieve-filename-identifier file)))
+    (if (null id)
+        (my/blog--ascii (file-name-base file))
+      (let* ((title (denote-retrieve-filename-title file))
+             (from-title (and title (my/blog--ascii title))))
+        (if (and (eq my/blog-url-source 'title)
+                 from-title
+                 (not (string-empty-p from-title)))
+            from-title
+          (downcase id))))))
 
 ;; ============================================================
 ;; STATE: WHAT THE LAST RUN SAW
@@ -697,6 +865,10 @@ With FULL, every page counts as needing an export.  Returns a plist:
           (push (list file (format "keywords of several sections: %s"
                                    (string-join sections ", ")))
                 refused))
+         ((and (my/blog--prop site :remote)
+               (member (my/blog--silo-of file) my/blog-private-silos))
+          (push (list file "in a private silo, and this site has a server")
+                refused))
          (foreign
           (push (list file (format "includes a note not on this site: %s"
                                    (mapconcat #'abbreviate-file-name foreign ", ")))
@@ -806,6 +978,21 @@ Returns the path of the Markdown file written."
     (with-temp-buffer
       (insert (format "#+export_file_name: %s\n" slug))
       (insert-file-contents file)
+      (let ((case-fold-search t))
+        ;; A file without a date (function_helper.org) would sort after
+        ;; every dated page; its modification time is the closest fact.
+        (unless (save-excursion (goto-char (point-min))
+                                (re-search-forward "^#\\+date:" nil t))
+          (insert (format-time-string "#+date: [%Y-%m-%d %a %H:%M]\n"
+                                      (file-attribute-modification-time
+                                       (file-attributes file))))))
+      (save-excursion
+        (goto-char (point-max))
+        ;; The theme draws the table of contents; one written by ox-hugo
+        ;; from a file's own `toc:' option would appear a second time.
+        ;; At the end, because a later #+options line overrides an
+        ;; earlier one.
+        (insert "\n#+options: toc:nil\n"))
       ;; Relative links, images and #+INCLUDE paths resolve against the
       ;; note's own directory, as they would in the note's buffer.
       (setq default-directory (file-name-directory (expand-file-name file)))
@@ -1509,14 +1696,14 @@ machine without the site should start as quietly as one with it."
 A note concerns a site when it lives in one of the site's silos, with
 or without the keyword: a note whose keyword was just removed has to
 be taken off the site, too."
-  (when-let* ((file buffer-file-name)
-              (silo (my/blog--silo-of file)))
+  (when-let* ((file buffer-file-name))
     (when (string-suffix-p ".org" file)
       (dolist (site my/blog-sites)
         ;; A machine without the site directory stays silent: the
         ;; autostart left one line in *Messages*, that is enough.
         (when (and (my/blog--prop site :autostart)
-                   (member silo (my/blog--site-silos site))
+                   (or (member (my/blog--silo-of file) (my/blog--site-silos site))
+                       (my/blog--extra-sections site file))
                    (file-directory-p (my/blog--directory site)))
           (let* ((name (car site))
                  (old (cdr (assoc name my/blog--save-timers))))
@@ -1547,6 +1734,8 @@ be taken off the site, too."
   "Publish notes as Hugo sites."
   [["Export"
     ("e" "This note"               my/blog-export-current)
+    ("f" "Place a file on sites"   my/blog-place-file)
+    ("F" "Take a placed file off"  my/blog-unplace-file)
     ("d" "Site - dry run"          my/blog-export-all-dry-run)
     ("a" "Site - changes"          my/blog-export-all)
     ("A" "Site - everything"       my/blog-export-all-full)]

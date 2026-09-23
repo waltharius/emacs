@@ -21,6 +21,75 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-23f — Blog: Org files outside the silos placed on sites by hand
+
+### 46-blog.el
+
+**Placement list.** Files outside the silos cannot carry a section
+keyword that the module would read, since keywords count only inside a
+section's silos. New `my/blog-extra-files-file`
+(`hugo/extra-files.eld`) lists (FILE (SITE . SECTION) ...);
+`my/blog--sections-of` adds these placements to the keyword/silo
+sections, so candidates, the include rule, backlinks, incremental
+export and pruning treat a placed file like a note. Paths are stored
+abbreviated (`~/...`) so the list is valid on any machine with the
+same layout. Rejected: a keyword such as `pubdoc` honoured outside the
+silos — it would need a scan of arbitrary directories, and
+function_helper.org is not a Denote file with keywords in its name.
+Rejected also: a property on the site in `my/blog-sites` — the choice
+is made per file from a file prompt, which is easier to record in a
+list of its own than to splice into a customized variable.
+
+**Commands.** `f` (`my/blog-place-file`): file prompt limited to Org
+files, default the current buffer's; sites with
+`completing-read-multiple`, default all; a section offered only if
+every chosen site has it, so one answer fits all. A new placement
+replaces earlier placements of the file on the same sites. `F`
+(`my/blog-unplace-file`) removes the file from every site. Both start a
+background export of the autostart sites involved; other sites change
+at their next export.
+
+**Files without Denote names.** URL from the transliterated base name
+(`function_helper.org` → `function-helper`); a missing `#+date:` is
+filled into the export copy from the file's modification time, so the
+page sorts among dated pages. A file's own `#+options: toc:...` is
+overridden by `toc:nil` appended to the copy (a later OPTIONS line
+wins): with PaperMod's `ShowToc`, function_helper.org's `toc:2`
+produced a second table of contents.
+
+**Privacy rule.** A placed file inside a private silo is refused on a
+site with a `:remote`, as a keyword could not place it there either.
+
+**Cost.** Every plan asks for every candidate whether it was placed by
+hand; the list is cached by modification time and dropped after each
+write, so a journal export reads it once.
+
+**After-save.** An autostart site is now also re-exported when a file
+placed on it is saved, not only notes in its silos.
+
+Verified in batch with the real function_helper.org (316 KB, 479
+headings): placed on both sites in `docs`, exported in about 1.7 s,
+one table of contents on the built page, `#custom-id` links as
+anchors; taken off again and pruned on the laptop-only site, kept and
+reported on a site with a `:remote` (background run); a journal note
+placed on a site with a `:remote` refused.
+
+### hugo/extra-files.eld — new
+
+Places function_helper.org in `docs` on both sites.
+
+### function_helper.org
+
+- Blog: new subsection on files outside the silos; the autostart
+  subsection states that only autostart sites change unasked and that
+  the keyword is what admits a note to the blog; `f`, `F`,
+  `my/blog-extra-files-file`.
+- `my/insert-web-link` entry: the link syntax `[[URL][Title]]` was
+  written as a live Org link to a heading called URL, so Emacs showed
+  only the word 'Title' and every export stopped on an unresolvable
+  link. Now verbatim.
+
+---
 ## Session 2026-09-23e — Blog: site files declared in the repository, backlinks, tables of contents
 
 ### 46-blog.el

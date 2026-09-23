@@ -1318,7 +1318,7 @@ Function: =my/org-image-recompress-attachments= | Module: =modules/31-org-images
 :END:
 
 Fetches the page title for a URL and inserts an Org link
-[[URL][Title]] at point. Prompts for the URL; if the clipboard
+=[[URL][Title]]= at point. Prompts for the URL; if the clipboard
 already contains one, org-web-tools offers it as default.
 
 Function: =my/insert-web-link= | Module: =modules/32-web-links.el=
@@ -6968,6 +6968,42 @@ longer pruned; delete its directory by hand.
 Headings tagged =:noexport:= and =COMMENT= headings stay out of the
 page, as in every Org export.
 
+** Files outside the silos
+:PROPERTIES:
+:CUSTOM_ID: blog-extra-files
+:END:
+
+Org files that no keyword can reach, such as this =function_helper.org=
+in the Emacs repository, are placed on sites by hand:
+
+- =C-c n x b f= asks for the file (the current buffer's by default), the
+  sites (comma-separated; all by default) and a section every chosen
+  site has;
+- =C-c n x b F= takes a placed file off every site.
+
+The choices live in =hugo/extra-files.eld= in this repository, one entry
+per file, readable and editable by hand:
+
+#+begin_src emacs-lisp
+(("~/.emacs.d/function_helper.org" ("blog" . "docs") ("journal" . "docs")))
+#+end_src
+
+A placed file is exported like a note: incremental export, backlinks,
+links to notes on the same site, the include rule. Its URL comes from
+its file name (=function_helper.org= → =/docs/function-helper/=), since
+it has no Denote title; a file without =#+date:= is dated by its
+modification time. The site's =:broken-links= setting applies: on the
+blog (=nil=), a link Org cannot resolve stops the file's export and the
+report names the link.
+
+The page appears at the site's next export; an autostart site exports
+at once. A file in a private silo is refused on a site with =:remote=,
+whatever the list says.
+
+A file's own =#+options: toc:...= is overridden during the export: the
+theme draws the table of contents, and a second one written by ox-hugo
+would repeat it.
+
 ** Links, images, includes
 :PROPERTIES:
 :CUSTOM_ID: blog-links
@@ -7067,6 +7103,13 @@ Pages no longer produced by any note:
 :CUSTOM_ID: blog-autostart
 :END:
 
+Only sites with =:autostart= change without being asked. The blog has
+none: its pages change only on =e=, =a=, =A= or =p=, so a saved but
+unfinished note reaches it only through one of those, and only if it
+already carries =blog= or =pubdoc=. The keyword is the gate. The
+journal site shows the same =blog= and =pubdoc= notes as soon as they
+are saved, on the laptop only.
+
 A site with =:autostart t= is kept current without being asked:
 
 - =my/blog-autostart-delay= (5) idle seconds after start-up, an
@@ -7155,6 +7198,8 @@ means about ten million searches per build.
 | Command                      | Effect                                                         |
 |------------------------------+----------------------------------------------------------------|
 | =my/blog-export-current=     | export the note in the current buffer to its site, at once     |
+| =my/blog-place-file=         | place an Org file outside the silos on sites, in a section     |
+| =my/blog-unplace-file=       | take a placed file off every site                              |
 | =my/blog-export-all-dry-run= | report what an export of a site would write and remove         |
 | =my/blog-export-all=         | export what changed in a site, remove pages no longer published |
 | =my/blog-export-all-full=    | export every note of a site                                    |
@@ -7184,6 +7229,8 @@ Function: =my/blog-publish= | Module: =modules/46-blog.el=
 
 Function: =my/blog-sync-site= | Module: =modules/46-blog.el=
 
+Function: =my/blog-place-file=, =my/blog-unplace-file= | Module: =modules/46-blog.el=
+
 ** Menu (C-c n x b)
 :PROPERTIES:
 :CUSTOM_ID: menu-blog
@@ -7192,6 +7239,8 @@ Function: =my/blog-sync-site= | Module: =modules/46-blog.el=
 | Key | Entry                 |
 |-----+-----------------------|
 | =e= | This note             |
+| =f= | Place a file on sites |
+| =F= | Take a placed file off |
 | =d= | Site - dry run        |
 | =a= | Site - changes        |
 | =A= | Site - everything     |
@@ -7263,6 +7312,7 @@ under =<user>.github.io/<repo>/=.
 | =my/blog-link-style=      | =path=                      | =path= or =relref=                       |
 | =my/blog-autostart-delay= | =5=                         | idle seconds after start-up              |
 | =my/blog-template-directory= | =~/.emacs.d/hugo/=       | site files declared in the repository    |
+| =my/blog-extra-files-file= | =hugo/extra-files.eld=     | files placed on sites by hand            |
 | =my/blog-hugo-program=    | =hugo=                      | executable                               |
 | =my/blog-rsync-program=   | =rsync=                     | executable                               |
 
