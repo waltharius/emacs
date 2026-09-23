@@ -1,0 +1,41 @@
+# Generated from ~/.emacs.d/hugo/sites/docs/hugo.toml by modules/46-blog.el.
+# Edit that file, not this one: the next sync replaces this copy.
+# Theme hugo-book (https://github.com/alex-shpak/hugo-book), which needs
+# Hugo 0.158.0 or newer.
+
+baseURL = 'http://localhost:1315/'
+languageCode = 'pl-PL'
+defaultContentLanguage = 'pl'
+title = 'Dokumentacja'
+theme = 'hugo-book'
+
+[markup.tableOfContents]
+  # ox-hugo writes Org's top headings as ##; the page title is the #.
+  startLevel = 2
+  endLevel = 4
+
+[params]
+  # Left menu: the pages of content/docs/.
+  BookSection = 'docs'
+  # Right column: table of contents of the page, then backlinks
+  # (hugo/theme/hugo-book/layouts/_partials/docs/inject/toc-after.html).
+  BookToC = true
+  BookTheme = 'auto'
+  BookBreadcrumbs = false
+  # Full-text search over the site, built into the theme.
+  BookSearch = true
+  BookComments = false
+  # hugo-book's own incoming/outgoing links; replaced by the backlinks
+  # above, which do not depend on the order Hugo renders pages in.
+  BookPageLinks = false
+  backlinksTitle = 'Linkują tutaj'
+
+[menu]
+  [[menu.after]]
+    name = 'Dziennik i notatki'
+    url = 'http://localhost:1314/'
+    weight = 10
+  [[menu.after]]
+    name = 'Blog'
+    url = 'http://localhost:1313/'
+    weight = 20

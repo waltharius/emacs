@@ -1,0 +1,7 @@
+# Generated from ~/.emacs.d/hugo/sites/docs/.gitignore by modules/46-blog.el.
+public/
+resources/
+.hugo_build.lock
+.blog-state.eld
+.blog-templates.eld
+.template-backups/

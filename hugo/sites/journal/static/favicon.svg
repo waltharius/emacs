@@ -1,0 +1,6 @@
+<!-- Generated from ~/.emacs.d/hugo/sites/journal/static/favicon.svg by modules/46-blog.el. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#d97706"/>
+  <text x="32" y="46" font-family="DejaVu Sans, Arial, sans-serif" font-size="40"
+        font-weight="700" text-anchor="middle" fill="#ffffff">J</text>
+</svg>

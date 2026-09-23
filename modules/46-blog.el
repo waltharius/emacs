@@ -61,8 +61,11 @@
 ;;   - a link to a note published on the SAME site, in any of its
 ;;     sections, becomes a link to that page (see `my/blog-link-style'
 ;;     for its form);
-;;   - a link to any other note -- private, or on another site -- becomes
-;;     its description, as plain text.
+;;   - a link to a note on ANOTHER site becomes an absolute link below
+;;     that site's `:url', when this site may link there (see
+;;     `my/blog--link-sites': a site with a server links only to sites
+;;     with a server);
+;;   - a link to any other note becomes its description, as plain text.
 ;; Both are done by a replacement `:export' function for the `denote'
 ;; link type, let-bound around the export, so exports started any
 ;; other way (PDF, ODT, `C-c C-e') are untouched.
@@ -150,10 +153,14 @@
 ;;
 ;; SITE FILES FROM THE EMACS REPOSITORY
 ;; ------------------------------------
-;; Hugo configuration, layouts and section title pages are declared in
-;; this repository, under `my/blog-template-directory' (hugo/):
-;;   hugo/common/        copied into every site
-;;   hugo/sites/<name>/  copied into site <name>, overriding common/
+;; Hugo configuration, layouts, section title pages and favicons are
+;; declared in this repository, under `my/blog-template-directory'
+;; (hugo/), in three layers, each overriding the one before:
+;;   hugo/common/          copied into every site
+;;   hugo/theme/<theme>/   copied into every site using that `:theme'
+;;   hugo/sites/<name>/    copied into site <name>
+;; The theme layer exists because a hook such as the backlinks partial
+;; has a different name and place in every theme.
 ;; A sync copies every file whose content differs from the site's copy.
 ;; The site's copy is generated: edits belong in the repository.  A
 ;; file changed on disk since the last sync (or never synced) is saved
@@ -235,23 +242,31 @@
   :group 'my/notes)
 
 (defcustom my/blog-sites
-  '(("blog"
-     :directory "~/projects/blog/"
-     :remote nil
-     :port 1313
-     :theme ("PaperMod" "https://github.com/adityatelange/hugo-PaperMod")
-     :sections (("posts" :keyword "blog"   :silos ("pks" "docu"))
-                ("docs"  :keyword "pubdoc" :silos ("pks" "docu"))))
-    ("journal"
+  '(("journal"
      :directory "~/projects/journal-site/"
      :remote nil
+     :url "http://localhost:1314/"
      :port 1314
      :theme ("PaperMod" "https://github.com/adityatelange/hugo-PaperMod")
      :autostart t
      :broken-links mark
      :sections (("journal" :keyword "journal" :silos ("journal"))
-                ("posts"   :keyword "blog"    :silos ("pks" "docu"))
-                ("docs"    :keyword "pubdoc"  :silos ("pks" "docu")))))
+                ("posts"   :keyword "blog"    :silos ("pks" "docu"))))
+    ("docs"
+     :directory "~/projects/docs-site/"
+     :remote nil
+     :url "http://localhost:1315/"
+     :port 1315
+     :theme ("hugo-book" "https://github.com/alex-shpak/hugo-book")
+     :autostart t
+     :sections (("docs" :keyword "pubdoc" :silos ("pks" "docu"))))
+    ("blog"
+     :directory "~/projects/blog/"
+     :remote nil
+     :url "http://localhost:1313/"
+     :port 1313
+     :theme ("PaperMod" "https://github.com/adityatelange/hugo-PaperMod")
+     :sections (("posts" :keyword "blog" :silos ("pks" "docu")))))
   "Hugo sites notes are published to.
 Each entry is (NAME . PLIST):
   :directory     root of the Hugo site, the directory holding hugo.toml;
@@ -260,6 +275,8 @@ Each entry is (NAME . PLIST):
                  journal must not be synced as a second journal
   :remote        rsync destination such as \"user@server:/var/www/blog/\"
                  (trailing slash matters), or nil for a laptop-only site
+  :url           address the site is read at; needed for other sites
+                 to link to its pages (see `my/blog--link-sites')
   :port          port of `hugo server', default 1313
   :theme         (NAME URL): cloned to themes/NAME when missing
   :autostart     non-nil: export and serve after start-up, re-export
@@ -348,7 +365,7 @@ the menu; may be edited by hand."
 (defconst my/blog--state-file ".blog-state.eld"
   "Name of the state file kept in the root of each site.")
 
-(defconst my/blog--state-format 1
+(defconst my/blog--state-format 2
   "Version of the state file and of the export rules.
 Part of the fingerprint: raising it makes every site export in full
 once, which is what a change in how pages are produced requires.")
@@ -575,10 +592,14 @@ list is an empty one.  Re-read only when the file changes."
         entries))))
 
 (defun my/blog--extra-sections (site file)
-  "Return the sections of SITE that FILE was placed in by hand."
+  "Return the sections of SITE that FILE was placed in by hand.
+A placement in a section the site does not have (any more) is ignored;
+otherwise its pages would land in a directory nobody prunes."
   (let ((entry (assoc (expand-file-name file) (my/blog--extra-files))))
     (delq nil (mapcar (lambda (placement)
-                        (when (equal (car placement) (car site)) (cdr placement)))
+                        (when (and (equal (car placement) (car site))
+                                   (assoc (cdr placement) (my/blog--sections site)))
+                          (cdr placement)))
                       (cdr entry)))))
 
 (defun my/blog--write-extra-files (entries)
@@ -818,6 +839,58 @@ CACHE maps files to (MTIME INCLUDES LINKS) and is updated in place."
   "Return the modification times of FILE and its INCLUDES, as a list."
   (mapcar #'my/blog--mtime (cons file includes)))
 
+(defvar my/blog--foreign-index-cache nil
+  "Alist of site name -> (MTIME . INDEX) read from other sites' state.")
+
+(defun my/blog--site-url (site)
+  "Return the `:url' of SITE without its trailing slash, or nil."
+  (when-let* ((url (my/blog--prop site :url)))
+    (string-remove-suffix "/" url)))
+
+(defun my/blog--link-sites (site)
+  "Return the other sites SITE may link to, in `my/blog-sites' order.
+A site needs a `:url' to be linked to.  A site with a `:remote' links
+only to sites that also have one: a page on a server must not point
+at a laptop-only site, which its readers cannot reach and which may
+hold private notes."
+  (seq-filter (lambda (other)
+                (and (not (equal (car other) (car site)))
+                     (my/blog--site-url other)
+                     (or (not (my/blog--prop site :remote))
+                         (my/blog--prop other :remote))))
+              my/blog-sites))
+
+(defun my/blog--published-index (site)
+  "Return identifier -> (SECTION . SLUG) of SITE as of its last run.
+Read from the site's state file, cached by modification time: what
+another site has actually exported, not what it would export now."
+  (let* ((path (my/blog--state-path site))
+         (mtime (my/blog--mtime path))
+         (hit (cdr (assoc (car site) my/blog--foreign-index-cache))))
+    (if (and hit (equal (car hit) mtime))
+        (cdr hit)
+      (let ((index (my/blog--alist-to-hash
+                    (plist-get (my/blog--read-state site) :index))))
+        (setf (alist-get (car site) my/blog--foreign-index-cache nil nil #'equal)
+              (cons mtime index))
+        index))))
+
+(defun my/blog--targets (site index)
+  "Return identifier -> (SECTION SLUG BASE) for links from SITE.
+INDEX is the site's own; BASE is nil for its pages.  A note on no own
+page but on a site from `my/blog--link-sites' gets the first such
+site's page, BASE being that site's `:url'."
+  (let ((targets (make-hash-table :test #'equal :size (hash-table-count index))))
+    (maphash (lambda (id page) (puthash id (list (car page) (cdr page) nil) targets))
+             index)
+    (dolist (other (my/blog--link-sites site))
+      (let ((base (my/blog--site-url other)))
+        (maphash (lambda (id page)
+                   (unless (gethash id targets)
+                     (puthash id (list (car page) (cdr page) base) targets)))
+                 (my/blog--published-index other))))
+    targets))
+
 (defun my/blog--changed-ids (old new)
   "Return identifiers whose page differs between hash tables OLD and NEW."
   (let ((changed '()))
@@ -834,6 +907,10 @@ With FULL, every page counts as needing an export.  Returns a plist:
   :refused  list of (FILE REASON) that will not be exported
   :stale    .md files in the section directories no note produces
   :index    identifier -> (SECTION . SLUG) of the notes in :ready
+  :targets  identifier -> (SECTION SLUG BASE) of every note a link may
+            reach: the site's own (BASE nil) and those of other sites
+            this site may link to (BASE their `:url')
+  :index-changed  non-nil when :index differs from the last run's
   :cache    file -> (MTIME INCLUDES LINKS), for the state file
   :stamps   file -> times of the note and its includes at last export
   :full     non-nil when every page is exported"
@@ -845,6 +922,7 @@ With FULL, every page counts as needing an export.  Returns a plist:
          (cache (my/blog--alist-to-hash (plist-get state :cache)))
          (stamps (my/blog--alist-to-hash (plist-get state :stamps)))
          (old-index (my/blog--alist-to-hash (plist-get state :index)))
+         (old-targets (my/blog--alist-to-hash (plist-get state :targets)))
          (retry (plist-get state :retry))
          (taken (make-hash-table :test #'equal))
          (index (make-hash-table :test #'equal))
@@ -884,9 +962,10 @@ With FULL, every page counts as needing an export.  Returns a plist:
     (dolist (entry ready)
       (let ((id (denote-retrieve-filename-identifier (nth 0 entry))))
         (when id (puthash id (cons (nth 1 entry) (nth 2 entry)) index))))
-    (let ((changed (my/blog--changed-ids old-index index))
-          (todo '())
-          (stale '()))
+    (let* ((targets (my/blog--targets site index))
+           (changed (my/blog--changed-ids old-targets targets))
+           (todo '())
+           (stale '()))
       (dolist (entry ready)
         (let* ((file (nth 0 entry))
                (refs (my/blog--refs file cache)))
@@ -919,6 +998,8 @@ With FULL, every page counts as needing an export.  Returns a plist:
             :refused (nreverse refused)
             :stale (nreverse stale)
             :index index
+            :targets targets
+            :index-changed (and (my/blog--changed-ids old-index index) t)
             :cache cache
             :stamps stamps
             :full full))))
@@ -927,39 +1008,44 @@ With FULL, every page counts as needing an export.  Returns a plist:
 ;; EXPORT OF ONE NOTE
 ;; ============================================================
 
-(defun my/blog--link-export-function (index)
-  "Return an `:export' function for `denote:' links resolved by INDEX.
-INDEX maps identifiers to (SECTION . SLUG).  A link to a note in INDEX
-becomes a link in `my/blog-link-style', keeping a `::#custom-id'
-anchor; any other link
-becomes its description alone, so nothing about a note that is not on
-the site leaves the machine except the words the page itself uses for
-it.  A format other than `md' gets the description too: the function
-is only installed for Hugo exports."
+(defun my/blog--link-export-function (targets)
+  "Return an `:export' function for `denote:' links resolved by TARGETS.
+TARGETS maps identifiers to (SECTION SLUG BASE), see `my/blog--targets'.
+A link to a page of the same site (BASE nil) is written in
+`my/blog-link-style'; a link to another site's page is an absolute
+link below that site's BASE; `::#custom-id' anchors are kept.  Any
+other link becomes its description alone, so nothing about a note that
+is not published leaves the machine except the words the page itself
+uses for it.  A format other than `md' gets the description too: the
+function is only installed for Hugo exports."
   (lambda (link description format)
     (let* ((parts (split-string link "::"))
            (search (cadr parts))
-           (target (gethash (car parts) index))
+           (target (gethash (car parts) targets))
            (text (or description "")))
       (if (and target (eq format 'md))
-          (let ((label (if (string-empty-p text) (cdr target) text))
-                (anchor (if (and search (string-prefix-p "#" search)) search "")))
-            (if (eq my/blog-link-style 'relref)
-                (format "[%s]({{< relref \"/%s/%s%s\" >}})"
-                        label (car target) (cdr target) anchor)
-              (format "[%s](/%s/%s/%s)" label (car target) (cdr target) anchor)))
+          (let* ((section (nth 0 target))
+                 (slug (nth 1 target))
+                 (base (nth 2 target))
+                 (label (if (string-empty-p text) slug text))
+                 (anchor (if (and search (string-prefix-p "#" search)) search "")))
+            (cond
+             (base (format "[%s](%s/%s/%s/%s)" label base section slug anchor))
+             ((eq my/blog-link-style 'relref)
+              (format "[%s]({{< relref \"/%s/%s%s\" >}})" label section slug anchor))
+             (t (format "[%s](/%s/%s/%s)" label section slug anchor))))
         text))))
 
-(defun my/blog--link-parameters (index)
+(defun my/blog--link-parameters (targets)
   "Return `org-link-parameters' with the site's export for `denote'."
   (let* ((params (copy-alist org-link-parameters))
          (denote-params (copy-sequence (cdr (assoc "denote" params)))))
     (cons (cons "denote" (plist-put denote-params :export
-                                    (my/blog--link-export-function index)))
+                                    (my/blog--link-export-function targets)))
           (assoc-delete-all "denote" params))))
 
-(defun my/blog--export-file (site file section slug index)
-  "Export FILE to SECTION of SITE as SLUG, resolving links through INDEX.
+(defun my/blog--export-file (site file section slug targets)
+  "Export FILE to SECTION of SITE as SLUG, resolving links through TARGETS.
 Returns the path of the Markdown file written."
   ;; Before the `let': its bindings read ox-hugo's own defaults.
   (my/blog--require-ox-hugo)
@@ -974,7 +1060,7 @@ Returns the path of the Markdown file written."
          (org-export-with-broken-links (my/blog--prop site :broken-links))
          (org-export-filter-link-functions
           (remq 'my/latex-filter-denote-link org-export-filter-link-functions))
-         (org-link-parameters (my/blog--link-parameters index)))
+         (org-link-parameters (my/blog--link-parameters targets)))
     (with-temp-buffer
       (insert (format "#+export_file_name: %s\n" slug))
       (insert-file-contents file)
@@ -1164,7 +1250,16 @@ every later request for the site would wait for a run that is over."
     (when-let* ((callback (plist-get job :on-done)))
       (funcall callback ok))
     (when (plist-get job :again)
-      (my/blog--start name (list :write t :quiet t)))))
+      (my/blog--start name (list :write t :quiet t)))
+    ;; Pages appeared, went or moved: autostart sites that link here
+    ;; may have links to turn into text or back.
+    (when (and (plist-get job :write) (plist-get plan :index-changed))
+      (my/blog--export-autostart-sites
+       (mapcar #'car
+               (seq-filter (lambda (other)
+                             (member (car site)
+                                     (mapcar #'car (my/blog--link-sites other))))
+                           my/blog-sites))))))
 
 (defun my/blog--finish-1 (site job plan stale name)
   "Body of `my/blog--finish': prune STALE, save state, report.
@@ -1187,6 +1282,7 @@ SITE, JOB, PLAN and NAME as in the caller."
      (list :format my/blog--state-format
            :fingerprint (my/blog--fingerprint site)
            :index (my/blog--hash-to-alist (plist-get plan :index))
+           :targets (my/blog--hash-to-alist (plist-get plan :targets))
            :cache (my/blog--hash-to-alist (plist-get plan :cache))
            :stamps (my/blog--hash-to-alist (plist-get plan :stamps))
            :retry (mapcar #'car (plist-get job :failed))))
@@ -1204,7 +1300,7 @@ SITE, JOB, PLAN and NAME as in the caller."
   "Export notes of JOB for about 0.1 s.  Return non-nil when done."
   (let* ((deadline (+ (float-time) 0.1))
          (plan (plist-get job :plan))
-         (index (plist-get plan :index)))
+         (targets (plist-get plan :targets)))
     (while (and (plist-get job :queue)
                 (< (float-time) deadline))
       (let ((entry (car (plist-get job :queue))))
@@ -1215,7 +1311,7 @@ SITE, JOB, PLAN and NAME as in the caller."
                    ;; being exported must count as changed next time.
                    (stamp (my/blog--stamp
                            file (nth 1 (gethash file (plist-get plan :cache))))))
-              (my/blog--export-file site file (nth 1 entry) (nth 2 entry) index)
+              (my/blog--export-file site file (nth 1 entry) (nth 2 entry) targets)
               (puthash file stamp (plist-get plan :stamps))
               (plist-put job :done (cons entry (plist-get job :done))))
           (error
@@ -1324,7 +1420,7 @@ When the note belongs to several sites, ask which."
          ((null entry) (user-error "Not exported: note missing from the plan"))
          (t
           (my/blog--export-file site (nth 0 entry) (nth 1 entry) (nth 2 entry)
-                                (plist-get plan :index))
+                                (plist-get plan :targets))
           (message "Exported to %s: /%s/%s/" site-name (nth 1 entry) (nth 2 entry))))))))
 
 ;;;###autoload
@@ -1373,13 +1469,18 @@ At the root and starting with a dot, so Hugo reads nothing from it.")
 
 (defun my/blog--template-files (site)
   "Return (RELATIVE . SOURCE) for every template file of SITE.
-common/ first, sites/<name>/ overriding it file by file."
+Three layers, each overriding the one before file by file: common/,
+theme/<name of the site's :theme>/, sites/<site name>/."
   (let ((table (make-hash-table :test #'equal))
-        (result '()))
+        (result '())
+        (theme (car (my/blog--prop site :theme))))
     (dolist (dir (list (expand-file-name "common" my/blog-template-directory)
+                       (and theme
+                            (expand-file-name (concat "theme/" theme)
+                                              my/blog-template-directory))
                        (expand-file-name (concat "sites/" (car site))
                                          my/blog-template-directory)))
-      (when (file-directory-p dir)
+      (when (and dir (file-directory-p dir))
         (dolist (file (directory-files-recursively dir ""))
           (puthash (file-relative-name file dir) file table))))
     (maphash (lambda (rel src) (push (cons rel src) result)) table)

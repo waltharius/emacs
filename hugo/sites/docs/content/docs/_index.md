@@ -1,3 +1,4 @@
 +++
 title = "Dokumentacja"
+bookFlatSection = true
 +++

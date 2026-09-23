@@ -21,6 +21,100 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-23g — Blog: documentation as its own hugo-book site, links between sites, search, favicons
+
+### Sites
+
+Technical notes read badly in PaperMod: long pages with many levels of
+headings and no navigation between them. One Hugo site has one theme;
+the answers on the Hugo forum to "a different theme for one section"
+are custom section layouts or separate sites. Custom layouts would
+mean copying hugo-book's templates into `layouts/docs/` and keeping
+them in step with the theme by hand, next to PaperMod's partials and
+render hooks of the same names. A separate site keeps both themes as
+their authors maintain them, and the module already handles several
+sites.
+
+The default `my/blog-sites` is now three sites, in this order:
+`journal` (sections journal, posts; PaperMod; port 1314), `docs`
+(section docs, keyword `pubdoc`; hugo-book; port 1315; autostart), and
+`blog` (section posts; PaperMod; port 1313). The `docs` sections of
+the blog and journal sites are gone. `hugo/extra-files.eld` places
+function_helper.org on the docs site only.
+
+### 46-blog.el
+
+**Links between sites.** New site property `:url`. A link to a note
+not on the linking site but on another becomes an absolute link below
+that site's `:url`, taken from the first site in `my/blog-sites` that
+has the note and may be linked to (`my/blog--link-sites`): it needs a
+`:url`, and a site with a `:remote` links only to sites that also have
+one. That keeps pages on a server from pointing at a laptop-only site,
+unreachable for their readers and possibly holding private notes.
+Other sites' pages are read from their state file (cached by
+modification time), i.e. what they last exported, not what they would
+export now. Rejected: planning the other site on every run — a blog
+export would scan the whole journal.
+
+The plan now carries `:targets` (identifier -> section, slug, base
+URL), stored in the state file; link changes are detected against the
+previous `:targets` instead of the previous own index, so a note
+appearing on another site turns text into a link at the next run.
+When a run changes a site's own pages, autostart sites that may link
+to it re-export in the background. The state format is now 2: the
+first run of each site after the update exports everything.
+
+**Theme layer for site files.** Sync layers are now `common/`,
+`theme/<name of :theme>/`, `sites/<name>/`. The backlinks hook lives
+in a different file in every theme (PaperMod
+`extend_post_content.html`, hugo-book `docs/inject/toc-after.html`),
+and PaperMod's home page must not reach a hugo-book site.
+`hugo/common/` is empty for now.
+
+**Placements checked against sections.** A placement in
+`extra-files.eld` naming a section the site does not have is ignored.
+Without the check, function_helper.org's old `blog`/`docs` placement
+would have written pages into a directory no longer pruned.
+
+### hugo/ — site files
+
+- `common/layouts/*` moved to `theme/PaperMod/layouts/`.
+- `theme/PaperMod/content/search.md`: PaperMod's search page; the
+  PaperMod `hugo.toml` files add the JSON output of the home page it
+  searches and a `Szukaj` menu entry.
+- `theme/hugo-book/layouts/_partials/docs/inject/toc-after.html`:
+  backlinks under the table of contents. hugo-book's own
+  `BookPageLinks` is off: it collects links while pages render, so a
+  page's list depends on rendering order; the module's data file does
+  not.
+- `sites/docs/`: `hugo.toml` (BookSection docs, BookToC with levels
+  2-4 since ox-hugo writes top headings as `##`, BookSearch, BookTheme
+  auto, menu links to the other sites), `content/_index.md`,
+  `content/docs/_index.md`, `.gitignore`.
+- `sites/*/static/favicon.svg`: a letter on a coloured square per
+  site (J amber, D green, B blue). PaperMod gets it through
+  `[params.assets]`; hugo-book links `favicon.svg` itself, and the
+  site's file shadows the theme's.
+- `sites/blog/content/docs/_index.md` and
+  `sites/journal/content/docs/_index.md` removed.
+
+Verified with Hugo 0.166.0 and themes cloned by the sync: three sites
+created from nothing; links blog → docs and journal → docs as
+`http://localhost:1315/docs/...`, docs → posts on the journal site;
+journal re-exported by itself after the docs site's pages changed;
+hugo-book menu, search field, table of contents and backlinks under
+it; PaperMod `index.json` and `/search/`; favicon links on both
+themes; function_helper.org on the docs site. Not verified: search in
+a browser, and hugo-book with the Hugo of nixpkgs 26.05 (0.163.3; the
+theme asks for 0.158.0).
+
+### function_helper.org
+
+Blog: three default sites and why, links between sites, layered site
+files, documentation theme, search, favicons, `:url`; the Hugo versions
+the two themes need.
+
+---
 ## Session 2026-09-23f — Blog: Org files outside the silos placed on sites by hand
 
 ### 46-blog.el

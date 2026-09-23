@@ -8,14 +8,26 @@ defaultContentLanguage = 'pl'
 title = 'Notatki'
 theme = 'PaperMod'
 
+# JSON index of the home page feeds PaperMod's search page (/search/).
+# It holds the text of every page: for the whole journal, several MB
+# loaded by the browser when the search page opens.
+[outputs]
+  home = ['HTML', 'RSS', 'JSON']
+
 [params]
   mainSections = ['journal']
-  homeSections = ['journal', 'posts', 'docs']
+  homeSections = ['journal', 'posts']
   latestPerSection = 1
   ShowReadingTime = true
   ShowToc = true
   TocOpen = false
   backlinksTitle = 'Linkują tutaj'
+
+[params.assets]
+  favicon = 'favicon.svg'
+  favicon16x16 = 'favicon.svg'
+  favicon32x32 = 'favicon.svg'
+  apple_touch_icon = 'favicon.svg'
 
 [[menu.main]]
   name = 'Dziennik'
@@ -27,9 +39,13 @@ theme = 'PaperMod'
   weight = 20
 [[menu.main]]
   name = 'Dokumentacja'
-  url = '/docs/'
+  url = 'http://localhost:1315/'
   weight = 30
 [[menu.main]]
   name = 'Tagi'
   url = '/tags/'
   weight = 40
+[[menu.main]]
+  name = 'Szukaj'
+  url = '/search/'
+  weight = 50

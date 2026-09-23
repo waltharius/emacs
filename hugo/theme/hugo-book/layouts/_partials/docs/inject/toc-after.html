@@ -1,0 +1,36 @@
+{{- /*
+  Backlinks under the table of contents: the pages of this site that
+  link here.
+
+  Belongs to modules/46-blog.el, which copies it into every site using
+  hugo-book (hugo/theme/hugo-book/ -> <site>/) and writes
+  data/blog_backlinks.json after each export.  hugo-book includes this
+  partial after the table of contents and ships it empty for this
+  purpose.  Its own BookPageLinks collects links while pages render,
+  so what a page shows depends on which pages Hugo rendered first; the
+  data file does not.
+
+  hugo.toml, [params]:
+    backlinksTitle  heading of the list, default 'Linkują tutaj'
+*/ -}}
+{{- with .File }}
+{{- $key := printf "/%s/%s" $.Section .ContentBaseName }}
+{{- with index site.Data "blog_backlinks" }}
+{{- with index . $key }}
+{{- $pages := slice }}
+{{- range . }}
+  {{- with site.GetPage . }}{{ $pages = $pages | append . }}{{ end }}
+{{- end }}
+{{- with $pages }}
+<div class="book-toc-section backlinks">
+  <strong>{{ site.Params.backlinksTitle | default "Linkują tutaj" }}</strong>
+  <ul>
+    {{- range sort . "Date" "desc" }}
+    <li><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>
+    {{- end }}
+  </ul>
+</div>
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

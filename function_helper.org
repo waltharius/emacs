@@ -6835,19 +6835,21 @@ desktop does not see programs of a nix shell):
 home.packages = [ pkgs.hugo pkgs.rsync pkgs.git ];
 #+end_src
 
-The theme, PaperMod, needs Hugo 0.146.0 or newer.
+Themes: PaperMod needs Hugo 0.146.0 or newer, hugo-book 0.158.0 or
+newer (=hugo version=; nixpkgs 26.05 ships 0.163.3, 25.05 only 0.147.3).
 
 Everything else comes from this repository. =C-c n x b t= (sync site
 files) on a site creates its directory under =~/projects/=, writes its
-=hugo.toml=, layouts and section pages from =hugo/=, and clones the
-theme into =themes/=. The journal site does this by itself at the
-first start of Emacs, since it has =:autostart t=.
+=hugo.toml=, layouts, section pages and favicon from =hugo/=, and
+clones the theme into =themes/=. The journal and docs sites do this by
+themselves at the first start of Emacs, since they have =:autostart t=.
 
-The public blog is meant to be a git repository (for history, and for
-GitHub Pages later); after the first sync:
+The blog and the docs site are meant to be git repositories (history,
+and GitHub Pages later); after the first sync:
 
 #+begin_src sh
 cd ~/projects/blog && git init
+cd ~/projects/docs-site && git init
 #+end_src
 
 The journal site holds a plain-text copy of the whole journal, so it
@@ -6866,18 +6868,29 @@ the module.
 :CUSTOM_ID: blog-templates
 :END:
 
-| Repository path                                   | Copied to                    | Purpose                                     |
-|---------------------------------------------------+------------------------------+---------------------------------------------|
-| =hugo/common/layouts/home.html=                   | every site                   | home page, newest pages per section         |
-| =hugo/common/layouts/_partials/extend_post_content.html= | every site            | backlinks under each page                   |
-| =hugo/sites/blog/hugo.toml=                       | =~/projects/blog/=           | blog configuration                          |
-| =hugo/sites/blog/.gitignore=                      | =~/projects/blog/=           | build output and module state out of git    |
-| =hugo/sites/journal/hugo.toml=                    | =~/projects/journal-site/=   | journal site configuration                  |
-| =hugo/sites/<name>/content/<section>/_index.md=   | that site                    | section titles (Blog, Dokumentacja, Dziennik) |
+Three layers, each overriding the one before file by file:
 
-=hugo/common/= goes into every site, =hugo/sites/<name>/= into site
-=<name>= and overrides a common file of the same path. A new site in
-=my/blog-sites= only needs a =hugo/sites/<name>/= directory.
+| Layer                 | Copied into                                  |
+|-----------------------+----------------------------------------------|
+| =hugo/common/=        | every site (currently empty)                 |
+| =hugo/theme/<theme>/= | every site whose =:theme= is =<theme>=       |
+| =hugo/sites/<name>/=  | site =<name>=                                |
+
+| Repository path                                                    | Purpose                                        |
+|--------------------------------------------------------------------+------------------------------------------------|
+| =theme/PaperMod/layouts/home.html=                                 | home page, newest pages per section            |
+| =theme/PaperMod/layouts/_partials/extend_post_content.html=        | backlinks under each page                      |
+| =theme/PaperMod/content/search.md=                                 | search page (=/search/=)                       |
+| =theme/hugo-book/layouts/_partials/docs/inject/toc-after.html=     | backlinks under the table of contents          |
+| =sites/<name>/hugo.toml=                                           | site configuration                             |
+| =sites/<name>/static/favicon.svg=                                  | tab icon of the site                           |
+| =sites/<name>/content/<section>/_index.md=                         | section titles                                 |
+| =sites/docs/content/_index.md=                                     | docs home page                                 |
+| =sites/blog/.gitignore=, =sites/docs/.gitignore=                   | build output and module state out of git       |
+
+A new site in =my/blog-sites= needs a =hugo/sites/<name>/= directory;
+a new theme, a =hugo/theme/<theme>/= directory for whatever the theme
+needs from this module (backlinks, home page).
 
 A sync writes only files whose content differs. The copies in the
 sites are generated; changes belong in the repository. A site file
@@ -6912,29 +6925,42 @@ silos. A note lands in a section when both hold:
   keyword editor, =C-c n d k=;
 - the note lives in one of the section's silos.
 
-Default:
+Default: three sites, because one Hugo site has one theme, and the
+documentation reads far better in a documentation theme than in a
+blog theme.
 
 #+begin_src emacs-lisp
-(("blog"
-  :directory "~/projects/blog/"
-  :remote nil                          ; laptop-only for now
-  :port 1313
-  :sections (("posts" :keyword "blog"   :silos ("pks" "docu"))
-             ("docs"  :keyword "pubdoc" :silos ("pks" "docu"))))
- ("journal"
+(("journal"                            ; laptop only, PaperMod
   :directory "~/projects/journal-site/"
   :remote nil                          ; must stay nil: private silo
+  :url "http://localhost:1314/"
   :port 1314
+  :theme ("PaperMod" "https://github.com/adityatelange/hugo-PaperMod")
   :autostart t
   :broken-links mark
   :sections (("journal" :keyword "journal" :silos ("journal"))
-             ("posts"   :keyword "blog"    :silos ("pks" "docu"))
-             ("docs"    :keyword "pubdoc"  :silos ("pks" "docu")))))
+             ("posts"   :keyword "blog"    :silos ("pks" "docu"))))
+ ("docs"                               ; hugo-book
+  :directory "~/projects/docs-site/"
+  :remote nil
+  :url "http://localhost:1315/"
+  :port 1315
+  :theme ("hugo-book" "https://github.com/alex-shpak/hugo-book")
+  :autostart t
+  :sections (("docs" :keyword "pubdoc" :silos ("pks" "docu"))))
+ ("blog"                               ; PaperMod, to be published
+  :directory "~/projects/blog/"
+  :remote nil
+  :url "http://localhost:1313/"
+  :port 1313
+  :theme ("PaperMod" "https://github.com/adityatelange/hugo-PaperMod")
+  :sections (("posts" :keyword "blog" :silos ("pks" "docu")))))
 #+end_src
 
 The journal site uses the =journal= keyword every journal note already
-carries, so no new tag is needed; the same =blog= and =pubdoc= notes
-appear there too, and links from journal entries to them work.
+carries, so no new tag is needed; the =blog= notes appear there too.
+The order of the list matters for links between sites, see
+[[#blog-links][Links]].
 
 A note carrying the keywords of two sections of one site is refused
 and listed in the report: which section was meant is not guessed. One
@@ -6985,7 +7011,7 @@ The choices live in =hugo/extra-files.eld= in this repository, one entry
 per file, readable and editable by hand:
 
 #+begin_src emacs-lisp
-(("~/.emacs.d/function_helper.org" ("blog" . "docs") ("journal" . "docs")))
+(("~/.emacs.d/function_helper.org" ("docs" . "docs")))
 #+end_src
 
 A placed file is exported like a note: incremental export, backlinks,
@@ -7018,8 +7044,23 @@ would repeat it.
 | =#+INCLUDE:= of a note on the same site        | included text, links resolved as above         |
 | =#+INCLUDE:= of any other note                 | the whole note is refused                      |
 
-Links between sections of one site work in both directions: a post can
-point at a documentation page and the page back at the post.
+Links between sections of one site work in both directions.
+
+Links between sites: a link to a note that is not on the same site but
+is on another one becomes an absolute link to that site's page, below
+its =:url=. The first site in =my/blog-sites= that has the note and may
+be linked to is used. A site may be linked to when it has a =:url=; a
+site with =:remote= links only to sites that also have one, so a page
+on a server never points at a laptop-only site, which its readers
+could not reach and which may hold private notes. Now, with nothing
+published: blog and journal link to docs pages at
+=http://localhost:1315/=, docs links to posts on the journal site
+(first in the list, always running). Once docs has a =:remote=, its
+links to posts go to the blog, and only if the blog has one too.
+
+Other sites' pages are taken from their state after their last export.
+When a site's set of pages changes, autostart sites that link to it
+re-export in the background, so their links follow.
 
 Links are plain Markdown paths by default (=my/blog-link-style= =path=),
 not Hugo =relref= shortcodes. =hugo server= garbles a page when, in one
@@ -7140,7 +7181,7 @@ and restores the window.
 :CUSTOM_ID: blog-home
 :END:
 
-=hugo/common/layouts/home.html= replaces the theme's home page with one block per section: the section title
+=hugo/theme/PaperMod/layouts/home.html= replaces the theme's home page with one block per section: the section title
 (linking to the full list) and its newest pages in PaperMod's own
 entry style. Parameters in =hugo.toml=, =[params]=:
 
@@ -7152,17 +7193,19 @@ entry style. Parameters in =hugo.toml=, =[params]=:
 Written for PaperMod: it fills the theme's =main= block and uses its
 =post_meta.html= partial. Another theme needs its own version.
 
-Current values: blog =['posts', 'docs']=, 5 per section; journal site
-=['journal', 'posts', 'docs']=, 1 per section.
+Current values: blog =['posts']=, 5 pages; journal site
+=['journal', 'posts']=, 1 per section. The docs site uses hugo-book's
+own home page, =content/_index.md=.
 
 ** Table of contents
 :PROPERTIES:
 :CUSTOM_ID: blog-toc
 :END:
 
-=ShowToc = true= in both =hugo.toml= templates. PaperMod draws the table
-of contents only when the page has headings, so short notes without
-headings get none; =TocOpen = false= keeps it folded. Org headings
+=ShowToc = true= in the PaperMod sites. PaperMod draws the table of
+contents only when the page has headings, so short notes without
+headings get none; =TocOpen = false= keeps it folded. On the docs site
+hugo-book shows it in the right column (=BookToC=), levels 2 to 4. Org headings
 become =##= and deeper (the page title is the =#=), and journal entries
 list their =* HH:MM= headings.
 
@@ -7173,22 +7216,70 @@ list their =* HH:MM= headings.
 
 Under each page, a list of the pages of the same site that link to it,
 newest first, headed by =backlinksTitle= from =hugo.toml= ("Linkują
-tutaj").
+tutaj"). On the docs site the list sits under the table of contents.
 
 After every export the module writes =<site>/data/blog_backlinks.json=:
 page path → paths of the pages linking to it. It already holds every
 note's links in its incremental state, so this reads nothing extra, and
-the file is rewritten only when it changes. The partial
-=hugo/common/layouts/_partials/extend_post_content.html= fills
-PaperMod's empty hook after the page content.
+the file is rewritten only when it changes. The partial fills an empty
+hook of the theme: PaperMod's =extend_post_content.html=, after the
+page content; hugo-book's =docs/inject/toc-after.html=. hugo-book's own
+=BookPageLinks= is switched off: it collects links while pages render,
+so what a page lists depends on which pages Hugo rendered first.
 
-Only pages of the same site count: a private note, or one published on
-another site only, never appears in the list.
+Only pages of the same site count: a private note, or a page of
+another site linking here, never appears in the list.
 
 The common Hugo approach, a template searching every page's text for
 links to the current one, was not used: it costs pages × pages string
 searches, which for the journal site (over 3000 pages, 11 MB of text)
 means about ten million searches per build.
+
+** Documentation theme
+:PROPERTIES:
+:CUSTOM_ID: blog-docs-theme
+:END:
+
+The docs site uses hugo-book ([[https://github.com/alex-shpak/hugo-book]]):
+the pages of =content/docs/= as a menu on the left, the search field
+above it, the page's table of contents and backlinks on the right,
+light or dark after the system (=BookTheme = 'auto'=). One Hugo site
+has one theme; the Hugo forum's answer to "a different theme for one
+section" is custom section layouts or separate sites, and a separate
+site keeps both themes exactly as their authors maintain them.
+
+** Search
+:PROPERTIES:
+:CUSTOM_ID: blog-search
+:END:
+
+| Site             | Search                                                            |
+|------------------+-------------------------------------------------------------------|
+| blog, journal    | PaperMod's search page, =Szukaj= in the menu (=/search/=)          |
+| docs             | hugo-book's field above the menu                                  |
+
+PaperMod searches =index.json=, generated with the home page
+(=[outputs] home = ['HTML', 'RSS', 'JSON']=) and holding the text of
+every page; Fuse.js matches loosely, so typos still find something. On
+the journal site that index holds the whole journal: several MB that
+the browser loads when the search page opens.
+
+** Favicons
+:PROPERTIES:
+:CUSTOM_ID: blog-favicons
+:END:
+
+Each site has =static/favicon.svg= from =hugo/sites/<name>/static/=: a
+letter on a coloured square, J amber for the journal, D green for the
+docs, B blue for the blog. PaperMod is pointed at it through
+=[params.assets]= in =hugo.toml=; hugo-book links =favicon.svg= by
+default, and the site's file replaces the theme's.
+
+To change one, replace the SVG in the repository and sync (=t=). Any
+image works; for a PNG, name it in =[params.assets]= (PaperMod) or
+save it as =static/favicon.png= (hugo-book). Browsers cache icons
+hard: a changed one may need a reload bypassing the cache
+(=Ctrl+Shift+R=).
 
 ** Commands
 :PROPERTIES:
@@ -7305,7 +7396,7 @@ under =<user>.github.io/<repo>/=.
 
 | Variable                  | Default                     | Meaning                                  |
 |---------------------------+-----------------------------+------------------------------------------|
-| =my/blog-sites=           | =blog= and =journal=, above | sites, sections, keywords, silos         |
+| =my/blog-sites=           | journal, docs, blog, above  | sites, sections, keywords, silos         |
 | =my/blog-default-site=    | =blog=                      | site offered first                       |
 | =my/blog-private-silos=   | =("journal" "inbox")=       | silos only laptop-only sites may use     |
 | =my/blog-url-source=      | =title=                     | =title= or =identifier=                  |
@@ -7316,6 +7407,6 @@ under =<user>.github.io/<repo>/=.
 | =my/blog-hugo-program=    | =hugo=                      | executable                               |
 | =my/blog-rsync-program=   | =rsync=                     | executable                               |
 
-Site properties: =:directory=, =:remote=, =:port=, =:theme=,
+Site properties: =:directory=, =:remote=, =:url=, =:port=, =:theme=,
 =:autostart=, =:broken-links=, =:sections=; see the docstring of
 =my/blog-sites=.

@@ -7,11 +7,15 @@ defaultContentLanguage = 'pl'
 title = 'Blog'
 theme = 'PaperMod'
 
+# JSON index of the home page feeds PaperMod's search page (/search/).
+[outputs]
+  home = ['HTML', 'RSS', 'JSON']
+
 [params]
   # Archive and "next/previous" follow posts only.
   mainSections = ['posts']
-  # Home page (hugo/common/layouts/home.html): newest pages per section.
-  homeSections = ['posts', 'docs']
+  # Home page (hugo/theme/PaperMod/layouts/home.html): newest pages.
+  homeSections = ['posts']
   latestPerSection = 5
   ShowReadingTime = true
   # Table of contents, shown by PaperMod only on pages with headings.
@@ -19,15 +23,27 @@ theme = 'PaperMod'
   TocOpen = false
   backlinksTitle = 'Linkują tutaj'
 
+[params.assets]
+  # static/favicon.svg, one letter per site: tabs tell the sites apart.
+  favicon = 'favicon.svg'
+  favicon16x16 = 'favicon.svg'
+  favicon32x32 = 'favicon.svg'
+  apple_touch_icon = 'favicon.svg'
+
 [[menu.main]]
   name = 'Blog'
   url = '/posts/'
   weight = 10
 [[menu.main]]
   name = 'Dokumentacja'
-  url = '/docs/'
+  # A separate site with its own theme; see my/blog-sites.
+  url = 'http://localhost:1315/'
   weight = 20
 [[menu.main]]
   name = 'Tagi'
   url = '/tags/'
   weight = 30
+[[menu.main]]
+  name = 'Szukaj'
+  url = '/search/'
+  weight = 40
