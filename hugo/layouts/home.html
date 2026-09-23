@@ -1,0 +1,53 @@
+{{- /*
+  Home page listing the newest pages of each section.
+
+  Belongs to modules/46-blog.el; copy it to <site>/layouts/home.html.
+  Written for the PaperMod theme (Hugo 0.146 or newer): it fills the
+  theme's "main" block and reuses its post-entry markup and meta
+  partial, so it looks like the theme's own lists.
+
+  hugo.toml, [params]:
+    homeSections      sections in display order, e.g. ['journal', 'posts', 'docs'];
+                      without it, every top-level section in Hugo's order
+    latestPerSection  pages shown per section, default 1
+*/ -}}
+{{- define "main" }}
+{{- $n := site.Params.latestPerSection | default 1 }}
+{{- $sections := slice }}
+{{- with site.Params.homeSections }}
+  {{- range . }}
+    {{- with site.GetPage (printf "/%s" .) }}
+      {{- $sections = $sections | append . }}
+    {{- end }}
+  {{- end }}
+{{- else }}
+  {{- $sections = site.Sections }}
+{{- end }}
+
+{{- range $sections }}
+{{- $pages := first $n .RegularPages.ByDate.Reverse }}
+{{- if $pages }}
+<header class="page-header">
+  <h2><a href="{{ .Permalink }}">{{ .Title }}</a></h2>
+</header>
+{{- range $pages }}
+<article class="post-entry">
+  <header class="entry-header">
+    <h2>{{ .Title }}</h2>
+  </header>
+  {{- if (ne (.Param "hideSummary") true) }}
+  <div class="entry-content">
+    <p>{{ .Summary | plainify | htmlUnescape }}{{ if .Truncated }}...{{ end }}</p>
+  </div>
+  {{- end }}
+  {{- if not (.Param "hideMeta") }}
+  <footer class="entry-footer">
+    {{- partial "post_meta.html" . -}}
+  </footer>
+  {{- end }}
+  <a class="entry-link" aria-label="{{ .Title | plainify }}" href="{{ .Permalink }}"></a>
+</article>
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

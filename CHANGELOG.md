@@ -21,6 +21,111 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-23c — Blog: laptop-only journal site, incremental background export, autostart, quiet reports
+
+### 46-blog.el
+
+**Journal site.** A second default site, `journal`
+(`~/projects/journal-site/`, port 1314, no `:remote`), with sections
+`journal` (keyword `journal`, silo `journal`), `posts` and `docs` (the
+same keywords as the blog). It uses the `journal` keyword every
+journal note already carries. To allow that, the rule against silo
+names as section keywords now applies to sites with a `:remote` only:
+on a published site such a keyword would publish the whole silo, on a
+laptop-only site that is the intent. The rule that keeps private silos
+off sites with a `:remote` is unchanged, so the journal still cannot
+reach a server. Rejected: a keyword-less section meaning 'every note
+of the silo' — a second way of saying what the existing keyword
+already says, and a new code path.
+
+**`:broken-links` per site.** Let-bound into
+`org-export-with-broken-links` during the export. The journal site
+uses `mark`: the migrated journal holds Obsidian wikilinks to notes
+not yet in Emacs, and with the default nil every such entry fails.
+Published sites keep nil, so a broken link stops the note and shows in
+the report instead of appearing on a public page.
+
+**Incremental export.** `.blog-state.eld` in each site root holds the
+identifier -> page table of the last run, the includes and linked
+identifiers read from each note (with the time they were read at), and
+the times of each note and its includes at its last export. A note is
+exported when its page is missing, it or an include changed since its
+export, a note it links to was published, unpublished or moved, it
+failed last time, or the site settings changed (full run). Recorded
+times are compared for equality rather than against the page's time:
+in the first test, a note with a modification time in the future (as
+Syncthing can deliver from a device whose clock runs ahead) was
+exported again on every run. A damaged or missing state file means one
+full export. `A` in the menu forces a full export.
+
+**Background runs.** One note per step from chained idle timers (the
+idle-time-relative form the Elisp manual gives for timers set inside
+idle timers), about 0.1 s per step, so a first export of the whole
+journal does not freeze Emacs. In batch mode the queue runs in a loop.
+A request for a site whose export is running is remembered and served
+by one more incremental run afterwards. `my/blog--finish` takes the
+job off the list in an `unwind-protect`: an error while writing the
+state or report would otherwise leave the site 'busy' for the session.
+ox-hugo's per-file message is suppressed during the export
+(`inhibit-message`, `message-log-max` nil); for thousands of notes it
+buried everything else in *Messages*. Rejected: a separate
+`emacs --batch` process — it would need the package load path and
+every customized variable handed over, for a gain only on the first
+full export.
+
+**Pruning without prompts in the background.** A background run cannot
+ask. On a laptop-only site stale pages are removed (nothing leaves the
+machine and everything can be regenerated); on a site with a `:remote`
+they are kept and reported. A run started by hand asks, as before, on
+sites with a `:remote` only. Files whose name starts with `_` are never
+pruned, so `_index.md` can give a section its title.
+
+**Autostart.** Sites with `:autostart t` get, `my/blog-autostart-delay`
+idle seconds after `emacs-startup-hook`, an incremental export followed
+by `hugo server` without a browser and without `--navigateToChanged`
+(following every change suits a preview opened by hand, not a server
+running all day). `after-save-hook` schedules an incremental export
+3 idle seconds after saving an Org file in one of the site's silos,
+keyword or not, so a note whose keyword was removed leaves the site.
+Nothing is scheduled when the site directory is missing, and autostart
+problems go to *Messages* only: a machine without the site starts as
+quietly as one with it.
+
+**Quiet reports.** A run ends with one echo-area line (`journal: 3
+exported, 1 removed`); a background run that changed nothing prints
+nothing. The report is written to *Blog export* but no longer shown;
+`C-c n x b l` opens it, and `q` closes it through a minor mode
+`my/blog-report-mode` bound to `quit-window`. A minor mode because
+`local-set-key` in an Org buffer changes `org-mode-map` for every Org
+buffer. The dry run follows the same rule; its line ends with the key
+that opens the list.
+
+Measured in batch Emacs 29.3 with Org 9.6, ox-hugo 0.12.1 on 1500
+synthetic journal notes of about 8 KB: full export about 28 s, a run
+with nothing changed about 0.3 s. Checked: one changed note exported
+alone, a future modification time exported once only, a link turning
+into a relref when its target was published and back into text when
+the keyword was removed, stale page removal, `_index.md` kept, broken
+wikilinks marked, the configuration rules. Not checked: the idle-timer
+path and autostart in an interactive session (batch mode runs the
+loop instead), and timings on the real journal.
+
+### hugo/layouts/home.html — new
+
+Home page for PaperMod listing the newest `latestPerSection` pages of
+each section in `homeSections` order, in the theme's own entry style.
+Kept in this repository with the module that needs it and copied into
+each site. Verified by building the journal test site with Hugo
+0.166.0 and PaperMod.
+
+### function_helper.org
+
+Blog section: journal site setup (not a git repository, section
+titles through `_index.md`), incremental export, autostart, reports,
+the home-page template, the `A` key, the new site properties
+`:autostart` and `:broken-links`, and `my/blog-autostart-delay`.
+
+---
 ## Session 2026-09-23b — Blog: several sites, a keyword per section, links across sections
 
 ### 46-blog.el — sites and sections replace the single blog
