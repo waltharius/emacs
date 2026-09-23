@@ -47,7 +47,8 @@
 ;; ------------
 ;; During an export started from this module, and only then:
 ;;   - a link to a note published on the SAME site, in any of its
-;;     sections, becomes a Hugo `relref' to that page;
+;;     sections, becomes a link to that page (see `my/blog-link-style'
+;;     for its form);
 ;;   - a link to any other note -- private, or on another site -- becomes
 ;;     its description, as plain text.
 ;; Both are done by a replacement `:export' function for the `denote'
@@ -64,6 +65,21 @@
 ;; an HTML tag, which a Hugo shortcode -- {{< relref "..." >}} -- is.
 ;; Removing it by name only needs the symbol, so this module works
 ;; whether 16-org-export.el is loaded or not.
+;;
+;; WHY PLAIN LINKS AND NOT RELREF BY DEFAULT
+;; -----------------------------------------
+;; `hugo server' (reproduced with Hugo 0.166.0, with and without
+;; --disableFastRender) renders a page wrongly when, in one rebuild, a
+;; new page appears and the page linking to it gains a relref to it:
+;; the shortcodes come out as raw text and the text between them is
+;; cut at wrong offsets.  That is exactly what publishing a note that
+;; others already mention produces.  A full `hugo' build of the same
+;; files is correct.  Plain links avoid the shortcode altogether, and a
+;; missing target becomes a 404 instead of a failed build (relref
+;; stops the build on an unknown page, which a note that failed to
+;; export would cause).  They rely on Hugo's default permalinks,
+;; /<section>/<slug>/, and on the site living at the root of its
+;; host.  `relref' remains available through `my/blog-link-style'.
 ;;
 ;; WHAT IS REFUSED
 ;; ---------------
@@ -225,6 +241,18 @@ ASCII.  Readable, but renaming the note changes the URL.
 `identifier': the Denote identifier.  Stable across renames, opaque."
   :type '(choice (const :tag "Title (readable)" title)
                  (const :tag "Identifier (stable)" identifier))
+  :group 'my/blog)
+
+(defcustom my/blog-link-style 'path
+  "Form of links between pages of a site.
+`path': a plain Markdown link to /<section>/<slug>/.  Rendered the same
+by `hugo server' and `hugo'; assumes Hugo's default permalinks and a
+site at the root of its host.
+`relref': a Hugo relref shortcode.  Resolved and checked by Hugo, but
+`hugo server' garbles a page when the page it links to is created in
+the same rebuild (see the Commentary)."
+  :type '(choice (const :tag "Plain path (default)" path)
+                 (const :tag "Hugo relref shortcode" relref))
   :group 'my/blog)
 
 (defcustom my/blog-autostart-delay 5
@@ -487,6 +515,7 @@ decompose, is mapped by hand.  Whatever is still not ASCII goes."
   "Return what, when changed, requires SITE to be exported in full."
   (list my/blog--state-format
         my/blog-url-source
+        my/blog-link-style
         (my/blog--prop site :broken-links)
         (my/blog--sections site)))
 
@@ -686,7 +715,8 @@ With FULL, every page counts as needing an export.  Returns a plist:
 (defun my/blog--link-export-function (index)
   "Return an `:export' function for `denote:' links resolved by INDEX.
 INDEX maps identifiers to (SECTION . SLUG).  A link to a note in INDEX
-becomes a Hugo relref, keeping a `::#custom-id' anchor; any other link
+becomes a link in `my/blog-link-style', keeping a `::#custom-id'
+anchor; any other link
 becomes its description alone, so nothing about a note that is not on
 the site leaves the machine except the words the page itself uses for
 it.  A format other than `md' gets the description too: the function
@@ -697,10 +727,12 @@ is only installed for Hugo exports."
            (target (gethash (car parts) index))
            (text (or description "")))
       (if (and target (eq format 'md))
-          (format "[%s]({{< relref \"/%s/%s%s\" >}})"
-                  (if (string-empty-p text) (cdr target) text)
-                  (car target) (cdr target)
-                  (if (and search (string-prefix-p "#" search)) search ""))
+          (let ((label (if (string-empty-p text) (cdr target) text))
+                (anchor (if (and search (string-prefix-p "#" search)) search "")))
+            (if (eq my/blog-link-style 'relref)
+                (format "[%s]({{< relref \"/%s/%s%s\" >}})"
+                        label (car target) (cdr target) anchor)
+              (format "[%s](/%s/%s/%s)" label (car target) (cdr target) anchor)))
         text))))
 
 (defun my/blog--link-parameters (index)

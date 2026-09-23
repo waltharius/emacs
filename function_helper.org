@@ -7008,7 +7008,7 @@ page, as in every Org export.
 
 | In the note                                  | On the page                                    |
 |----------------------------------------------+------------------------------------------------|
-| =denote:= link to a note on the same site      | link to its page, in whichever section (=relref=) |
+| =denote:= link to a note on the same site      | link to =/<section>/<slug>/=, in whichever section |
 | =denote:ID::#custom-id=                        | link to that heading of the page               |
 | =denote:= link to a private note or another site | the link description, as plain text          |
 | image under =~/notes/attachments/=             | copied by ox-hugo to =static/ox-hugo/=         |
@@ -7017,6 +7017,16 @@ page, as in every Org export.
 
 Links between sections of one site work in both directions: a post can
 point at a documentation page and the page back at the post.
+
+Links are plain Markdown paths by default (=my/blog-link-style= =path=),
+not Hugo =relref= shortcodes. =hugo server= garbles a page when, in one
+rebuild, a new page appears and the page linking to it gains a relref:
+the shortcodes show as raw text and the surrounding text is cut. That
+is what publishing a note that a hub already mentions produces.
+Reproduced with Hugo 0.166.0, with and without =--disableFastRender=; a
+full =hugo= build of the same files is correct, and plain paths render
+correctly in both. Plain paths assume Hugo's default permalinks and a
+site at the root of its host; =relref= is still available.
 
 The replacement link export is active only for exports started from
 this module. PDF, ODT and =C-c C-e= exports are unchanged, and the
@@ -7066,7 +7076,8 @@ whose modification time changed and exports a note only when:
   last run (the link turns from text into a link or back);
 - it failed last time;
 - the site's settings (sections, keywords, =:broken-links=,
-  =my/blog-url-source=) changed: then everything is exported.
+  =my/blog-url-source=, =my/blog-link-style=) changed: then everything
+  is exported.
 
 Deleting the state file is safe; it costs one full export. =A= in the
 menu forces one by hand.
@@ -7230,6 +7241,7 @@ the server.
 | =my/blog-default-site=    | =blog=                      | site offered first                       |
 | =my/blog-private-silos=   | =("journal" "inbox")=       | silos only laptop-only sites may use     |
 | =my/blog-url-source=      | =title=                     | =title= or =identifier=                  |
+| =my/blog-link-style=      | =path=                      | =path= or =relref=                       |
 | =my/blog-autostart-delay= | =5=                         | idle seconds after start-up              |
 | =my/blog-hugo-program=    | =hugo=                      | executable                               |
 | =my/blog-rsync-program=   | =rsync=                     | executable                               |

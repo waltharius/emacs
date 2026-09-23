@@ -21,6 +21,55 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-23d — Blog: plain links instead of relref, after a hugo server rendering fault
+
+### 46-blog.el
+
+**Symptom.** After the keyword `blog` was added to a note that a hub
+note already listed, the hub page served by `hugo server` showed the
+shortcodes of its list as raw text (`[Title]({{< relref "..." >}})`),
+the list items ran together, and a stretch of text between two links
+was replaced by a fragment of the next link's path.
+
+**Cause, reproduced.** Hugo 0.166.0, `hugo server`, a hub page with a
+relref to an existing journal page. When one rebuild sees both a newly
+created page and a change to the hub adding a relref to it, the hub is
+rendered wrongly; the order in which the two files are written does not
+matter, and `--disableFastRender` does not help. When the two changes
+land in separate rebuilds, or when the site is built with `hugo`, the
+page is correct. The export produces exactly the failing case: the new
+page and its referrers are written in the same run, within Hugo's
+change-batching window. The Markdown written by the module was checked
+and is correct; the fault is in the server's rebuild. No matching
+upstream issue was found in a short search.
+
+**Change.** New option `my/blog-link-style`, default `path`: links to
+pages of the same site are written as plain Markdown links to
+`/<section>/<slug>/` (with `#custom-id` anchors kept). The same
+scenario, repeated with plain links, renders correctly in both write
+orders. `relref` stays available as the other value.
+
+Other effects of plain links: a link to a page that does not exist is
+a 404, whereas relref stops the whole build with REF_NOT_FOUND — which
+a note that failed to export would cause for every note linking to it;
+links no longer pass through Hugo's page index, so they assume Hugo's
+default permalinks and a site at the root of its host (true of both
+sites and of the nginx setup in function_helper.org). The link style is
+part of the site fingerprint, so the first run after the update exports
+every page once.
+
+Rejected: writing linked pages in a second pass after a delay longer
+than Hugo's batching window — it depends on a timing Hugo does not
+document; restarting `hugo server` after each run — a full rebuild of
+thousands of journal pages for every saved note.
+
+### function_helper.org
+
+Blog, links: why plain paths are the default and what they assume;
+`my/blog-link-style` in the configuration table and among the settings
+whose change triggers a full export.
+
+---
 ## Session 2026-09-23c — Blog: laptop-only journal site, incremental background export, autostart, quiet reports
 
 ### 46-blog.el
