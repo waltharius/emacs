@@ -163,6 +163,12 @@
   ;; mode line shows the word count alone, which is what it showed
   ;; before the module existed.
   (load (concat modules-dir "45-standard-pages.el") t) ; Standard pages (M-x report)
+  ;; Optional (NOERROR): selected notes published as a Hugo blog.
+  ;; Loaded after 12-transient.el, whose Export menu it appends to, and
+  ;; after 16-org-export.el, whose denote-link filter it switches off
+  ;; for its own exports only.  Without this file nothing is published
+  ;; and no other module notices.
+  (load (concat modules-dir "46-blog.el") t) ; Blog (C-c n x b)
   )
 
 (add-hook 'emacs-startup-hook

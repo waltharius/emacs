@@ -21,6 +21,117 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-23a — Selected notes published as a Hugo blog
+
+### 46-blog.el — new module, optional (NOERROR)
+
+Notes carrying the Denote keyword `blog`, in a silo from
+`my/blog-silos`, are exported to a Hugo site in `~/projects/blog/`,
+built locally and mirrored to a home server with `rsync --delete`.
+Menu: `C-c n x b`, appended to the Export menu after `Q`.
+
+**Why ox-hugo and Hugo.** The starting point was chiply.dev, a blog
+written in Org and served by a SvelteKit application. Its Emacs side is
+the stock `ox-html` export; everything visible on the site (reading
+HUD, knowledge graph, search) is a custom web application, and its
+source is not among the author's public repositories. Reproducing it
+means writing and maintaining a frontend from scratch. ox-hugo is a
+maintained Org exporter with an established Denote workflow around it,
+and Hugo is a packaged static site generator with ready themes.
+Rejected: `org-publish` (no tags, feeds or themes without writing them),
+and the SvelteKit route (a web application to maintain, for features
+not asked for).
+
+**Public by allowlist.** Two conditions, keyword and silo, and the
+silo list is an allowlist without `journal` and `inbox`. A keyword
+alone would publish a journal note tagged by mistake. The keyword is
+dropped from the post's tags through `org-hugo-tag-processing-functions`,
+since it describes the note's status rather than its subject.
+
+**Export from a copy.** Each note is exported from a temporary buffer
+holding its text plus an `#+export_file_name:` line, with mode hooks
+delayed. The line gives the post a readable URL; writing it into the
+note would store a value derived from the file name, which is the
+drift the hub module avoids by never storing membership. The copy also
+keeps live transclusions, fonts and visual fill out of the export.
+
+**Denote links.** A replacement `:export` function for the `denote`
+link type is let-bound into `org-link-parameters` around each export:
+links to public notes become Hugo `relref` shortcodes (a
+`::#custom-id` search becomes an anchor), links to anything else become
+their description as plain text. Let-binding keeps every other export
+path (PDF, ODT, `C-c C-e`) exactly as it was. Rejected: advice on
+`denote-link-ol-export`, the pattern used in the published Denote +
+Hugo setups — global, and active for exports this module does not
+start.
+
+**16-org-export.el left untouched, its filter switched off locally.**
+`my/latex-filter-denote-link` is removed from
+`org-export-filter-link-functions` by name for the duration of the blog
+export. Testing it inside a Hugo export showed that the filter does not
+work as its comment describes, in any backend: it treats its second
+argument as the link element, but `org-export-filter-apply-functions`
+passes the backend name there. On Org 9.6 `org-element-property` then
+signals `wrong-type-argument listp hugo` and the whole export aborts
+(reproduced in batch). On Org 9.7, which ships with Emacs 30, the same
+call returns nil for a symbol (read from `org-element-ast.el`, not run),
+so the filter silently does nothing and PDF exports keep `\href` links
+to local `.org` paths. That is a separate defect of 16-org-export.el,
+left for its own session. For the blog the conclusion holds either
+way: once the signature is corrected, the fallback branch strips
+anything matching `<[^>]*>`, and a Hugo shortcode `{{< relref "..." >}}`
+matches. Rejected: a list of skipped backends in 16-org-export.el,
+proposed first — the PDF module would carry knowledge of the blog
+module, where a let-binding in the module that needs the difference
+costs nothing.
+
+**Refusals.** A public note that `#+INCLUDE:`s a non-public note is not
+exported; since 20-transclusion.el pairs each `#+transclude:` with an
+`#+INCLUDE:`, transcluding a private note into a public one is caught
+by the same rule. Two public notes producing the same URL: the older
+keeps it, the newer is refused. Refusals are listed in `*Blog export*`,
+never silent.
+
+**Unpublishing.** `content/posts/` is owned by the module. A full
+export deletes every `.md` file there that no public note produced,
+after `yes-or-no-p`, so removing the keyword removes the post. A
+refused note counts as not produced, so a note that became unsafe is
+taken down rather than left at its last safe version. A note that
+failed for a technical reason keeps its previous post.
+
+**URLs.** `my/blog-url-source`: `title` (default, readable, changes on
+rename) or `identifier` (stable, opaque). Titles are transliterated to
+ASCII: NFD decomposition, combining marks dropped before other
+characters become hyphens (the reverse order turned `żółw` into
+`z-o-lw`), and `ł` mapped by hand since Unicode does not decompose it.
+
+**static/ is created when missing.** ox-hugo copies images into it and
+aborts the note otherwise; `hugo new site` creates it, but git does not
+keep empty directories, so a fresh clone of the site lacks it.
+
+**Buffers saved first.** Every modified buffer under the notes root is
+saved before an export, as in 42-obsidian-import.el and for the reason
+recorded in 07-git.el: the export reads the file, and an unsaved
+paragraph would be missing from the post.
+
+Verified in batch Emacs 29.3 with Org 9.6, Denote 4.2.3, ox-hugo
+0.12.1 and Hugo 0.166.0 on a fabricated notes tree: public, anchored,
+private and journal-tagged links, an image, a private include and a
+URL collision; the built HTML resolves both relrefs and the image. Not
+verified: org-cite citations through ox-hugo, and the module inside the
+full configuration.
+
+### init.el
+
+Loads 46-blog.el with NOERROR after 45-standard-pages.el.
+
+### function_helper.org
+
+New section `Blog (C-c n x b)` (`#blog` and subsections: setup,
+public notes, links, URLs, commands, menu, server, configuration) and
+an entry `b — Blog (Hugo) →` in the Export menu section.
+
+---
 ## Session 2026-09-18c — Largest notes by words, standard pages in the mode line, quoted phrases wrapped whole
 
 The three remaining items from the list of accumulated irritations.
