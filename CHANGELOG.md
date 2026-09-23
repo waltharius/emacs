@@ -21,6 +21,87 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-09-23e — Blog: site files declared in the repository, backlinks, tables of contents
+
+### 46-blog.el
+
+**Site files from the repository.** New `my/blog-template-directory`
+(`~/.emacs.d/hugo/`): `common/` is copied into every site,
+`sites/<name>/` into site `<name>`, overriding common files of the same
+path. `my/blog--sync-templates` writes only files whose SHA-1 differs
+and records what it wrote in `<site>/.blog-templates.eld`. A site file
+whose content matches neither the template nor the last recorded write
+was edited on disk (or predates the first sync); it is copied to
+`<site>/.template-backups/<path>.<timestamp>` before being replaced,
+and the echo-area line names it. The backup directory sits at the site
+root and starts with a dot: Hugo reads only its known directories, and
+a backup next to the original (`layouts/home.html.bak`) would be
+picked up by Hugo's layout or content loaders. Files removed from the
+templates are not removed from the sites: deleting on the strength of
+a missing template could take a hand-added file with it. Rejected: a
+symlink per file — the site would follow repository edits without a
+sync, but the blog's own git repository would then hold links to
+~/.emacs.d instead of its configuration, and any build elsewhere
+(GitHub Actions) would have no hugo.toml.
+
+**Sites created from the repository.** The sync creates a missing
+site directory and `static/`, and the new site property `:theme`
+(NAME URL) clones the theme with `git clone --depth 1` into
+`themes/NAME` when missing, asynchronously, continuing when git exits.
+A theme already present, such as the blog's git submodule, is left
+alone. A new machine thus gets both sites from the repository and the
+notes alone.
+
+**When syncs run.** Before an autostart site is exported and served
+(after the Hugo check, so a machine without Hugo gets nothing created),
+before `v` starts a preview, before `p` publishes (the published
+configuration is the repository's), and on `t` in the menu
+(`my/blog-sync-site`). A running `hugo server` reloads changed
+configuration and layouts by itself.
+
+**Backlinks.** After each export, `data/blog_backlinks.json` maps every
+page path `/<section>/<slug>` to the sorted paths of pages of the same
+site linking to it, built from the link identifiers already in the
+incremental state, and rewritten only when its content changes, since
+each write makes `hugo server` rebuild. Links from notes not on the
+site are not counted. Rejected: the common Hugo recipe of a template
+searching each page's raw content for links to the current page — no
+Emacs support needed, but pages × pages searches: for the journal site
+about ten million searches through 11 MB per build. Rejected also:
+backlinks in each page's front matter — a new link would re-export the
+target page, cascading through the incremental export for no gain over
+one data file.
+
+### hugo/ — site files
+
+- `common/layouts/home.html` (moved from `hugo/layouts/home.html`).
+- `common/layouts/_partials/extend_post_content.html`: backlinks list,
+  newest first, heading from `backlinksTitle`. PaperMod calls this
+  partial after the page content and ships it empty for extension.
+- `sites/blog/hugo.toml`, `sites/blog/.gitignore`,
+  `sites/journal/hugo.toml`, and `_index.md` section title pages for
+  both sites. Both configurations set `ShowToc = true`: PaperMod draws
+  the table of contents only on pages with headings, which is the
+  behaviour asked for. The blog home shows 5 pages per section, the
+  journal site 1.
+
+Verified with Hugo 0.166.0 and a fresh PaperMod clone made by the sync
+itself: a site created from nothing, a hand-edited hugo.toml backed up
+and replaced, a second sync reporting nothing to do, backlinks from a
+post to a journal page and to another post, a table of contents on a
+journal page with headings and none on a page without, section titles
+from `_index.md`, and a full build of 1504 pages in about 6 s.
+
+### function_helper.org
+
+Blog: setup reduced to installing programs and running the sync; new
+subsections on site files from the repository, tables of contents and
+backlinks; `t` in the menu; `:theme` and `my/blog-template-directory`;
+publishing notes on `:remote` versus Hugo settings and on GitHub Pages
+(Hugo's GitHub Actions workflow; root-relative links suit a user site
+or a custom domain, not a project site under a subpath).
+
+---
 ## Session 2026-09-23d — Blog: plain links instead of relref, after a hugo server rendering fault
 
 ### 46-blog.el

@@ -136,6 +136,37 @@
 ;; of the site's silos schedules another incremental export.  A missing
 ;; site directory or Hugo only leaves a line in *Messages*.
 ;;
+;; SITE FILES FROM THE EMACS REPOSITORY
+;; ------------------------------------
+;; Hugo configuration, layouts and section title pages are declared in
+;; this repository, under `my/blog-template-directory' (hugo/):
+;;   hugo/common/        copied into every site
+;;   hugo/sites/<name>/  copied into site <name>, overriding common/
+;; A sync copies every file whose content differs from the site's copy.
+;; The site's copy is generated: edits belong in the repository.  A
+;; file changed on disk since the last sync (or never synced) is saved
+;; to <site>/.template-backups/ before being replaced, and the sync
+;; says so.  Files removed from the templates are not removed from the
+;; site.  A sync also creates a missing site directory and clones the
+;; site's `:theme' when themes/<name> is missing, so a new machine gets
+;; a working site from the repository alone.
+;; Sync runs before an autostart site is exported and served, before a
+;; preview starts and before publishing; `t' in the menu runs it by hand.
+;;
+;; BACKLINKS
+;; ---------
+;; After each run the module writes data/blog_backlinks.json in the
+;; site: for every page, the pages of the same site that link to it.
+;; It already knows every note's links from the incremental state, so
+;; this costs no extra reading.  hugo/common/ carries a partial that
+;; shows the list under each page.  Links from notes that are not on
+;; the site are not counted, so a private note never appears.
+;; Rejected: the usual Hugo recipe, a template that searches the raw
+;; content of every page for links to the current one.  It needs no
+;; Emacs support, but costs pages x pages string searches: for a
+;; journal of over 3000 pages, about ten million searches through
+;; 11 MB of text on every build.
+;;
 ;; REPORTS
 ;; -------
 ;; A run ends with one line in the echo area.  The full report --
@@ -147,7 +178,8 @@
 ;;   e  export this note          v  preview with `hugo server'
 ;;   d  dry run of a site         s  stop a preview
 ;;   a  export a site (changes)   p  export, build, upload
-;;   A  export a site (all)       o  site folder in Dired
+;;   A  export a site (all)       t  sync site files from hugo/
+;;                                o  site folder in Dired
 ;;                                l  last report
 ;; With more than one site, commands ask which; the last one used is
 ;; the default.  `e' picks the site from the note's keywords.
@@ -164,6 +196,7 @@
 (require 'ox)
 (require 'ol)
 (require 'ucs-normalize)
+(require 'json)
 (require 'denote)
 (require 'transient nil t)
 
@@ -193,12 +226,14 @@
      :directory "~/projects/blog/"
      :remote nil
      :port 1313
+     :theme ("PaperMod" "https://github.com/adityatelange/hugo-PaperMod")
      :sections (("posts" :keyword "blog"   :silos ("pks" "docu"))
                 ("docs"  :keyword "pubdoc" :silos ("pks" "docu"))))
     ("journal"
      :directory "~/projects/journal-site/"
      :remote nil
      :port 1314
+     :theme ("PaperMod" "https://github.com/adityatelange/hugo-PaperMod")
      :autostart t
      :broken-links mark
      :sections (("journal" :keyword "journal" :silos ("journal"))
@@ -213,6 +248,7 @@ Each entry is (NAME . PLIST):
   :remote        rsync destination such as \"user@server:/var/www/blog/\"
                  (trailing slash matters), or nil for a laptop-only site
   :port          port of `hugo server', default 1313
+  :theme         (NAME URL): cloned to themes/NAME when missing
   :autostart     non-nil: export and serve after start-up, re-export
                  when a note of the site is saved
   :broken-links  value of `org-export-with-broken-links' for this site:
@@ -253,6 +289,13 @@ site at the root of its host.
 the same rebuild (see the Commentary)."
   :type '(choice (const :tag "Plain path (default)" path)
                  (const :tag "Hugo relref shortcode" relref))
+  :group 'my/blog)
+
+(defcustom my/blog-template-directory
+  (expand-file-name "hugo/" user-emacs-directory)
+  "Directory holding the site files declared in this repository.
+common/ is copied into every site, sites/<name>/ into site <name>."
+  :type 'directory
   :group 'my/blog)
 
 (defcustom my/blog-autostart-delay 5
@@ -380,11 +423,11 @@ once, which is what a change in how pages are produced requires.")
   (let ((dir (my/blog--directory site)))
     (cond
      ((not (file-directory-p dir))
-      (user-error "Site %s not found: %s (see function_helper.org, Blog setup)"
+      (user-error "Site %s not found: %s (C-c n x b t creates it)"
                   (car site) dir))
      ((not (seq-some (lambda (name) (file-exists-p (expand-file-name name dir)))
                      my/blog--hugo-config-files))
-      (user-error "No Hugo configuration in %s" dir))
+      (user-error "No Hugo configuration in %s (C-c n x b t writes it)" dir))
      ;; ox-hugo copies images into static/ and refuses to export a note
      ;; with an image when the directory is missing.  `hugo new site'
      ;; creates it, but git does not keep empty directories, so a fresh
@@ -959,7 +1002,8 @@ SITE, JOB, PLAN and NAME as in the caller."
            :index (my/blog--hash-to-alist (plist-get plan :index))
            :cache (my/blog--hash-to-alist (plist-get plan :cache))
            :stamps (my/blog--hash-to-alist (plist-get plan :stamps))
-           :retry (mapcar #'car (plist-get job :failed)))))
+           :retry (mapcar #'car (plist-get job :failed))))
+    (my/blog--write-backlinks site plan))
   (my/blog--write-report site job)
   (let ((summary (my/blog--summary site job))
         (quiet (plist-get job :quiet))
@@ -1114,6 +1158,175 @@ When the note belongs to several sites, ask which."
       (message "Site not found: %s" dir))))
 
 ;; ============================================================
+;; SITE FILES FROM THE REPOSITORY
+;; ============================================================
+
+(defconst my/blog--template-record ".blog-templates.eld"
+  "File in each site root recording what the last sync wrote.")
+
+(defconst my/blog--template-backups ".template-backups"
+  "Directory in each site root keeping files replaced by a sync.
+At the root and starting with a dot, so Hugo reads nothing from it.")
+
+(defun my/blog--sha1 (file)
+  "Return the SHA-1 of the bytes of FILE."
+  (with-temp-buffer
+    (set-buffer-multibyte nil)
+    (insert-file-contents-literally file)
+    (secure-hash 'sha1 (current-buffer))))
+
+(defun my/blog--read-data (file)
+  "Return the Lisp object stored in FILE, or nil when it is unreadable."
+  (when (file-readable-p file)
+    (condition-case nil
+        (with-temp-buffer
+          (insert-file-contents file)
+          (read (current-buffer)))
+      (error nil))))
+
+(defun my/blog--template-files (site)
+  "Return (RELATIVE . SOURCE) for every template file of SITE.
+common/ first, sites/<name>/ overriding it file by file."
+  (let ((table (make-hash-table :test #'equal))
+        (result '()))
+    (dolist (dir (list (expand-file-name "common" my/blog-template-directory)
+                       (expand-file-name (concat "sites/" (car site))
+                                         my/blog-template-directory)))
+      (when (file-directory-p dir)
+        (dolist (file (directory-files-recursively dir ""))
+          (puthash (file-relative-name file dir) file table))))
+    (maphash (lambda (rel src) (push (cons rel src) result)) table)
+    (sort result (lambda (a b) (string< (car a) (car b))))))
+
+(defun my/blog--sync-templates (site)
+  "Copy the template files of SITE into its directory, creating it.
+Only files whose content differs are written.  A site file changed
+since the last sync, or present before the first one, is copied to
+`my/blog--template-backups' first.  Returns (WRITTEN . BACKED-UP),
+two lists of relative paths."
+  (let* ((dir (my/blog--directory site))
+         (record-file (expand-file-name my/blog--template-record dir))
+         (record (my/blog--read-data record-file))
+         (stamp (format-time-string "%Y%m%d-%H%M%S"))
+         (new-record '())
+         (written '())
+         (backed-up '()))
+    (make-directory dir t)
+    (dolist (entry (my/blog--template-files site))
+      (let* ((rel (car entry))
+             (dst (expand-file-name rel dir))
+             (src-sum (my/blog--sha1 (cdr entry)))
+             (dst-sum (and (file-exists-p dst) (my/blog--sha1 dst))))
+        (unless (equal src-sum dst-sum)
+          (when (and dst-sum (not (equal dst-sum (cdr (assoc rel record)))))
+            (let ((backup (expand-file-name (concat rel "." stamp)
+                                            (expand-file-name my/blog--template-backups dir))))
+              (make-directory (file-name-directory backup) t)
+              (copy-file dst backup t)
+              (push rel backed-up)))
+          (make-directory (file-name-directory dst) t)
+          (copy-file (cdr entry) dst t)
+          (push rel written))
+        (push (cons rel src-sum) new-record)))
+    (with-temp-file record-file
+      (let ((print-length nil) (print-level nil))
+        (insert ";; Written by 46-blog.el: what the last template sync wrote.\n")
+        (prin1 (nreverse new-record) (current-buffer))
+        (insert "\n")))
+    ;; ox-hugo needs static/ for images; see `my/blog--check-site'.
+    (make-directory (expand-file-name "static" dir) t)
+    (cons (nreverse written) (nreverse backed-up))))
+
+(defun my/blog--ensure-theme (site then)
+  "Clone the `:theme' of SITE when it is missing, then call THEN.
+THEN receives non-nil when the theme is present afterwards."
+  (let* ((theme (my/blog--prop site :theme))
+         (target (and theme (expand-file-name (concat "themes/" (car theme))
+                                              (my/blog--directory site)))))
+    (cond
+     ((or (null theme) (file-directory-p target))
+      (funcall then t))
+     ((not (executable-find "git"))
+      (message "%s: theme %s missing and git not found" (car site) (car theme))
+      (funcall then nil))
+     (t
+      (message "%s: cloning theme %s..." (car site) (car theme))
+      (make-process
+       :name (format "blog-theme-%s" (car site))
+       :buffer (get-buffer-create (format "*Blog theme: %s*" (car site)))
+       :command (list "git" "clone" "--depth" "1" (cadr theme) target)
+       :noquery t
+       :sentinel (lambda (proc _event)
+                   (when (memq (process-status proc) '(exit signal))
+                     (let ((ok (zerop (process-exit-status proc))))
+                       (message "%s: theme %s %s" (car site) (car theme)
+                                (if ok "installed" "clone FAILED"))
+                       (funcall then ok)))))))))
+
+(defun my/blog--sync-message (site result quiet)
+  "Report RESULT of `my/blog--sync-templates' for SITE.
+With QUIET, say nothing when nothing was written."
+  (let ((written (car result))
+        (backed-up (cdr result)))
+    (when (or written backed-up (not quiet))
+      (message "%s: %s%s"
+               (car site)
+               (if written
+                   (format "site files updated: %s" (string-join written ", "))
+                 "site files up to date")
+               (if backed-up
+                   (format "; local edits of %s kept in %s/"
+                           (string-join backed-up ", ") my/blog--template-backups)
+                 "")))))
+
+(defun my/blog--prepare-site (site then &optional quiet)
+  "Sync the site files of SITE and install its theme, then call THEN.
+THEN receives non-nil when the site is ready.  With QUIET, report only
+changes."
+  (my/blog--sync-message site (my/blog--sync-templates site) quiet)
+  (my/blog--ensure-theme site then))
+
+;;;###autoload
+(defun my/blog-sync-site (site-name)
+  "Copy the site files of SITE-NAME from the repository, install its theme.
+Creates the site directory when it is missing.  A running `hugo server'
+notices the new files by itself."
+  (interactive (list (my/blog--read-site)))
+  (my/blog--prepare-site (my/blog--site site-name) #'ignore))
+
+;; ============================================================
+;; BACKLINKS
+;; ============================================================
+
+(defun my/blog--write-backlinks (site plan)
+  "Write data/blog_backlinks.json of SITE from PLAN.
+Maps each page path /<section>/<slug> to the sorted paths of the pages
+of the same site that link to it.  The file is written only when its
+content changes: every write makes `hugo server' rebuild."
+  (let ((index (plist-get plan :index))
+        (cache (plist-get plan :cache))
+        (table (make-hash-table :test #'equal))
+        (path (expand-file-name "data/blog_backlinks.json" (my/blog--directory site))))
+    (dolist (entry (plist-get plan :ready))
+      (let ((source (format "/%s/%s" (nth 1 entry) (nth 2 entry))))
+        (dolist (id (nth 2 (gethash (nth 0 entry) cache)))
+          (when-let* ((target (gethash id index)))
+            (let ((key (format "/%s/%s" (car target) (cdr target))))
+              (unless (equal key source)
+                (puthash key (cons source (gethash key table)) table)))))))
+    (let* ((keys (sort (hash-table-keys table) #'string<))
+           (alist (mapcar (lambda (key)
+                            (cons key (vconcat (sort (delete-dups (gethash key table))
+                                                     #'string<))))
+                          keys))
+           (json (if alist (json-encode alist) "{}"))
+           (old (and (file-readable-p path)
+                     (with-temp-buffer (insert-file-contents path) (buffer-string)))))
+      (unless (equal json old)
+        (make-directory (file-name-directory path) t)
+        (with-temp-file path (insert json))))))
+
+;; ============================================================
 ;; COMMANDS: PREVIEW AND PUBLISH
 ;; ============================================================
 
@@ -1163,15 +1376,19 @@ is enough to see the result.  Drafts are shown.  Each site uses its own
   (interactive (list (my/blog--read-site)))
   (let* ((site (my/blog--site site-name))
          (url (my/blog--preview-url site)))
-    (my/blog--check-site site)
     (my/blog--check-program my/blog-hugo-program)
-    (if (my/blog--serve site-name t)
-        (progn
-          ;; The first build takes a moment; opening the page at once
-          ;; shows a connection error instead.
-          (run-at-time 2 nil #'browse-url url)
-          (message "Hugo server for %s starting on %s" site-name url))
-      (browse-url url))))
+    (my/blog--prepare-site
+     site
+     (lambda (ok)
+       (when ok
+         (my/blog--check-site site)
+         (if (my/blog--serve site-name t)
+             (progn
+               ;; The first build takes a moment; opening the page at
+               ;; once shows a connection error instead.
+               (run-at-time 2 nil #'browse-url url)
+               (message "Hugo server for %s starting on %s" site-name url))
+           (browse-url url)))))))
 
 ;;;###autoload
 (defun my/blog-preview-stop ()
@@ -1234,6 +1451,9 @@ a `:remote' is laptop-only and cannot be published."
       (user-error "Site %s has no :remote - it is laptop-only" site-name))
     (my/blog--check-program my/blog-hugo-program)
     (my/blog--check-program my/blog-rsync-program)
+    ;; The published configuration is the repository's, not whatever
+    ;; the site directory happens to hold.
+    (my/blog--sync-templates site)
     (my/blog--start
      site-name
      (list :write t :interactive t
@@ -1254,11 +1474,22 @@ machine without the site should start as quietly as one with it."
   (let ((name (car site)))
     (condition-case err
         (progn
-          (my/blog--check-site site)
+          ;; Hugo first: without it, nothing is created on disk.
           (my/blog--check-program my/blog-hugo-program)
-          (my/blog--start name
-                          (list :write t :quiet t
-                                :on-done (lambda (_ok) (my/blog--serve name nil)))))
+          (my/blog--prepare-site
+           site
+           (lambda (ok)
+             (if (not ok)
+                 (let ((inhibit-message t))
+                   (message "Blog autostart, %s: theme could not be installed" name))
+               (condition-case err
+                   (my/blog--start name
+                                   (list :write t :quiet t
+                                         :on-done (lambda (_ok) (my/blog--serve name nil))))
+                 (error
+                  (let ((inhibit-message t))
+                    (message "Blog autostart, %s: %s" name (error-message-string err)))))))
+           t))
       (error
        (let ((inhibit-message t))
          (message "Blog autostart, %s: %s" name (error-message-string err)))))))
@@ -1322,7 +1553,8 @@ be taken off the site, too."
    ["Site"
     ("v" "Preview (hugo server)"   my/blog-preview)
     ("s" "Stop preview"            my/blog-preview-stop)
-    ("p" "Publish to server"       my/blog-publish)]
+    ("p" "Publish to server"       my/blog-publish)
+    ("t" "Sync site files"         my/blog-sync-site)]
    ["Look"
     ("o" "Site folder"             my/blog-open-site)
     ("l" "Last report"             my/blog-show-report)]

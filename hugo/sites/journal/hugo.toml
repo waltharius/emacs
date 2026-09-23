@@ -1,0 +1,35 @@
+# Generated from ~/.emacs.d/hugo/sites/journal/hugo.toml by modules/46-blog.el.
+# Edit that file, not this one: the next sync replaces this copy.
+# Laptop-only site: `hugo server' listens on 127.0.0.1.
+
+baseURL = 'http://localhost:1314/'
+languageCode = 'pl-PL'
+defaultContentLanguage = 'pl'
+title = 'Notatki'
+theme = 'PaperMod'
+
+[params]
+  mainSections = ['journal']
+  homeSections = ['journal', 'posts', 'docs']
+  latestPerSection = 1
+  ShowReadingTime = true
+  ShowToc = true
+  TocOpen = false
+  backlinksTitle = 'Linkują tutaj'
+
+[[menu.main]]
+  name = 'Dziennik'
+  url = '/journal/'
+  weight = 10
+[[menu.main]]
+  name = 'Blog'
+  url = '/posts/'
+  weight = 20
+[[menu.main]]
+  name = 'Dokumentacja'
+  url = '/docs/'
+  weight = 30
+[[menu.main]]
+  name = 'Tagi'
+  url = '/tags/'
+  weight = 40

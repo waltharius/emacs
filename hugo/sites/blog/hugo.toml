@@ -1,0 +1,33 @@
+# Generated from ~/.emacs.d/hugo/sites/blog/hugo.toml by modules/46-blog.el.
+# Edit that file, not this one: the next sync replaces this copy.
+
+baseURL = 'http://localhost:1313/'
+languageCode = 'pl-PL'
+defaultContentLanguage = 'pl'
+title = 'Blog'
+theme = 'PaperMod'
+
+[params]
+  # Archive and "next/previous" follow posts only.
+  mainSections = ['posts']
+  # Home page (hugo/common/layouts/home.html): newest pages per section.
+  homeSections = ['posts', 'docs']
+  latestPerSection = 5
+  ShowReadingTime = true
+  # Table of contents, shown by PaperMod only on pages with headings.
+  ShowToc = true
+  TocOpen = false
+  backlinksTitle = 'Linkują tutaj'
+
+[[menu.main]]
+  name = 'Blog'
+  url = '/posts/'
+  weight = 10
+[[menu.main]]
+  name = 'Dokumentacja'
+  url = '/docs/'
+  weight = 20
+[[menu.main]]
+  name = 'Tagi'
+  url = '/tags/'
+  weight = 30

@@ -6819,8 +6819,9 @@ specific to a Denote notes tree: which notes go to which site and
 section, how =denote:= links between them are resolved, what is
 refused, and exporting only what changed.
 
-Module: =modules/46-blog.el=. Home-page template:
-=hugo/layouts/home.html= in this repository.
+Module: =modules/46-blog.el=. Site files (Hugo configuration,
+layouts, section pages): =hugo/= in this repository, see
+[[#blog-templates][Site files from the repository]].
 
 ** Setup, once
 :PROPERTIES:
@@ -6831,105 +6832,71 @@ Programs, in home-manager (not =nix-shell=: Emacs started from the
 desktop does not see programs of a nix shell):
 
 #+begin_src nix
-home.packages = [ pkgs.hugo pkgs.rsync ];
+home.packages = [ pkgs.hugo pkgs.rsync pkgs.git ];
 #+end_src
 
-The theme used below, PaperMod, needs Hugo 0.146.0 or newer.
+The theme, PaperMod, needs Hugo 0.146.0 or newer.
 
-Each site is a Hugo directory outside the notes tree (a git repository,
-kept out of Syncthing). The public blog:
+Everything else comes from this repository. =C-c n x b t= (sync site
+files) on a site creates its directory under =~/projects/=, writes its
+=hugo.toml=, layouts and section pages from =hugo/=, and clones the
+theme into =themes/=. The journal site does this by itself at the
+first start of Emacs, since it has =:autostart t=.
+
+The public blog is meant to be a git repository (for history, and for
+GitHub Pages later); after the first sync:
 
 #+begin_src sh
-cd ~/projects
-hugo new site blog --format toml
-cd blog && git init
-git submodule add https://github.com/adityatelange/hugo-PaperMod themes/PaperMod
-printf 'public/\nresources/\n.hugo_build.lock\n.blog-state.eld\n' > .gitignore
+cd ~/projects/blog && git init
 #+end_src
 
-=hugo.toml= of the blog, with a =posts= and a =docs= section:
+The journal site holds a plain-text copy of the whole journal, so it
+is deliberately not a git repository: nothing to push by mistake.
+Everything in it can be regenerated.
 
-#+begin_src toml
-baseURL = 'http://localhost:1313/'
-languageCode = 'pl-PL'
-defaultContentLanguage = 'pl'
-title = 'Blog'
-theme = 'PaperMod'
-
-[params]
-  # Home page and archive list posts only; docs are reached by the menu.
-  mainSections = ['posts']
-  ShowReadingTime = true
-  ShowToc = true
-
-[[menu.main]]
-  name = 'Blog'
-  url = '/posts/'
-  weight = 10
-[[menu.main]]
-  name = 'Dokumentacja'
-  url = '/docs/'
-  weight = 20
-[[menu.main]]
-  name = 'Tagi'
-  url = '/tags/'
-  weight = 30
-#+end_src
-
-The laptop-only journal site. It holds a plain-text copy of the whole
-journal, so it is deliberately not a git repository: nothing to push
-by mistake. Everything in it can be regenerated.
-
-#+begin_src sh
-cd ~/projects
-hugo new site journal-site --format toml
-cd journal-site
-git clone --depth 1 https://github.com/adityatelange/hugo-PaperMod themes/PaperMod
-mkdir -p layouts && cp ~/.emacs.d/hugo/layouts/home.html layouts/
-mkdir -p content/journal content/posts content/docs
-printf '+++\ntitle = "Dziennik"\n+++\n'     > content/journal/_index.md
-printf '+++\ntitle = "Blog"\n+++\n'         > content/posts/_index.md
-printf '+++\ntitle = "Dokumentacja"\n+++\n' > content/docs/_index.md
-#+end_src
-
-=hugo.toml= of the journal site:
-
-#+begin_src toml
-baseURL = 'http://localhost:1314/'
-languageCode = 'pl-PL'
-defaultContentLanguage = 'pl'
-title = 'Notatki'
-theme = 'PaperMod'
-
-[params]
-  homeSections = ['journal', 'posts', 'docs']
-  latestPerSection = 1
-  mainSections = ['journal']
-
-[[menu.main]]
-  name = 'Dziennik'
-  url = '/journal/'
-  weight = 10
-[[menu.main]]
-  name = 'Blog'
-  url = '/posts/'
-  weight = 20
-[[menu.main]]
-  name = 'Dokumentacja'
-  url = '/docs/'
-  weight = 30
-[[menu.main]]
-  name = 'Tagi'
-  url = '/tags/'
-  weight = 40
-#+end_src
-
-=_index.md= files give sections their titles; without them Hugo shows
-the pluralized directory name ("Journals"). The module never removes
-files whose name starts with =_=.
+A site created by hand before the sync existed keeps its old files in
+=<site>/.template-backups/= when the first sync replaces them; anything
+worth keeping from them belongs in =hugo/sites/<name>/=.
 
 =ox-hugo= itself is installed at start-up by the =use-package= form in
 the module.
+
+** Site files from the repository
+:PROPERTIES:
+:CUSTOM_ID: blog-templates
+:END:
+
+| Repository path                                   | Copied to                    | Purpose                                     |
+|---------------------------------------------------+------------------------------+---------------------------------------------|
+| =hugo/common/layouts/home.html=                   | every site                   | home page, newest pages per section         |
+| =hugo/common/layouts/_partials/extend_post_content.html= | every site            | backlinks under each page                   |
+| =hugo/sites/blog/hugo.toml=                       | =~/projects/blog/=           | blog configuration                          |
+| =hugo/sites/blog/.gitignore=                      | =~/projects/blog/=           | build output and module state out of git    |
+| =hugo/sites/journal/hugo.toml=                    | =~/projects/journal-site/=   | journal site configuration                  |
+| =hugo/sites/<name>/content/<section>/_index.md=   | that site                    | section titles (Blog, Dokumentacja, Dziennik) |
+
+=hugo/common/= goes into every site, =hugo/sites/<name>/= into site
+=<name>= and overrides a common file of the same path. A new site in
+=my/blog-sites= only needs a =hugo/sites/<name>/= directory.
+
+A sync writes only files whose content differs. The copies in the
+sites are generated; changes belong in the repository. A site file
+changed on disk since the last sync (or present before the first one)
+is copied to =<site>/.template-backups/<path>.<timestamp>= before being
+replaced, and the sync says so in the echo area. Files removed from
+=hugo/= are not removed from the sites.
+
+When a sync runs:
+
+| Occasion                            | Sync                                          |
+|-------------------------------------+-----------------------------------------------|
+| Emacs start, =:autostart= sites     | before the export and =hugo server=           |
+| =v= preview                         | before the server starts                      |
+| =p= publish                         | before the export and build                   |
+| =t= in the menu                     | by hand, any time                             |
+
+A running =hugo server= picks up changed configuration and layouts by
+itself.
 
 ** Sites and sections
 :PROPERTIES:
@@ -7130,8 +7097,7 @@ and restores the window.
 :CUSTOM_ID: blog-home
 :END:
 
-=hugo/layouts/home.html=, copied to =<site>/layouts/home.html=, replaces
-the theme's home page with one block per section: the section title
+=hugo/common/layouts/home.html= replaces the theme's home page with one block per section: the section title
 (linking to the full list) and its newest pages in PaperMod's own
 entry style. Parameters in =hugo.toml=, =[params]=:
 
@@ -7142,6 +7108,44 @@ entry style. Parameters in =hugo.toml=, =[params]=:
 
 Written for PaperMod: it fills the theme's =main= block and uses its
 =post_meta.html= partial. Another theme needs its own version.
+
+Current values: blog =['posts', 'docs']=, 5 per section; journal site
+=['journal', 'posts', 'docs']=, 1 per section.
+
+** Table of contents
+:PROPERTIES:
+:CUSTOM_ID: blog-toc
+:END:
+
+=ShowToc = true= in both =hugo.toml= templates. PaperMod draws the table
+of contents only when the page has headings, so short notes without
+headings get none; =TocOpen = false= keeps it folded. Org headings
+become =##= and deeper (the page title is the =#=), and journal entries
+list their =* HH:MM= headings.
+
+** Backlinks
+:PROPERTIES:
+:CUSTOM_ID: blog-backlinks
+:END:
+
+Under each page, a list of the pages of the same site that link to it,
+newest first, headed by =backlinksTitle= from =hugo.toml= ("Linkują
+tutaj").
+
+After every export the module writes =<site>/data/blog_backlinks.json=:
+page path → paths of the pages linking to it. It already holds every
+note's links in its incremental state, so this reads nothing extra, and
+the file is rewritten only when it changes. The partial
+=hugo/common/layouts/_partials/extend_post_content.html= fills
+PaperMod's empty hook after the page content.
+
+Only pages of the same site count: a private note, or one published on
+another site only, never appears in the list.
+
+The common Hugo approach, a template searching every page's text for
+links to the current one, was not used: it costs pages × pages string
+searches, which for the journal site (over 3000 pages, 11 MB of text)
+means about ten million searches per build.
 
 ** Commands
 :PROPERTIES:
@@ -7159,6 +7163,7 @@ Written for PaperMod: it fills the theme's =main= block and uses its
 | =my/blog-publish=            | export changes, then =hugo --minify= and =rsync --delete=      |
 | =my/blog-open-site=          | site directory in Dired                                        |
 | =my/blog-show-report=        | report of the last export (=*Blog export*=, =q= closes)        |
+| =my/blog-sync-site=          | copy site files from =hugo/=, create the site, clone the theme |
 
 With more than one site the commands ask which; the last site used is
 offered first, =my/blog-default-site= before that.
@@ -7177,6 +7182,8 @@ Function: =my/blog-export-all-dry-run= | Module: =modules/46-blog.el=
 
 Function: =my/blog-publish= | Module: =modules/46-blog.el=
 
+Function: =my/blog-sync-site= | Module: =modules/46-blog.el=
+
 ** Menu (C-c n x b)
 :PROPERTIES:
 :CUSTOM_ID: menu-blog
@@ -7191,6 +7198,7 @@ Function: =my/blog-publish= | Module: =modules/46-blog.el=
 | =v= | Preview (hugo server) |
 | =s= | Stop preview          |
 | =p= | Publish to server     |
+| =t= | Sync site files       |
 | =o= | Site folder           |
 | =l= | Last report           |
 
@@ -7230,6 +7238,17 @@ For access from the internet, add TLS (on NixOS: =enableACME = true;=
 and =forceSSL = true;= on the virtual host) and a DNS name pointing at
 the server.
 
+=:remote= is a property in =my/blog-sites= (Emacs), not a Hugo setting.
+Publishing to it also needs the public address in =baseURL= of
+=hugo/sites/<name>/hugo.toml=.
+
+GitHub Pages is not an rsync target, so =p= does not cover it. The
+route documented by Hugo is a GitHub Actions workflow that builds the
+site from its repository on each push. Links between pages are plain
+paths from the site root (=my/blog-link-style=), which fits a user site
+(=<user>.github.io=) or a custom domain, but not a project site served
+under =<user>.github.io/<repo>/=.
+
 ** Configuration
 :PROPERTIES:
 :CUSTOM_ID: blog-config
@@ -7243,8 +7262,10 @@ the server.
 | =my/blog-url-source=      | =title=                     | =title= or =identifier=                  |
 | =my/blog-link-style=      | =path=                      | =path= or =relref=                       |
 | =my/blog-autostart-delay= | =5=                         | idle seconds after start-up              |
+| =my/blog-template-directory= | =~/.emacs.d/hugo/=       | site files declared in the repository    |
 | =my/blog-hugo-program=    | =hugo=                      | executable                               |
 | =my/blog-rsync-program=   | =rsync=                     | executable                               |
 
-Site properties: =:directory=, =:remote=, =:port=, =:autostart=,
-=:broken-links=, =:sections=; see the docstring of =my/blog-sites=.
+Site properties: =:directory=, =:remote=, =:port=, =:theme=,
+=:autostart=, =:broken-links=, =:sections=; see the docstring of
+=my/blog-sites=.

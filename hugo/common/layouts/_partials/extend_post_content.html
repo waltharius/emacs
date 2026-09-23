@@ -1,0 +1,32 @@
+{{- /*
+  Backlinks under each page: the pages of this site that link here.
+
+  Belongs to modules/46-blog.el, which copies it into every site
+  (hugo/common/ -> <site>/) and writes data/blog_backlinks.json after
+  each export.  PaperMod calls this partial right after the page
+  content; the theme ships it empty for exactly this purpose.
+
+  hugo.toml, [params]:
+    backlinksTitle  heading of the list, default 'Linkują tutaj'
+*/ -}}
+{{- with .File }}
+{{- $key := printf "/%s/%s" $.Section .ContentBaseName }}
+{{- with index site.Data "blog_backlinks" }}
+{{- with index . $key }}
+{{- $pages := slice }}
+{{- range . }}
+  {{- with site.GetPage . }}{{ $pages = $pages | append . }}{{ end }}
+{{- end }}
+{{- with $pages }}
+<div class="post-content md-content backlinks">
+  <h3>{{ site.Params.backlinksTitle | default "Linkują tutaj" }}</h3>
+  <ul>
+    {{- range sort . "Date" "desc" }}
+    <li><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>
+    {{- end }}
+  </ul>
+</div>
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
