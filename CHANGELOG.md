@@ -21,6 +21,86 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-01a — Auto-commit: pull before pushing, notes on two machines
+
+### Why
+
+The notes are now edited on two machines, azazel and baal (a laptop for
+writing). Auto-commit only committed and pushed. The second machine kept
+writing on top of the state it had when Emacs started: its push was
+rejected, its automatic commits diverged from the server, and the only
+trace was the `*auto-commit*` buffer, which nobody reads in an idle
+cycle.
+
+The notes travel through the local GitLab only. Syncthing on `~/notes`
+was considered and rejected: it would also copy `.git/` while git is
+writing to it, which can leave a broken repository, and on a conflict it
+leaves `*.sync-conflict-*` copies to compare by hand, where git merges
+changes to different lines and names the lines that collide. Syncthing
+stays for `~/syncthing` (Zotero storage, the old Obsidian vault).
+
+### 07-git.el
+
+New option `my/auto-commit-pull` (t). Each repository is brought up to
+date with `git pull --rebase --autostash`:
+
+- **at startup**, from `after-init-hook` at depth -90, i.e. before
+  `desktop-save-mode` reopens the last session's files (default depth),
+  so buffers open on the newest version; every module is loaded by then,
+  so the writing projects of 39-project-git.el are included;
+- **before every push**, in the idle and exit cycles, after the commit,
+  so a push never lands on an old state.
+
+Rebase rather than merge: an auto-committed log would otherwise collect
+a merge commit in nearly every cycle on the second machine. Files
+changed by the pull are reloaded by `global-auto-revert-mode`
+(02-editing.el); nothing new was needed for that.
+
+`my/auto-commit--pull` returns `ok`, `offline`, `conflict`, `busy` or
+`no-upstream`. A failed pull with a rebase in progress afterwards is a
+conflict, any other failure is treated as the server being unreachable.
+
+**Conflicts are never resolved automatically.** The rebase is aborted at
+once, so the repository is exactly as before and no file holds conflict
+markers; nothing is pushed; `display-warning` explains, once per
+repository until a pull succeeds, what to do. Rejected: `-X ours` /
+`-X theirs`, which resolve by silently dropping one side's text, and
+leaving the rebase stopped, which the next idle cycle's `git add -A`
+would have committed together with the markers.
+
+**A repository with a rebase or merge in progress is skipped entirely**
+(`my/auto-commit--busy-p`: `rebase-merge`, `rebase-apply`, `MERGE_HEAD`
+under `git rev-parse --git-path`), so resolving a conflict by hand is
+never interrupted by an automatic commit.
+
+New commands: `my/auto-commit-pull-all` (what startup runs; reports
+"updated from the server", "server unreachable, working offline",
+"CONFLICT") and `my/auto-commit-resolve` (commit, pull by hand without
+aborting, open Magit on the conflict). The cycle's echo-area summary now
+lists `committed`, `pulled`, `pushed`, `server unreachable` and
+`CONFLICT, not pushed`.
+
+Rejected: an asynchronous pull at startup, which would let desktop
+open buffers on the old content and then revert them under the cursor.
+The synchronous pull costs at most the SSH `ConnectTimeout` (5 s) per
+repository when the server is unreachable.
+
+Verified in Emacs 29.3 in batch on two clones of one bare repository:
+the machine behind pulls the other's commit; the same line changed on
+both ends gives "committed, CONFLICT, not pushed", a clean file without
+markers and one warning; an unreachable remote gives "committed, server
+unreachable"; `my/auto-commit-pull-all` reports both. Byte-compiles
+without new warnings. Not verified: against the GitLab over SSH,
+the ordering against desktop restore in a real session, and
+`my/auto-commit-resolve` with Magit.
+
+### function_helper.org
+
+Auto-commit: new section "Several machines: pulling" — why git and not
+Syncthing for the notes, when the pull runs, the three results, how to
+resolve a conflict, and waiting for "pushed" before switching machines.
+
+---
 ## Session 2026-09-23g — Blog: documentation as its own hugo-book site, links between sites, search, favicons
 
 ### Sites
