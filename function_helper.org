@@ -3323,6 +3323,43 @@ five seconds. Both bound a hang: the exit-time push is synchronous, so
 an unreachable server would otherwise hold Emacs open for a full TCP
 timeout and the symptom would be an editor that will not close.
 
+** Several machines: pulling
+
+The notes are edited on more than one machine (azazel, baal) and travel
+only through the local GitLab, never through Syncthing: Syncthing would
+also copy =.git/= while git is writing to it, and leaves
+=*.sync-conflict-*= files where git can merge or at least point at the
+exact lines.
+
+=my/auto-commit-pull= is =t=. Each repository is brought up to date
+with =git pull --rebase --autostash=:
+
+- *when Emacs starts*, before the last session's files are reopened, so
+  buffers open on the newest version;
+- *before every push* in the idle and exit cycles, so a push never
+  lands on an old state.
+
+Files that change on disk are reloaded by =global-auto-revert-mode=.
+
+| Result in the echo area   | Meaning                                              |
+|---------------------------+------------------------------------------------------|
+| =pulled=, =updated from the server= | the other machine's work is here now      |
+| =server unreachable=      | away from home or GitLab down; work goes on locally and is pushed later |
+| =CONFLICT, not pushed=    | the same lines changed here and on the server        |
+
+A conflict is never resolved automatically. The pull is undone at once
+(=git rebase --abort=), so no file contains conflict markers, nothing is
+pushed, and a warning appears once in =*Warnings*=. Local auto-commits
+continue. To merge: =M-x my/auto-commit-resolve= pulls again by hand and
+opens Magit on the conflict; resolve inside the file with smerge
+(=C-c ^ ...=), then =r r= in Magit. The next cycle pushes the result.
+While a rebase or merge is in progress the repository is left alone, so
+an automatic =git add -A= can never commit conflict markers.
+
+Working on one machine and then going straight to the other: wait for
+the "pushed" message on the first (or press =C-c v a=) before starting
+Emacs or the next idle cycle on the second.
+
 ** Adding a repository
 
 Push a function onto =my/auto-commit-repository-sources=. Each function
