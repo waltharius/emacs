@@ -7,10 +7,16 @@
 ;; -----------------
 ;; ispell variables are set immediately at load time.
 ;; The Hunspell subprocess is blocked during desktop-restore via
-;; `my/flyspell-desktop-restoring' flag.  After desktop-restore
-;; completes, `desktop-after-read-hook' (in 15-workspace.el) clears
-;; the flag and re-activates flyspell-mode-on for all open buffers.
-;; Hunspell then starts once, on demand, for the first buffer checked.
+;; `my/flyspell-desktop-restoring' flag.  Once the session is up,
+;; `my/desktop-after-startup-hook' (01-ui.el) runs
+;; `my/flyspell--recheck-all-buffers', which clears the flag and
+;; re-enables flyspell in every open buffer.  Hunspell then starts
+;; once, on demand, for the first buffer checked.
+;;
+;; While the flag is set, `flyspell-mode' reports itself as on but
+;; nothing is checked while typing (only the explicit checks work).
+;; If that state outlives startup, `my/toggle-flyspell' (C-c n t T)
+;; releases the guard by hand.
 ;;
 ;;; Code:
 
@@ -46,7 +52,8 @@
 ;; ============================================================
 ;; On NixOS, hunspellDicts.pl_PL ships ISO8859-2 only.
 ;; A UTF-8 copy is maintained at ~/.local/share/hunspell/ by
-;; home.activation.hunspellUtf8 (users/marcin/base/packages.nix).
+;; home.activation.hunspellUtf8 (modules/groups/emacs/home.nix in the
+;; NixOS repository).
 ;;
 ;; DICPATH alone is not enough: ispell-phaf resolves dictionary paths
 ;; from `ispell-hunspell-dict-paths-alist', which is built by scanning
@@ -136,28 +143,45 @@ desktop-restore.  Pass through normally in all other cases."
 
 (defun my/flyspell--recheck-all-buffers ()
   "Clear the desktop-restore guard and activate flyspell on all live buffers.
-Runs from `my/desktop-after-startup-hook'.
-This is the first moment Hunspell is allowed to start."
+Runs from `my/desktop-after-startup-hook', and from `my/toggle-flyspell'
+when the guard is still up.  This is the first moment Hunspell is
+allowed to start.
+
+Each buffer is re-enabled with `(flyspell-mode 1)' rather than a bare
+`flyspell-mode-on': the minor-mode wrapper installs the same
+per-buffer hooks, and on failure turns the mode off with a message
+instead of leaving it reported as on with nothing checking.  A failure
+in one buffer is reported and does not stop the others."
   (setq my/flyspell-desktop-restoring nil)
   ;; Remove the blocking advice — no longer needed after first restore.
   (advice-remove 'flyspell-mode #'my/flyspell--block-during-restore)
-  ;; Re-run flyspell-mode-on for every buffer that had flyspell enabled
-  ;; during restore (mode var is t but subprocess never started).
+  ;; Re-enable flyspell in every buffer that had it switched on during
+  ;; restore (mode variable is t, but the subprocess never started and
+  ;; the per-buffer hooks were never installed).
   (dolist (buf (buffer-list))
     (when (buffer-live-p buf)
       (with-current-buffer buf
         (when (and flyspell-mode
                    (derived-mode-p 'text-mode 'org-mode))
-          ;; flyspell-mode-on starts the process and checks the buffer.
-          (flyspell-mode-on))))))
+          (condition-case-unless-debug err
+              (flyspell-mode 1)
+            (error
+             (message "03-spelling: flyspell failed in %s: %s"
+                      (buffer-name) (error-message-string err)))))))))
 
 ;; Unblock as soon as the session is ready.  `my/desktop-after-startup-hook'
 ;; is defined in 01-ui.el, which init.el loads first; the guard keeps this
 ;; working even if that module is ever absent, in which case spelling
 ;; simply stays blocked until `my/flyspell--recheck-all-buffers' is run by
 ;; hand -- which is visible, rather than silent.
+;;
+;; Depth -90 puts the release ahead of every consumer added at the default
+;; depth.  `add-hook' prepends, so without it 15-workspace.el (loaded
+;; later) ran first, and an error in the dashboard used to stop the
+;; release from ever running.  01-ui.el now also isolates each consumer's
+;; errors; the depth keeps spelling independent of that as well.
 (if (boundp 'my/desktop-after-startup-hook)
-    (add-hook 'my/desktop-after-startup-hook #'my/flyspell--recheck-all-buffers)
+    (add-hook 'my/desktop-after-startup-hook #'my/flyspell--recheck-all-buffers -90)
   (message "03-spelling: no `my/desktop-after-startup-hook'; Hunspell stays blocked"))
 
 ;; ============================================================
@@ -263,11 +287,20 @@ Returns t if process is ready, nil if it could not be started."
 ;; ============================================================
 
 (defun my/toggle-flyspell ()
-  "Toggle flyspell-mode on/off."
+  "Toggle flyspell-mode on/off.
+If the desktop-restore guard is still up, toggling could not work:
+the mode would be reported as on while nothing is checked.  In that
+case the guard is released instead, which re-enables flyspell in
+every open text buffer."
   (interactive)
-  (if flyspell-mode
-      (progn (flyspell-mode -1) (message "✗ Spell-checking OFF"))
-    (progn (flyspell-mode 1)  (message "✓ Spell-checking ON"))))
+  (cond
+   (my/flyspell-desktop-restoring
+    (my/flyspell--recheck-all-buffers)
+    (message "✓ Spell-checking released (startup guard was still active)"))
+   (flyspell-mode
+    (flyspell-mode -1) (message "✗ Spell-checking OFF"))
+   (t
+    (flyspell-mode 1)  (message "✓ Spell-checking ON"))))
 
 ;; ============================================================
 ;; CHECK VISIBLE REGION (manual, fast)

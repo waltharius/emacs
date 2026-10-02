@@ -1981,6 +1981,31 @@ Function: =my/inbox-menu= | Module: =modules/25-inbox-review.el=
 
 Module: =modules/03-spelling.el=
 
+**** Live checking and the startup guard
+:PROPERTIES:
+:CUSTOM_ID: fn-spell-startup-guard
+:END:
+
+Errors are underlined while typing only when flyspell has installed its
+per-buffer hooks (=flyspell-post-command-hook=). During desktop restore
+=my/flyspell--block-during-restore= sets the mode variable without
+starting Hunspell, so a restored buffer shows flyspell as on while
+nothing is checked; only =S= and =b= work, because they call
+=flyspell-region= / =flyspell-buffer= directly.
+
+The guard is released by =my/flyspell--recheck-all-buffers= from
+[[#fn-desktop-after-startup-hook][my/desktop-after-startup-hook]] at depth -90, i.e. before any other
+consumer. Every affected buffer is re-enabled with =(flyspell-mode 1)=,
+so a failure turns the mode off with a message instead of leaving it
+reported as on.
+
+Symptom of a guard that was never released: =M-: my/flyspell-desktop-restoring=
+returns =t=, and toggling with =T= twice does not help. =T= now detects
+that state and releases the guard instead of toggling.
+
+Function: =my/toggle-flyspell= | Variable: =my/flyspell-desktop-restoring= |
+Module: =modules/03-spelling.el=
+
 ** C-c n l — Philosophy
 :PROPERTIES:
 :CUSTOM_ID: menu-notes-philosophy
@@ -3945,6 +3970,9 @@ cursor positions survive restarts. Desktop file lives in
 =~/.emacs.d/desktop/=.
 
 ** =my/desktop-after-startup-hook=
+:PROPERTIES:
+:CUSTOM_ID: fn-desktop-after-startup-hook
+:END:
 
 An ordinary hook, run *once*, shortly after Emacs has finished starting
 up — whether or not a session was restored.
@@ -3956,12 +3984,22 @@ hook, and a flag makes sure only the first one counts. The delay before
 firing is =my/desktop-startup-delay= (0.5 s), which lets the rest of
 startup settle before anything reshapes windows.
 
-Registered on it:
+Registered on it, in run order:
 
-| Module | What it does |
-|--------+--------------|
-| =03-spelling.el= | Clears the Hunspell block and activates flyspell in every restored buffer |
-| =15-workspace.el= | Opens the notes dashboard in its tab |
+| Module | Depth | What it does |
+|--------+-------+--------------|
+| =03-spelling.el= | -90 | Clears the Hunspell block and activates flyspell in every restored buffer |
+| =15-workspace.el= | 0 | Opens the notes dashboard in its tab |
+
+=add-hook= prepends, so without an explicit depth the module loaded
+last runs first. Each function is called through
+=my/desktop--run-startup-function= via the built-in
+=run-hook-wrapped=: an error is shown in =*Warnings*= (type
+=my/desktop=) and the remaining functions still run. Plain =run-hooks=
+stopped at the first error, which is how a failing dashboard once left
+spell checking blocked for a whole session. With =debug-on-error= set,
+errors are not caught (=condition-case-unless-debug=), so the debugger
+still opens on them.
 
 Both registrations are guarded: without =01-ui.el= they degrade to a
 message or to =emacs-startup-hook=, rather than to silence.
@@ -3974,7 +4012,7 @@ removing the dashboard module disabled it. A module that owns the
 session can say when the session is ready; it should not have to know
 what anyone does with that fact.
 
-Functions: =my/desktop--run-startup-hook= | Variables:
+Functions: =my/desktop--run-startup-hook=, =my/desktop--run-startup-function= | Variables:
 =my/desktop-after-startup-hook=, =my/desktop-startup-delay= |
 Module: =modules/01-ui.el=
 

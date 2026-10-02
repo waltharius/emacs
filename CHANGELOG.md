@@ -21,6 +21,99 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-02a — Spell checking: live underlining lost after startup
+
+### Symptom
+
+Misspellings stopped being underlined while typing. `C-c n t S` and
+`C-c n t b` still marked them, but every new error needed another
+manual check.
+
+### Cause
+
+Both manual commands call `flyspell-region` / `flyspell-buffer`
+directly, with the same Hunspell process and dictionaries as live
+checking, so the dictionaries were not at fault. Live checking depends
+on the per-buffer `flyspell-post-command-hook`, which only
+`flyspell-mode-on` installs. The desktop-restore guard in
+03-spelling.el sets the `flyspell-mode` variable and skips
+`flyspell-mode-on`; when the guard is never released, every org/text
+buffer reports flyspell as on while nothing checks, and `C-c n t T`
+twice goes through the same guard and changes nothing.
+
+The release (`my/flyspell--recheck-all-buffers`) runs from
+`my/desktop-after-startup-hook`. That hook was run with `run-hooks`,
+which stops at the first function that signals. `add-hook` prepends,
+so 15-workspace.el, loaded after 03-spelling.el, put the dashboard
+first: any error while rendering the dashboard prevented the release
+for the whole session, visible only as "Error running timer" in
+*Messages*. Reproduced in batch Emacs 29.3 with Hunspell 1.7.2: a
+failing earlier consumer leaves `my/flyspell-desktop-restoring` at t,
+the mode on and no post-command hook, also in buffers opened later.
+Which consumer failed in the affected session was not established.
+
+The NixOS dictionary change (`hunspell.withDicts`) was examined and
+ruled out as the cause of this symptom; see "NixOS side" below.
+
+### 01-ui.el
+
+`my/desktop--run-startup-hook` runs the hook through the built-in
+`run-hook-wrapped` with the new `my/desktop--run-startup-function`:
+each consumer's error is reported with `display-warning` (type
+`my/desktop`) and the remaining consumers still run.
+`condition-case-unless-debug` keeps `debug-on-error` usable.
+
+### 03-spelling.el
+
+- The release is registered at depth -90, ahead of every consumer at
+  the default depth, independently of the isolation above.
+- Buffers are re-enabled with `(flyspell-mode 1)` instead of a bare
+  `flyspell-mode-on`. The minor-mode wrapper catches a failure and
+  turns the mode off with a message, instead of leaving it reported as
+  on; each buffer is additionally wrapped, so one failure does not stop
+  the rest.
+- `my/toggle-flyspell` releases the guard when it is still up, instead
+  of toggling through it to no effect.
+- Header and dictionary comments updated: the release no longer lives
+  in 15-workspace.el, and the Hunspell activation moved to
+  `modules/groups/emacs/home.nix` in the NixOS repository.
+
+Rejected: moving the release back to `desktop-after-read-hook`, which
+does not fire when no desktop file exists; dropping the guard, which
+brings back one Hunspell start per restored buffer.
+
+### NixOS side
+
+`hunspell.withDicts` (nixpkgs `pkgs/by-name/hu/hunspell/wrapper.nix`)
+wraps the binary with `--prefix DICPATH : <env>/share/hunspell`, so the
+Nix-store `pl_PL` (ISO8859-2) is now found before the UTF-8 copy in
+`~/.local/share/hunspell` that `DICPATH` set from Emacs points at; the
+copy made by `home.activation.hunspellUtf8` is no longer used. With
+Hunspell 1.7.2 and `-i UTF-8` this was tested to check and suggest
+Polish words correctly, so it does not break spell checking, but it
+makes the conversion dead code. Left unchanged here; to be decided
+separately (plain `hunspell` plus `hunspellDicts.*`, or dropping the
+conversion).
+
+### Verification
+
+Batch Emacs 29.3, Hunspell 1.7.2, NixOS-like `DICPATH` layout with the
+`withDicts` wrapper imitated: with a consumer that signals placed
+before the release, the warning appears, the guard is released and
+`flyspell-post-command-hook` is installed; with the guard re-armed,
+`my/toggle-flyspell` releases it. `check-parens` passes; byte-compile
+adds no new warnings. Not verified: a real session with desktop
+restore and the dashboard.
+
+### function_helper.org
+
+New subsection "Live checking and the startup guard" under the
+spelling commands (`#fn-spell-startup-guard`);
+`my/desktop-after-startup-hook` gets the anchor
+`#fn-desktop-after-startup-hook`, run order with depths, and the error
+isolation.
+
+---
 ## Session 2026-10-01a — Auto-commit: pull before pushing, notes on two machines
 
 ### Why

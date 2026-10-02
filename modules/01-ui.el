@@ -608,12 +608,45 @@ a session that is ready to use.")
 (defvar my/desktop--startup-done nil
   "Non-nil once `my/desktop-after-startup-hook' has been run.")
 
+;; ONE FAILING CONSUMER MUST NOT SILENCE THE OTHERS
+;; -----------------------------------------------
+;; `run-hooks' stops at the first function that signals, and the error
+;; surfaces only as "Error running timer" in *Messages*.  `add-hook'
+;; prepends, so the module loaded LAST runs FIRST: 15-workspace.el's
+;; dashboard ran before 03-spelling.el's Hunspell release, and any
+;; error while rendering the dashboard left flyspell blocked for the
+;; whole session -- mode reported as on, nothing checked while typing.
+;;
+;; `run-hook-wrapped' (built in) hands every function to a wrapper,
+;; which here catches and reports the error and then lets the next
+;; function run.  `condition-case-unless-debug' keeps `debug-on-error'
+;; usable for tracking a failure down.
+
+(defun my/desktop--run-startup-function (fn)
+  "Call FN on behalf of `my/desktop-after-startup-hook', isolating errors.
+An error is reported through `display-warning' and does not stop the
+functions after FN.  Always returns nil, which tells
+`run-hook-wrapped' to continue with the next function."
+  (condition-case-unless-debug err
+      (funcall fn)
+    (error
+     (display-warning
+      'my/desktop
+      (format "my/desktop-after-startup-hook: %S failed: %s"
+              fn (error-message-string err))
+      :error)))
+  nil)
+
 (defun my/desktop--run-startup-hook ()
-  "Run `my/desktop-after-startup-hook' once, after a short delay."
+  "Run `my/desktop-after-startup-hook' once, after a short delay.
+Each function runs through `my/desktop--run-startup-function', so an
+error in one is reported and the rest still run."
   (unless my/desktop--startup-done
     (setq my/desktop--startup-done t)
     (run-with-timer my/desktop-startup-delay nil
-                    (lambda () (run-hooks 'my/desktop-after-startup-hook)))))
+                    #'run-hook-wrapped
+                    'my/desktop-after-startup-hook
+                    #'my/desktop--run-startup-function)))
 
 (add-hook 'desktop-after-read-hook #'my/desktop--run-startup-hook)
 (add-hook 'emacs-startup-hook #'my/desktop--run-startup-hook 90)
