@@ -50,32 +50,40 @@
 ;; ============================================================
 ;; HUNSPELL DICT PATH REGISTRATION
 ;; ============================================================
-;; On NixOS, hunspellDicts.pl_PL ships ISO8859-2 only.
-;; A UTF-8 copy is maintained at ~/.local/share/hunspell/ by
-;; home.activation.hunspellUtf8 (modules/groups/emacs/home.nix in the
-;; NixOS repository).
+;; Every dictionary must be UTF-8: Emacs runs Hunspell with `-i UTF-8',
+;; and on NixOS Hunspell cannot convert an ISO8859-2 dictionary for it
+;; ("error - iconv: ISO8859-2 -> UTF-8" in *Messages*, followed by
+;; "Error enabling Flyspell mode").  hunspellDicts.pl_PL is ISO8859-2, so
+;; the NixOS repository converts it at build time and installs only the
+;; UTF-8 copy (modules/groups/emacs/home.nix, `hunspellPlUtf8').
 ;;
-;; DICPATH alone is not enough: ispell-phaf resolves dictionary paths
-;; from `ispell-hunspell-dict-paths-alist', which is built by scanning
-;; known system directories — ~/.local/share/hunspell is NOT in that
-;; scan.  We therefore add both dictionaries explicitly BEFORE calling
-;; ispell-set-spellchecker-params, which reads the alist.
+;; Both dictionaries come from the user profile.  `hunspell.withDicts'
+;; wraps the binary with its own DICPATH prepended, so whatever is set
+;; here is searched after the profile's dictionaries anyway; it only
+;; matters for a Hunspell without that wrapper.  An older setup kept a
+;; converted copy in ~/.local/share/hunspell; the wrapper never reached
+;; it, which is how the ISO8859-2 file came back into use.
+;;
+;; DICPATH alone is not enough for Emacs: ispell-phaf resolves dictionary
+;; paths from `ispell-hunspell-dict-paths-alist'.  The names used in
+;; `ispell-dictionary' are registered explicitly -- en_GB-large is
+;; installed as en_GB.aff -- BEFORE ispell-set-spellchecker-params reads
+;; the alist.
 
 (with-eval-after-load 'ispell
-  (let* ((user-dict (expand-file-name "~/.local/share/hunspell"))
-         (login     (user-login-name))
-         (nix-path  (format "/etc/profiles/per-user/%s/share/hunspell" login)))
+  (let* ((login    (user-login-name))
+         (nix-path (format "/etc/profiles/per-user/%s/share/hunspell" login)))
 
-    ;; DICPATH: hunspell subprocess uses this to locate .aff/.dic at runtime
-    (setenv "DICPATH" (concat user-dict ":" nix-path))
+    ;; DICPATH: used by a Hunspell without the withDicts wrapper.
+    (setenv "DICPATH" nix-path)
 
-    ;; pl_PL — UTF-8 copy lives in user-dict (written by home.activation)
-    (when (file-exists-p (expand-file-name "pl_PL.aff" user-dict))
+    ;; pl_PL -- UTF-8, converted at build time (hunspellPlUtf8).
+    (when (file-exists-p (expand-file-name "pl_PL.aff" nix-path))
       (add-to-list 'ispell-hunspell-dict-paths-alist
                    (list "pl_PL"
-                         (expand-file-name "pl_PL.aff" user-dict))))
+                         (expand-file-name "pl_PL.aff" nix-path))))
 
-    ;; en_GB-large — comes directly from the nix profile (already UTF-8)
+    ;; en_GB-large -- UTF-8 upstream, installed as en_GB.aff/.dic.
     (when (file-exists-p (expand-file-name "en_GB.aff" nix-path))
       (add-to-list 'ispell-hunspell-dict-paths-alist
                    (list "en_GB-large"
@@ -151,23 +159,41 @@ Each buffer is re-enabled with `(flyspell-mode 1)' rather than a bare
 `flyspell-mode-on': the minor-mode wrapper installs the same
 per-buffer hooks, and on failure turns the mode off with a message
 instead of leaving it reported as on with nothing checking.  A failure
-in one buffer is reported and does not stop the others."
+in one buffer is reported and does not stop the others.
+
+Buffers where flyspell could not be enabled are counted and reported
+once through `display-warning': a broken dictionary breaks every
+buffer at once, and an echo-area message per buffer scrolls away
+unread."
   (setq my/flyspell-desktop-restoring nil)
   ;; Remove the blocking advice — no longer needed after first restore.
   (advice-remove 'flyspell-mode #'my/flyspell--block-during-restore)
   ;; Re-enable flyspell in every buffer that had it switched on during
   ;; restore (mode variable is t, but the subprocess never started and
   ;; the per-buffer hooks were never installed).
-  (dolist (buf (buffer-list))
-    (when (buffer-live-p buf)
-      (with-current-buffer buf
-        (when (and flyspell-mode
-                   (derived-mode-p 'text-mode 'org-mode))
-          (condition-case-unless-debug err
-              (flyspell-mode 1)
-            (error
-             (message "03-spelling: flyspell failed in %s: %s"
-                      (buffer-name) (error-message-string err)))))))))
+  (let ((failed '()))
+    (dolist (buf (buffer-list))
+      (when (buffer-live-p buf)
+        (with-current-buffer buf
+          (when (and flyspell-mode
+                     (derived-mode-p 'text-mode 'org-mode))
+            (condition-case-unless-debug err
+                (flyspell-mode 1)
+              (error
+               (message "03-spelling: flyspell failed in %s: %s"
+                        (buffer-name) (error-message-string err))))
+            ;; `flyspell-mode' turns itself off when enabling fails.
+            (unless flyspell-mode
+              (push (buffer-name) failed))))))
+    (when failed
+      (display-warning
+       'my/spelling
+       (format "Spell checking could not start in %d buffer(s): %s.
+Errors are NOT underlined there.  See *Messages* for the Hunspell output
+(an `iconv' error means a dictionary that is not UTF-8)."
+               (length failed)
+               (string-join (nreverse failed) ", "))
+       :error))))
 
 ;; Unblock as soon as the session is ready.  `my/desktop-after-startup-hook'
 ;; is defined in 01-ui.el, which init.el loads first; the guard keeps this

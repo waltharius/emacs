@@ -2003,6 +2003,38 @@ Symptom of a guard that was never released: =M-: my/flyspell-desktop-restoring=
 returns =t=, and toggling with =T= twice does not help. =T= now detects
 that state and releases the guard instead of toggling.
 
+If flyspell cannot be enabled in some restored buffers, a single
+warning (type =my/spelling=) in =*Warnings*= names them; Hunspell's own
+output is in =*Messages*= after "Error enabling Flyspell mode".
+
+**** Dictionaries must be UTF-8
+:PROPERTIES:
+:CUSTOM_ID: fn-spell-dictionaries
+:END:
+
+Emacs starts Hunspell with =-i UTF-8=. On NixOS, Hunspell 1.7.2 cannot
+convert an ISO8859-2 dictionary for it: =*Messages*= shows the version
+line followed by =error - iconv: ISO8859-2 -> UTF-8=, ispell rejects the
+process and flyspell is switched off — nothing is underlined, while
+=S= and =b= may still appear to work.
+
+=hunspellDicts.pl_PL= (LibreOffice) is ISO8859-2, so the NixOS
+repository converts it at build time (=hunspellPlUtf8= in
+=modules/groups/emacs/home.nix=) and installs only that copy through
+=hunspell.withDicts=. The wrapper prepends its own dictionary directory
+to =DICPATH=, so a converted copy anywhere else (formerly
+=~/.local/share/hunspell=) is never reached.
+
+| Name in =ispell-dictionary= | File in the user profile | Encoding |
+|-----------------------------+--------------------------+----------|
+| =pl_PL=                     | =pl_PL.aff= / =.dic=     | UTF-8 (converted at build time) |
+| =en_GB-large=               | =en_GB.aff= / =.dic=     | UTF-8 upstream |
+
+Check from a shell: =head -c 300 /etc/profiles/per-user/$USER/share/hunspell/pl_PL.aff | grep SET=
+must print =SET UTF-8=.
+
+Module: =modules/03-spelling.el=
+
 Function: =my/toggle-flyspell= | Variable: =my/flyspell-desktop-restoring= |
 Module: =modules/03-spelling.el=
 

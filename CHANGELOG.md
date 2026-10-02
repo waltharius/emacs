@@ -21,6 +21,83 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-02b — Spell checking: Polish dictionary must be UTF-8
+
+### Why
+
+After Session 2026-10-02a, *Messages* showed the real failure on every
+attempt to enable flyspell:
+
+    Error enabling Flyspell mode:
+    (@(#) International Ispell Version 3.2.06 (but really Hunspell 1.7.2)
+    error - iconv: ISO8859-2 -> UTF-8 ...)
+
+with `my/flyspell-desktop-restoring` already nil. `ispell-init-process`
+treats any output beyond the version line as an error, so flyspell
+could not be enabled in any buffer. Before 2026-10-02a the release
+called a bare `flyspell-mode-on`, which left the mode reported as on
+with no post-command hook — the original symptom; since then
+`flyspell-mode` switches itself off and says why.
+
+The ISO8859-2 dictionary came back with the NixOS refactor:
+`hunspell.withDicts` wraps the binary with
+`--prefix DICPATH : <env>/share/hunspell`, so the store's `pl_PL` is
+found before the UTF-8 copy in `~/.local/share/hunspell` that this
+module put on `DICPATH`. Session 2026-10-02a ruled that out after a
+test in an Ubuntu container, where the same Hunspell 1.7.2 converts
+ISO8859-2 without complaint; the test environment did not reproduce
+NixOS, and the conclusion should not have been drawn from it.
+
+### NixOS repository
+
+`modules/groups/emacs/home.nix` converts `hunspellDicts.pl_PL` to UTF-8
+at build time (`hunspellPlUtf8`, a `runCommand`) and passes that
+instead of `pl_PL` to `hunspell.withDicts`. The build fails if the
+source is not declared ISO8859-2 or the result is not valid UTF-8.
+`home.activation.hunspellUtf8` is removed.
+
+Rejected: going back to the copy in `~/.local/share/hunspell`. With
+`withDicts` the wrapper never reaches it; it would need plain
+`hunspell` without dictionaries in the wrapper, and the activation
+copy never refreshed anyway — store files have mtime 1, so its
+`-nt` test was never true after the first run. A build-time conversion
+is rebuilt with every nixpkgs update and covered by rollback.
+
+### 03-spelling.el
+
+- Both dictionaries are registered from the user profile only;
+  `~/.local/share/hunspell` is no longer referenced. `DICPATH` keeps
+  only the profile path, for a Hunspell without the wrapper.
+- `my/flyspell--recheck-all-buffers` counts buffers where flyspell
+  turned itself off and reports them in one `display-warning`
+  (type `my/spelling`), pointing at the `iconv` cause, instead of an
+  echo-area message per buffer.
+- Comments rewritten: every dictionary must be UTF-8, and why.
+
+### Verification
+
+The `runCommand` script, run outside Nix against the LibreOffice
+6.3.0.4 `pl_PL` that nixpkgs uses: both files UTF-8, header `SET
+UTF-8`; Hunspell 1.7.2 through a `withDicts`-style wrapper checks and
+suggests Polish words (`błendem` -> `błędem`) and accepts `colour`.
+Batch Emacs 29.3: with that layout the startup release installs
+`flyspell-post-command-hook`; with a Hunspell imitating the iconv
+output, the "Error enabling Flyspell mode" message and the
+`my/spelling` warning appear. Not verified: evaluation and build of the
+Nix expression itself, and a real NixOS session.
+
+### Follow-up
+
+Leftover files in `~/.local/share/hunspell/` (`pl_PL.aff`,
+`pl_PL.dic`) are unused and can be deleted.
+
+### function_helper.org
+
+New subsection "Dictionaries must be UTF-8" (`#fn-spell-dictionaries`)
+with a shell check; the startup-guard subsection mentions the
+`my/spelling` warning.
+
+---
 ## Session 2026-10-02a — Spell checking: live underlining lost after startup
 
 ### Symptom
@@ -54,6 +131,12 @@ Which consumer failed in the affected session was not established.
 
 The NixOS dictionary change (`hunspell.withDicts`) was examined and
 ruled out as the cause of this symptom; see "NixOS side" below.
+
+**Correction (Session 2026-10-02b):** the diagnosis above was wrong.
+The cause was the ISO8859-2 `pl_PL` brought back by
+`hunspell.withDicts`; Hunspell on NixOS fails to convert it, unlike in
+the Ubuntu container used for the test. The code changes of this
+session stay; only the attribution was mistaken.
 
 ### 01-ui.el
 
