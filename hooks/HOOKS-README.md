@@ -94,6 +94,24 @@ Both exception lists carry a reason next to each entry. An exception
 list without reasons stops being a record of decisions and becomes a
 way to silence checks.
 
+## Which files are read
+
+The module files git would commit: `git ls-files --cached --others
+--exclude-standard -- modules/`, i.e. tracked files plus untracked ones
+that are not ignored. A new module is therefore checked before its first
+`git add`, while an ignored file is not checked at all.
+
+The reason is Syncthing. Conflict copies named
+`*.sync-conflict-<date>-<device>.el` appeared in `modules/`. `.gitignore`
+already excludes them and `init.el` never loads them, yet a plain
+directory listing picked them up, so `duplicates` reported every symbol
+in them as defined twice and blocked every commit. A file git ignores is
+not part of the configuration and has no business failing its checks.
+
+Without git — an unpacked archive, or `ROOT` outside any repository —
+both `lint.py` (`module_names`) and `parens.el`
+(`parens--module-files`) fall back to every `.el` file on disk.
+
 ## Working tree, not staged content
 
 The content checks read the working tree rather than what is staged.

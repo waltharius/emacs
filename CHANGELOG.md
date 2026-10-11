@@ -21,6 +21,57 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-12b — Pre-commit checks read only files git would commit
+
+### Why
+
+A rebase that only reset commit authorship was refused by the
+pre-commit hook: `duplicates` reported 44 symbols defined twice. Every
+second definition was in a Syncthing conflict copy in `modules/`
+(`05-notes.sync-conflict-20261004-120707-G3DFVXZ.el` and thirteen
+more). `.gitignore` excludes `*sync-conflict*`, so git never saw them,
+and `init.el` loads modules by name, so Emacs never loaded them. Only
+the hook read them: `lint.py` used `os.listdir` and `parens.el`
+used `directory-files`. `parens (64 files)` was 50 modules plus 14
+copies.
+
+### What
+
+Both scripts take their file list from `git ls-files --cached --others
+--exclude-standard -- modules/`: tracked files plus untracked files that
+are not ignored. `lint.py` gains `module_names`, which `modules` now
+iterates; `parens.el` gains `parens--module-files`. Files tracked but
+deleted from the working tree are filtered out, since `--cached` still
+lists them. `core.quotePath=false` keeps non-ASCII names unquoted.
+Outside a repository both fall back to the directory listing.
+
+Verified in three states: an ignored conflict copy present (skipped,
+`duplicates` passes), a new untracked module (read), and an archive
+with no `.git` (fallback, all 50 modules read).
+
+### Rejected
+
+- **A name filter for `sync-conflict`.** Fixes this one producer of
+  stray files and not the next one (an editor backup with an `.el`
+  suffix, a file someone ignores deliberately). `.gitignore` is already
+  the single place that says what is not part of the repository.
+- **`git ls-files` without `--others`.** A new module would go
+  unchecked until it is staged, which is exactly when a syntax error in
+  it is cheapest to find.
+- **Deleting the conflict copies and leaving the hook alone.** Removes
+  the symptom; the hook would still check files that are not part of the
+  configuration.
+
+### Related
+
+The conflict copies come from syncing this repository with Syncthing
+while it also has git remotes. Synchronising a `.git` directory with a
+file-level tool is the failure mode already avoided for `~/projects/`.
+Taking the configuration out of Syncthing and relying on the GitLab and
+GitHub remotes removes the source; this change only stops such files
+from blocking commits.
+
+---
 ## Session 2026-10-12a — Capture links, task dates, writing-mode indicator, hl-line, new note in tab
 
 Six usability fixes collected from several weeks of use, in five

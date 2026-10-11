@@ -58,10 +58,37 @@ EXTERNAL_KEYS = {
 }
 
 
+def module_names():
+    """Return the module file names the checks should read, sorted.
+
+    The files git would commit: tracked ones plus untracked ones that are
+    not ignored, so a new module is checked before its first `git add'.
+    Ignored files are left out -- a Syncthing conflict copy
+    (`*.sync-conflict-*', ignored in .gitignore) lying in modules/ once
+    made every symbol look defined twice and blocked every commit,
+    although Emacs never loads it and git never sees it.
+
+    Falls back to every .el file on disk when git is unavailable or ROOT
+    is not a repository, e.g. an unpacked archive.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-c", "core.quotePath=false", "ls-files", "-z",
+             "--cached", "--others", "--exclude-standard", "--", "modules/"],
+            cwd=ROOT, capture_output=True, text=True, check=True,
+        ).stdout
+        names = {os.path.basename(p) for p in out.split("\0")
+                 if p.endswith(".el") and os.path.dirname(p) == "modules"}
+        # --cached still lists a tracked file deleted from the working
+        # tree; there is nothing on disk to read for it.
+        return sorted(n for n in names if os.path.isfile(os.path.join(MODULES, n)))
+    except (OSError, subprocess.CalledProcessError):
+        return sorted(n for n in os.listdir(MODULES) if n.endswith(".el"))
+
+
 def modules():
-    for name in sorted(os.listdir(MODULES)):
-        if name.endswith(".el"):
-            yield name, open(os.path.join(MODULES, name), encoding="utf-8").read()
+    for name in module_names():
+        yield name, open(os.path.join(MODULES, name), encoding="utf-8").read()
 
 
 def code_of(text):

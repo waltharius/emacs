@@ -32,14 +32,44 @@
 ;; own last line -- a checker that cries wolf on a clean tree, which is
 ;; worse than no checker, because the way out is to stop reading it.
 
+;;
+;; WHICH FILES
+;; -----------
+;; The modules git would commit: tracked, plus untracked but not ignored
+;; (so a new module is read before its first `git add').  Ignored files
+;; -- a Syncthing conflict copy, say -- are skipped, as in lint.py.
+;; Without git (an unpacked archive) every .el file on disk is read.
+
 ;;; Code:
+
+(require 'seq)
+
+(defun parens--module-files (root directory)
+  "Return the module files under DIRECTORY that git would commit.
+ROOT is the repository root.  Falls back to every .el file in
+DIRECTORY when git is unavailable or ROOT is not a repository."
+  (or (ignore-errors
+        (let ((default-directory (file-name-as-directory root)))
+          (sort (seq-filter
+                 #'file-regular-p
+                 (mapcar (lambda (path) (expand-file-name path root))
+                         (seq-filter
+                          (lambda (path)
+                            (string-match-p "\\`modules/[^/]+\\.el\\'" path))
+                          ;; `process-lines' signals on a non-zero exit,
+                          ;; which `ignore-errors' turns into the fallback.
+                          (process-lines "git" "-c" "core.quotePath=false"
+                                         "ls-files" "--cached" "--others"
+                                         "--exclude-standard" "--" "modules/"))))
+                #'string<)))
+      (directory-files directory t "\\.el\\'")))
 
 (let* ((here (file-name-directory (or load-file-name buffer-file-name)))
        (root (directory-file-name (file-name-directory (directory-file-name here))))
        (directory (expand-file-name "modules" root))
        (failed nil)
        (count 0))
-  (dolist (file (directory-files directory t "\\.el\\'"))
+  (dolist (file (parens--module-files root directory))
     (setq count (1+ count))
     (with-temp-buffer
       (insert-file-contents file)
