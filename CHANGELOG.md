@@ -82,6 +82,29 @@ attributes an unlabelled fragment to the last `Source:` line above it.
 A fragment filed without a link under a heading whose last source is
 another note is therefore credited to that note.
 
+### Task date prompt: `other date` first (37-tasks.el)
+
+**Why.** `other date` appeared last although it is the most used
+answer.
+
+**Cause.** Two things, not one. The completion table was a plain list,
+so Vertico applied `vertico-sort-function` (history, length, alphabet)
+and the defcustom order was never shown. And Vertico always moves the
+default candidate to the top (`vertico--move-to-front` in
+`vertico--recompute`), so the first visible entry is necessarily the
+RET answer.
+
+**What.** `my/tasks--read-date` uses a completion table declaring
+`display-sort-function` and `cycle-sort-function` as `identity` (the
+pattern already used in 33-denote-hubs.el), and
+`my/tasks-date-choices` starts with `other date`. RET therefore opens
+`org-read-date`; `none` is the second entry. The prompt names the RET
+answer from the first entry instead of a hard-coded `none`.
+
+**Rejected.** Keeping `none` as default while listing `other date`
+first: impossible under Vertico without fighting its front-moving of
+the default.
+
 ---
 ## Session 2026-10-02b — Spell checking: Polish dictionary must be UTF-8
 

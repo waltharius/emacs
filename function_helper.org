@@ -2990,9 +2990,15 @@ three questions, and the window comes back.
 Three prompts, in this order:
 
 1. *Task* — the headline. Empty answer aborts.
-2. *Scheduled* — one of =none=, =today=, =tomorrow=, =in 3 days=,
-   =next week=, =in a month=, =other date=. =none= is the default, so
-   =RET= means no date.
+2. *Scheduled* — one of =other date=, =none=, =today=, =tomorrow=,
+   =in 3 days=, =next week=, =in a month=, shown in exactly that order.
+   The first entry is the default, so =RET= opens the calendar
+   (=org-read-date=). The two cannot be separated: Vertico always moves
+   the default candidate to the top, so "first in the list" and "what
+   RET answers" are the same entry. The completion table declares
+   =display-sort-function= as =identity=; without it Vertico sorted by
+   history, length and alphabet, which put =other date= last. Reordering
+   =my/tasks-date-choices= (=M-x customize-option=) changes both.
 3. The capture buffer opens for the *reason*: what the thing is and
    why it is worth checking. =C-c C-c= files it, =C-c C-k= discards.
 

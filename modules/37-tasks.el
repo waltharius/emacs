@@ -155,14 +155,19 @@ something genuinely due."
   :group 'my/tasks)
 
 (defcustom my/tasks-date-choices
-  '(("none"       . nil)
+  '(("other date" . ask)
+    ("none"       . nil)
     ("today"      . "+0d")
     ("tomorrow"   . "+1d")
     ("in 3 days"  . "+3d")
     ("next week"  . "+1w")
-    ("in a month" . "+1m")
-    ("other date" . ask))
+    ("in a month" . "+1m"))
   "Answers offered for the date prompt, in order.
+
+The order is the display order, and the first entry is also what RET
+answers.  Both follow from Vertico: it always moves the default
+candidate to the top, so \"first in the list\" and \"the RET answer\"
+cannot be two different entries.
 
 Each cdr is nil for no date, the symbol `ask' to open the date reader,
 or a string `org-read-date' understands.  Fixed answers matter more
@@ -292,10 +297,20 @@ where the repetition comes from."
 (defun my/tasks--read-date ()
   "Ask when the task is for.  Return a time value, or nil for no date."
   (let* ((labels (mapcar #'car my/tasks-date-choices))
+         ;; Identity sorting keeps `my/tasks-date-choices' in its own
+         ;; order.  Without it Vertico sorts by history, then length,
+         ;; then alphabet, which is what pushed "other date" to the
+         ;; bottom.
+         (table (lambda (string predicate action)
+                  (if (eq action 'metadata)
+                      '(metadata (display-sort-function . identity)
+                                 (cycle-sort-function . identity))
+                    (complete-with-action action labels string predicate))))
          (answer (completing-read
-                  (format "%s (RET = none): "
-                          (capitalize (symbol-name my/tasks-date-keyword)))
-                  labels nil t nil nil (car labels)))
+                  (format "%s (RET = %s): "
+                          (capitalize (symbol-name my/tasks-date-keyword))
+                          (car labels))
+                  table nil t nil nil (car labels)))
          (spec (cdr (assoc answer my/tasks-date-choices))))
     (cond
      ((null spec) nil)
