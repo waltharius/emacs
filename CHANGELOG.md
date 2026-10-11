@@ -126,6 +126,27 @@ segment. Rendering through `format-mode-line` inside `:eval` avoids
 the grammar entirely. Verified in a terminal frame (`emacs -nw`);
 `format-mode-line` returns an empty string in `--batch`.
 
+### Current-line highlight back to pink (09-theme.el)
+
+**Why.** The line under point used to be pink and became nearly
+invisible.
+
+**Cause.** `modus-themes-preset-overrides-faint`, spliced into the
+common overrides, sets `bg-hl-line` to `bg-dim`. The pink is
+operandi-tinted's own `bg-hl-line`, `#f1d5d0` (confirmed in
+modus-themes.el and matching the screenshots pixel for pixel).
+
+**What.** `modus-operandi-tinted-palette-overrides` set to
+`((bg-hl-line "#f1d5d0"))`. Modus builds a palette as `(append
+THEME-OVERRIDES COMMON-OVERRIDES CORE)`, so the theme-specific entry wins
+over the preset.
+
+**Rejected.** An entry above the splice in the common list: the hex
+value would also apply to the dark theme and every other Modus light
+theme. `custom-set-faces` or `set-face-attribute` on `hl-line`: writes
+the `user` theme, the mechanism this configuration removed because it
+survives a light/dark toggle.
+
 ---
 ## Session 2026-10-02b — Spell checking: Polish dictionary must be UTF-8
 

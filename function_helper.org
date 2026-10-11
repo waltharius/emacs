@@ -4880,6 +4880,30 @@ and it is why the curated lists can afford to be generous rather than
 verified one by one. A theme on neither list still appears in
 =S-<f4>= and can be filed from there.
 
+** Current-line highlight
+:PROPERTIES:
+:CUSTOM_ID: theme-hl-line
+:END:
+
+On =modus-operandi-tinted= the line under point is the theme's own soft
+pink, =#f1d5d0=. The =faint= preset spliced into
+=modus-themes-common-palette-overrides= replaces it with =bg-dim=,
+almost invisible on the ochre base, so the pink is restored through
+=modus-operandi-tinted-palette-overrides=.
+
+A theme-specific override because the value belongs to that palette
+alone: Modus builds a palette as =(append THEME-OVERRIDES
+COMMON-OVERRIDES CORE)= and the first match wins, so this beats the
+preset without touching the splice, and the dark theme and the other
+light themes keep their own value. Not =custom-set-faces=: that writes
+the =user= theme and would pin the pink across a light/dark toggle
+(see [[#theme][Theme]] above on why =user= faces are avoided).
+
+Takes effect on the next theme load (=C-c u t= twice, or a restart).
+
+Variable: =modus-operandi-tinted-palette-overrides= | Module:
+=modules/09-theme.el=
+
 ** What survives a theme load, and how
 
 A theme reassigns every face it covers, so anything set outside it has

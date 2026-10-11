@@ -549,6 +549,24 @@ Favourites first, then everything else."
           ,@modus-themes-preset-overrides-faint))
 
   ;; ----------------------------------------------------------
+  ;; Per-theme overrides: current-line highlight
+  ;; ----------------------------------------------------------
+  ;; The `faint' preset sets `bg-hl-line' to `bg-dim', which on the
+  ;; ochre base of operandi-tinted is almost indistinguishable from the
+  ;; background.  The theme's own value is a soft pink (#f1d5d0), and
+  ;; that is the colour wanted for the line under point.
+  ;;
+  ;; A theme-specific override rather than an entry in the common list:
+  ;; the hex value belongs to this one palette and would be wrong on
+  ;; the dark theme or on any other light theme reached with F4.  Modus
+  ;; builds the palette as (append THEME-OVERRIDES COMMON-OVERRIDES
+  ;; CORE), and the first match wins, so this beats the preset without
+  ;; touching the splice above.  Not `custom-set-faces': that writes the
+  ;; `user' theme and would pin the colour across a light/dark toggle.
+  (setq modus-operandi-tinted-palette-overrides
+        '((bg-hl-line "#f1d5d0")))
+
+  ;; ----------------------------------------------------------
   ;; Load LAST, not here
   ;; ----------------------------------------------------------
   ;; The options above are set at module position 09.  The theme
