@@ -21,6 +21,68 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-12a — Capture links, task dates, writing-mode indicator, hl-line, new note in tab
+
+Six usability fixes collected from several weeks of use, in five
+commits; the two capture points share one.  No commit depends on
+another.
+
+### Capture filing: no repeated source line (06-capture.el)
+
+**Why.** Filing a capture under an existing heading always prepended a
+`Source:` line. Three captures in a row from the same note produced
+three identical labels, which `my/--note-fragment` already suppresses
+on promotion but which cluttered captures.org itself.
+
+**What.** `my/capture--subtree-last-source` returns the last source
+recorded in the destination subtree: the last `Source:` body line, or
+the heading's own `:SOURCE:` when the body has none.
+`my/capture--fragment-from-entry` takes it as an optional argument and
+omits the source line when `my/capture--source-key` of both is equal.
+The destination marker is now resolved before the fragment is built,
+since the fragment depends on it.
+
+### Capture filing: directly below the last line (06-capture.el)
+
+**Why.** The fragment was inserted after a blank line. A list item
+typed as a capture therefore started a new list instead of continuing
+the existing one.
+
+**What.** Insertion point is the end of the last non-blank line of the
+destination subtree, followed by a single newline and the fragment.
+Numbering is not corrected; `C-u C-u C-c C-c` repairs it, and doing it
+automatically would require deciding whether the fragment *is* a list
+item, which is guesswork on free text. The whitespace that separated
+the subtree from the next heading is kept, because only whitespace
+before point is skipped.
+
+### Capture: source link kept only on request (06-capture.el)
+
+**Why.** Most captures are thoughts that occurred while some note
+happened to be open. The automatic link to that note was rarely
+meaningful.
+
+**What.** `my/capture--ask-source` runs from
+`org-capture-prepare-finalize-hook` at depth -10, before
+`my/capture--ask-target`, and asks `Keep source link to «Title»?
+(y/N)`. Anything except `y` deletes the `SOURCE` property from the
+capture buffer before Org writes the entry. A capture from a buffer
+with no file (the template writes `Untitled`) loses the property
+silently. `my/capture-source-link-default` (new group `my/capture`)
+inverts the default.
+
+**Rejected.** `y-or-n-p`: no default answer, so RET cannot mean "skip".
+Asking at capture start: interrupts the thought being captured, and
+the template would need a `%(...)` expansion with side effects. Removing
+`SOURCE` from the template: the origin would no longer be visible while
+writing, and the decision is better made with the text on screen.
+
+**Known consequence.** On promotion, `my/capture--split-into-segments`
+attributes an unlabelled fragment to the last `Source:` line above it.
+A fragment filed without a link under a heading whose last source is
+another note is therefore credited to that note.
+
+---
 ## Session 2026-10-02b — Spell checking: Polish dictionary must be UTF-8
 
 ### Why

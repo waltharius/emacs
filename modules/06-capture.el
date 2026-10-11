@@ -5,11 +5,17 @@
 ;; C-c n c    — Ideas capture (opens to the RIGHT of the current window)
 ;; C-c c      — Standard org-capture menu
 ;;
-;; Confirming a capture with C-c C-c asks one question with three
-;; answers: TAB onto an existing capture heading files the text under it,
-;; typed text names the capture's own heading, and an empty answer leaves
-;; it untitled exactly as before.  Filing under an existing heading
-;; appends the text with a source line instead of a property drawer, so a
+;; Confirming a capture with C-c C-c asks two questions.  The first,
+;; "Keep source link? (y/N)", decides whether the SOURCE property
+;; survives; any key other than y drops it, RET included, because a link
+;; back to the note that happened to be open rarely says anything about
+;; a fleeting thought.  The second has three answers: TAB onto an
+;; existing capture heading files the text under it, typed text names
+;; the capture's own heading, and an empty answer leaves it untitled
+;; exactly as before.  Filing under an existing heading appends the text
+;; directly below the last line of that heading's body -- a new list
+;; item lands right under the previous one -- with a source line only
+;; when the origin differs from the last one already recorded there.  A
 ;; continuing thread stays one heading rather than becoming two nearly
 ;; identical ones.
 ;;
@@ -357,17 +363,105 @@ entry."
        ((not (string-empty-p answer))
         (my/capture--set-heading answer))))))
 
-(defun my/capture--fragment-from-entry ()
+;; ============================================================
+;; SOURCE LINK: kept only on request
+;; ============================================================
+;; The template always writes a SOURCE property, so the origin is
+;; visible in the capture buffer while writing.  Whether it is kept is
+;; decided at C-c C-c, with "no" as the answer to RET: most captures are
+;; thoughts that merely happened to occur while some note was open, and
+;; a link to that note is noise in captures.org and, after promotion, in
+;; the note.  A capture started from a buffer that visits no file has
+;; nothing to link to and loses the property without a question.
+
+(defgroup my/capture nil
+  "Ideas capture into `my-journal-captures'."
+  :group 'org-capture)
+
+(defcustom my/capture-source-link-default nil
+  "Non-nil makes RET at the source-link question keep the link.
+nil (the default) makes RET, and any key other than y or n, drop it."
+  :type 'boolean
+  :group 'my/capture)
+
+(defun my/capture--source-real-p (source)
+  "Return non-nil when SOURCE links to an actual file or Denote note.
+The template falls back to the literal \"Untitled\" when the origin
+buffer visits no file, which produces a link to nowhere."
+  (and source
+       (string-match-p "\\[\\[\\(?:denote\\|file\\):" source)))
+
+(defun my/capture--source-description (source)
+  "Return the description part of bracket link SOURCE, or SOURCE itself."
+  (if (string-match "\\[\\[[^]]+\\]\\[\\([^]]+\\)\\]\\]" source)
+      (match-string 1 source)
+    source))
+
+(defun my/capture--read-keep-source (source)
+  "Ask whether the link SOURCE should be kept; return non-nil for yes.
+`read-key' rather than `y-or-n-p': the latter has no default answer,
+and the point of the question is that RET skips the link."
+  (let* ((default my/capture-source-link-default)
+         (key (read-key
+               (format "Keep source link to «%s»? %s "
+                       (my/capture--source-description source)
+                       (if default "(Y/n)" "(y/N)")))))
+    (cond
+     ((memq key '(?y ?Y)) t)
+     ((memq key '(?n ?N)) nil)
+     (t default))))
+
+(defun my/capture--ask-source ()
+  "Drop the SOURCE property of the capture being finalised unless kept.
+Runs from `org-capture-prepare-finalize-hook', before
+`my/capture--ask-target', and stays silent in the same three cases:
+an abort, a template other than the Ideas one, and a refile."
+  (when (and (not (bound-and-true-p org-note-abort))
+             (not (bound-and-true-p org-capture-is-refiling))
+             (equal (org-capture-get :key) "j"))
+    (save-excursion
+      (goto-char (point-min))
+      (when (org-at-heading-p)
+        (let ((source (org-entry-get (point) "SOURCE")))
+          (when (and source
+                     (not (and (my/capture--source-real-p source)
+                               (my/capture--read-keep-source source))))
+            (org-entry-delete (point) "SOURCE")))))))
+
+(defun my/capture--subtree-last-source (marker)
+  "Return the last source recorded in the subtree at MARKER, or nil.
+
+The last \"Source:\" body line when there is one, since that labels the
+text currently at the end of the subtree; otherwise the heading's own
+SOURCE property, which labels its first paragraph."
+  (save-excursion
+    (goto-char marker)
+    (let ((end (save-excursion (org-end-of-subtree t t) (point)))
+          (property (org-entry-get (point) "SOURCE"))
+          last)
+      (while (re-search-forward "^Source:[ \t]+\\(.+\\)$" end t)
+        (setq last (string-trim (match-string-no-properties 1))))
+      (or last property))))
+
+(defun my/capture--fragment-from-entry (&optional previous-source)
   "Return the capture entry at point as a body fragment, or nil if empty.
 
 Point must be on the capture heading.  Produces a source line followed
 by the body, and keeps any heading text the entry was given as its own
 paragraph -- discarding text that was typed is not something a filing
-decision should do quietly."
+decision should do quietly.
+
+PREVIOUS-SOURCE is the source already labelling the end of the
+destination.  When it names the same origin (see
+`my/capture--source-key'), the source line is omitted and the text reads
+as a continuation of what is already there."
   (let* ((heading  (string-trim (or (org-get-heading t t t t) "")))
-         (source   (my/capture--source-value
-                    (org-entry-get (point) "SOURCE")
-                    (org-entry-get (point) "CAPTURED")))
+         (raw      (org-entry-get (point) "SOURCE"))
+         (source   (unless (and raw previous-source
+                                (equal (my/capture--source-key raw)
+                                       (my/capture--source-key previous-source)))
+                     (my/capture--source-value
+                      raw (org-entry-get (point) "CAPTURED"))))
          (element  (org-element-at-point))
          (beg      (org-element-property :contents-begin element))
          (end      (org-element-property :contents-end element))
@@ -412,10 +506,13 @@ where org-capture put it."
               ((not (equal (org-entry-get (point) "CAPTURED") stamp))
                (message "Capture left in place: the last entry is not the one just written"))
               (t
-               (let ((fragment  (my/capture--fragment-from-entry))
-                     (entry-end (save-excursion (org-end-of-subtree t t) (point)))
-                     (destination (org-find-exact-headline-in-buffer
-                                   target (current-buffer))))
+               (let* ((destination (org-find-exact-headline-in-buffer
+                                    target (current-buffer)))
+                      (fragment  (my/capture--fragment-from-entry
+                                  (and destination
+                                       (my/capture--subtree-last-source
+                                        destination))))
+                      (entry-end (save-excursion (org-end-of-subtree t t) (point))))
                  (cond
                   ((null fragment)
                    (delete-region entry entry-end)
@@ -430,14 +527,24 @@ where org-capture put it."
                    (delete-region entry entry-end)
                    (goto-char destination)
                    (goto-char (save-excursion (org-end-of-subtree t t) (point)))
+                   ;; Directly below the last non-blank line, no blank
+                   ;; line in between: a list item typed as a capture
+                   ;; continues the list it was filed into.  Numbering
+                   ;; is left to `org-ctrl-c-ctrl-c' (C-u C-u C-c C-c
+                   ;; renumbers and repairs a list).  The text that
+                   ;; followed the subtree keeps its separation because
+                   ;; only the whitespace before point is skipped.
                    (skip-chars-backward " \t\n")
-                   (unless (bolp) (insert "\n"))
-                   (insert "\n" fragment "\n")
+                   (end-of-line)
+                   (insert "\n" fragment)
                    (save-buffer)
                    (set-marker destination nil)
                    (message "✓ Filed under \"%s\"" target))))))))))))))
 
 (add-hook 'org-capture-prepare-finalize-hook #'my/capture--ask-target)
+;; Depth -10: the link question comes first, so that by the time a
+;; destination is chosen the entry already has, or lacks, its SOURCE.
+(add-hook 'org-capture-prepare-finalize-hook #'my/capture--ask-source -10)
 (add-hook 'org-capture-after-finalize-hook #'my/capture--attach-last-entry)
 
 (defun my/capture-idea ()

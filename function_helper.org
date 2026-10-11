@@ -5705,13 +5705,15 @@ promoted, which is the failure =C-c n c m= exists to prevent.
 
 ** The prompt
 
-=C-c C-c= in a capture buffer asks one question with three answers:
+=C-c C-c= in a capture buffer first asks whether to keep the source
+link (see [[#capture-source-link][The source-link question]]), then one
+question with three answers:
 
 : File under (TAB for existing, text for a new heading, empty for none):
 
 | Answer | Result |
 |--------+--------|
-| =TAB= onto an existing heading, then =RET= | text is appended under it with a =Source:= line and *no second heading* |
+| =TAB= onto an existing heading, then =RET= | text is appended *directly below the last line* under it, with *no second heading*; a =Source:= line only when the origin differs from the last one recorded there |
 | type something, then =RET= | the capture keeps its own heading, named with what was typed |
 | =RET= on an empty prompt | the capture keeps its own heading, untitled — exactly as before |
 
@@ -5732,6 +5734,37 @@ which already chooses a destination itself).
 Only headings with text are offered as destinations — an unnamed capture
 was never given a subject and cannot serve as one.
 
+*Placement.* The fragment goes right after the last non-blank line of
+the destination's subtree, with no blank line in between, so a list
+item typed as a capture continues the list it is filed into. Numbering
+is not corrected: =C-u C-u C-c C-c= on the list renumbers and repairs
+it.
+
+** The source-link question
+:PROPERTIES:
+:CUSTOM_ID: capture-source-link
+:END:
+
+: Keep source link to «Title»? (y/N)
+
+The template always writes a =:SOURCE:= property, so the origin is
+visible while writing. At =C-c C-c= =y= keeps it; =n=, =RET= and any
+other key drop it. Most captures are thoughts that merely occurred
+while some note was open, and a link to that note is noise in
+captures.org and, after promotion, in the note. =read-key= is used
+rather than =y-or-n-p=, which has no default answer.
+
+A capture started from a buffer visiting no file has no real link (the
+template writes =Untitled=) and loses the property without a question.
+=my/capture-source-link-default= set to =t= makes =RET= keep the link
+instead. The question is skipped on abort, refile and non-Ideas
+templates, exactly like the destination prompt, and runs before it
+(hook depth -10).
+
+Functions: =my/capture--ask-source=, =my/capture--read-keep-source=,
+=my/capture--source-real-p= | Option: =my/capture-source-link-default=
+| Module: =modules/06-capture.el=
+
 ** The source line
 
 One format, in captures.org and in promoted notes alike:
@@ -5744,6 +5777,17 @@ Body text is also what a note receives, so all three places share this.
 
 Duplicate detection compares the *bracket link*, not the whole line, so
 the same origin captured at two different times counts as one source.
+
+When filing under an existing heading, the new fragment's origin is
+compared with the last source recorded in the destination subtree
+(=my/capture--subtree-last-source=): the last =Source:= body line, or the
+heading's own =:SOURCE:= when there is none. On a match the =Source:=
+line is omitted and the text reads as a continuation.
+
+*Consequence of dropping links:* a fragment filed without a source is
+attributed, on promotion, to the last =Source:= line above it, because
+an unlabelled paragraph continues the segment it follows. Keep the link
+(=y=) when the origin matters.
 
 *Limitation:* a line of prose beginning with =Source:= is read as
 metadata. Indent it or rephrase it.
