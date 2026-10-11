@@ -105,6 +105,27 @@ answer from the first entry instead of a hard-coded `none`.
 first: impossible under Vertico without fighting its front-moving of
 the default.
 
+### Writing mode visible in the mode line (01-ui.el, 13-centered-writing.el)
+
+**Why.** The indicator `W` existed but sat in `mode-line-misc-info`,
+after every minor-mode lighter. In Org buffers, especially in split
+windows, that is past the window edge, so the mode appeared to have no
+indicator.
+
+**What.** 01-ui.el gains a second seam, `my/mode-line-front-segments`,
+rendered first in `mode-line-format` by `my/mode-line-front-render`.
+13-centered-writing.el adds its construct there when the seam exists
+and falls back to `mode-line-misc-info` otherwise. The label is now
+`✍ Writing` instead of a single letter.
+
+**Pitfall avoided.** Placing the variable directly in
+`mode-line-format` does not work: a mode-line list whose first element
+is a symbol is the conditional `(SYMBOL THEN ELSE)`. The first draft did
+exactly that and would have made an empty seam swallow the following
+segment. Rendering through `format-mode-line` inside `:eval` avoids
+the grammar entirely. Verified in a terminal frame (`emacs -nw`);
+`format-mode-line` returns an empty string in `--batch`.
+
 ---
 ## Session 2026-10-02b — Spell checking: Polish dictionary must be UTF-8
 

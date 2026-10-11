@@ -84,9 +84,11 @@ was invisible against a dark mode line."
 
 (defvar my/writing-mode-line-construct
   '(:eval (when my/centered-writing-mode
-            (propertize " W" 'face 'my/writing-mode-indicator
+            (propertize " ✍ Writing " 'face 'my/writing-mode-indicator
                         'help-echo "Writing mode: cursor centered when typing")))
-  "Mode-line construct showing W while centred writing is on.")
+  "Mode-line construct labelling the buffer while centred writing is on.
+A word rather than the single letter W used before: one letter among
+the minor-mode lighters did not read as a state.")
 (put 'my/writing-mode-line-construct 'risky-local-variable t)
 
 ;; CONTRIBUTE A SEGMENT, DO NOT REDEFINE THE MODE LINE
@@ -102,8 +104,16 @@ was invisible against a dark mode line."
 ;; construct and stays out of the rest.  Deleting this file now removes
 ;; one indicator instead of reverting the mode line to a stale copy.
 
-(unless (memq 'my/writing-mode-line-construct mode-line-misc-info)
-  (add-to-list 'mode-line-misc-info 'my/writing-mode-line-construct))
+;;
+;; The indicator goes to the FRONT seam when 01-ui.el provides one:
+;; at the right end, after the minor-mode lighters, it was cut off in
+;; any narrow window, which is why the mode looked as if it had no
+;; indicator at all.  Without 01-ui.el the right-hand seam still works.
+
+(if (boundp 'my/mode-line-front-segments)
+    (add-to-list 'my/mode-line-front-segments 'my/writing-mode-line-construct)
+  (unless (memq 'my/writing-mode-line-construct mode-line-misc-info)
+    (add-to-list 'mode-line-misc-info 'my/writing-mode-line-construct)))
 
 ;; ============================================================
 ;; SIMPLE RECENTERING ON TYPING

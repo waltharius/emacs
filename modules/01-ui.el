@@ -903,9 +903,35 @@ contributes to it."
 ;; module that adds a segment that way can be deleted without leaving
 ;; the mode line broken, and does not need to know what the format
 ;; looks like.
+;;
+;; `mode-line-misc-info' sits at the far right, after every minor-mode
+;; lighter, and in an Org buffer in a split window that is past the
+;; edge: a state indicator placed there is truncated exactly when it
+;; matters.  `my/mode-line-front-segments' is the second seam, at the
+;; very start of the line, for the few indicators that must always be
+;; visible.  Same contract: a module adds a construct to the list and
+;; never touches the format itself.
+
+(defvar my/mode-line-front-segments nil
+  "Mode-line constructs shown at the very start of the mode line.
+Modules add a symbol whose value is a mode-line construct; an empty
+list renders nothing.  Reserved for state that must not be truncated,
+since everything here pushes the rest of the line to the right.")
+(put 'my/mode-line-front-segments 'risky-local-variable t)
+
+(defun my/mode-line-front-render ()
+  "Render every construct in `my/mode-line-front-segments' as one string.
+Rendered through `format-mode-line' rather than placed in the format
+directly: in mode-line syntax a list whose first element is a symbol
+is the conditional (SYMBOL THEN ELSE), so the bare variable -- or its
+value, a list of symbols -- would be read as a condition instead of a
+list of segments, and an empty list would swallow the segment after
+it."
+  (mapconcat #'format-mode-line my/mode-line-front-segments ""))
 
 (setq-default mode-line-format
-              '((:eval (my/word-count-modeline))
+              '((:eval (my/mode-line-front-render))
+                (:eval (my/word-count-modeline))
                 "%e"
                 mode-line-front-space
                 mode-line-mule-info

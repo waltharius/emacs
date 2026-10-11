@@ -1860,7 +1860,9 @@ Function: =my/toggle-visual-fill-column-center= | Module: =modules/13-centered-w
 
 Keeps the line being typed at a fixed height on screen: after every
 inserted character the window is recentred, while scrolling, clicking
-and navigation are left alone. Shows =W= in the mode line. Despite the
+and navigation are left alone. Shows =✍ Writing= at the very start of
+the mode line, through =my/mode-line-front-segments= (see
+[[#mode-line-front-segments][Mode line: the front seam]]). Despite the
 alias, no =writeroom-mode= is involved — the name is historical.
 
 *In notes containing images*, plain =recenter= misplaces the cursor,
@@ -1874,6 +1876,32 @@ stop drawing the images at all — =C-c u i=, see
 [[#image-display][Inline Images On and Off]].
 
 Function: =my/toggle-writeroom= | Module: =modules/13-centered-writing.el=
+
+**** Mode line: the front seam
+:PROPERTIES:
+:CUSTOM_ID: mode-line-front-segments
+:END:
+
+=01-ui.el= owns =mode-line-format= and offers two seams to other
+modules. =mode-line-misc-info= sits at the far right, after every
+minor-mode lighter, and in an Org buffer in a split window it is past
+the window edge — which is why the earlier =W= indicator looked as if it
+did not exist. =my/mode-line-front-segments= is the seam at the very
+start of the line, reserved for state that must always be visible.
+
+A module adds a symbol whose value is a mode-line construct:
+
+: (add-to-list 'my/mode-line-front-segments 'my/writing-mode-line-construct)
+
+=my/mode-line-front-render= renders the list through
+=format-mode-line=. The variable is not placed in the format directly:
+in mode-line syntax a list whose first element is a symbol is the
+conditional =(SYMBOL THEN ELSE)=, so a bare list of segment symbols
+would be read as a condition. =13-centered-writing.el= falls back to
+=mode-line-misc-info= when =01-ui.el= is not loaded.
+
+Functions: =my/mode-line-front-render= | Variable:
+=my/mode-line-front-segments= | Module: =modules/01-ui.el=
 
 *** m — Images in buffer
 :PROPERTIES:
