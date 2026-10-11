@@ -711,9 +711,25 @@ the day whose own note is being written in is rendered as plain text."
 ;; BASE NOTE: Simple note with title and tags
 ;; ============================================================
 
+(defcustom my/notes-new-note-in-tab t
+  "Non-nil means `my/denote-base' opens the new note in a new tab.
+
+A new note is usually started while reading or writing another one,
+and replacing that buffer loses the place.  A tab keeps it: closing
+the new tab (C-x t 0) returns to exactly the window layout the note
+was started from.  `my/markdown-new-note' (40-markdown.el) wraps
+`my/denote-base' and therefore follows this setting too."
+  :type 'boolean
+  :group 'my/notes)
+
 (defun my/denote-base ()
   "Create a simple note with title and tags.
-  You'll be asked which silo (journal/pks/docu) to save in."
+The silo (journal/pks/docu) is asked for.  With
+`my/notes-new-note-in-tab' non-nil the note opens in a new tab.
+
+All prompts are answered before the tab is created, so \\[keyboard-quit]
+at any of them leaves no empty tab behind.  If Denote itself fails, the
+tab it would have used is closed again."
   (interactive)
   (let* ((title (read-string "Title: "))
          (keywords (my/notes-read-keywords))
@@ -723,13 +739,25 @@ the day whose own note is being written in is rendered as plain text."
          (target-dir (cond
                       ((string= silo "journal") my-notes-journal)
                       ((string= silo "docu") my-notes-docu)
-                      (t my-notes-pks))))
+                      (t my-notes-pks)))
+         (in-tab my/notes-new-note-in-tab))
 
-    ;; Temporarily set denote-directory to target silo
-    (let ((denote-directory target-dir))
-      (if (string-empty-p title)
-          (denote nil keywords)
-        (denote title keywords)))
+    ;; `tab-bar-new-tab' rather than a `display-buffer' override: the
+    ;; override would also catch any other buffer Denote happens to
+    ;; display, while a tab created first simply becomes the place
+    ;; where Denote's `find-file' lands.
+    (when in-tab
+      (tab-bar-new-tab))
+    (condition-case err
+        ;; Temporarily set denote-directory to target silo
+        (let ((denote-directory target-dir))
+          (if (string-empty-p title)
+              (denote nil keywords)
+            (denote title keywords)))
+      ((error quit)
+       (when in-tab
+         (tab-bar-close-tab))
+       (signal (car err) (cdr err))))
     (my/note-add-front-matter-extras)))
 
 (defun my/note-add-front-matter-extras ()

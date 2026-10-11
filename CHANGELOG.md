@@ -147,6 +147,24 @@ theme. `custom-set-faces` or `set-face-attribute` on `hl-line`: writes
 the `user` theme, the mechanism this configuration removed because it
 survives a light/dark toggle.
 
+### New note opens in a new tab (05-notes.el)
+
+**Why.** `C-c n c n` replaced the buffer it was started from, losing
+the place in the note being read.
+
+**What.** `my/denote-base` calls `tab-bar-new-tab` after all prompts
+and before `denote`, controlled by `my/notes-new-note-in-tab` (default
+t). An error or quit inside Denote closes the tab again and re-signals.
+`my/markdown-new-note` wraps `my/denote-base` and inherits the
+behaviour.
+
+**Rejected.** Binding `display-buffer-overriding-action` to
+`display-buffer-in-new-tab` around the `denote` call: it would also
+redirect any other buffer Denote displays. `other-tab-prefix`: acts on
+the *next* command, not on a call inside the current one. Registering
+the command in `my/fixed-tab-commands` (23-fixed-tabs.el): that routes
+to one named, reused tab, while each note should get its own.
+
 ---
 ## Session 2026-10-02b — Spell checking: Polish dictionary must be UTF-8
 

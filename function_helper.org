@@ -132,6 +132,17 @@ Creates a plain Denote note. Prompts for title, keywords and silo
 keywords already in use and takes entries separated by commas — see
 [[#keyword-prompts][Keyword Prompts]].
 
+*Opens in a new tab.* With =my/notes-new-note-in-tab= non-nil (the
+default) the note is created in a new tab-bar tab, so the buffer the
+command was started from stays where it was; =C-x t 0= closes the new
+tab and returns to the previous layout. All prompts are answered before
+the tab exists, so =C-g= at any of them leaves no empty tab, and a
+failure inside Denote closes the tab again. The tab is created first and
+Denote's =find-file= lands in it, rather than a =display-buffer=
+override that would also catch any other buffer Denote displays.
+=C-c n c M= (Markdown note, =my/markdown-new-note=) wraps this command
+and follows the same setting.
+
 Afterwards =my/note-add-front-matter-extras= appends =#+language: pl=
 and =#+schema:= to the front matter Denote generated. Denote's own four
 lines are left to Denote: overriding =denote-org-front-matter= would put
