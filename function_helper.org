@@ -7702,6 +7702,7 @@ build; the bundle holds the built assets.
 | =my/repo-docs-title= | =nixos= | title in the site header |
 | =my/repo-docs-port= | 1316 | port of =hugo server= (1313–1315 belong to the blog sites) |
 | =my/repo-docs-regenerate-on-save= | =t= | regenerate on saving a repository =.md= while the server runs |
+| =my/repo-docs-toc= | =t= | table of contents above the text of pages with headings |
 | =my/repo-docs-theme-url= | Geekdoc =latest= bundle | where the theme comes from |
 
 ** Not a Denote silo
@@ -7753,6 +7754,12 @@ directory from the repository (anything else in it is deleted):
   ignored, so a new document shows up before its first =git add=.
 - *Two files differing only in letter case* would get one URL; the run
   then stops without changing anything and names them.
+- *Table of contents* above the text of every page with headings, H2
+  to H4 (the H1 is the title). Geekdoc draws one only through a
+  shortcode, so each run also writes =layouts/_default/single.html= and
+  =list.html= into the site: Geekdoc 4.1's own templates with that one
+  block added, to be compared with the theme's after an upgrade.
+  =my/repo-docs-toc= turns it off (=repoDocsToC= in =hugo.toml=).
 - Only files whose text changed are rewritten, so =hugo server=
   reloads only what changed.
 

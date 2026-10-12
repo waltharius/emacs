@@ -46,6 +46,10 @@
 ;;   - relative links to .md files and to folders are rewritten to the
 ;;     URL of the page they become, anchors kept; links Hugo would not
 ;;     find are left as written and listed in the report.
+;; Above the text of every page with headings sits its table of
+;; contents (`my/repo-docs-toc'), from Geekdoc's templates overridden in
+;; the site's layouts/ -- Geekdoc has no hook there.
+;;
 ;; URLs are the repository path in lower case: docs/BACKUPS.md is read at
 ;; /docs/backups/.  They are written into each page's `url', so a link
 ;; never depends on Hugo's own path rules.
@@ -126,6 +130,12 @@ it is kept outside the notes tree and outside any repository."
   "https://github.com/thegeeklab/hugo-geekdoc/releases/latest/download/hugo-geekdoc.tar.gz"
   "Release bundle of the Geekdoc theme, unpacked into themes/hugo-geekdoc."
   :type 'string
+  :group 'my/repo-docs)
+
+(defcustom my/repo-docs-toc t
+  "Non-nil shows a table of contents above the text of each page.
+Only pages with headings below the title get one."
+  :type 'boolean
   :group 'my/repo-docs)
 
 (defcustom my/repo-docs-regenerate-on-save t
@@ -490,18 +500,67 @@ disableKinds = [\"taxonomy\", \"term\", \"RSS\"]
   unsafe = true
 
 [markup.tableOfContents]
-  startLevel = 1
-  endLevel = 9
+  # The H1 becomes the page title and leaves the text, so the table of
+  # contents starts at H2.
+  startLevel = 2
+  endLevel = 4
 
 [params]
   geekdocCollapseAllSections = true
   geekdocBreadcrumb = true
   geekdocSearch = true
-  geekdocToC = 3
+  geekdocToC = 4
+  repoDocsToC = %s
 "
           (json-encode-string (format "http://localhost:%d/" my/repo-docs-port))
           (json-encode-string my/repo-docs-title)
-          (json-encode-string my/repo-docs--theme-name)))
+          (json-encode-string my/repo-docs--theme-name)
+          (if my/repo-docs-toc "true" "false")))
+
+;; Geekdoc's page templates with one addition, the table of contents
+;; above the text.  Geekdoc has no hook there, so the templates are
+;; overridden; outside the marked block both are Geekdoc 4.1's own
+;; layouts/_default/single.html and list.html, to be compared with the
+;; theme's after an upgrade.  Written into the site's layouts/ on every
+;; run, like hugo.toml.
+(defconst my/repo-docs--toc-block
+  "    {{- /* Added by 47-repo-docs.el: table of contents. */ -}}
+    {{ if and site.Params.repoDocsToC (findRE `<li>` .TableOfContents 1) }}
+      <div class=\"gdoc-toc gdoc-toc__level--{{ default 6 site.Params.geekdocToC }}\">
+        {{ .TableOfContents }}
+        <hr />
+      </div>
+    {{ end }}
+"
+  "Template block inserted before the content of a page.")
+
+(defun my/repo-docs--layout (metadata)
+  "Return a Geekdoc page template with the table of contents.
+METADATA is the template line that prints the page metadata, the only
+line in which Geekdoc's single.html and list.html differ."
+  (concat "{{ define \"main\" }}
+  {{ partial \"page-header\" . }}
+
+
+  <article
+    class=\"gdoc-markdown gdoc-markdown__align--{{ default \"left\" (.Page.Params.geekdocAlign | lower) }}\"
+    id=\"main-content\" tabindex=\"-1\"
+  >
+    <h1>{{ partial \"utils/title\" . }}</h1>
+    " metadata "
+" my/repo-docs--toc-block
+"    {{ partial \"utils/content\" . }}
+  </article>
+{{ end }}
+"))
+
+(defun my/repo-docs--layouts ()
+  "Return the generated layout files as (RELATIVE-PATH . TEXT)."
+  (list (cons "layouts/_default/single.html"
+              (my/repo-docs--layout "{{ partial \"page-metadata\" . }}"))
+        (cons "layouts/_default/list.html"
+              (my/repo-docs--layout
+               "{{ if ne .Kind \"home\" }}{{ partial \"page-metadata\" . }}{{ end }}"))))
 
 (defun my/repo-docs--write-if-changed (file text)
   "Write TEXT to FILE unless it already holds exactly that.  Return t if written."
@@ -559,6 +618,10 @@ produce the same page."
       (when (my/repo-docs--write-if-changed (expand-file-name "hugo.toml" site)
                                             (my/repo-docs--hugo-config))
         (setq written (1+ written)))
+      (dolist (layout (my/repo-docs--layouts))
+        (when (my/repo-docs--write-if-changed
+               (expand-file-name (car layout) site) (cdr layout))
+          (setq written (1+ written))))
       (maphash
        (lambda (key entry)
          ;; A README and its folder share one entry; write it once.
