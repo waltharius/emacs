@@ -169,6 +169,10 @@
   ;; for its own exports only.  Without this file nothing is published
   ;; and no other module notices.
   (load (concat modules-dir "46-blog.el") t) ; Blog (C-c n x b)
+  ;; Optional (NOERROR): Markdown docs of the NixOS repository as a
+  ;; separate Hugo site.  Loaded after 12-transient.el, whose Export
+  ;; menu it appends to; depends on no other module.
+  (load (concat modules-dir "47-repo-docs.el") t) ; Repo docs (C-c n x r)
   )
 
 (add-hook 'emacs-startup-hook

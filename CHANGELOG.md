@@ -21,6 +21,76 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-12c — Markdown docs of the NixOS repository as a Geekdoc site
+
+### Why
+
+The NixOS repository (`~/nixos`) documents itself in 38 Markdown files:
+a numbered guide, per-device notes, folder READMEs, a changelog and a
+backlog. Reading them meant opening files one by one, and following a
+link meant resolving a relative path by hand. The wish: read them as a
+site, separate from the other documentation sites, laid out by folder so
+that seven `README.md` files do not become seven pages called "README",
+while editing stays in Emacs on the original files and commits in that
+repository stay manual.
+
+### What
+
+New module `47-repo-docs.el`, loaded optionally after `46-blog.el`,
+menu `C-c n x r` appended to the Export menu through
+`my/transient-append`. Commands: find a document, preview (regenerate,
+serve on port 1316, open the current file's page), stop, regenerate,
+site folder, report. Saving a Markdown file of the repository
+regenerates the site while the server runs.
+
+The site (`~/projects/nixos-docs-site/`) is generated in full on every
+run: `hugo.toml`, and `content/` derived from the repository.
+- A `README.md` becomes its folder's page, titled `devices/`; its own H1
+  becomes an H2 under that title, or is dropped when it only repeats the
+  folder name. A folder without a README gets a page titled the same way
+  that lists its contents with Geekdoc's `toc-tree`.
+- Every other file is titled with its first H1, which is removed from
+  the text because Geekdoc prints the title as an H1 itself.
+- Subfolders first, then files in file-name order, via `weight`.
+- URLs are the lower-case repository path, written into `url`.
+- Relative links to `.md` files and folders are rewritten to those URLs
+  outside fenced code, inline and in reference definitions, anchors
+  kept. Unresolvable ones are listed in the report.
+- Files come from `git ls-files --cached --others --exclude-standard`.
+- Only changed files are written; files no longer produced are deleted.
+
+Theme: Geekdoc's release bundle, fetched with `url-copy-file` and
+unpacked with tar on first preview.
+
+Verified on a copy of the repository: 38 files produce 45 pages; all 50
+links and every anchor they name resolve in the HTML Hugo 0.167 built,
+with no warnings; a second run writes nothing; removing a file prunes
+its page and reports the links to it; code fences, link titles and
+case collisions behave as described in the module.
+
+### Rejected
+
+- **A Denote silo.** Silos are under `~/notes/`, synced by Syncthing and
+  auto-committed by `07-git.el`; their commands rename and index files.
+  The repository needs deliberate commits and keeps its own file names.
+- **Mounting the repository as Hugo content** (`module.mounts`). No
+  copy, but no titles (no front matter, and Geekdoc prints `.Title`),
+  README pages titled "README", and every relative `.md` link broken,
+  since Geekdoc's link render hook does not resolve links. Fixing that
+  inside Hugo means overriding theme templates; deriving the content
+  outside Hugo keeps the theme untouched.
+- **Copying the files into a silo to edit there.** Two editable copies
+  that drift; edits would not reach the repository.
+- **A site of `46-blog.el`.** Its sections are fed by Denote keywords
+  from silos and exported with ox-hugo; this source is Markdown already
+  and has no keywords. Sharing its machinery would mean a second content
+  model inside an 86 KB module.
+- **Cloning Geekdoc.** The repository holds sources that need an npm
+  build; the release bundle holds the built theme.
+- **Titles from file names.** `BACKUP-JOBS` says less than "Backup jobs,
+  one by one"; folder structure already says where a page lives.
+
+---
 ## Session 2026-10-12b — Pre-commit checks read only files git would commit
 
 ### Why

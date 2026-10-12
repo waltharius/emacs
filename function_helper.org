@@ -1828,6 +1828,16 @@ Publishes notes to one or more Hugo sites; a section keyword such as
 =blog= or =pubdoc= decides where a note goes. Present only when
 =modules/46-blog.el= is loaded. Full description: [[#blog][Blog (C-c n x b)]].
 
+*** r — Repo docs (Hugo) →
+:PROPERTIES:
+:CUSTOM_ID: menu-notes-export-repo-docs
+:END:
+
+The Markdown files of the NixOS repository (=~/nixos=) as a separate
+Hugo site, laid out by the repository's folders. Present only when
+=modules/47-repo-docs.el= is loaded. Full description:
+[[#repo-docs][Repo docs (C-c n x r)]].
+
 ** C-c n v — View
 :PROPERTIES:
 :CUSTOM_ID: menu-notes-view
@@ -7630,3 +7640,174 @@ under =<user>.github.io/<repo>/=.
 Site properties: =:directory=, =:remote=, =:url=, =:port=, =:theme=,
 =:autostart=, =:broken-links=, =:sections=; see the docstring of
 =my/blog-sites=.
+
+* Repo docs (C-c n x r)
+:PROPERTIES:
+:CUSTOM_ID: repo-docs
+:END:
+
+The Markdown files of one git repository — by default the NixOS
+configuration in =~/nixos= — read as a separate Hugo site with the
+Geekdoc theme ([[https://github.com/thegeeklab/hugo-geekdoc]]), laid
+out by the repository's own folders. The files are edited in place, in
+the repository, and committed there by hand. The site is only a way of
+reading them.
+
+Module: =modules/47-repo-docs.el=. Site: =~/projects/nixos-docs-site/=,
+generated in full; nothing in it is edited by hand.
+
+** Setup, once
+:PROPERTIES:
+:CUSTOM_ID: repo-docs-setup
+:END:
+
+Hugo 0.160 or newer (Geekdoc 4.x requires it) and =tar=, both already
+needed elsewhere. The theme is downloaded on the first preview from
+Geekdoc's release bundle into =themes/hugo-geekdoc= of the site, with
+=url-copy-file= — about 6 MB, once per machine. The release bundle and
+not a clone, because the repository holds sources that need an npm
+build; the bundle holds the built assets.
+
+| Option | Default | Meaning |
+|--------+---------+---------|
+| =my/repo-docs-repository= | =~/nixos/= | repository read |
+| =my/repo-docs-site-directory= | =~/projects/nixos-docs-site/= | generated site |
+| =my/repo-docs-title= | =nixos= | title in the site header |
+| =my/repo-docs-port= | 1316 | port of =hugo server= (1313–1315 belong to the blog sites) |
+| =my/repo-docs-regenerate-on-save= | =t= | regenerate on saving a repository =.md= while the server runs |
+| =my/repo-docs-theme-url= | Geekdoc =latest= bundle | where the theme comes from |
+
+** Not a Denote silo
+:PROPERTIES:
+:CUSTOM_ID: repo-docs-not-a-silo
+:END:
+
+A silo lives under =~/notes/=: synced by Syncthing, auto-committed on
+idle by =07-git.el=, and full of Denote file names that silo commands
+rename, index and count. The NixOS repository is a separate git
+repository whose commits are made deliberately, and its files are called
+=README.md= and =BACKUPS.md=. Making it a silo would hand it to machinery
+built to change files. It is a /source/ instead: files are found with
+=my/repo-docs-find= and opened as they are, and nothing in the module
+writes to the repository.
+
+** How the site is made
+:PROPERTIES:
+:CUSTOM_ID: repo-docs-generation
+:END:
+
+The repository is not mounted into Hugo as it stands, because its files
+would not render well: none has front matter while Geekdoc prints the
+title itself as an H1, seven are called =README.md=, and fifty relative
+links point at =.md= files, which Geekdoc's link hook passes through
+unchanged — fifty 404s. So every run writes the site's =content/=
+directory from the repository (anything else in it is deleted):
+
+| In the repository | On the site |
+|-------------------+-------------|
+| =docs/devices/README.md= | the page of the folder, titled =devices/=; the README's H1 becomes an H2 under it, or disappears if it only repeats the folder name |
+| a folder without a README (=docs/guide/=) | a page titled =guide/= listing its contents (Geekdoc's =toc-tree=) |
+| any other file | a page titled with its first H1, which is removed from the text; no H1 → the file name |
+| the root =README.md= | the home page, with its own H1 as the title |
+| =[x](../BACKUPS.md#tests)= | =[x](/docs/backups/#tests)= |
+
+- *Order:* within a folder, subfolders first by name, then files in
+  file-name order, so =01-…= to =08-…= in =docs/guide/= keep their
+  reading order.
+- *URLs* are the repository path in lower case (=docs/BACKUPS.md= →
+  =/docs/backups/=), written into each page's =url= so that links never
+  depend on Hugo's own path rules.
+- *Links* are rewritten outside fenced code blocks only, inline
+  (=](target)=, with or without a title) and as reference definitions
+  (=[id]: target=). Links to folders lead to the folder's page; anchors
+  are kept. A relative link to a =.md= file the site has no page for is
+  left as written and listed by =my/repo-docs-report=.
+- *Files* are those git would commit: tracked, plus untracked but not
+  ignored, so a new document shows up before its first =git add=.
+- *Two files differing only in letter case* would get one URL; the run
+  then stops without changing anything and names them.
+- Only files whose text changed are rewritten, so =hugo server=
+  reloads only what changed.
+
+Verified against the repository as of 2026-10-12: 38 files → 45 pages,
+all 50 links and their anchors resolved, Hugo 0.167 building with no
+warnings.
+
+** Commands
+:PROPERTIES:
+:CUSTOM_ID: repo-docs-commands
+:END:
+
+*** f — Find a document
+:PROPERTIES:
+:CUSTOM_ID: fn-my-repo-docs-find
+:END:
+
+Completes over the repository paths of the Markdown files, with each
+file's H1 beside it, and opens the chosen file. Paths, not titles, are
+the candidates: seven =README.md= files stay seven distinct choices.
+
+Function: =my/repo-docs-find= | Module: =modules/47-repo-docs.el=
+
+*** v — Preview in browser
+:PROPERTIES:
+:CUSTOM_ID: fn-my-repo-docs-preview
+:END:
+
+Regenerates the site, installs the theme if missing, starts
+=hugo server= on =my/repo-docs-port= and opens the page of the current
+buffer's file — or the home page when the buffer is not a Markdown file
+of the repository. While the server runs, saving any Markdown file of
+the repository regenerates the site and the browser reloads.
+
+Function: =my/repo-docs-preview= | Module: =modules/47-repo-docs.el=
+
+*** s — Stop the preview
+:PROPERTIES:
+:CUSTOM_ID: fn-my-repo-docs-stop
+:END:
+
+Function: =my/repo-docs-stop= | Module: =modules/47-repo-docs.el=
+
+*** g — Regenerate the site
+:PROPERTIES:
+:CUSTOM_ID: fn-my-repo-docs-regenerate
+:END:
+
+Regenerates without starting anything, and reports pages, files written
+and removed, and unresolved links.
+
+Function: =my/repo-docs-regenerate= | Module: =modules/47-repo-docs.el=
+
+*** o — Site folder
+:PROPERTIES:
+:CUSTOM_ID: fn-my-repo-docs-open-site
+:END:
+
+Function: =my/repo-docs-open-site= | Module: =modules/47-repo-docs.el=
+
+*** l — Last report
+:PROPERTIES:
+:CUSTOM_ID: fn-my-repo-docs-report
+:END:
+
+The last regeneration in =*Repo docs*=: counts, and every relative link
+to a =.md= file that has no page, as =source -> target=. =q= closes.
+
+Function: =my/repo-docs-report= | Module: =modules/47-repo-docs.el=
+
+** Menu (C-c n x r)
+:PROPERTIES:
+:CUSTOM_ID: menu-repo-docs
+:END:
+
+| Key | Entry |
+|-----+-------|
+| =f= | Find a document |
+| =g= | Regenerate the site |
+| =o= | Site folder |
+| =v= | Preview in browser |
+| =s= | Stop the preview |
+| =l= | Last report |
+
+Function: =my/repo-docs-menu= | Module: =modules/47-repo-docs.el=
