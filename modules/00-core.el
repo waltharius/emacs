@@ -27,6 +27,66 @@
 (setq use-package-always-ensure t)  ; Auto-install packages
 
 ;; ============================================================
+;; SETTINGS MENU: one Customize tree for the whole configuration
+;; ============================================================
+;; Customize arranges options in groups, as folders.  Every module's
+;; group hangs under one of the area groups below, and those under
+;; `mypks', so `my/settings' (C-c n ,) opens one tree holding every
+;; option of this configuration -- instead of options scattered under
+;; Emacs's own `convenience', `org' and `faces' among thousands of
+;; package options.
+;;
+;; Named MyPKS rather than PKS: pks/ is already the name of a silo.
+;;
+;; A module names its parent area with `:group' in its own `defgroup'.
+;; Without this file the area group is merely undefined: Customize
+;; records the membership and shows nothing, and the module works as
+;; before.  Groups carry no values, so moving an option between groups
+;; never touches a saved setting.
+
+(defgroup mypks nil
+  "Settings of the MyPKS Emacs configuration: notes, writing, sites."
+  :tag "MyPKS"
+  :group 'emacs)
+
+(defgroup mypks-notes nil
+  "Notes and silos: creation, search, review, statistics, imports."
+  :tag "Notes and silos"
+  :group 'mypks)
+
+(defgroup mypks-tasks nil
+  "Capture, tasks and habits."
+  :tag "Capture, tasks and habits"
+  :group 'mypks)
+
+(defgroup mypks-writing nil
+  "Writing projects and their export."
+  :tag "Writing and export"
+  :group 'mypks)
+
+(defgroup mypks-publishing nil
+  "Hugo sites built from notes and from repositories."
+  :tag "Hugo sites"
+  :group 'mypks)
+
+(defgroup mypks-interface nil
+  "Interface: theme, fonts, appearance, session."
+  :tag "Interface and appearance"
+  :group 'mypks)
+
+(defgroup mypks-git nil
+  "Automatic commits of the notes and project repositories."
+  :tag "Git"
+  :group 'mypks)
+
+(defun my/settings ()
+  "Open the settings of this configuration in Customize.
+Every option of every loaded module, arranged by area.  Values saved
+with \"Apply and Save\" go to `custom-file'."
+  (interactive)
+  (customize-group 'mypks))
+
+;; ============================================================
 ;; CORE VARIABLES: Paths and directories
 ;; ============================================================
 

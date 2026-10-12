@@ -63,6 +63,10 @@
 ;; network still reachable, and it costs nothing because nobody is
 ;; typing.  Exit is the safety net.
 
+(defgroup my/git nil
+  "Automatic commits of the notes repository (07-git.el)."
+  :group 'mypks-git)
+
 (defcustom my/auto-commit-repository-sources
   (list (lambda () (list (expand-file-name "~/notes/"))))
   "Functions returning directories to auto-commit.
@@ -72,7 +76,7 @@ can contribute repositories this one has never heard of, and so that
 the set can be computed rather than fixed: 39-project-git.el adds every
 writing project, and the number of those changes during a session."
   :type '(repeat function)
-  :group 'my)
+  :group 'my/git)
 
 (defcustom my/auto-commit-config-enabled nil
   "When non-nil, the Emacs configuration repository is auto-committed too.
@@ -84,7 +88,7 @@ auto-commit on exit buries that reason and, worse, silently absorbs
 half-finished edits into the history.  `my/commit-config-now' still
 commits by hand."
   :type 'boolean
-  :group 'my)
+  :group 'my/git)
 
 (defcustom my/auto-commit-push t
   "When non-nil, push after committing.
@@ -92,7 +96,7 @@ commits by hand."
 A commit protects against an editing mistake.  Only a push protects
 against the disk, and the local GitLab exists for exactly that."
   :type 'boolean
-  :group 'my)
+  :group 'my/git)
 
 (defcustom my/auto-commit-pull t
   "When non-nil, pull from the upstream at startup and before each push.
@@ -105,7 +109,7 @@ automatic commits silently diverge from the server.  Pulling with
 pushed, which is exactly what happened in time when the machines are
 used one after the other."
   :type 'boolean
-  :group 'my)
+  :group 'my/git)
 
 (defcustom my/auto-commit-idle-seconds 300
   "Seconds of idleness before an automatic commit and push.
@@ -113,7 +117,7 @@ used one after the other."
 Five minutes: long enough that it never fires mid-sentence, short
 enough that a coffee break is a backup."
   :type 'integer
-  :group 'my)
+  :group 'my/git)
 
 (defvar my/auto-commit-log-buffer "*auto-commit*"
   "Buffer collecting git output from automatic commits and pushes.")

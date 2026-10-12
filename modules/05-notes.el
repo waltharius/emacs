@@ -107,7 +107,7 @@
 
 (defgroup my/notes nil
   "Note creation commands."
-  :group 'convenience)
+  :group 'mypks-notes)
 
 (defcustom my/notes-keyword-preselect 'prompt
   "Value bound to `vertico-preselect' during keyword prompts.
@@ -337,7 +337,7 @@ three copies of one fact, two of them in the same file name.
 CHANGING THIS IS SAFE.  Nothing identifies a journal note by its title
 or by its slug any more; see `my/journal-file-p\='.  Existing notes keep
 whatever title they were created with and are still recognised."
-  :type 'string :group 'my)
+  :type 'string :group 'my/notes)
 
 ;; ============================================================
 ;; WHAT MAKES A FILE A JOURNAL NOTE

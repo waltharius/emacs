@@ -96,6 +96,7 @@ Main entry point for all note operations. Hierarchical structure:
 =c= Create, =f= Find, =i= Insert, =d= Document, =x= Export,
 =p= Writing projects (dynamic), =v= View, =t= Tools,
 =l= Philosophy (dynamic), =z= Zettelkasten (dynamic),
+=,= Settings ([[#settings][Settings (C-c n ,)]]),
 =h= Function Help. Also carries
 two top-level shortcuts duplicated from Tools → Spelling for the two
 most-used spelling commands: =s= Correct previous, =a= Add to dict
@@ -7845,3 +7846,57 @@ Function: =my/repo-docs-report= | Module: =modules/47-repo-docs.el=
 | =l= | Last report |
 
 Function: =my/repo-docs-menu= | Module: =modules/47-repo-docs.el=
+
+* Settings (C-c n ,)
+:PROPERTIES:
+:CUSTOM_ID: settings
+:END:
+
+Every option of this configuration in one Customize tree, the same
+interface as =M-x customize-face=: =TAB= moves between fields, =RET=
+on a button acts, /State/ → /Save for future sessions/ (or the
+/Apply and Save/ button at the top) writes the value to =custom-file=.
+
+** a — Open the settings
+:PROPERTIES:
+:CUSTOM_ID: fn-my-settings
+:END:
+
+=C-c n ,= opens the group =mypks= ("MyPKS"). Named MyPKS rather than
+PKS because =pks/= is already a silo.
+
+Function: =my/settings= | Module: =modules/00-core.el=
+
+** The tree
+:PROPERTIES:
+:CUSTOM_ID: settings-tree
+:END:
+
+| Area (group)                         | Module groups                                                                                                                                                                    |
+|--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Notes and silos (=mypks-notes=)      | =my/notes=, =my/dashboard=, =my-dashboards=, =my/readwise=, =my/inbox-settings=, =my/denote-identifiers=, =my/link-tooltips=, =my/org-images=, =my-denote-hubs=, =my-journal-gaps=, =my-notes-stats=, =my/markdown=, =my/notes-search=, =my/obsidian=, =my/drill= |
+| Capture, tasks and habits (=mypks-tasks=) | =my/capture=, =my/tasks=, =my/habits=                                                                                                                                       |
+| Writing and export (=mypks-writing=) | =my/writing-projects=, =my/writing-export=, =my-standard-pages=                                                                                                                   |
+| Hugo sites (=mypks-publishing=)      | =my/blog=, =my/repo-docs=                                                                                                                                                         |
+| Interface and appearance (=mypks-interface=) | =my/desktop=, =my-ui=, =my/fonts=, =my/theme=, =my/visual-fill=, =my/appearance=, =my-image-display=, and the mode-line faces                                              |
+| Git (=mypks-git=)                    | =my/git=, =my/project-git=                                                                                                                                                        |
+
+The root and area groups are defined in =00-core.el=. A module names
+its area with =:group= in its own =defgroup=; without =00-core.el= the
+area is merely undefined and the module works unchanged. Groups hold no
+values, so moving an option to another group never touches a saved
+setting.
+
+** What is not here yet
+:PROPERTIES:
+:CUSTOM_ID: settings-not-yet
+:END:
+
+- The paths of the notes and silos (=my-notes-dir=, =my-notes-pks=, …)
+  are plain variables in =00-core.el=, not options; they become options
+  in a later step, with moving the notes folder after a change.
+- Twenty modules have no options at all; what they set with =setq= is
+  fixed until a module is converted.
+- =custom.el= still lives in the repository and loads before the
+  modules, so a module's =setq= of the same variable wins over a saved
+  value. Both change when the user layer is split off.

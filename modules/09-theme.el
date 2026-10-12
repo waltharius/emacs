@@ -115,6 +115,10 @@
 ;; A theme that ends up on neither list still appears in
 ;; `my/theme-cycle-all' and can be filed from there.
 
+(defgroup my/theme nil
+  "Theme browsing and the light/dark switch (09-theme.el)."
+  :group 'mypks-interface)
+
 (defcustom my/theme-known-light
   '(modus-operandi modus-operandi-tinted
     modus-operandi-deuteranopia modus-operandi-tritanopia
@@ -127,7 +131,7 @@
     doom-oksolar-light doom-bluloco-light doom-feather-light)
   "Light themes not published by a package variable.
 Names that do not exist are ignored, so this list may be generous."
-  :type '(repeat symbol) :group 'faces)
+  :type '(repeat symbol) :group 'my/theme)
 
 (defcustom my/theme-known-dark
   '(modus-vivendi modus-vivendi-tinted
@@ -142,7 +146,7 @@ Names that do not exist are ignored, so this list may be generous."
     doom-oksolar-dark doom-bluloco-dark doom-feather-dark)
   "Dark themes not published by a package variable.
 Names that do not exist are ignored, so this list may be generous."
-  :type '(repeat symbol) :group 'faces)
+  :type '(repeat symbol) :group 'my/theme)
 
 (defun my/theme--available (themes)
   "Return the members of THEMES that are actually installed, deduplicated."

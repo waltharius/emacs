@@ -50,7 +50,7 @@
 
 (defgroup my/writing-export nil
   "Export to office formats."
-  :group 'org)
+  :group 'mypks-writing)
 
 (defcustom my/office-output-dir (expand-file-name "~/notes/export/")
   "Root directory for exported office documents.

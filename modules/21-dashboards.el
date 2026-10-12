@@ -37,7 +37,7 @@
 
 (defgroup my-dashboards nil
   "Historical dashboards for Denote notes."
-  :group 'convenience)
+  :group 'mypks-notes)
 
 (defcustom my/dashboards-nav-buffer-name "*Note History*"
   "Name of the navigation buffer used by historical dashboards."

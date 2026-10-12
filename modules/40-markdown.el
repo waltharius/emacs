@@ -92,7 +92,7 @@
 
 (defgroup my/markdown nil
   "Markdown notes living beside Org notes."
-  :group 'convenience)
+  :group 'mypks-notes)
 
 (defcustom my/markdown-denote-file-type 'markdown-yaml
   "File type `my/markdown-new-note' asks Denote for.

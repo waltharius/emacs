@@ -91,7 +91,7 @@
 
 (defgroup my-notes-stats nil
   "Summary statistics for the note collection."
-  :group 'convenience)
+  :group 'mypks-notes)
 
 (defcustom my/notes-stats-buffer-name "*Notes Stats*"
   "Name of the statistics buffer."

@@ -376,7 +376,7 @@ entry."
 
 (defgroup my/capture nil
   "Ideas capture into `my-journal-captures'."
-  :group 'org-capture)
+  :group 'mypks-tasks)
 
 (defcustom my/capture-source-link-default nil
   "Non-nil makes RET at the source-link question keep the link.

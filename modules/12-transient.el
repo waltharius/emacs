@@ -246,6 +246,7 @@ menu carries when the feature module is absent."
    ["Settings & Tools"
     ("v" "View → center/writing/indent/emphasis"         my/notes-view-menu)
     ("t" "Tools → zotero/spelling"        my/notes-tools-menu)
+    ("," "Settings (Customize)"  my/settings)
     ;; "l" is reserved: 19-philosophy-notes.el appends it dynamically
     ;; Quick correct access as this is most used functions for me.
     ;; Both also have direct global bindings in 08-keybindings.el

@@ -78,7 +78,7 @@
 
 (defgroup my/appearance nil
   "Faces and settings for the visual layer."
-  :group 'faces)
+  :group 'mypks-interface)
 
 (defface my/dashboard-title
   '((t :inherit (bold variable-pitch) :height 1.3))

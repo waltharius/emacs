@@ -21,6 +21,51 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-12g — Settings menu: one Customize tree, MyPKS
+
+### Why
+
+First step of the settings plan (core plus user layer, menu in the
+style of the Customize face menu). The 164 options already existed but
+hung in 25 groups attached to Emacs's own `convenience`, `org`, `faces`
+and `org-capture`, or to `my`, a group no module defined, which holds
+30 options. There was no single place to see them.
+
+### What
+
+- `00-core.el`: root group `mypks` (tag "MyPKS") with six area groups —
+  notes and silos, capture/tasks/habits, writing and export, Hugo sites,
+  interface and appearance, git — and `my/settings`, which opens the
+  root.
+- Every module group now names its area as parent. Modules whose
+  options sat under `my`, `convenience` or `faces` without a group of
+  their own get one: `my/git` (07), `my/theme` (09), `my/visual-fill`
+  (10), `my/inbox-settings` (25; `my/inbox-review` is the command), `my/denote-identifiers` (27),
+  `my/org-images` (31), `my/notes-search` (41). The two stray `my`
+  options in 05 and 39 move to their module's group.
+- The two mode-line faces keep `mode-line-faces` and are also listed
+  under the interface area (`:group` may be repeated).
+- `12-transient.el`: `,` → Settings in the main menu.
+
+No value changes: groups hold no values, and saved settings are keyed
+by option name. Verified by reading every module's forms and walking
+the tree from `mypks`: all 164 options are reachable (one by the
+implicit-group rule, `my/dashboards-nav-buffer-name` taking the group
+defined just above it).
+
+### Rejected
+
+- **`pks` as the root name.** `pks/` is a silo; one word for two things
+  is a misunderstanding waiting to happen.
+- **Module groups directly under the root.** 32 entries on one screen;
+  the areas keep it to six.
+- **Renaming the `my-…` groups to `my/…`.** Purely cosmetic, and every
+  `:group` reference in their modules would change with it.
+- **`custom-add-to-group` calls in `00-core.el` instead of editing each
+  module.** The group would also stay under its old generic parent, and
+  a module's place in the tree would be stated far from the module.
+
+---
 ## Session 2026-10-12f — Repo docs: table of contents above each page
 
 ### Why

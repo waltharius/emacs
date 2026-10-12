@@ -65,7 +65,7 @@
 
 (defgroup my/fonts nil
   "Typeface configuration for notes."
-  :group 'faces)
+  :group 'mypks-interface)
 
 (defcustom my/font-default "JetBrains Mono"
   "Monospaced family for `default' and `fixed-pitch'.

@@ -242,7 +242,7 @@
 
 (defgroup my/blog nil
   "Publish selected notes as Hugo sites."
-  :group 'my/notes)
+  :group 'mypks-publishing)
 
 (defcustom my/blog-sites
   '(("journal"

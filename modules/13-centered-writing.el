@@ -80,7 +80,8 @@ This is buffer-local so each note can have its own state.")
   "Face for the writing-mode indicator in the mode line.
 Inherits rather than naming a colour: the previous literal \"black\"
 was invisible against a dark mode line."
-  :group 'mode-line-faces)
+  :group 'mode-line-faces
+  :group 'mypks-interface)
 
 (defvar my/writing-mode-line-construct
   '(:eval (when my/centered-writing-mode

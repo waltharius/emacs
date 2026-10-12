@@ -64,7 +64,7 @@
 
 (defgroup my-denote-hubs nil
   "Hub notes gathering links to other Denote notes."
-  :group 'convenience)
+  :group 'mypks-notes)
 
 (defcustom my/denote-hub-keyword "hub"
   "Denote keyword that marks a note as a hub.

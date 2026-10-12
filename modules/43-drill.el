@@ -80,7 +80,7 @@
 
 (defgroup my/drill nil
   "Spaced repetition on top of org-drill."
-  :group 'org)
+  :group 'mypks-notes)
 
 (defcustom my/drill-keyword "karty"
   "Denote keyword that marks a note as a card deck.

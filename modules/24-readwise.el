@@ -39,7 +39,7 @@
 
 (defgroup my/readwise nil
   "Importing Readwise highlights into Org files."
-  :group 'convenience)
+  :group 'mypks-notes)
 
 ;; ============================================================
 ;; SETTINGS

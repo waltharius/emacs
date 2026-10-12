@@ -72,7 +72,7 @@
 
 (defgroup my/writing-projects nil
   "Managing long-form writing projects."
-  :group 'org)
+  :group 'mypks-writing)
 
 (defcustom my/writing-projects-directory (expand-file-name "~/projects/")
   "Root directory holding one subdirectory per writing project.

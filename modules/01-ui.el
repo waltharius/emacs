@@ -226,7 +226,7 @@
 
 (defgroup my/desktop nil
   "Custom desktop-save buffer trimming."
-  :group 'convenience)
+  :group 'mypks-interface)
 
 (defconst my/desktop-max-buffers 10
   "Maximum number of file buffers to persist in the desktop file.
@@ -735,7 +735,7 @@ which loads after this file."
 
 (defgroup my-ui nil
   "Interface conventions shared by several modules."
-  :group 'convenience)
+  :group 'mypks-interface)
 
 (defcustom my/reports-tab-name "Stats"
   "Name of the tab holding reports about the note collection.
@@ -865,7 +865,8 @@ customized elsewhere."
 Inherits rather than naming a colour, so the segment follows the
 active theme through a light/dark toggle.  The previous literal
 \"purple\" was legible on the light theme only."
-  :group 'mode-line-faces)
+  :group 'mode-line-faces
+  :group 'mypks-interface)
 
 (defun my/word-count-modeline ()
   "Display word count, and standard pages when available, in the mode line.

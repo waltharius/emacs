@@ -107,6 +107,10 @@
 ;; CONFIG
 ;; ============================================================
 
+(defgroup my/org-images nil
+  "Images in notes: attachment, compression, links (31-org-images.el)."
+  :group 'mypks-notes)
+
 (defcustom my/org-image-attachments-directory
   (expand-file-name "attachments/"
                     (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
@@ -114,14 +118,14 @@
 Kept inside the notes tree so that Syncthing carries attachments and
 notes together, and excluded from Denote's file listing at load time."
   :type 'directory
-  :group 'my)
+  :group 'my/org-images)
 
 (defcustom my/org-image-max-pixels 1600
   "Longer edge of a stored attachment, in pixels.
 Images are never enlarged: a source smaller than this keeps its size.
 Nil stores every image at its original resolution."
   :type '(choice (const :tag "Do not resize" nil) integer)
-  :group 'my)
+  :group 'my/org-images)
 
 (defcustom my/org-image-max-bytes (* 300 1024)
   "Size an attachment should not exceed once stored.
@@ -129,7 +133,7 @@ A file still over this after rescaling is quantised or re-encoded as
 JPEG; see the ladder in the commentary.  Nil rescales only, which for a
 PNG source means almost no saving at all."
   :type '(choice (const :tag "No budget" nil) integer)
-  :group 'my)
+  :group 'my/org-images)
 
 (defcustom my/org-image-palette-max-colors 4096
   "Colour count below which an image is treated as a screenshot.
@@ -138,40 +142,40 @@ threshold the file is quantised to 256 colours and stays PNG; above it,
 JPEG is used instead.  Lower this if screenshots come out looking like
 JPEG; raise it if photographs come out banded."
   :type 'integer
-  :group 'my)
+  :group 'my/org-images)
 
 (defcustom my/org-image-jpeg-quality 85
   "JPEG quality used when an image has to be re-encoded, 1-100."
   :type 'integer
-  :group 'my)
+  :group 'my/org-images)
 
 (defcustom my/org-image-no-resize-extensions '("svg" "svgz" "gif")
   "Extensions copied verbatim, without going through the converter.
 SVG is a vector format, so pixel dimensions mean nothing; an animated
 GIF would have to be coalesced frame by frame and usually grows."
   :type '(repeat string)
-  :group 'my)
+  :group 'my/org-images)
 
 (defcustom my/org-image-source-directory nil
   "Directory the file prompt starts in.
 Nil picks the first of ~/Pictures/, ~/Obrazy/, ~/Downloads/, ~/Pobrane/
 that exists, and falls back to the home directory."
   :type '(choice (const :tag "Guess" nil) directory)
-  :group 'my)
+  :group 'my/org-images)
 
 (defcustom my/org-image-prompt-for-name t
   "Whether to ask for the attachment name.
 The note's title is offered as the default, so RET accepts it.  Nil
 skips the prompt and uses the title without asking."
   :type 'boolean
-  :group 'my)
+  :group 'my/org-images)
 
 (defcustom my/org-image-link-style 'relative
   "Whether inserted links are relative to the note or absolute.
 Relative links survive a home directory that differs between machines,
 which absolute ones do not; both resolve the same on one machine."
   :type '(choice (const relative) (const absolute))
-  :group 'my)
+  :group 'my/org-images)
 
 (defcustom my/org-image-attr-width nil
   "Width written as `#+ATTR_ORG: :width' above each inserted link.
@@ -180,7 +184,7 @@ in 11-org-appearance.el -- the right default, since a per-image
 attribute overrides the global setting for good and has to be edited by
 hand afterwards."
   :type '(choice (const :tag "Use the global width" nil) integer string)
-  :group 'my)
+  :group 'my/org-images)
 
 (defcustom my/org-image-click-action 'emacs
   "What mouse-1 on an inline image preview does.
@@ -190,7 +194,7 @@ keymap alone."
   :type '(choice (const :tag "Emacs image buffer" emacs)
                  (const :tag "Desktop viewer" external)
                  (const :tag "Nothing" nil))
-  :group 'my)
+  :group 'my/org-images)
 
 (defvar my/org-image-extensions
   '("png" "jpg" "jpeg" "gif" "webp" "avif" "heic" "tif" "tiff"

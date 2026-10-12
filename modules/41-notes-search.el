@@ -116,6 +116,10 @@
 ;; OPTIONS
 ;; ============================================================
 
+(defgroup my/notes-search nil
+  "Full-text search of the notes (41-notes-search.el)."
+  :group 'mypks-notes)
+
 (defcustom my/notes-search-ignored-directories
   '(".snapshots" ".stversions" ".stfolder")
   "Directory names added to `grep-find-ignored-directories'.
@@ -127,7 +131,7 @@ list exists so that grep-based commands OUTSIDE this module -- `rgrep',
 
 The commands in this module do not depend on it: they exclude every dot
 directory by glob, so a new one needs no entry here."
-  :type '(repeat string) :group 'my)
+  :type '(repeat string) :group 'my/notes-search)
 
 (defcustom my/notes-search-earliest-year 1990
   "Year used as the lower bound of an open-ended date range.
@@ -135,7 +139,7 @@ directory by glob, so a new one needs no entry here."
 `date:<2015' has no start, and a glob list has to start somewhere.  The
 value only has to be older than the oldest note; it costs one extra
 glob per year, so a wrong guess is slow rather than incorrect."
-  :type 'integer :group 'my)
+  :type 'integer :group 'my/notes-search)
 
 (defcustom my/notes-search-max-globs 200
   "Refuse to build more file-name globs than this for one search.
@@ -145,7 +149,7 @@ years costs up to twelve more at each end.  Passing several hundred
 globs to grep works but is slow enough to look broken, so a range that
 wide is almost certainly a typo -- `date:1900..2030' rather than a
 deliberate question."
-  :type 'integer :group 'my)
+  :type 'integer :group 'my/notes-search)
 
 (defcustom my/notes-search-prefer-ripgrep t
   "Use ripgrep for content search when the `rg' executable is present.
@@ -153,7 +157,7 @@ deliberate question."
 Set to nil to force plain grep.  Both back ends support everything this
 module does; ripgrep is faster and excludes hidden directories on its
 own, grep needs to be told."
-  :type 'boolean :group 'my)
+  :type 'boolean :group 'my/notes-search)
 
 ;; ============================================================
 ;; EXCLUSIONS FOR EVERY OTHER GREP IN EMACS

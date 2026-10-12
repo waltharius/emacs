@@ -57,7 +57,7 @@
 
 (defgroup my/project-git nil
   "Remotes and staleness checks for writing project repositories."
-  :group 'my)
+  :group 'mypks-git)
 
 (defcustom my/project-git-remote-format
   "ssh://git@gitlab.home.lan:2424/heniekk/%s.git"

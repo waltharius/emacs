@@ -49,6 +49,10 @@
 (defconst my/denote-identifier-regexp "[0-9]\\{8\\}T[0-9]\\{6\\}"
   "Regexp matching a Denote identifier.")
 
+(defgroup my/denote-identifiers nil
+  "Denote identifier checks across silos (27-denote-identifiers.el)."
+  :group 'mypks-notes)
+
 (defcustom my/denote-scan-exclude-regexp "/\\."
   "Paths matching this are skipped when scanning for notes and links.
 
@@ -77,14 +81,14 @@ Note-bearing directories in this tree never begin with a dot, so
 nothing wanted is lost.  Scanning starts at `my-notes-dir\=', so a dot
 directory in the path ABOVE the notes tree is not matched and cannot
 exclude everything."
-  :type 'regexp :group 'my)
+  :type 'regexp :group 'my/denote-identifiers)
 
 (defcustom my/denote-silo-directories
   (list my-notes-journal my-notes-pks my-notes-docu)
   "The silos in which an identifier must be unique.
 The staging inbox is deliberately absent: a note there may legitimately
 share an identifier with a filed note until it is accepted."
-  :type '(repeat directory) :group 'my)
+  :type '(repeat directory) :group 'my/denote-identifiers)
 
 ;; ============================================================
 ;; SCANNING

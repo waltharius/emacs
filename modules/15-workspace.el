@@ -316,7 +316,7 @@ pushes the informative tags further right.")
 
 (defgroup my/dashboard nil
   "The Notes Dashboard: sections, limits and column layout."
-  :group 'convenience)
+  :group 'mypks-notes)
 
 (defcustom my/dashboard-recent-days 10
   "Age in days of the oldest file the Recently Modified section shows."

@@ -70,7 +70,7 @@
 
 (defgroup my/tasks nil
   "Capturing and routing tasks without leaving the current buffer."
-  :group 'org)
+  :group 'mypks-tasks)
 
 (defcustom my/tasks-directory (expand-file-name "~/notes/planner/")
   "Directory holding the task and habit files.

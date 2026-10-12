@@ -20,6 +20,10 @@
 ;; PACKAGE: load visual-fill-column
 ;; ============================================================
 
+(defgroup my/visual-fill nil
+  "Centred text width (10-visual-fill.el)."
+  :group 'mypks-interface)
+
 (defcustom my/fill-column-docu 100
   "Text column width for notes tagged `:docu:'.
 Separate from `my-fill-column' because docu notes hold command lines
@@ -28,7 +32,7 @@ and code that read badly when wrapped early.
 The value is in CHARACTERS of the buffer's default face, not in
 pixels, so a buffer using a proportional face renders the same number
 narrower.  See the comment in `my/visual-fill-notes-setup'."
-  :type 'integer :group 'convenience)
+  :type 'integer :group 'my/visual-fill)
 
 (use-package visual-fill-column
   :ensure t
