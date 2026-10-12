@@ -1,0 +1,111 @@
+#+title: Backlog
+#+startup: overview
+
+Work that is decided or proposed but not done, in rough order.  Each
+entry says why it exists and what is already settled, so that it can be
+picked up without the conversation that produced it.  Finished entries
+are removed; their record is CHANGELOG.md.
+
+* Settings: core plus user layer
+The plan behind Sessions 2026-10-12g and 2026-10-12h: a fixed core in
+the repository, a user layer on top, Customize as the menu (=C-c n ,=).
+Steps 1 (one Customize tree, MyPKS) and 2a (notes root as an option,
+registry of silos) are done.
+
+** TODO 2b. Move the notes after =my-notes-dir= changes
+- Runs at the next start, before =my/notes-ensure-directories= creates
+  anything at the new root.
+- Copy, verify (file count and total size), switch.  The old folder is
+  always kept.  =cp --reflink=auto= so that a copy on the same btrfs
+  file system is nearly instant and takes no space.
+- Choices: /Copy/, /Skip, I will move my files by myself/, /Ask me next
+  time/.
+- Target already holding the notes (switching back, or a second
+  machine) → switch without copying.
+- Refuse: target not empty with something else, target inside source.
+- =.git= in the copied tree → offer to disable =my/auto-commit-push= for
+  the copy, so a test copy does not push to the same remote.
+- Report what still points at the old root: values saved in the custom
+  file (=my/tasks-extra-agenda-files=), =.blog-state.eld=, desktop
+  session, bookmarks, =recentf=.
+- A command deleting the old folder exists but is *disabled*
+  (=:disabled= / off) until explicitly enabled.  Losing =~/notes= by
+  accident must not be possible.
+- First real test: root =~/notes2= with the live notes.
+
+** TODO 2c. Modules that name silos by folder name
+=my/blog-sites= =:silos ("pks" "docu")= and the font profiles of
+=03b-fonts.el= compare folder names.  Move them to registry keys
+(=my/silo-of=), so a renamed folder breaks nothing.
+
+** TODO 3. Settings file per host, in the repository
+=custom-file= = =hosts/<short hostname>.el=, committed.  Settings are
+versioned and visible; no Syncthing.  A host without a file starts
+empty and says so.  A value wanted on every machine belongs in the core
+defaults (step 4), since Customize saves to one file only.  The current
+=custom.el= is split into the host file and core defaults.
+
+** TODO 4. Core defaults as a custom theme (=mypks-defaults=)
+Package variables the core sets with =setq= move into a custom theme,
+module by module, so that the =user= theme -- the host file -- always
+wins regardless of load order.  Only values a user may want to change.
+
+** TODO 5. Module toggles (plugin loader)
+An option listing optional modules to load, with descriptions and
+declared dependencies; =init.el= loads the core always and the rest
+from the list.  Turning a module off takes effect after a restart.
+Toward a plugin contract: own group under an area, options,
+=my/transient-append=, =provide=, dependencies checked with =fboundp=.
+
+** TODO 6. No machine-bound paths (README: install on any Linux)
+Remaining absolute paths outside the notes root (=~/projects/=,
+=~/syncthing/Zotero=, =/home/marcin/= in the custom file).  Same work
+as the planned installation part of the README.
+
+** TODO Welcome screen on first start
+A clean Emacs starting from this repository shows "Welcome to MyPKS":
+basic settings, then "Add your silos" with what a silo is in Denote
+terms, then further required settings.  Built on the Customize
+options (=my-notes-dir=, =my/silos=), and the place to link the
+descriptions of =function_helper.org= as the manual.
+
+* Obsidian vaults
+Proposed 2026-10-12.  Someone coming from Obsidian has Markdown notes
+in a vault: folders, =[[wikilinks]]=, no Denote names, and no notion of
+silos -- a vault is opened on its own, switching or a second window.
+Options, not decided:
+- *Migration*, which exists: =42-obsidian-import.el= converts a vault
+  into Denote notes in the silos.
+- *A vault read in place* as a silo with sub-folders and Markdown
+  files.  Candidate to evaluate first, before writing anything:
+  =obsidian.el= (licht1stein/obsidian.el, MELPA, 2.0.0), which handles
+  vaults, wikilinks, tags and backlinks in Emacs.  The registry would
+  need a =:format= (=org= / =markdown=) or =:kind= (=denote= /
+  =vault=) property, and modules that assume Denote file names must
+  skip such a silo.
+- *=my-notes-dir= itself as a vault*: one silo, sub-folders as the
+  structure.
+
+* Testing a clean configuration
+A branch with the configuration as a new user would get it, to find
+what breaks on a first start.  Emacs 29 runs a configuration from any
+directory without touching =~/.emacs.d=:
+#+begin_src sh
+git worktree add ~/emacs-clean -b clean-config
+emacs --init-directory ~/emacs-clean
+#+end_src
+Packages are installed into that directory, so the first start
+downloads them.  Point =my-notes-dir= at a test folder there, not at
+the real notes.
+
+* Small items
+- =languageCode= is deprecated (Hugo 0.158) in =hugo/sites/journal= and
+  =hugo/sites/blog=; use =locale=, as the docs site already does.
+- When Syncthing is dropped for this repository: remove =.stignore=.
+  Before dropping it for the notes: check whether mobile capture
+  (Orgzly) writes into =~/notes/= through it.
+- =~/projects/docs-site/=: =themes/hugo-book/= and
+  =layouts/_partials/docs/= are left over from hugo-book and can be
+  deleted.
+- The =private= check in =hooks/lint.py= is advisory until the known
+  cross-module calls are gone; then make it blocking.

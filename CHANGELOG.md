@@ -21,6 +21,28 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-12i — BACKLOG.org
+
+### Why
+
+Decided and proposed work was spread over conversations: the remaining
+steps of the settings plan, the welcome screen, Obsidian vaults, a
+clean-configuration test, small follow-ups left by earlier sessions.
+
+### What
+
+`BACKLOG.org` at the repository root, entries in rough order, each with
+its reason and what is already settled. Finished entries are removed;
+CHANGELOG.md stays the record of what was done.
+
+Notable decisions recorded there: moving the notes is copy-only with the
+old folder kept and the delete command disabled; settings per host as
+`hosts/<hostname>.el` in the repository; for Obsidian, evaluate
+`obsidian.el` (MELPA) before writing anything; a clean configuration is
+tested with `git worktree` and `emacs --init-directory`, which leaves
+`~/.emacs.d` untouched.
+
+---
 ## Session 2026-10-12h — Notes root as an option, a registry of silos
 
 ### Why
