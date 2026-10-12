@@ -21,6 +21,77 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-12h — Notes root as an option, a registry of silos
+
+### Why
+
+Step 2a of the settings plan. Moving the notes to another folder, or a
+user whose silos are called differently (`diary` instead of `journal`),
+needs every path under the notes to come from one place. They came
+from many: `00-core.el` spelled out `~/notes/journal/` and its siblings
+separately instead of deriving them from `my-notes-dir`, ten modules
+wrote `"~/notes/..."` into their defaults, and at least five modules
+kept their own list of the silos.
+
+### What
+
+- `my-notes-dir` is now an option (`mypks-notes`).
+- `my/silos`, a registry: (KEY :directory :role :keyword :private
+  :description). Keys are stable names chosen once; directories are
+  relative to the root (or absolute); roles `journal`, `notes`, `docs`
+  say what a silo is for. Default: the current layout, journal,
+  pks and docu.
+- Functions for modules: `my/silo-dir`, `my/silo-dir-by-role`,
+  `my/silo-by-role`, `my/silo-keys`, `my/silo-dirs`, `my/silo-get`,
+  `my/silo-of`, `my/notes-path`.
+- `my-notes-journal`, `my-notes-pks`, `my-notes-docu` stay, derived by
+  role, so that unconverted modules work unchanged. `my-journal-captures`,
+  backups, autosaves and the agenda list are derived too; the agenda
+  and the directory creation take every silo of the registry.
+- Directory creation moved into `my/notes-ensure-directories`, so that a
+  later step can move the notes before anything is created at the new
+  root.
+- Module defaults now derived from the root or the registry: 07-git
+  (auto-commit repository and the commands run in it), 16 (PDF output),
+  17 (`refs.bib`), 25 (inbox, rejects, accept targets = every non-journal
+  silo, link scan = every silo plus inbox), 27 (identifier checks = every
+  silo), 28 (project scans = every silo, new notes = role `notes`),
+  29 (office export), 37 and 38 (planner). `"~/notes"` remains only as
+  the root's default and as the fallback in modules that guard against
+  `00-core.el` being absent.
+- Both options use a setter that says, when changed in Customize, that
+  the change takes effect after a restart: modules read them on load.
+
+Verified by loading `00-core.el` in batch with a separate HOME: the
+defaults reproduce today's paths exactly; with the root set to
+`notes2` and silos `diary` (role journal), `wiki` (role notes) and an
+absolute `ext`, the legacy variables follow the roles, the absolute silo
+stays outside the root, a missing `docs` role only logs a message; and
+evaluating the changed module options under the new root gives
+`notes2/...` everywhere.
+
+### Rejected
+
+- **One variable per silo, numbered** (`my-silos-1`, `-2`, …). A new silo
+  would need new code, and configuration such as a site's
+  `:silos (1 3)` stops being readable. A registry gives the same stable
+  identity with names, and adding a silo is adding an entry.
+- **Keys equal to folder names.** Renaming the folder would rename the
+  key and break every reference to it.
+- **Roles inferred from keys.** A user's `diary` would never be the
+  journal.
+- **A warning pop-up for a missing role.** A configuration without a
+  documentation silo is valid.
+
+### Not done here
+
+Moving the files when the root changes (step 2b, copy-only, the old
+folder kept; deleting it disabled). Modules naming silos by folder name
+(`my/blog-sites` `:silos`, `03b-fonts.el`). Values saved in `custom.el`
+as absolute paths (`my/tasks-extra-agenda-files`) do not follow the
+root; step 2b will list them.
+
+---
 ## Session 2026-10-12g — Settings menu: one Customize tree, MyPKS
 
 ### Why

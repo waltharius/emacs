@@ -67,7 +67,7 @@
   (expand-file-name "habits.org"
                     (if (boundp 'my/tasks-directory)
                         my/tasks-directory
-                      (expand-file-name "~/notes/planner/")))
+                      (expand-file-name "planner/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))))
   "File holding every habit.
 
 One file, not one per habit and not spread through the hubs: the point

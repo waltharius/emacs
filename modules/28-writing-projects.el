@@ -91,9 +91,7 @@ index."
   :group 'my/writing-projects)
 
 (defcustom my/writing-project-silos
-  (list (expand-file-name "~/notes/pks/")
-        (expand-file-name "~/notes/docu/")
-        (expand-file-name "~/notes/journal/"))
+  (my/silo-dirs)
   "Directories scanned when rebuilding project membership from notes.
 
 Only used by the on-demand rebuild and mention-refresh commands.
@@ -104,7 +102,7 @@ unusable."
   :group 'my/writing-projects)
 
 (defcustom my/writing-project-note-directory
-  (expand-file-name "~/notes/pks/")
+  my-notes-pks
   "Silo in which `my/writing-project-new-note' creates notes.
 
 Project text lives in the knowledge silo like any other note, not in

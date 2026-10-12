@@ -84,7 +84,7 @@ exclude everything."
   :type 'regexp :group 'my/denote-identifiers)
 
 (defcustom my/denote-silo-directories
-  (list my-notes-journal my-notes-pks my-notes-docu)
+  (my/silo-dirs)
   "The silos in which an identifier must be unique.
 The staging inbox is deliberately absent: a note there may legitimately
 share an identifier with a filed note until it is accepted."

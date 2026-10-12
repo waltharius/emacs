@@ -72,7 +72,7 @@
   "Capturing and routing tasks without leaving the current buffer."
   :group 'mypks-tasks)
 
-(defcustom my/tasks-directory (expand-file-name "~/notes/planner/")
+(defcustom my/tasks-directory (expand-file-name "planner/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
   "Directory holding the task and habit files.
 
 Inside the notes tree so that Syncthing carries it and the btrfs

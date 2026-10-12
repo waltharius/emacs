@@ -7892,11 +7892,74 @@ setting.
 :CUSTOM_ID: settings-not-yet
 :END:
 
-- The paths of the notes and silos (=my-notes-dir=, =my-notes-pks=, …)
-  are plain variables in =00-core.el=, not options; they become options
-  in a later step, with moving the notes folder after a change.
+- Moving the notes to a new root after =my-notes-dir= changes: the
+  option exists (see [[#notes-root-and-silos][Notes root and silos]]),
+  but the files are not yet copied for you.
 - Twenty modules have no options at all; what they set with =setq= is
   fixed until a module is converted.
 - =custom.el= still lives in the repository and loads before the
   modules, so a module's =setq= of the same variable wins over a saved
   value. Both change when the user layer is split off.
+
+
+** Notes root and silos
+:PROPERTIES:
+:CUSTOM_ID: notes-root-and-silos
+:END:
+
+Two options in /Notes and silos/ describe where the notes are; every
+other path under the notes is derived from them.
+
+| Option         | Default    | Meaning                                                    |
+|----------------+------------+------------------------------------------------------------|
+| =my-notes-dir= | =~/notes/= | root holding every silo, the planner, captures, exports    |
+| =my/silos=     | journal, pks, docu | the registry of silos                              |
+
+A *silo*, in Denote terms, is a folder used as =denote-directory= for
+its own notes, so that notes, identifiers and keywords of one silo do
+not mix with another's. Each entry of =my/silos= has:
+
+| Property       | Meaning                                                                 |
+|----------------+-------------------------------------------------------------------------|
+| key            | stable name the configuration uses; chosen once, never changed          |
+| =:directory=   | folder, relative to =my-notes-dir= (moves with it) or absolute (does not) |
+| =:role=        | =journal= (daily notes), =notes= (default for new notes), =docs= (monospaced documentation), or none |
+| =:keyword=     | Denote keyword every note of the silo carries, or none                  |
+| =:private=     | never published to a site with a server                                 |
+| =:description= | free text                                                               |
+
+*Key, folder and keyword are three different things.* A silo's notes
+carry its keyword in their file names (=__journal=); renaming the folder
+does not rename thousands of files, so the registry keeps the fields
+apart.
+
+*Roles* let a module written for "the journal" work with a silo called
+=diary=: the module asks for the role, not the name. The variables
+modules have always used — =my-notes-journal=, =my-notes-pks=,
+=my-notes-docu= — are now derived by role, so unconverted modules keep
+working. A configuration without a silo for some role is valid; the
+variable then points at an uncreated =<root>/<role>/= and
+*Messages* says so once.
+
+*Takes effect at the next start of Emacs.* Modules compute their paths
+when they load; a change made in Customize says so in the echo area.
+
+Derived from the root, unless saved otherwise in Customize: the backups
+and autosaves (=.backups/=, =.autosaves/=), =captures.org= (in the
+journal silo), the planner (=planner/=), PDF and office exports
+(=pdf/=, =export/=), the bibliography (=refs.bib=), the inbox and its
+rejects, the auto-commit repository, and every list of "all silos"
+(agenda, identifier checks, project scans, inbox link scan).
+
+Not yet converted: modules that name a silo by its folder name rather
+than its key — the Hugo sites' =:silos= in =my/blog-sites=, the font
+profiles of =03b-fonts.el=. They still work while the folder names stay
+=journal=, =pks=, =docu=.
+
+Functions for modules: =my/silo-dir= (by key), =my/silo-dir-by-role=,
+=my/silo-by-role=, =my/silo-keys= and =my/silo-dirs= (optionally
+filtered), =my/silo-get= (one property), =my/silo-of= (which silo a file
+is in), =my/notes-path= (a path under the root),
+=my/notes-ensure-directories=.
+
+Function: =my/silo-dir=, =my/silo-dir-by-role=, =my/silo-keys=, =my/silo-dirs=, =my/silo-of=, =my/notes-path= | Module: =modules/00-core.el=

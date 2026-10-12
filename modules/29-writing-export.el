@@ -52,7 +52,7 @@
   "Export to office formats."
   :group 'mypks-writing)
 
-(defcustom my/office-output-dir (expand-file-name "~/notes/export/")
+(defcustom my/office-output-dir (expand-file-name "export/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
   "Root directory for exported office documents.
 
 Used for notes that do not belong to a writing project.  Subdirectories

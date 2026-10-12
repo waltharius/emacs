@@ -90,21 +90,146 @@ with \"Apply and Save\" go to `custom-file'."
 ;; CORE VARIABLES: Paths and directories
 ;; ============================================================
 
-;; Notes directories (multi-silo structure)
-(defvar my-notes-dir (expand-file-name "~/notes/")
-  "Main notes directory (parent of all silos).")
+(require 'seq)
+(require 'subr-x)
 
-(defvar my-notes-journal (expand-file-name "~/notes/journal/")
-  "Journal notes - private daily entries.")
+;; ONE ROOT, ONE REGISTRY
+;; ----------------------
+;; Every path under the notes is derived from `my-notes-dir', and every
+;; silo is an entry of `my/silos'.  Changing the root moves the whole
+;; tree in the configuration at once; renaming a silo's folder is one
+;; field of one entry.  Modules ask for a silo by KEY (`my/silo-dir') or
+;; by ROLE (`my/silo-dir-by-role'), never by spelling out a path.
+;;
+;; A key is the silo's stable name in the configuration, chosen once.
+;; The folder, the Denote keyword its notes carry and its description
+;; can all change without the key changing.  A role says what a silo is
+;; FOR, so that a module written for "the journal" works with a silo the
+;; user calls `diary':
+;;   journal  daily notes (05-notes.el, journal metrics, gaps)
+;;   notes    default silo of new notes (the knowledge base)
+;;   docs     documentation, monospaced (03b-fonts.el, 10-visual-fill.el)
+;;
+;; Both options are read when modules load: a change takes effect at the
+;; next start of Emacs, and says so when made from Customize.
 
-(defvar my-notes-pks (expand-file-name "~/notes/pks/")
-  "Personal Knowledge System - regular notes.")
+(defun my/notes--set-needs-restart (symbol value)
+  "Customize setter for options that modules read at load time.
+Sets SYMBOL to VALUE; when Emacs is already running, says that the
+change takes effect after a restart rather than pretending otherwise."
+  (set-default-toplevel-value symbol value)
+  ;; Not while a file loads: `defcustom' calls this setter itself when
+  ;; the module is loaded, and that is no change at all.
+  (when (and after-init-time (not load-file-name))
+    (message "%s changed: takes effect after restarting Emacs" symbol)))
 
-(defvar my-notes-docu (expand-file-name "~/notes/docu/")
-  "Documentation and technical notes.")
+(defcustom my-notes-dir (expand-file-name "~/notes/")
+  "Root of the notes: the folder holding every silo.
+Everything under it -- silos with relative directories, planner,
+captures, exports, backups -- is derived from this value."
+  :type 'directory
+  :set #'my/notes--set-needs-restart
+  :group 'mypks-notes)
+
+(defcustom my/silos
+  '((journal :directory "journal/" :role journal :keyword "journal"
+             :private t
+             :description "Private daily entries.")
+    (pks     :directory "pks/"     :role notes   :keyword nil
+             :private nil
+             :description "Personal knowledge system: regular notes.")
+    (docu    :directory "docu/"    :role docs    :keyword "docu"
+             :private nil
+             :description "Documentation and technical notes."))
+  "The silos: folders of Denote notes, each a separate collection.
+In Denote terms a silo is a directory used as `denote-directory' for
+its own notes, so that notes, identifiers and keywords of one silo do
+not mix with another's.
+
+Each entry is (KEY . PROPERTIES):
+  KEY           stable name used by the configuration; never changes
+  :directory    folder, relative to `my-notes-dir' or absolute
+  :role         journal, notes, docs or nil; see the Commentary
+  :keyword      Denote keyword every note of the silo carries, or nil
+  :private      non-nil: never published to a site with a server
+  :description  free text, shown here
+
+Order matters where a list of silos is shown or scanned."
+  :type '(alist :key-type (symbol :tag "Key")
+                :value-type
+                (plist :tag "Properties"
+                       :options
+                       ((:directory (string :tag "Directory"))
+                        (:role (choice (const :tag "None" nil)
+                                       (const journal) (const notes)
+                                       (const docs)))
+                        (:keyword (choice (const :tag "None" nil) string))
+                        (:private boolean)
+                        (:description string))))
+  :set #'my/notes--set-needs-restart
+  :group 'mypks-notes)
+
+(defun my/notes-path (relative)
+  "Return RELATIVE expanded under `my-notes-dir'."
+  (expand-file-name relative my-notes-dir))
+
+(defun my/silo-get (key property)
+  "Return PROPERTY of the silo KEY in `my/silos', or nil."
+  (plist-get (cdr (assq key my/silos)) property))
+
+(defun my/silo-dir (key)
+  "Return the absolute directory of the silo KEY, or nil if there is none."
+  (when-let* ((dir (my/silo-get key :directory)))
+    (file-name-as-directory (expand-file-name dir my-notes-dir))))
+
+(defun my/silo-keys (&optional predicate)
+  "Return the keys of the silos, in `my/silos' order.
+With PREDICATE, only those for which (PREDICATE KEY) is non-nil."
+  (seq-filter (or predicate #'identity) (mapcar #'car my/silos)))
+
+(defun my/silo-dirs (&optional predicate)
+  "Return the directories of the silos, filtered like `my/silo-keys'."
+  (mapcar #'my/silo-dir (my/silo-keys predicate)))
+
+(defun my/silo-by-role (role)
+  "Return the key of the first silo whose role is ROLE, or nil."
+  (seq-find (lambda (key) (eq (my/silo-get key :role) role))
+            (my/silo-keys)))
+
+(defun my/silo-dir-by-role (role)
+  "Return the directory of the silo with ROLE.
+Without one, fall back to a folder named after the role under the
+root, which is not created, and note it in *Messages*.  A configuration
+without, say, a documentation silo is valid: modules that look for one
+simply find no notes there.  A pop-up warning on every start would
+call it an error."
+  (or (when-let* ((key (my/silo-by-role role))) (my/silo-dir key))
+      (let ((fallback (file-name-as-directory
+                       (my/notes-path (format "%s/" role)))))
+        (message "MyPKS: no silo has the role `%s'; modules asking for it use %s"
+                 role fallback)
+        fallback)))
+
+(defun my/silo-of (file)
+  "Return the key of the silo FILE is in, or nil."
+  (let ((path (expand-file-name file)))
+    (seq-find (lambda (key) (string-prefix-p (my/silo-dir key) path))
+              (my/silo-keys))))
+
+;; The variables every module has used so far, now derived.  Kept so
+;; that modules work unchanged while they move to the functions above;
+;; they follow the ROLE, not the key.
+(defvar my-notes-journal (my/silo-dir-by-role 'journal)
+  "Directory of the journal silo (role `journal' in `my/silos').")
+
+(defvar my-notes-pks (my/silo-dir-by-role 'notes)
+  "Directory of the default notes silo (role `notes' in `my/silos').")
+
+(defvar my-notes-docu (my/silo-dir-by-role 'docs)
+  "Directory of the documentation silo (role `docs' in `my/silos').")
 
 ;; Capture file
-(defvar my-journal-captures (expand-file-name "~/notes/journal/captures.org")
+(defvar my-journal-captures (expand-file-name "captures.org" my-notes-journal)
   "Ideas capture file - thoughts and ideas worth developing later.
 Use C-c n c i to add entries, C-c n c m to promote to full Denote note.")
 
@@ -128,19 +253,16 @@ still recognise and convert the files that briefly used it.")
   2  metrics as front-matter keywords.  Current.
 All three are readable; only 2 is written.")
 
-;; Agenda scans all three silos + captures file
+;; Agenda scans every silo + captures file
 (defvar my-tasks-agenda-dirs
-  (list my-notes-journal
-        my-notes-pks
-        my-notes-docu
-        my-journal-captures)
+  (append (my/silo-dirs) (list my-journal-captures))
   "All locations org-agenda should scan for TODO items.")
 
 ;; Backup directories
-(defvar my-notes-backups (expand-file-name "~/notes/.backups/")
+(defvar my-notes-backups (my/notes-path ".backups/")
   "Backup directory for note files.")
 
-(defvar my-notes-autosaves (expand-file-name "~/notes/.autosaves/")
+(defvar my-notes-autosaves (my/notes-path ".autosaves/")
   "Autosave directory for note files.")
 
 ;; Emacs configuration directories
@@ -170,17 +292,21 @@ Raised from 80 for that reason.")
 With denote-infer-keywords enabled, Denote will automatically
 add any new keywords found in existing notes.")
 
-;; Create all directories if they don't exist
-(dolist (dir (list my-notes-dir
-                   my-notes-journal
-                   my-notes-pks
-                   my-notes-docu
-                   my-notes-backups
-                   my-notes-autosaves
-                   my-emacs-backups
-                   my-emacs-autosaves))
-  (unless (file-exists-p dir)
-    (make-directory dir t)))
+;; Create all directories if they don't exist.  A function rather than
+;; top-level code so that a step which must run before anything is
+;; created -- moving the notes to a new root -- can run first.
+(defun my/notes-ensure-directories ()
+  "Create the notes root, every silo and the backup directories if missing."
+  (dolist (dir (append (list my-notes-dir)
+                       (my/silo-dirs)
+                       (list my-notes-backups
+                             my-notes-autosaves
+                             my-emacs-backups
+                             my-emacs-autosaves)))
+    (unless (file-exists-p dir)
+      (make-directory dir t))))
+
+(my/notes-ensure-directories)
 
 ;; ============================================================
 ;; FILE HANDLING: Backups and autosaves

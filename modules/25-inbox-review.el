@@ -57,33 +57,32 @@ identifier clash protection is disabled"))))
   "Reviewing the inbox silo (25-inbox-review.el)."
   :group 'mypks-notes)
 
-(defcustom my/inbox-directory (expand-file-name "~/notes/inbox/")
+(defcustom my/inbox-directory (expand-file-name "inbox/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
   "Staging folder with migrated notes awaiting review."
   :type 'directory :group 'my/inbox-settings)
 
 (defcustom my/inbox-reject-directory
-  (expand-file-name "~/notes/inbox-odrzucone/")
+  (expand-file-name "inbox-odrzucone/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
   "Where rejected notes go.  A trash folder, not deletion - review
 mistakes are certain over months of processing; empty it once, at the
 end."
   :type 'directory :group 'my/inbox-settings)
 
 (defcustom my/inbox-silos
-  `(("pks"  . ,(expand-file-name "~/notes/pks/"))
-    ("docu" . ,(expand-file-name "~/notes/docu/")))
+  ;; Every silo except the journal, named by its key.
+  (mapcar (lambda (key) (cons (symbol-name key) (my/silo-dir key)))
+          (my/silo-keys (lambda (key)
+                          (not (eq (my/silo-get key :role) 'journal)))))
   "Silos a reviewed note can be accepted into."
   :type '(alist :key-type string :value-type directory) :group 'my/inbox-settings)
 
-(defcustom my/inbox-journal-directory (expand-file-name "~/notes/journal/")
+(defcustom my/inbox-journal-directory my-notes-journal
   "Journal silo.  Kept as its own variable because journal notes are the
 main source of wikilinks to migrated notes."
   :type 'directory :group 'my/inbox-settings)
 
 (defcustom my/inbox-link-scan-directories
-  (list (expand-file-name "~/notes/journal/")
-        (expand-file-name "~/notes/pks/")
-        (expand-file-name "~/notes/docu/")
-        (expand-file-name "~/notes/inbox/"))
+  (append (my/silo-dirs) (list (expand-file-name "inbox/" my-notes-dir)))
   "Directories searched for [[Title]] wikilinks when a note is accepted.
 All silos, because an already-filed note may name this one; and the
 inbox, because notes still awaiting review link to each other."

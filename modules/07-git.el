@@ -68,7 +68,7 @@
   :group 'mypks-git)
 
 (defcustom my/auto-commit-repository-sources
-  (list (lambda () (list (expand-file-name "~/notes/"))))
+  (list (lambda () (list (expand-file-name (if (boundp 'my-notes-dir) my-notes-dir "~/notes/")))))
   "Functions returning directories to auto-commit.
 
 A list of functions rather than a list of directories so that a module
@@ -392,7 +392,7 @@ between the versions inside a file, and `r r' in Magit continues the
 rebase.  The next automatic cycle pushes the result."
   (interactive)
   (let* ((dir (file-name-as-directory
-               (expand-file-name (or dir "~/notes/"))))
+               (expand-file-name (or dir (if (boundp 'my-notes-dir) my-notes-dir "~/notes/")))))
          (default-directory dir))
     (my/auto-commit--save-buffers)
     (when (my/auto-commit--dirty-p dir)
@@ -461,7 +461,7 @@ rebase.  The next automatic cycle pushes the result."
 (defun my/commit-notes-now ()
   "Manually commit notes changes."
   (interactive)
-  (let ((default-directory (expand-file-name "~/notes/")))
+  (let ((default-directory (expand-file-name (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))))
     (magit-stage-all)
     (magit-commit-create)))
 
@@ -479,7 +479,7 @@ rebase.  The next automatic cycle pushes the result."
 (defun my/notes-git-status ()
   "Open Magit status for notes."
   (interactive)
-  (let ((default-directory (expand-file-name "~/notes/")))
+  (let ((default-directory (expand-file-name (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))))
     (magit-status)))
 
 (defun my/config-git-status ()

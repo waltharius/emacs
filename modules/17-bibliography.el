@@ -21,11 +21,11 @@
 (use-package citar
   :ensure t
   :custom
-  (citar-bibliography '("~/notes/refs.bib"))
+  (citar-bibliography (list (expand-file-name "refs.bib" my-notes-dir)))
   (citar-library-paths '("~/syncthing/Zotero/storage/"))
   (citar-notes-paths (list (expand-file-name "pks/" my-notes-dir)))
   :config
-  (setq org-cite-global-bibliography '("~/notes/refs.bib"))
+  (setq org-cite-global-bibliography (list (expand-file-name "refs.bib" my-notes-dir)))
   (setq org-cite-insert-processor 'citar)
   (setq org-cite-follow-processor 'citar)
   (setq org-cite-activate-processor 'citar))
