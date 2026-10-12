@@ -1,0 +1,12 @@
+---
+# Links under the left menu ("Więcej"): the other local sites of
+# modules/46-blog.el.  Geekdoc reads data/menu/more.yaml.
+more:
+  - name: Dziennik i notatki
+    ref: "http://localhost:1314/"
+    external: true
+    icon: "gdoc_link"
+  - name: Blog
+    ref: "http://localhost:1313/"
+    external: true
+    icon: "gdoc_link"

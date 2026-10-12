@@ -1,0 +1,66 @@
+---
+# Polish strings for Geekdoc, which ships none.  Without this file a site
+# with defaultContentLanguage = 'pl' renders the theme's labels empty.
+# Keys follow Geekdoc 4.1's i18n/en.yaml; blog_* keys belong to the
+# partials of modules/46-blog.el.
+edit_page: Edytuj stronę
+
+nav_navigation: Nawigacja
+nav_tags: Tagi
+nav_more: Więcej
+nav_top: Do góry
+
+form_placeholder_search: Szukaj
+
+error_page_title: Zgubiłeś się? Bez obaw
+error_message_title: Zgubiłeś się?
+error_message_code: Błąd 404
+error_message_text: >
+  Tego, czego szukasz, nie ma pod tym adresem. Możesz wrócić na
+  <a class="gdoc-error__link" href="{{ . }}">stronę główną</a>.
+
+button_toggle_dark: Przełącz tryb ciemny/jasny/automatyczny
+button_nav_open: Otwórz nawigację
+button_nav_close: Zamknij nawigację
+button_menu_open: Otwórz menu
+button_menu_close: Zamknij menu
+button_homepage: Wróć na stronę główną
+
+title_anchor_prefix: "Odnośnik do:"
+
+posts_read_more: Czytaj całość
+posts_read_time:
+  one: "Minuta czytania"
+  few: "{{ . }} minuty czytania"
+  many: "{{ . }} minut czytania"
+  other: "{{ . }} minut czytania"
+posts_update_prefix: Zaktualizowano
+posts_count:
+  one: "Jeden wpis"
+  few: "{{ . }} wpisy"
+  many: "{{ . }} wpisów"
+  other: "{{ . }} wpisów"
+posts_tagged_with: Wpisy z tagiem '{{ . }}'
+
+footer_build_with: >
+  Zbudowane z <a href="https://gohugo.io/" class="gdoc-footer__link">Hugo</a> i
+  <svg class="gdoc-icon gdoc_heart"><use xlink:href="#gdoc_heart"></use></svg>
+footer_legal_notice: Nota prawna
+footer_privacy_policy: Polityka prywatności
+footer_content_license_prefix: >
+  Treść na licencji
+
+language_switch_no_translation_prefix: "Strona nieprzetłumaczona:"
+language_selector: Wybór języka
+
+propertylist_required: wymagane
+propertylist_optional: opcjonalne
+propertylist_default: domyślnie
+
+pagination_page_prev: poprzednia
+pagination_page_next: następna
+pagination_page_state: "{{ .PageNumber }}/{{ .TotalPages }}"
+
+video_unsupported: Twoja przeglądarka nie obsługuje odtwarzania wideo.
+
+blog_backlinks_title: Linkują tutaj

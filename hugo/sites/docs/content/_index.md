@@ -5,4 +5,5 @@ title = "Dokumentacja"
 
 Notatki techniczne oznaczone słowem kluczowym `pubdoc` oraz pliki
 umieszczone tu ręcznie (`C-c n x b f`). Spis stron po lewej, wyszukiwarka
-nad nim, spis treści strony po prawej.
+nad nim, spis treści na początku każdej strony, a pod nią strony, które
+do niej linkują.

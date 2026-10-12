@@ -1,0 +1,35 @@
+{{- /*
+  Backlinks under the page text: the pages of this site that link here.
+
+  Belongs to modules/46-blog.el, which writes data/blog_backlinks.json
+  after each export and copies this file into every site using
+  hugo-geekdoc.  Called from the overridden _default/single.html.  The
+  data file is used rather than collecting links while pages render, so
+  the list does not depend on the order Hugo renders pages in.
+
+  hugo.toml, [params]:
+    backlinksTitle  heading of the list, default from i18n
+                    (blog_backlinks_title)
+*/ -}}
+{{- with .File }}
+{{- $key := printf "/%s/%s" $.Section .ContentBaseName }}
+{{- with index hugo.Data "blog_backlinks" }}
+{{- with index . $key }}
+{{- $pages := slice }}
+{{- range . }}
+  {{- with site.GetPage . }}{{ $pages = $pages | append . }}{{ end }}
+{{- end }}
+{{- with $pages }}
+<div class="gdoc-backlinks">
+  <hr />
+  <h2>{{ site.Params.backlinksTitle | default (i18n "blog_backlinks_title") }}</h2>
+  <ul>
+    {{- range sort . "Date" "desc" }}
+    <li><a class="gdoc-markdown__link" href="{{ .RelPermalink }}">{{ .Title }}</a></li>
+    {{- end }}
+  </ul>
+</div>
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

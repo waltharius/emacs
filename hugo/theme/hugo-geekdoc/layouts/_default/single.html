@@ -1,0 +1,38 @@
+{{- /*
+  Geekdoc's single-page template with two additions, both marked below:
+  the page's table of contents above the text, and backlinks under it.
+
+  Belongs to modules/46-blog.el, which copies it into every site using
+  hugo-geekdoc (hugo/theme/hugo-geekdoc/ -> <site>/).  Geekdoc has no
+  injection hooks around the content, so the template itself is
+  overridden; everything outside the two additions is Geekdoc 4.1's
+  layouts/_default/single.html unchanged.  After a theme upgrade,
+  compare it with the theme's copy.
+
+  hugo.toml, [params]:
+    blogToC         false hides the table of contents, default true
+    geekdocToC      deepest level shown, default 6 (Geekdoc's own)
+    backlinksTitle  heading of the backlinks, see blog-backlinks.html
+*/ -}}
+{{ define "main" }}
+  {{ partial "page-header" . }}
+
+
+  <article
+    class="gdoc-markdown gdoc-markdown__align--{{ default "left" (.Page.Params.geekdocAlign | lower) }}"
+    id="main-content" tabindex="-1"
+  >
+    <h1>{{ partial "utils/title" . }}</h1>
+    {{ partial "page-metadata" . }}
+    {{- /* Added: table of contents, only for a page with headings. */ -}}
+    {{ if and (ne site.Params.blogToC false) (findRE `<li>` .TableOfContents 1) }}
+      <div class="gdoc-toc gdoc-toc__level--{{ default 6 site.Params.geekdocToC }}">
+        {{ .TableOfContents }}
+        <hr />
+      </div>
+    {{ end }}
+    {{ partial "utils/content" . }}
+    {{- /* Added: pages of this site linking here. */ -}}
+    {{ partial "blog-backlinks.html" . }}
+  </article>
+{{ end }}

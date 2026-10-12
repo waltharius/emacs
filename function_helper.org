@@ -7065,8 +7065,12 @@ desktop does not see programs of a nix shell):
 home.packages = [ pkgs.hugo pkgs.rsync pkgs.git ];
 #+end_src
 
-Themes: PaperMod needs Hugo 0.146.0 or newer, hugo-book 0.158.0 or
+Themes: PaperMod needs Hugo 0.146.0 or newer, Geekdoc 0.160.0 or
 newer (=hugo version=; nixpkgs 26.05 ships 0.163.3, 25.05 only 0.147.3).
+A =:theme= URL ending in =.tar.gz= is a release archive, downloaded with
+=url-copy-file= and unpacked with =tar=; any other URL is cloned with
+git. Geekdoc needs the archive: its repository holds sources that need
+an npm build, the release bundle holds the built theme.
 
 Everything else comes from this repository. =C-c n x b t= (sync site
 files) on a site creates its directory under =~/projects/=, writes its
@@ -7111,9 +7115,12 @@ Three layers, each overriding the one before file by file:
 | =theme/PaperMod/layouts/home.html=                                 | home page, newest pages per section            |
 | =theme/PaperMod/layouts/_partials/extend_post_content.html=        | backlinks under each page                      |
 | =theme/PaperMod/content/search.md=                                 | search page (=/search/=)                       |
-| =theme/hugo-book/layouts/_partials/docs/inject/toc-after.html=     | backlinks under the table of contents          |
+| =theme/hugo-geekdoc/layouts/_default/single.html=                  | page template: table of contents, backlinks    |
+| =theme/hugo-geekdoc/layouts/_partials/blog-backlinks.html=         | backlinks under the page text                  |
+| =theme/hugo-geekdoc/i18n/pl.yaml=                                  | Polish labels, which Geekdoc does not ship     |
+| =sites/docs/data/menu/more.yaml=                                   | links to the other sites under the left menu   |
 | =sites/<name>/hugo.toml=                                           | site configuration                             |
-| =sites/<name>/static/favicon.svg=                                  | tab icon of the site                           |
+| =sites/<name>/static/favicon.svg=                                  | tab icon (docs: =static/favicon/favicon.svg=)  |
 | =sites/<name>/content/<section>/_index.md=                         | section titles                                 |
 | =sites/docs/content/_index.md=                                     | docs home page                                 |
 | =sites/blog/.gitignore=, =sites/docs/.gitignore=                   | build output and module state out of git       |
@@ -7170,12 +7177,12 @@ blog theme.
   :broken-links mark
   :sections (("journal" :keyword "journal" :silos ("journal"))
              ("posts"   :keyword "blog"    :silos ("pks" "docu"))))
- ("docs"                               ; hugo-book
+ ("docs"                               ; Geekdoc
   :directory "~/projects/docs-site/"
   :remote nil
   :url "http://localhost:1315/"
   :port 1315
-  :theme ("hugo-book" "https://github.com/alex-shpak/hugo-book")
+  :theme ("hugo-geekdoc" "https://github.com/thegeeklab/hugo-geekdoc/releases/latest/download/hugo-geekdoc.tar.gz")
   :autostart t
   :sections (("docs" :keyword "pubdoc" :silos ("pks" "docu"))))
  ("blog"                               ; PaperMod, to be published
@@ -7424,7 +7431,7 @@ Written for PaperMod: it fills the theme's =main= block and uses its
 =post_meta.html= partial. Another theme needs its own version.
 
 Current values: blog =['posts']=, 5 pages; journal site
-=['journal', 'posts']=, 1 per section. The docs site uses hugo-book's
+=['journal', 'posts']=, 1 per section. The docs site uses Geekdoc's
 own home page, =content/_index.md=.
 
 ** Table of contents
@@ -7435,7 +7442,8 @@ own home page, =content/_index.md=.
 =ShowToc = true= in the PaperMod sites. PaperMod draws the table of
 contents only when the page has headings, so short notes without
 headings get none; =TocOpen = false= keeps it folded. On the docs site
-hugo-book shows it in the right column (=BookToC=), levels 2 to 4. Org headings
+it opens the page, above the text, levels 2 to 4, again only when the
+page has headings; =blogToC = false= in =[params]= turns it off. Org headings
 become =##= and deeper (the page title is the =#=), and journal entries
 list their =* HH:MM= headings.
 
@@ -7446,16 +7454,17 @@ list their =* HH:MM= headings.
 
 Under each page, a list of the pages of the same site that link to it,
 newest first, headed by =backlinksTitle= from =hugo.toml= ("Linkują
-tutaj"). On the docs site the list sits under the table of contents.
+tutaj"). On the docs site the list closes the page, under the text.
 
 After every export the module writes =<site>/data/blog_backlinks.json=:
 page path → paths of the pages linking to it. It already holds every
 note's links in its incremental state, so this reads nothing extra, and
-the file is rewritten only when it changes. The partial fills an empty
-hook of the theme: PaperMod's =extend_post_content.html=, after the
-page content; hugo-book's =docs/inject/toc-after.html=. hugo-book's own
-=BookPageLinks= is switched off: it collects links while pages render,
-so what a page lists depends on which pages Hugo rendered first.
+the file is rewritten only when it changes. In PaperMod the partial
+fills an empty hook, =extend_post_content.html=, after the page content.
+Geekdoc has no such hook, so its =_default/single.html= is overridden
+by a copy with two additions, the table of contents and a call to
+=blog-backlinks.html=; everything else in it is Geekdoc 4.1's template,
+to be compared with the theme's copy after an upgrade.
 
 Only pages of the same site count: a private note, or a page of
 another site linking here, never appears in the list.
@@ -7470,10 +7479,19 @@ means about ten million searches per build.
 :CUSTOM_ID: blog-docs-theme
 :END:
 
-The docs site uses hugo-book ([[https://github.com/alex-shpak/hugo-book]]):
+The docs site uses Geekdoc ([[https://github.com/thegeeklab/hugo-geekdoc]]),
+the theme of the NixOS documentation site ([[#repo-docs][Repo docs]]):
 the pages of =content/docs/= as a menu on the left, the search field
-above it, the page's table of contents and backlinks on the right,
-light or dark after the system (=BookTheme = 'auto'=). One Hugo site
+above it, links to the journal site and the blog under it (=Więcej=,
+from =data/menu/more.yaml=), the table of contents at the top of each
+page and backlinks at the bottom, light, dark or automatic from the
+switch in the header. Geekdoc ships no Polish labels; =i18n/pl.yaml= in
+the theme layer provides them, since with =defaultContentLanguage = 'pl'=
+the theme's labels would otherwise render empty.
+
+hugo-book, used before, was replaced on 2026-10-12. Its old files stay
+in the site directory (=themes/hugo-book=, =layouts/_partials/docs/=)
+until deleted by hand; Geekdoc ignores them. One Hugo site
 has one theme; the Hugo forum's answer to "a different theme for one
 section" is custom section layouts or separate sites, and a separate
 site keeps both themes exactly as their authors maintain them.
@@ -7486,7 +7504,7 @@ site keeps both themes exactly as their authors maintain them.
 | Site             | Search                                                            |
 |------------------+-------------------------------------------------------------------|
 | blog, journal    | PaperMod's search page, =Szukaj= in the menu (=/search/=)          |
-| docs             | hugo-book's field above the menu                                  |
+| docs             | Geekdoc's field above the menu                                    |
 
 PaperMod searches =index.json=, generated with the home page
 (=[outputs] home = ['HTML', 'RSS', 'JSON']=) and holding the text of
@@ -7502,12 +7520,13 @@ the browser loads when the search page opens.
 Each site has =static/favicon.svg= from =hugo/sites/<name>/static/=: a
 letter on a coloured square, J amber for the journal, D green for the
 docs, B blue for the blog. PaperMod is pointed at it through
-=[params.assets]= in =hugo.toml=; hugo-book links =favicon.svg= by
-default, and the site's file replaces the theme's.
+=[params.assets]= in =hugo.toml=; Geekdoc links
+=favicon/favicon.svg=, so the docs site keeps it there, and the site's
+file replaces the theme's.
 
 To change one, replace the SVG in the repository and sync (=t=). Any
 image works; for a PNG, name it in =[params.assets]= (PaperMod) or
-save it as =static/favicon.png= (hugo-book). Browsers cache icons
+save it as =static/favicon/favicon-32x32.png= (Geekdoc). Browsers cache icons
 hard: a changed one may need a reload bypassing the cache
 (=Ctrl+Shift+R=).
 

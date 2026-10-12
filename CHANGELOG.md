@@ -21,6 +21,68 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-12d — Docs site moves from hugo-book to Geekdoc
+
+### Why
+
+The NixOS documentation site of Session 2026-10-12c uses Geekdoc, and
+reads better than the hugo-book docs site of `46-blog.el`. One theme for
+both documentation sites also means one look to learn.
+
+### What
+
+- `my/blog-sites`, site `docs`: `:theme` is now Geekdoc's release
+  archive.
+- `my/blog--ensure-theme` installs a `:theme` whose URL ends in
+  `.tar.gz` or `.tgz` through the new `my/blog--install-theme-archive`:
+  `url-copy-file`, then `tar -xzf` as a process, the directory removed
+  again if unpacking fails. Other URLs are still cloned with git.
+  Geekdoc needs the archive: its repository holds sources that need an
+  npm build, the release bundle holds the built theme.
+- Theme layer `hugo/theme/hugo-geekdoc/`:
+  - `layouts/_default/single.html`: Geekdoc 4.1's template with two
+    additions, the table of contents above the text (only on pages with
+    headings; `blogToC = false` turns it off) and backlinks under it.
+    Geekdoc has no injection hooks around the content, unlike hugo-book
+    (`docs/inject/toc-after.html`) or PaperMod
+    (`extend_post_content.html`), so the template is overridden.
+  - `layouts/_partials/blog-backlinks.html`: the list from
+    `data/blog_backlinks.json`, read through `hugo.Data`.
+  - `i18n/pl.yaml`: Geekdoc ships no Polish strings, and with
+    `defaultContentLanguage = 'pl'` its labels would render empty.
+- `hugo/sites/docs/`: `hugo.toml` for Geekdoc, `locale` instead of the
+  deprecated `languageCode`, breadcrumbs off (one section, the trail
+  read "Dokumentacja / Dokumentacja"); links to the journal site and
+  the blog under the left menu from `data/menu/more.yaml` (hugo-book's
+  `[menu.after]`); favicon moved to `static/favicon/favicon.svg`, where
+  Geekdoc links it; `bookFlatSection` dropped from the section page.
+- `hugo/theme/hugo-book/` removed.
+
+Verified through the module itself, in batch Emacs with Denote and
+ox-hugo: sync wrote the new site files, downloaded and unpacked Geekdoc,
+exported two `pubdoc` notes that link to each other; Hugo 0.167 built
+the site with no warnings, with the table of contents, backlinks, Polish
+labels and the extra links present.
+
+### Rejected
+
+- **Keeping both themes, Geekdoc only for new sites.** Two look-alike
+  documentation sites with different navigation is the inconsistency
+  this change removes.
+- **Cloning Geekdoc with git.** The clone has no built assets.
+- **`[menu.after]` for the links.** That is hugo-book's mechanism;
+  Geekdoc reads its menus from `data/menu/`.
+
+### Not done
+
+The old site's `themes/hugo-book/` and
+`layouts/_partials/docs/inject/toc-after.html` stay in
+`~/projects/docs-site/`: a sync never deletes files it no longer
+manages. Geekdoc ignores them; delete them by hand when convenient.
+`languageCode` in the journal and blog configurations is equally
+deprecated and left for a separate change.
+
+---
 ## Session 2026-10-12c — Markdown docs of the NixOS repository as a Geekdoc site
 
 ### Why

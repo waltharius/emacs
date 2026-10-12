@@ -166,8 +166,11 @@
 ;; file changed on disk since the last sync (or never synced) is saved
 ;; to <site>/.template-backups/ before being replaced, and the sync
 ;; says so.  Files removed from the templates are not removed from the
-;; site.  A sync also creates a missing site directory and clones the
-;; site's `:theme' when themes/<name> is missing, so a new machine gets
+;; site.  A sync also creates a missing site directory and installs the
+;; site's `:theme' when themes/<name> is missing -- a git clone, or for
+;; a URL ending in .tar.gz a release archive unpacked with tar, since
+;; some themes (Geekdoc) publish built assets only in a release bundle
+;; and their repository needs an npm build.  So a new machine gets
 ;; a working site from the repository alone.
 ;; Sync runs before an autostart site is exported and served, before a
 ;; preview starts and before publishing; `t' in the menu runs it by hand.
@@ -257,7 +260,7 @@
      :remote nil
      :url "http://localhost:1315/"
      :port 1315
-     :theme ("hugo-book" "https://github.com/alex-shpak/hugo-book")
+     :theme ("hugo-geekdoc" "https://github.com/thegeeklab/hugo-geekdoc/releases/latest/download/hugo-geekdoc.tar.gz")
      :autostart t
      :sections (("docs" :keyword "pubdoc" :silos ("pks" "docu"))))
     ("blog"
@@ -278,7 +281,9 @@ Each entry is (NAME . PLIST):
   :url           address the site is read at; needed for other sites
                  to link to its pages (see `my/blog--link-sites')
   :port          port of `hugo server', default 1313
-  :theme         (NAME URL): cloned to themes/NAME when missing
+  :theme         (NAME URL): installed in themes/NAME when missing;
+                 URL is a git repository (cloned) or a .tar.gz release
+                 archive (downloaded and unpacked)
   :autostart     non-nil: export and serve after start-up, re-export
                  when a note of the site is saved
   :broken-links  value of `org-export-with-broken-links' for this site:
@@ -1525,8 +1530,46 @@ two lists of relative paths."
     (make-directory (expand-file-name "static" dir) t)
     (cons (nreverse written) (nreverse backed-up))))
 
+(defun my/blog--install-theme-archive (site theme target then)
+  "Download the .tar.gz release archive of THEME into TARGET, then call THEN.
+SITE names the site in messages.  The download blocks (a theme is a few
+MB, once per machine); unpacking runs as a process.  THEN receives
+non-nil on success; a failed unpack removes TARGET, so the next sync
+tries again instead of finding a half-filled directory."
+  (if (not (executable-find "tar"))
+      (progn
+        (message "%s: theme %s missing and tar not found" (car site) (car theme))
+        (funcall then nil))
+    (let ((archive (make-temp-file "blog-theme" nil ".tar.gz")))
+      (message "%s: downloading theme %s..." (car site) (car theme))
+      (condition-case err
+          (url-copy-file (cadr theme) archive t)
+        (error
+         (delete-file archive)
+         (message "%s: theme %s download FAILED: %s"
+                  (car site) (car theme) (error-message-string err))
+         (funcall then nil)
+         (setq archive nil)))
+      (when archive
+        (make-directory target t)
+        (make-process
+         :name (format "blog-theme-%s" (car site))
+         :buffer (get-buffer-create (format "*Blog theme: %s*" (car site)))
+         :command (list "tar" "-xzf" archive "-C" target)
+         :noquery t
+         :sentinel (lambda (proc _event)
+                     (when (memq (process-status proc) '(exit signal))
+                       (let ((ok (zerop (process-exit-status proc))))
+                         (delete-file archive)
+                         (unless ok (delete-directory target t))
+                         (message "%s: theme %s %s" (car site) (car theme)
+                                  (if ok "installed" "unpack FAILED"))
+                         (funcall then ok)))))))))
+
 (defun my/blog--ensure-theme (site then)
-  "Clone the `:theme' of SITE when it is missing, then call THEN.
+  "Install the `:theme' of SITE when it is missing, then call THEN.
+A URL ending in .tar.gz or .tgz is a release archive, unpacked by
+`my/blog--install-theme-archive'; any other URL is cloned with git.
 THEN receives non-nil when the theme is present afterwards."
   (let* ((theme (my/blog--prop site :theme))
          (target (and theme (expand-file-name (concat "themes/" (car theme))
@@ -1534,6 +1577,8 @@ THEN receives non-nil when the theme is present afterwards."
     (cond
      ((or (null theme) (file-directory-p target))
       (funcall then t))
+     ((string-match-p "\\.\\(tar\\.gz\\|tgz\\)\\'" (cadr theme))
+      (my/blog--install-theme-archive site theme target then))
      ((not (executable-find "git"))
       (message "%s: theme %s missing and git not found" (car site) (car theme))
       (funcall then nil))

@@ -1,4 +1,3 @@
 +++
 title = "Dokumentacja"
-bookFlatSection = true
 +++
