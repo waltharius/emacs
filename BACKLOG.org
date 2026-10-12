@@ -69,6 +69,18 @@ terms, then further required settings.  Built on the Customize
 options (=my-notes-dir=, =my/silos=), and the place to link the
 descriptions of =function_helper.org= as the manual.
 
+* Fonts as configuration, per silo
+Proposed 2026-10-12, after the journal PDF export broke on font lookup.
+Today the screen fonts are in =03b-fonts.el= (=my/font-silo-styles=, by
+folder name) and the PDF font is one string, =my/latex-journal-font=.
+Goal: one font setting per silo in the registry, used for both the
+screen face and the PDF, taken (a) from the system by family name or
+(b) from files in a directory the user names.  For PDF, prefer file
+names over the family: the same family installed several times (static
+and variable builds) makes luaotfload's choice unpredictable.  On the
+NixOS side, one source for each font (the Nix package, or the files in
+the repository) rather than several.
+
 * Obsidian vaults
 Proposed 2026-10-12.  Someone coming from Obsidian has Markdown notes
 in a vault: folders, =[[wikilinks]]=, no Denote names, and no notion of

@@ -42,9 +42,9 @@
 ;; -------------------------------------
 ;; Nothing.  Faces are a screen concern; `my/org-export-to-pdf' emits
 ;; LaTeX and hands it to lualatex, which knows about faces not at all.
-;; The journal font in a PDF comes from
-;; `\\setmainfont{Playpen Sans Hebrew}' in the `journal-article' class
-;; built by `my/latex-preamble' (16-org-export.el), selected from the
+;; The journal font in a PDF comes from `my/latex-journal-font', used
+;; in the `journal-article' class built by `my/latex-preamble'
+;; (16-org-export.el), selected from the
 ;; `:journal:' filetag.  Changing a font here does not change a PDF,
 ;; and vice versa -- see the note on the two selection criteria below.
 ;;

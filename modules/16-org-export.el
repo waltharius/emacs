@@ -97,13 +97,42 @@
 ;;   fontspec     - must come BEFORE polyglossia with lualatex
 ;;   Playpen Sans Hebrew - handwriting-style font
 
+(defgroup my/org-export nil
+  "PDF export of notes through LaTeX (16-org-export.el)."
+  :group 'mypks-writing)
+
+(defcustom my/latex-journal-font
+  "\\setmainfont{PlaypenSansHebrew}[Extension=.ttf, UprightFont=*-Regular, BoldFont=*-Bold, ItalicFont=*-Regular, BoldItalicFont=*-Bold]"
+  "LaTeX command setting the body font of journal notes in PDF.
+Inserted after \\usepackage{fontspec}.
+
+Names FILES rather than the family.  `\\setmainfont{Playpen Sans
+Hebrew}' lets luaotfload choose among every installation of the family,
+and the family is installed several times over -- static files and two
+variable [wght] builds -- so the font that ends up embedded depends on
+its database.  On TeX Live 2025 that ended in \"cannot find file ''\"
+while writing the PDF.  Named files are found in the usual font
+directories (~/.local/share/fonts and the system ones), so no path is
+written here.  Playpen has no italic, so the upright files serve both.
+
+For files in a directory luaotfload does not scan, add Path=/dir/ to
+the options."
+  :type 'string
+  :set (lambda (symbol value)
+         (set-default-toplevel-value symbol value)
+         (when (and (featurep 'ox-latex)
+                    (fboundp 'my/--register-latex-classes))
+           (my/--register-latex-classes)))
+  :group 'my/org-export)
+
 (defun my/latex-preamble (language journal-p)
   "Build the LaTeX document preamble string.
 LANGUAGE is a polyglossia language name string (\"polish\" or \"english\").
-JOURNAL-P non-nil adds fontspec + Playpen Sans Hebrew before the rest."
+JOURNAL-P non-nil adds fontspec and `my/latex-journal-font' before the
+rest."
   (concat
    (when journal-p
-     "\\usepackage{fontspec}\n\\setmainfont{Playpen Sans Hebrew}\n")
+     (concat "\\usepackage{fontspec}\n" my/latex-journal-font "\n"))
    "\\usepackage{polyglossia}\n"
    (format "\\setmainlanguage{%s}\n" language)
    ;; csquotes autostyle picks quote style from polyglossia language
@@ -121,38 +150,32 @@ JOURNAL-P non-nil adds fontspec + Playpen Sans Hebrew before the rest."
     ("\\subparagraph{%s}"  . "\\subparagraph*{%s}"))
   "Standard LaTeX section hierarchy used by all export classes.")
 
-;; Register both base classes once at startup.
-;; Language variants are handled dynamically per-file via
-;; my/--org-latex-class, which temporarily overrides
+;; Register the four classes when ox-latex loads, and again whenever
+;; `my/latex-journal-font' changes, so that a new font applies to the
+;; next export without a restart.  Language variants are chosen per file
+;; by my/--org-latex-class, which temporarily overrides
 ;; org-latex-default-class during export.
+(defconst my/--latex-class-specs
+  '(("article"            "polish"  nil)
+    ("journal-article"    "polish"  t)
+    ("article-en"         "english" nil)
+    ("journal-article-en" "english" t))
+  "Export classes as (NAME POLYGLOSSIA-LANGUAGE JOURNAL-P).")
+
+(defun my/--register-latex-classes ()
+  "Register the export classes in `org-latex-classes', replacing old ones.
+Entries of the same name are removed first, so running this again
+leaves one entry per class instead of a growing list."
+  (dolist (spec my/--latex-class-specs)
+    (setq org-latex-classes (assoc-delete-all (car spec) org-latex-classes))
+    (push `(,(car spec)
+            ,(concat "\\documentclass[11pt,a4paper]{article}\n"
+                     (my/latex-preamble (nth 1 spec) (nth 2 spec)))
+            ,@my/--latex-section-levels)
+          org-latex-classes)))
+
 (with-eval-after-load 'ox-latex
-
-  ;; Standard class - language placeholder, replaced at export time
-  (add-to-list 'org-latex-classes
-               `("article"
-                 ,(concat "\\documentclass[11pt,a4paper]{article}\n"
-                          (my/latex-preamble "polish" nil))
-                 ,@my/--latex-section-levels))
-
-  ;; Journal class - language placeholder, replaced at export time
-  (add-to-list 'org-latex-classes
-               `("journal-article"
-                 ,(concat "\\documentclass[11pt,a4paper]{article}\n"
-                          (my/latex-preamble "polish" t))
-                 ,@my/--latex-section-levels))
-
-  ;; English variants - same structure, English polyglossia
-  (add-to-list 'org-latex-classes
-               `("article-en"
-                 ,(concat "\\documentclass[11pt,a4paper]{article}\n"
-                          (my/latex-preamble "english" nil))
-                 ,@my/--latex-section-levels))
-
-  (add-to-list 'org-latex-classes
-               `("journal-article-en"
-                 ,(concat "\\documentclass[11pt,a4paper]{article}\n"
-                          (my/latex-preamble "english" t))
-                 ,@my/--latex-section-levels)))
+  (my/--register-latex-classes))
 
 ;; ============================================================
 ;; DENOTE LINK FILTER

@@ -1774,6 +1774,35 @@ Exports current buffer to PDF. Language auto-detected from
 Prompts on overwrite: =o= overwrite, =r= rename with index, =q= cancel.
 Build files isolated in =/tmp=, deleted after export.
 
+Images linked in the note are included: =graphicx= places each at
+=.9\linewidth=; the files are read from their absolute paths, so
+attachments anywhere under the notes work.
+
+**** The journal font in PDF
+:PROPERTIES:
+:CUSTOM_ID: latex-journal-font
+:END:
+
+=my/latex-journal-font= (Customize: /Writing and export/ → /My/Org
+Export/) holds the LaTeX command that sets the body font of journal
+notes, inserted after =\usepackage{fontspec}=. The default names
+*files*, not the family:
+
+: \setmainfont{PlaypenSansHebrew}[Extension=.ttf, UprightFont=*-Regular, BoldFont=*-Bold, ItalicFont=*-Regular, BoldItalicFont=*-Bold]
+
+With =\setmainfont{Playpen Sans Hebrew}= luaotfload picks among every
+installation of the family — here static files plus two variable
+=[wght]= builds — and on TeX Live 2025 a journal export with images
+failed while writing the PDF (=cannot find file ''=). Named files are
+found in the usual font directories (=~/.local/share/fonts=, system
+ones), so no path is needed; for a directory luaotfload does not scan,
+add =Path=/dir/= to the options. Playpen has no italic, so the upright
+files serve both. A change applies to the next export: the classes are
+re-registered by =my/--register-latex-classes=.
+
+Requires =PlaypenSansHebrew-Regular.ttf= and =PlaypenSansHebrew-Bold.ttf=
+installed; without them fontspec stops with a readable "font not found".
+
 Function: =my/org-export-to-pdf= | Module: =modules/16-org-export.el=
 
 **** How links and footnote numbers look
@@ -4721,7 +4750,7 @@ the session defaults.
 
 Faces are a screen concern. =my/org-export-to-pdf= emits LaTeX and
 hands it to lualatex, which knows nothing about faces. The journal font
-in a PDF comes from =\setmainfont{Playpen Sans Hebrew}= in the
+in a PDF comes from =my/latex-journal-font= ([[#latex-journal-font][The journal font in PDF]]) in the
 =journal-article= class built by =my/--latex-preamble=
 (=16-org-export.el=).
 

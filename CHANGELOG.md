@@ -21,6 +21,69 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-12j — Journal PDF export: font by file, not by family
+
+### Why
+
+Exporting a journal note with three photographs to PDF failed after
+LuaLaTeX had set all pages, while writing the file:
+
+    </home/marcin/nixos/fonts/PlaypenSansHebrew-Bold.ttf>
+    ! error: (file ) (type 2): cannot find file ''
+    ! ==> Fatal error occurred, no output PDF file produced!
+
+The photographs were not the cause: the log shows them placed on pages
+2 to 4. The error follows the embedding of the Bold face and names an
+empty file.
+
+### Cause, as far as it can be established
+
+`\setmainfont{Playpen Sans Hebrew}` asks luaotfload for a family that is
+installed four times on this machine: static files in
+`~/.local/share/fonts/custom/` (copies of `~/nixos/fonts/`), the
+variable `PlaypenSansHebrew-VariableFont_wght.ttf` beside them, and two
+variable `PlaypenSansHebrew[wght].ttf` from Nix (home-manager and
+google-fonts). `luaotfload-tool --find` resolves the family to the
+variable font from google-fonts, while the Bold face was taken from a
+static file. Not reproduced: on TeX Live 2023 the same lookup succeeds
+with static, mixed and variable-only installations, so the failure is
+specific to TeX Live 2025 (LuaHBTeX 1.22) or to this exact set of
+installations. What is certain is that the embedded font depended on
+luaotfload's database rather than on the configuration.
+
+### What
+
+- `my/latex-journal-font` (new group `my/org-export` under Writing and
+  export): the font command of journal PDFs, defaulting to the static
+  files by name, `\setmainfont{PlaypenSansHebrew}[Extension=.ttf,
+  UprightFont=*-Regular, BoldFont=*-Bold, ...]`. No path: named files
+  are found in the usual font directories.
+- The four export classes are registered by
+  `my/--register-latex-classes`, which replaces entries of the same
+  name; the option's setter calls it, so a changed font applies to the
+  next export without a restart.
+
+Verified: a journal note with a JPEG exported through the
+`journal-article` class and `latexmk -lualatex` produces a PDF that
+embeds exactly `PlaypenSansHebrew-Regular` and `-Bold`, contains the
+image, and renders Polish letters and bold correctly (page rendered and
+inspected). Re-registration after changing the option leaves one entry
+per class.
+
+### Rejected
+
+- **`Path=/home/marcin/nixos/fonts/` in the preamble**, as suggested in
+  the external diagnosis. Works, but writes one machine's path into the
+  configuration; the files are already in a scanned directory.
+- **The variable font by file name.** It is the build whose embedding is
+  in question.
+
+### Not done
+
+Fonts as part of the silo registry, for screen and PDF alike, from the
+system or a user directory: added to BACKLOG.org.
+
+---
 ## Session 2026-10-12i — BACKLOG.org
 
 ### Why
