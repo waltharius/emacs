@@ -7072,6 +7072,14 @@ A =:theme= URL ending in =.tar.gz= is a release archive, downloaded with
 git. Geekdoc needs the archive: its repository holds sources that need
 an npm build, the release bundle holds the built theme.
 
+An install runs once per theme directory: a second request while one
+runs (the autostart of a site and =t= pressed during the download)
+waits for the first instead of starting another. An archive is unpacked
+into =themes/.installing-…= and renamed into place only when =tar=
+succeeds, so a failure never leaves a half-filled theme directory, and
+the message names =tar='s last line and the =*Blog theme: …*= buffer
+holding the rest.
+
 Everything else comes from this repository. =C-c n x b t= (sync site
 files) on a site creates its directory under =~/projects/=, writes its
 =hugo.toml=, layouts, section pages and favicon from =hugo/=, and

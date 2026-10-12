@@ -21,6 +21,49 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-12e — Blog theme install: one at a time, never half-filled
+
+### Why
+
+After Session 2026-10-12d, the first sync of the docs site on the
+laptop ended with `docs: theme hugo-geekdoc unpack FAILED`, and the
+theme directory was gone.
+
+### Cause
+
+Two installs ran into the same directory. `url-copy-file` waits for the
+download with `accept-process-output`, which lets timers run, so the
+docs site's autostart and a sync started by hand both found the theme
+missing and both downloaded and unpacked it. Reproduced in batch Emacs
+with a second `my/blog--ensure-theme` from a timer during the download:
+the old code started two downloads and two `tar` processes into one
+directory. There both happened to succeed; when one fails, its sentinel
+deleted the directory, including what the other had unpacked. The
+`tar` failure itself was not reproduced, and its message was lost
+because the error was never shown.
+
+### What
+
+- `my/blog--theme-installs`: theme directory → callbacks waiting for
+  it. `my/blog--ensure-theme` registers the first request and lets any
+  later one wait for the same result
+  (`my/blog--theme-install-done` calls them all).
+- `my/blog--install-theme-archive` unpacks into a fresh
+  `themes/.installing-…` directory and renames it to the theme directory
+  only when `tar` succeeds; a failure deletes only its own staging
+  directory. Beside the target rather than in `/tmp`, so the rename
+  stays on one file system (`/tmp` is a tmpfs on NixOS). `tar` runs over
+  a pipe, in a buffer of its own, and the failure message quotes its
+  last line (`my/blog--process-tail`).
+- The git clone moved into `my/blog--install-theme-git` and goes through
+  the same bookkeeping.
+
+Verified: the timer race now downloads once and both callers receive
+success; a URL serving a non-gzip file reports
+`unpack FAILED (tar: ... Error is not recoverable ...)` and leaves no
+directory behind.
+
+---
 ## Session 2026-10-12d — Docs site moves from hugo-book to Geekdoc
 
 ### Why

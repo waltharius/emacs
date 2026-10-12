@@ -1530,71 +1530,134 @@ two lists of relative paths."
     (make-directory (expand-file-name "static" dir) t)
     (cons (nreverse written) (nreverse backed-up))))
 
-(defun my/blog--install-theme-archive (site theme target then)
-  "Download the .tar.gz release archive of THEME into TARGET, then call THEN.
-SITE names the site in messages.  The download blocks (a theme is a few
-MB, once per machine); unpacking runs as a process.  THEN receives
-non-nil on success; a failed unpack removes TARGET, so the next sync
-tries again instead of finding a half-filled directory."
-  (if (not (executable-find "tar"))
-      (progn
-        (message "%s: theme %s missing and tar not found" (car site) (car theme))
-        (funcall then nil))
-    (let ((archive (make-temp-file "blog-theme" nil ".tar.gz")))
-      (message "%s: downloading theme %s..." (car site) (car theme))
-      (condition-case err
+(defvar my/blog--theme-installs (make-hash-table :test #'equal)
+  "Theme directories being installed -> callbacks waiting for the result.
+An install takes seconds, and `url-copy-file' lets timers run while it
+waits for the download, so the autostart of a site and a sync started
+by hand can both find the theme missing.  The second caller joins the
+first install instead of starting another one into the same directory.")
+
+(defun my/blog--theme-install-done (target ok)
+  "Finish the install of TARGET: call every waiting callback with OK."
+  (let ((callbacks (gethash target my/blog--theme-installs)))
+    (remhash target my/blog--theme-installs)
+    (dolist (callback (nreverse callbacks))
+      (funcall callback ok))))
+
+(defun my/blog--process-tail (proc)
+  "Return the last non-empty line PROC wrote, or an empty string."
+  (let ((buffer (process-buffer proc)))
+    (if (buffer-live-p buffer)
+        (with-current-buffer buffer
+          (car (last (split-string (buffer-string) "\n" t "[ \t\r]+"))))
+      "")))
+
+(defun my/blog--install-theme-archive (site theme target)
+  "Download the .tar.gz release archive of THEME and unpack it as TARGET.
+SITE names the site in messages.  Ends with `my/blog--theme-install-done'.
+
+The archive is unpacked into a fresh directory beside TARGET, under
+themes/, and renamed to TARGET only after tar succeeds.  TARGET
+therefore never exists half-filled, so a failure leaves nothing that
+would make the next sync think the theme is installed, and nothing is
+deleted that another process might be writing.  Beside rather than in
+/tmp, so that the rename stays on one file system.  The download
+blocks (a theme is a few MB, once per machine)."
+  (let ((name (car site))
+        (archive (make-temp-file "blog-theme" nil ".tar.gz"))
+        (staging nil))
+    (message "%s: downloading theme %s..." name (car theme))
+    (condition-case err
+        (progn
           (url-copy-file (cadr theme) archive t)
-        (error
-         (delete-file archive)
-         (message "%s: theme %s download FAILED: %s"
-                  (car site) (car theme) (error-message-string err))
-         (funcall then nil)
-         (setq archive nil)))
-      (when archive
-        (make-directory target t)
-        (make-process
-         :name (format "blog-theme-%s" (car site))
-         :buffer (get-buffer-create (format "*Blog theme: %s*" (car site)))
-         :command (list "tar" "-xzf" archive "-C" target)
-         :noquery t
-         :sentinel (lambda (proc _event)
-                     (when (memq (process-status proc) '(exit signal))
-                       (let ((ok (zerop (process-exit-status proc))))
-                         (delete-file archive)
-                         (unless ok (delete-directory target t))
-                         (message "%s: theme %s %s" (car site) (car theme)
-                                  (if ok "installed" "unpack FAILED"))
-                         (funcall then ok)))))))))
+          (make-directory (file-name-directory (directory-file-name target)) t)
+          (setq staging (make-temp-file
+                         (expand-file-name ".installing-"
+                                           (file-name-directory
+                                            (directory-file-name target)))
+                         t))
+          (make-process
+           :name (format "blog-theme-%s" name)
+           :buffer (generate-new-buffer (format "*Blog theme: %s*" name))
+           :command (list "tar" "-xzf" archive "-C" staging)
+           :connection-type 'pipe
+           :noquery t
+           :sentinel
+           (lambda (proc _event)
+             (when (memq (process-status proc) '(exit signal))
+               (let ((ok (and (eq (process-status proc) 'exit)
+                              (zerop (process-exit-status proc))))
+                     (tail (my/blog--process-tail proc)))
+                 (delete-file archive)
+                 (cond
+                  ((and ok (not (file-exists-p target)))
+                   (rename-file staging target)
+                   (message "%s: theme %s installed" name (car theme)))
+                  (ok
+                   ;; Installed meanwhile by something else: keep that.
+                   (delete-directory staging t)
+                   (message "%s: theme %s already present" name (car theme)))
+                  (t
+                   (delete-directory staging t)
+                   (message "%s: theme %s unpack FAILED (tar: %s); see %s"
+                            name (car theme) tail
+                            (buffer-name (process-buffer proc)))))
+                 (when (and ok (buffer-live-p (process-buffer proc)))
+                   (kill-buffer (process-buffer proc)))
+                 (my/blog--theme-install-done target ok))))))
+      (error
+       (when (file-exists-p archive) (delete-file archive))
+       (when (and staging (file-directory-p staging))
+         (delete-directory staging t))
+       (message "%s: theme %s download FAILED: %s"
+                name (car theme) (error-message-string err))
+       (my/blog--theme-install-done target nil)))))
+
+(defun my/blog--install-theme-git (site theme target)
+  "Clone the git repository of THEME into TARGET.
+SITE names the site in messages.  Ends with `my/blog--theme-install-done'."
+  (message "%s: cloning theme %s..." (car site) (car theme))
+  (make-process
+   :name (format "blog-theme-%s" (car site))
+   :buffer (get-buffer-create (format "*Blog theme: %s*" (car site)))
+   :command (list "git" "clone" "--depth" "1" (cadr theme) target)
+   :noquery t
+   :sentinel (lambda (proc _event)
+               (when (memq (process-status proc) '(exit signal))
+                 (let ((ok (zerop (process-exit-status proc))))
+                   (message "%s: theme %s %s" (car site) (car theme)
+                            (if ok "installed" "clone FAILED"))
+                   (my/blog--theme-install-done target ok))))))
 
 (defun my/blog--ensure-theme (site then)
   "Install the `:theme' of SITE when it is missing, then call THEN.
 A URL ending in .tar.gz or .tgz is a release archive, unpacked by
 `my/blog--install-theme-archive'; any other URL is cloned with git.
-THEN receives non-nil when the theme is present afterwards."
+THEN receives non-nil when the theme is present afterwards.  While an
+install of the same directory runs, THEN waits for it instead of
+starting a second one (see `my/blog--theme-installs')."
   (let* ((theme (my/blog--prop site :theme))
          (target (and theme (expand-file-name (concat "themes/" (car theme))
-                                              (my/blog--directory site)))))
+                                              (my/blog--directory site))))
+         (archive-p (and theme (string-match-p "\\.\\(tar\\.gz\\|tgz\\)\\'"
+                                               (cadr theme))))
+         (program (if archive-p "tar" "git")))
     (cond
-     ((or (null theme) (file-directory-p target))
+     ((or (null theme)
+          (and (file-directory-p target)
+               (not (gethash target my/blog--theme-installs))))
       (funcall then t))
-     ((string-match-p "\\.\\(tar\\.gz\\|tgz\\)\\'" (cadr theme))
-      (my/blog--install-theme-archive site theme target then))
-     ((not (executable-find "git"))
-      (message "%s: theme %s missing and git not found" (car site) (car theme))
+     ((gethash target my/blog--theme-installs)
+      (push then (gethash target my/blog--theme-installs)))
+     ((not (executable-find program))
+      (message "%s: theme %s missing and %s not found"
+               (car site) (car theme) program)
       (funcall then nil))
      (t
-      (message "%s: cloning theme %s..." (car site) (car theme))
-      (make-process
-       :name (format "blog-theme-%s" (car site))
-       :buffer (get-buffer-create (format "*Blog theme: %s*" (car site)))
-       :command (list "git" "clone" "--depth" "1" (cadr theme) target)
-       :noquery t
-       :sentinel (lambda (proc _event)
-                   (when (memq (process-status proc) '(exit signal))
-                     (let ((ok (zerop (process-exit-status proc))))
-                       (message "%s: theme %s %s" (car site) (car theme)
-                                (if ok "installed" "clone FAILED"))
-                       (funcall then ok)))))))))
+      (puthash target (list then) my/blog--theme-installs)
+      (if archive-p
+          (my/blog--install-theme-archive site theme target)
+        (my/blog--install-theme-git site theme target))))))
 
 (defun my/blog--sync-message (site result quiet)
   "Report RESULT of `my/blog--sync-templates' for SITE.
