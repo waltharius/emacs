@@ -21,6 +21,43 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-13b — Writing mode: plain W after the page count
+
+### Why
+
+Turning writing mode on for the first time after a start took several
+seconds on Azazel and blocked Emacs for much longer on baal (Wyse 5470).
+Later toggles were instant.
+
+### Cause, most likely
+
+The mode-line label was a writing-hand emoji (`✍ Writing`, Session
+2026-10-12a) and both toggle messages started with `✍️`. The first time
+Emacs displays a character the current font lacks, it asks fontconfig
+for every installed font covering it; with google-fonts installed that
+is thousands of files. The cost is paid once per session, which matches
+"slow the first time only", and scales with machine speed, which
+matches baal. Not measured on the affected machines; TESTPLAN.org B1
+has the one-line check (`benchmark-run` on inserting the character).
+`inhibit-compacting-font-caches` is already t (03b-fonts.el), so the
+remaining cost is the search itself.
+
+### What
+
+- Label is a bold `W` followed by a space, placed right after the word
+  and page count.
+- `01-ui.el`: the front segments now follow the word count instead of
+  preceding it, so the order reads `123 0,4s W …`.
+- Toggle messages without emoji.
+
+### Not done
+
+Other modules' messages still carry symbols (✓, ✗, ⚠️, ✅). They are
+shown after start-up has already resolved most symbol fonts, and none
+was reported slow; replace them if the check in TESTPLAN.org B1 shows
+the fallback search is expensive.
+
+---
 ## Session 2026-10-13a — Silos: every module on the registry, switching a silo off
 
 ### Why

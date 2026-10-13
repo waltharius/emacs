@@ -909,12 +909,14 @@ contributes to it."
 ;; lighter, and in an Org buffer in a split window that is past the
 ;; edge: a state indicator placed there is truncated exactly when it
 ;; matters.  `my/mode-line-front-segments' is the second seam, at the
-;; very start of the line, for the few indicators that must always be
+;; front of the line -- right after the word and page count, which comes
+;; first in text buffers -- for the few indicators that must always be
 ;; visible.  Same contract: a module adds a construct to the list and
 ;; never touches the format itself.
 
 (defvar my/mode-line-front-segments nil
-  "Mode-line constructs shown at the very start of the mode line.
+  "Mode-line constructs shown at the front of the mode line.
+They follow the word and page count, which comes first in text buffers.
 Modules add a symbol whose value is a mode-line construct; an empty
 list renders nothing.  Reserved for state that must not be truncated,
 since everything here pushes the rest of the line to the right.")
@@ -931,8 +933,8 @@ it."
   (mapconcat #'format-mode-line my/mode-line-front-segments ""))
 
 (setq-default mode-line-format
-              '((:eval (my/mode-line-front-render))
-                (:eval (my/word-count-modeline))
+              '((:eval (my/word-count-modeline))
+                (:eval (my/mode-line-front-render))
                 "%e"
                 mode-line-front-space
                 mode-line-mule-info

@@ -1911,9 +1911,13 @@ Function: =my/toggle-visual-fill-column-center= | Module: =modules/13-centered-w
 
 Keeps the line being typed at a fixed height on screen: after every
 inserted character the window is recentred, while scrolling, clicking
-and navigation are left alone. Shows =✍ Writing= at the very start of
-the mode line, through =my/mode-line-front-segments= (see
-[[#mode-line-front-segments][Mode line: the front seam]]). Despite the
+and navigation are left alone. Shows a bold =W= right after the word
+and page count, through =my/mode-line-front-segments= (see
+[[#mode-line-front-segments][Mode line: the front seam]]). Plain ASCII on
+purpose: the writing-hand emoji used for a while made the first
+activation take seconds (minutes on a slow machine), because the first
+display of a character missing from the mode-line font makes Emacs ask
+fontconfig for every installed font that has it. Despite the
 alias, no =writeroom-mode= is involved — the name is historical.
 
 *In notes containing images*, plain =recenter= misplaces the cursor,
@@ -1937,8 +1941,10 @@ Function: =my/toggle-writeroom= | Module: =modules/13-centered-writing.el=
 modules. =mode-line-misc-info= sits at the far right, after every
 minor-mode lighter, and in an Org buffer in a split window it is past
 the window edge — which is why the earlier =W= indicator looked as if it
-did not exist. =my/mode-line-front-segments= is the seam at the very
-start of the line, reserved for state that must always be visible.
+did not exist. =my/mode-line-front-segments= is the seam at the front
+of the line, right after the word and page count (which text buffers
+show first), reserved for state that must always be visible: =W= for
+writing mode, =!DEL= while deletions are not confirmed.
 
 A module adds a symbol whose value is a mode-line construct:
 

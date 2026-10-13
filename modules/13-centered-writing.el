@@ -11,7 +11,8 @@
 ;; - Works when editing anywhere in document
 ;; - Holds its position in notes containing inline images (see
 ;;   `my/writing-recenter-pixelwise')
-;; - Shows "W" indicator in mode line
+;; - Shows "W" after the word/page count in the mode line (plain ASCII:
+;;   see `my/writing-mode-line-construct' for why no emoji)
 ;; - Buffer-local: enable per note
 ;;
 ;; USAGE:
@@ -85,11 +86,18 @@ was invisible against a dark mode line."
 
 (defvar my/writing-mode-line-construct
   '(:eval (when my/centered-writing-mode
-            (propertize " ✍ Writing " 'face 'my/writing-mode-indicator
-                        'help-echo "Writing mode: cursor centered when typing")))
-  "Mode-line construct labelling the buffer while centred writing is on.
-A word rather than the single letter W used before: one letter among
-the minor-mode lighters did not read as a state.")
+            (concat (propertize "W" 'face 'my/writing-mode-indicator
+                                'help-echo "Writing mode: cursor centered when typing")
+                    " ")))
+  "Mode-line construct marking the buffer while centred writing is on.
+
+A plain letter W, in bold, right after the word and page count (the
+front seam of 01-ui.el).  An emoji here (it was a writing hand for a
+while) is not free: the first time Emacs displays a character that the
+mode-line font lacks, it asks fontconfig for every installed font that
+has it, and with a large font collection such as google-fonts that
+takes seconds -- long enough to look like the mode hanging on its first
+activation.  Plain ASCII never triggers that search.")
 (put 'my/writing-mode-line-construct 'risky-local-variable t)
 
 ;; CONTRIBUTE A SEGMENT, DO NOT REDEFINE THE MODE LINE
@@ -247,10 +255,10 @@ This is buffer-local, so each note can have it on or off."
   (if my/centered-writing-mode
       (progn
         (my/disable-centered-writing)
-        (message "✍️ Writing mode: OFF"))
+        (message "Writing mode: OFF"))
     (progn
       (my/enable-centered-writing)
-      (message "✍️ Writing mode: ON (mouse scrolling works normally)"))))
+      (message "Writing mode: ON (mouse scrolling works normally)"))))
 
 ;; Alias for transient menu compatibility
 (defalias 'my/toggle-writeroom 'my/toggle-centered-writing)
