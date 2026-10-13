@@ -96,9 +96,15 @@ inbox, because notes still awaiting review link to each other."
 ;; Keep the staging area and the trash invisible to Denote: with
 ;; `denote-directory' set to ~/notes/ every subdirectory is a silo by
 ;; default, and half-reviewed notes showing up in denote searches
-;; would defeat the point of staging.  "inbox" also matches
-;; "inbox-odrzucone" as a substring, which is exactly what we want.
-(setq denote-excluded-directories-regexp "inbox")
+;; would defeat the point of staging.  Both folders are added to the
+;; shared list of 00-core.el rather than set as the whole regexp, which
+;; would erase what other code hides (disabled silos).  Without
+;; 00-core.el the old regexp is set directly: "inbox" also matches
+;; "inbox-odrzucone" as a substring.
+(if (fboundp 'my/denote-exclude-directory)
+    (dolist (dir (list my/inbox-directory my/inbox-reject-directory))
+      (my/denote-exclude-directory (file-relative-name dir my-notes-dir)))
+  (setq denote-excluded-directories-regexp "inbox"))
 
 ;; ============================================================
 ;; COLLECTING ENTRIES

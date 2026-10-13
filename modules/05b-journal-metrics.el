@@ -614,7 +614,9 @@ Without a prefix argument this is a dry run.  With
 first."
   (interactive "P")
   (let ((changed 0) (scanned 0) (names nil))
-    (dolist (dir (list my-notes-journal my-notes-pks my-notes-docu))
+    (dolist (dir (if (fboundp 'my/silo-dirs)
+                     (my/silo-dirs)
+                   (list my-notes-journal my-notes-pks my-notes-docu)))
       (dolist (file (directory-files dir t "\\.org\\'"))
         (with-temp-buffer
           (insert-file-contents file)

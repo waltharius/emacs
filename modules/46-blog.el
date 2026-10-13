@@ -290,7 +290,9 @@ Each entry is (NAME . PLIST):
                  nil stops the export of a note with a link Org cannot
                  resolve, `mark' writes [BROKEN LINK: ...] in its place
   :sections      list of (SECTION :keyword KEYWORD :silos (SILO ...)),
-                 SECTION being the directory under content/.
+                 SECTION being the directory under content/; a SILO
+                 is a key of `my/silos' (a string), or a folder name
+                 for a folder that is not a silo.
 See the Commentary for the rules this is checked against."
   :type 'sexp
   :group 'my/blog)
@@ -301,7 +303,9 @@ See the Commentary for the rules this is checked against."
   :group 'my/blog)
 
 (defcustom my/blog-private-silos '("journal" "inbox")
-  "Silos that may feed only sites without a `:remote'."
+  "Silos that may feed only sites without a `:remote'.
+Silo keys, or folder names for folders that are not silos (inbox).
+Silos marked :private in `my/silos' count as listed here too."
   :type '(repeat string)
   :group 'my/blog)
 
@@ -423,7 +427,7 @@ once, which is what a change in how pages are produced requires.")
   "Stop with a readable message when `my/blog-sites' breaks a rule."
   (unless my/blog-sites
     (user-error "No sites in `my/blog-sites'"))
-  (let ((silo-names (append (my/blog--all-silos) my/blog-private-silos)))
+  (let ((silo-names (append (my/blog--all-silos) (my/blog--private-silos))))
     (dolist (site my/blog-sites)
       (let ((name (car site))
             (remote (my/blog--prop site :remote))
@@ -446,7 +450,7 @@ once, which is what a change in how pages are produced requires.")
               (when (member keyword silo-names)
                 (user-error "Site %s has a :remote, so section %s may not use the silo name `%s' as keyword: it would publish the whole silo"
                             name (car sec) keyword))
-              (let ((private (seq-intersection silos my/blog-private-silos)))
+              (let ((private (seq-intersection silos (my/blog--private-silos))))
                 (when private
                   (user-error "Site %s has a :remote, so section %s may not take notes from %s"
                               name (car sec) (string-join private ", ")))))))))))
@@ -497,13 +501,34 @@ once, which is what a change in how pages are produced requires.")
    (expand-file-name (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))))
 
 (defun my/blog--silo-of (file)
-  "Return the silo FILE is in, or nil when it is not inside one."
-  (let ((root (my/blog--notes-root))
-        (path (expand-file-name file)))
-    (when (string-prefix-p root path)
+  "Return the silo FILE is in, as a string, or nil.
+
+With the registry of 00-core.el, the KEY of the silo (`my/silos'), so
+that `:silos' in `my/blog-sites' keeps working when a silo's folder is
+renamed.  A file in a DISABLED silo is in no silo: it is published
+nowhere until the silo is enabled again.  A file in a folder that is no
+silo at all -- inbox -- is named by its folder, which is what
+`my/blog-private-silos' lists.  Without the registry, the first folder
+under the root, as before."
+  (let* ((root (my/blog--notes-root))
+         (path (expand-file-name file))
+         (key (and (fboundp 'my/silo-of) (my/silo-of path t))))
+    (cond
+     (key (when (my/silo-enabled-p key) (symbol-name key)))
+     ((string-prefix-p root path)
       (let ((parts (split-string (substring path (length root)) "/" t)))
         ;; A file directly in the root has no silo.
-        (when (cdr parts) (car parts))))))
+        (when (cdr parts) (car parts)))))))
+
+(defun my/blog--private-silos ()
+  "Return the silos that may feed only sites without a `:remote'.
+`my/blog-private-silos' plus every silo marked :private in `my/silos'."
+  (delete-dups
+   (append (copy-sequence my/blog-private-silos)
+           (when (fboundp 'my/silo-keys)
+             (mapcar #'symbol-name
+                     (my/silo-keys (lambda (key) (my/silo-get key :private))
+                                   t))))))
 
 (defun my/blog--excluded-p (file)
   "Non-nil when FILE is under a directory scans must skip.
@@ -949,7 +974,7 @@ With FULL, every page counts as needing an export.  Returns a plist:
                                    (string-join sections ", ")))
                 refused))
          ((and (my/blog--prop site :remote)
-               (member (my/blog--silo-of file) my/blog-private-silos))
+               (member (my/blog--silo-of file) (my/blog--private-silos)))
           (push (list file "in a private silo, and this site has a server")
                 refused))
          (foreign

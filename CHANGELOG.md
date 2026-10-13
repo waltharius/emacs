@@ -21,6 +21,74 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-13a — Silos: every module on the registry, switching a silo off
+
+### Why
+
+Step 2c, done before moving the notes (2b) so that the move is tested on
+one consistent system. Two questions drove it: can silos be added
+without limit, and does removing one lose nothing while making it
+unavailable? Adding worked only partly: the `Save in:` prompts of
+`05-notes.el` offered a fixed `("pks" "docu" "journal")`, and capture,
+journal-metrics normalisation and the statistics had their own lists.
+Removing lost nothing — no code deletes a silo folder — but nothing
+became unavailable either: `denote-directory` is the whole notes root,
+so Denote's searches, link prompts and backlinks kept showing the
+notes of a silo whose entry was gone.
+
+### What
+
+- `my/silos` gains `:disabled`. Disabled silos keep their entry and
+  disappear from `my/silo-keys`, `my/silo-dirs`, `my/silo-by-role`,
+  `my/silo-of` unless asked for (`include-disabled`). New
+  `my/silo-enabled-p`, `my/silo-folder-name`.
+- `denote-excluded-directories-regexp` becomes a shared list:
+  `my/denote-exclude-directory` adds a folder, the regexp is rebuilt
+  from `my/denote-excluded-directories`, each folder matching as a
+  whole path component. Disabled silos are added at start-up;
+  `25-inbox-review.el` adds the inbox and its rejects instead of
+  setting the variable to `"inbox"` (which it still does without
+  `00-core.el`).
+- `my/silo-orphans` / `my/silo-report-orphans`: top-level folders under
+  the root with Denote-named `.org`/`.md` files and no registry entry,
+  reported in *Messages* a few seconds after start-up.
+- Converted to the registry: both `Save in:` prompts
+  (`my/notes-read-silo-dir`, role `notes` offered first),
+  `my/--all-note-silos` (06), journal front-matter normalisation (05b),
+  `my/notes-stats-silos` default (36), and the Hugo sites (46):
+  `my/blog--silo-of` returns the registry key, nil for a disabled silo,
+  the folder name for a non-silo such as the inbox; private silos are
+  `my/blog-private-silos` plus every `:private` silo
+  (`my/blog--private-silos`). Keys equal today's folder names, so
+  existing `:silos` lists are unchanged.
+
+Verified in batch with the cloned Denote: with silos journal, pks,
+docu, a disabled `old` (folder `archive`), `pksold` (folder `pks-old`)
+and an unregistered `lost`, `denote-directory-files` returned no file
+from `archive`, `inbox` or `inbox-odrzucone` and still returned
+`pks-old`; the orphan check named `lost` and not `attachments`; the
+`Save in:` prompt offered `pks journal docu pksold`; the blog silo of a
+file in `archive` was nil, in `pks-old` `"pksold"`, in `inbox`
+`"inbox"`.
+
+### Rejected
+
+- **Hiding a silo by narrowing `denote-directory` to a list of silo
+  folders.** Denote supports several directories, but the configuration
+  relies throughout on one root (silo prompts bind `denote-directory`,
+  the inbox exclusion, identifier checks).
+- **Treating every unregistered folder as hidden.** `planner/`,
+  `attachments/`, exports are folders without notes that modules use;
+  a deleted entry is better reported than silently hidden.
+- **`:disabled` hiding the folder from git or backups.** Off means "not
+  in my way", not "not kept".
+
+### Not done
+
+Screen fonts still follow the three roles (`03b-fonts.el`); a font per
+silo is in BACKLOG.org.
+
+---
 ## Session 2026-10-12j — Journal PDF export: font by file, not by family
 
 ### Why

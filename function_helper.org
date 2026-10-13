@@ -7955,6 +7955,7 @@ not mix with another's. Each entry of =my/silos= has:
 | =:role=        | =journal= (daily notes), =notes= (default for new notes), =docs= (monospaced documentation), or none |
 | =:keyword=     | Denote keyword every note of the silo carries, or none                  |
 | =:private=     | never published to a site with a server                                 |
+| =:disabled=    | switched off: see [[#silo-disabled][Switching a silo off]]                  |
 | =:description= | free text                                                               |
 
 *Key, folder and keyword are three different things.* A silo's notes
@@ -7980,14 +7981,57 @@ journal silo), the planner (=planner/=), PDF and office exports
 rejects, the auto-commit repository, and every list of "all silos"
 (agenda, identifier checks, project scans, inbox link scan).
 
-Not yet converted: modules that name a silo by its folder name rather
-than its key — the Hugo sites' =:silos= in =my/blog-sites=, the font
-profiles of =03b-fonts.el=. They still work while the folder names stay
-=journal=, =pks=, =docu=.
+*Every enabled silo is used everywhere a list of silos is needed*: the
+=Save in:= prompt of a new note (=my/notes-read-silo-dir=, the =notes=
+silo offered first), the agenda, identifier checks, capture's title
+search, journal front-matter normalisation, project scans, the inbox,
+the statistics' largest-notes ranking. Adding a silo is adding an
+entry; there is no limit. The Hugo sites name silos by *key* in
+=:silos= (=my/blog--silo-of=); a folder that is not a silo (the inbox)
+is named by its folder. Only the screen fonts of =03b-fonts.el= still
+follow the three roles; see the font entry in =BACKLOG.org=.
+
+*** Switching a silo off
+:PROPERTIES:
+:CUSTOM_ID: silo-disabled
+:END:
+
+Set =:disabled= in the silo's entry instead of deleting it. Nothing is
+deleted either way — no code in this configuration removes a silo
+folder — but a disabled silo:
+
+- keeps its entry, so switching it back on is one checkbox, nothing
+  retyped;
+- disappears from every list of silos and from the =Save in:= prompt;
+- is hidden from Denote's own searches, link prompts and backlinks,
+  through =denote-excluded-directories-regexp=;
+- publishes nothing to the Hugo sites;
+- stays in git and in the backups, being still under the root.
+
+Links from other notes into it do not open while it is off, and open
+again when it is back: Denote links by identifier.
+
+*Denote's excluded folders are one shared list.*
+=denote-excluded-directories-regexp= is a single variable, and both the
+inbox (=25-inbox-review.el=) and disabled silos need folders hidden. A
+module adds a folder with =my/denote-exclude-directory= (relative to
+the root) and the regexp is rebuilt from =my/denote-excluded-directories=;
+each folder matches as a whole path component, so hiding =pks= does not
+hide =pks-old=. Setting the variable directly would erase the others.
+
+*Folders with notes that are not silos* — an entry deleted rather than
+disabled — are still seen by Denote, which is rooted at the notes
+folder. A few seconds after start-up *Messages* names such top-level
+folders (holding =.org= or =.md= files with Denote names, so the
+attachments folder is not one of them); =M-x my/silo-report-orphans=
+checks on demand.
+
+Function: =my/silo-report-orphans=, =my/denote-exclude-directory=, =my/notes-read-silo-dir= | Module: =modules/00-core.el=, =modules/05-notes.el=
 
 Functions for modules: =my/silo-dir= (by key), =my/silo-dir-by-role=,
 =my/silo-by-role=, =my/silo-keys= and =my/silo-dirs= (optionally
-filtered), =my/silo-get= (one property), =my/silo-of= (which silo a file
+filtered; disabled silos only on request), =my/silo-enabled-p=,
+=my/silo-folder-name= (folder relative to the root), =my/silo-get= (one property), =my/silo-of= (which silo a file
 is in), =my/notes-path= (a path under the root),
 =my/notes-ensure-directories=.
 

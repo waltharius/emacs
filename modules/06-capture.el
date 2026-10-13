@@ -568,14 +568,17 @@ Records SOURCE link to the originating note automatically."
       (string-trim (match-string 1)))))
 
 (defun my/--all-note-silos ()
-  "Return list of note silo directories to search."
-  (delq nil
-        (mapcar (lambda (dir)
-                  (when (and (boundp dir)
-                             (symbol-value dir)
-                             (file-directory-p (symbol-value dir)))
-                    (expand-file-name (symbol-value dir))))
-                '(my-notes-journal my-notes-pks my-notes-docu))))
+  "Return the directories of the enabled silos that exist.
+From the registry of 00-core.el, or the three historical silos without
+it."
+  (seq-filter #'file-directory-p
+              (if (fboundp 'my/silo-dirs)
+                  (my/silo-dirs)
+                (delq nil
+                      (mapcar (lambda (var)
+                                (when (and (boundp var) (symbol-value var))
+                                  (expand-file-name (symbol-value var))))
+                              '(my-notes-journal my-notes-pks my-notes-docu))))))
 
 (defun my/--find-notes-by-title-global (title)
   "Return a list of .org files whose #+title matches TITLE across all silos.

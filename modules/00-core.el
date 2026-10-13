@@ -152,7 +152,15 @@ Each entry is (KEY . PROPERTIES):
   :role         journal, notes, docs or nil; see the Commentary
   :keyword      Denote keyword every note of the silo carries, or nil
   :private      non-nil: never published to a site with a server
+  :disabled     non-nil: switched off -- see below
   :description  free text, shown here
+
+A disabled silo keeps its entry and its files.  It disappears from
+every list of silos, from new-note prompts and from Denote's own
+searches and link prompts (`denote-excluded-directories-regexp'), until
+:disabled is cleared again.  Deleting an entry instead also leaves the
+files alone, but then the folder is just a folder under the root that
+Denote still sees; a start-up check reports such folders.
 
 Order matters where a list of silos is shown or scanned."
   :type '(alist :key-type (symbol :tag "Key")
@@ -165,6 +173,7 @@ Order matters where a list of silos is shown or scanned."
                                        (const docs)))
                         (:keyword (choice (const :tag "None" nil) string))
                         (:private boolean)
+                        (:disabled boolean)
                         (:description string))))
   :set #'my/notes--set-needs-restart
   :group 'mypks-notes)
@@ -182,17 +191,33 @@ Order matters where a list of silos is shown or scanned."
   (when-let* ((dir (my/silo-get key :directory)))
     (file-name-as-directory (expand-file-name dir my-notes-dir))))
 
-(defun my/silo-keys (&optional predicate)
-  "Return the keys of the silos, in `my/silos' order.
-With PREDICATE, only those for which (PREDICATE KEY) is non-nil."
-  (seq-filter (or predicate #'identity) (mapcar #'car my/silos)))
+(defun my/silo-enabled-p (key)
+  "Non-nil when the silo KEY exists and is not disabled."
+  (and (assq key my/silos) (not (my/silo-get key :disabled))))
 
-(defun my/silo-dirs (&optional predicate)
+(defun my/silo-keys (&optional predicate include-disabled)
+  "Return the keys of the enabled silos, in `my/silos' order.
+With PREDICATE, only those for which (PREDICATE KEY) is non-nil.  With
+INCLUDE-DISABLED, disabled silos are listed too."
+  (seq-filter (lambda (key)
+                (and (or include-disabled (my/silo-enabled-p key))
+                     (or (null predicate) (funcall predicate key))))
+              (mapcar #'car my/silos)))
+
+(defun my/silo-dirs (&optional predicate include-disabled)
   "Return the directories of the silos, filtered like `my/silo-keys'."
-  (mapcar #'my/silo-dir (my/silo-keys predicate)))
+  (mapcar #'my/silo-dir (my/silo-keys predicate include-disabled)))
+
+(defun my/silo-folder-name (key)
+  "Return the folder of silo KEY relative to `my-notes-dir', without a slash.
+Nil for a silo outside the root."
+  (let ((dir (my/silo-dir key))
+        (root (file-name-as-directory (expand-file-name my-notes-dir))))
+    (when (and dir (string-prefix-p root dir) (not (equal dir root)))
+      (directory-file-name (substring dir (length root))))))
 
 (defun my/silo-by-role (role)
-  "Return the key of the first silo whose role is ROLE, or nil."
+  "Return the key of the first enabled silo whose role is ROLE, or nil."
   (seq-find (lambda (key) (eq (my/silo-get key :role) role))
             (my/silo-keys)))
 
@@ -210,11 +235,101 @@ call it an error."
                  role fallback)
         fallback)))
 
-(defun my/silo-of (file)
-  "Return the key of the silo FILE is in, or nil."
+(defun my/silo-of (file &optional include-disabled)
+  "Return the key of the enabled silo FILE is in, or nil.
+With INCLUDE-DISABLED, a disabled silo counts too -- for a caller that
+must tell \"in a disabled silo\" from \"in no silo\"."
   (let ((path (expand-file-name file)))
     (seq-find (lambda (key) (string-prefix-p (my/silo-dir key) path))
-              (my/silo-keys))))
+              (my/silo-keys nil include-disabled))))
+
+;; DENOTE'S EXCLUDED DIRECTORIES, SHARED
+;; -------------------------------------
+;; `denote-excluded-directories-regexp' is one variable, and more than
+;; one module needs a folder hidden from Denote: the inbox and its
+;; rejects (25-inbox-review.el), disabled silos (here).  A module that
+;; set the variable outright would erase what another had set, so each
+;; adds a folder with `my/denote-exclude-directory' and the regexp is
+;; rebuilt from the whole list.  Folders are relative to `my-notes-dir'
+;; (= `denote-directory'); each matches as a whole path component, so
+;; excluding pks does not exclude pks-old.
+
+(defvar denote-excluded-directories-regexp)
+
+(defvar my/denote-excluded-directories nil
+  "Folders under `my-notes-dir' hidden from Denote, relative, no slash.
+Add with `my/denote-exclude-directory'; the regexp follows.")
+
+(defun my/denote--update-excluded-regexp ()
+  "Set `denote-excluded-directories-regexp' from the excluded folders.
+Each folder matches as a whole path component wherever Denote's version
+applies the regexp: to a path relative to `denote-directory', as now,
+or to a longer one."
+  (setq denote-excluded-directories-regexp
+        (when my/denote-excluded-directories
+          (concat "\\(?:\\`\\|/\\)"
+                  (regexp-opt my/denote-excluded-directories)
+                  "\\(?:/\\|\\'\\)"))))
+
+(defun my/denote-exclude-directory (relative)
+  "Hide folder RELATIVE (to `my-notes-dir') from Denote's file operations."
+  (let ((name (directory-file-name relative)))
+    (unless (member name my/denote-excluded-directories)
+      (push name my/denote-excluded-directories)
+      (my/denote--update-excluded-regexp))))
+
+;; Disabled silos inside the root are hidden from Denote.
+(dolist (key (my/silo-keys (lambda (k) (not (my/silo-enabled-p k))) t))
+  (when-let* ((name (my/silo-folder-name key)))
+    (my/denote-exclude-directory name)))
+
+;; FOLDERS WITH NOTES THAT ARE NOT SILOS
+;; -------------------------------------
+;; A silo whose entry was deleted rather than disabled is still a folder
+;; of notes under the root, and Denote, rooted there, still shows them.
+;; Reported once after start-up, so the user can add the entry back
+;; (disabled, if that was the intent).  Only top-level folders, only
+;; files named the Denote way and ending in .org or .md: attachments
+;; carry Denote-like names too, and a deep scan of the whole tree at
+;; every start would be slow.
+
+(defconst my/silo--denote-note-regexp
+  "\\`[0-9]\\{8\\}T[0-9]\\{6\\}.*\\.\\(?:org\\|md\\)\\'"
+  "File names counted as Denote notes by the orphan check.")
+
+(defun my/silo-orphans ()
+  "Return top-level folders under `my-notes-dir' holding notes but no silo.
+Folders in `my/silos' (disabled ones included), folders hidden from
+Denote and dot folders are not reported."
+  (let* ((root (file-name-as-directory (expand-file-name my-notes-dir)))
+         (known (append (delq nil (mapcar #'my/silo-folder-name
+                                          (my/silo-keys nil t)))
+                        my/denote-excluded-directories)))
+    (when (file-directory-p root)
+      (seq-filter
+       (lambda (name)
+         (and (not (string-prefix-p "." name))
+              (not (member name known))
+              (file-directory-p (expand-file-name name root))
+              (directory-files (expand-file-name name root) nil
+                               my/silo--denote-note-regexp t 1)))
+       (directory-files root nil directory-files-no-dot-files-regexp t)))))
+
+(defun my/silo-report-orphans ()
+  "Say which folders under the root hold notes but are not in `my/silos'."
+  (interactive)
+  (let ((orphans (my/silo-orphans)))
+    (cond
+     (orphans
+      (message "MyPKS: folders with notes not in my/silos: %s (C-c n , to add them, disabled if unwanted)"
+               (string-join orphans ", ")))
+     ((called-interactively-p 'interactive)
+      (message "MyPKS: every folder with notes is a silo")))))
+
+;; Idle rather than at load: it reads the disk, and the result is a
+;; message, which start-up messages would push out of sight.
+(add-hook 'emacs-startup-hook
+          (lambda () (run-with-idle-timer 3 nil #'my/silo-report-orphans)))
 
 ;; The variables every module has used so far, now derived.  Kept so
 ;; that modules work unchanged while they move to the functions above;

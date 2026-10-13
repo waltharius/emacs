@@ -711,6 +711,23 @@ the day whose own note is being written in is rendered as plain text."
 ;; BASE NOTE: Simple note with title and tags
 ;; ============================================================
 
+(defun my/notes-read-silo-dir (prompt)
+  "Ask for a silo with PROMPT and return its directory.
+Offers every enabled silo of `my/silos', the one with role `notes'
+first.  Without 00-core.el's registry, the three historical silos."
+  (if (fboundp 'my/silo-keys)
+      (let* ((default (or (my/silo-by-role 'notes) (car (my/silo-keys))))
+             (names (mapcar #'symbol-name
+                            (cons default (remq default (my/silo-keys)))))
+             (choice (completing-read prompt names nil t nil nil
+                                      (symbol-name default))))
+        (my/silo-dir (intern choice)))
+    (let ((choice (completing-read prompt '("pks" "docu" "journal")
+                                   nil t nil nil "pks")))
+      (cond ((string= choice "journal") my-notes-journal)
+            ((string= choice "docu") my-notes-docu)
+            (t my-notes-pks)))))
+
 (defcustom my/notes-new-note-in-tab t
   "Non-nil means `my/denote-base' opens the new note in a new tab.
 
@@ -724,7 +741,7 @@ was started from.  `my/markdown-new-note' (40-markdown.el) wraps
 
 (defun my/denote-base ()
   "Create a simple note with title and tags.
-The silo (journal/pks/docu) is asked for.  With
+The silo is asked for (`my/notes-read-silo-dir').  With
 `my/notes-new-note-in-tab' non-nil the note opens in a new tab.
 
 All prompts are answered before the tab is created, so \\[keyboard-quit]
@@ -733,13 +750,7 @@ tab it would have used is closed again."
   (interactive)
   (let* ((title (read-string "Title: "))
          (keywords (my/notes-read-keywords))
-         (silo (completing-read "Save in: "
-                               '("pks" "docu" "journal")
-                               nil t "pks"))
-         (target-dir (cond
-                      ((string= silo "journal") my-notes-journal)
-                      ((string= silo "docu") my-notes-docu)
-                      (t my-notes-pks)))
+         (target-dir (my/notes-read-silo-dir "Save in: "))
          (in-tab my/notes-new-note-in-tab))
 
     ;; `tab-bar-new-tab' rather than a `display-buffer' override: the
@@ -1200,13 +1211,7 @@ the duplicate identifier still needs sorting out afterwards."
     ;; --- Ask for parameters BEFORE touching windows ---
     (let* ((new-title       (read-string "New note title: "))
            (keywords        (my/notes-read-keywords))
-           (silo            (completing-read "Save in: "
-                                            '("pks" "docu" "journal")
-                                            nil t "pks"))
-           (target-dir      (cond
-                             ((string= silo "journal") my-notes-journal)
-                             ((string= silo "docu")   my-notes-docu)
-                             (t                        my-notes-pks)))
+           (target-dir      (my/notes-read-silo-dir "Save in: "))
 
            ;; --- Create note inside save-window-excursion so Denote
            ;;     cannot change the window layout ---

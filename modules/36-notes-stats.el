@@ -116,10 +116,14 @@ alone."
   "How many of the most-used keywords to list."
   :type 'integer :group 'my-notes-stats)
 
-(defcustom my/notes-stats-silos '("journal" "pks" "docu")
+(defcustom my/notes-stats-silos
+  (if (fboundp 'my/silo-folder-name)
+      (delq nil (mapcar #'my/silo-folder-name (my/silo-keys)))
+    '("journal" "pks" "docu"))
   "Top-level directories treated as silos in the LARGEST NOTES section.
 
-Only these three, deliberately.  `inbox' holds notes that have not been
+By default the folders of the enabled silos in `my/silos', deliberately
+not every folder.  `inbox' holds notes that have not been
 filed yet and `attachments' holds no notes at all, so a ranking that
 included them would answer \"which staged file is biggest\" rather than
 \"which note have I written most in\".
