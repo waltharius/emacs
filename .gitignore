@@ -179,3 +179,6 @@ games/
 # stop tracking files that are currently committed on purpose
 # (custom.el, function_helper.org, CHANGELOG.md, templates/). Switch
 # only after auditing `git ls-files` and adding the wanted paths back.
+
+# Notes root used last on this machine (00-core.el): state, not configuration.
+notes-root.eld

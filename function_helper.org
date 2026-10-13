@@ -7953,9 +7953,6 @@ setting.
 :CUSTOM_ID: settings-not-yet
 :END:
 
-- Moving the notes to a new root after =my-notes-dir= changes: the
-  option exists (see [[#notes-root-and-silos][Notes root and silos]]),
-  but the files are not yet copied for you.
 - Twenty modules have no options at all; what they set with =setq= is
   fixed until a module is converted.
 - =custom.el= still lives in the repository and loads before the
@@ -8059,6 +8056,42 @@ attachments folder is not one of them); =M-x my/silo-report-orphans=
 checks on demand.
 
 Function: =my/silo-report-orphans=, =my/denote-exclude-directory=, =my/notes-read-silo-dir= | Module: =modules/00-core.el=, =modules/05-notes.el=
+
+*** Moving the notes root
+:PROPERTIES:
+:CUSTOM_ID: notes-root-move
+:END:
+
+Change =my-notes-dir= in =C-c n ,= and restart.  The root used last is
+kept in =notes-root.eld= (machine state, not in git); when the option
+differs from it, Emacs asks *before anything is created at the new
+root*:
+
+| Answer | What happens |
+|--------+--------------|
+| copy | =cp -a --reflink=auto= old → new, file count and bytes compared, then the new root is used; the old one is never touched |
+| skip, I will move my files myself | the new root is used; silo folders are created empty |
+| ask me next time | the old root is used for this session |
+
+No question when the new root already holds the notes and the old one
+does not (second machine, files moved by hand), or when the old root is
+gone.  When *both* hold notes — switching back after a test copy — the
+switch is asked, since the two may differ, and nothing is copied either
+way.  Refused, with the old root kept: a new root inside the old one or
+around it, and a new root that is not empty with something else.  In
+batch or a daemon start nobody can answer, so the old root is kept and
+the question waits.
+
+After a copy the report (=*MyPKS notes move*=) lists saved settings
+still naming the old root, and, when the copy has its own =.git=,
+offers to turn automatic push off (=my/auto-commit-push=), so that a
+test copy does not push to the same remote.
+
+=my/notes-delete-old-root= moves the previous root to the trash.  It is
+*disabled* until =my/notes-allow-delete-old-root= is turned on, and then
+asks twice regardless of the deletion settings.
+
+Function: =my/notes-check-root-move=, =my/notes-delete-old-root= | Module: =modules/00-core.el=
 
 Functions for modules: =my/silo-dir= (by key), =my/silo-dir-by-role=,
 =my/silo-by-role=, =my/silo-keys= and =my/silo-dirs= (optionally

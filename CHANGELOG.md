@@ -21,6 +21,47 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-13d — Moving the notes root: copy, verify, switch
+
+### Why
+
+Step 2b. With every path derived from `my-notes-dir` (2a, 2c), changing
+it must bring the notes along -- carefully: a copy first, the old folder
+kept, and deleting it impossible by accident. First real use: testing
+the whole configuration on `~/notes2`, a copy of the live notes.
+
+### What
+
+- `my/notes-check-root-move`, run by `00-core.el` before any path under
+  the root is derived or created. The root used last is kept in
+  `notes-root.eld` (ignored by git). On a difference: copy / skip / ask
+  later, as described in function_helper.org, Moving the notes root.
+- Copy with `cp -a --reflink=auto` (instant and space-free on the same
+  btrfs), then the file count and byte total of both trees are compared
+  (`.git` and dot files included, symlinks counted, not followed);
+  only identical counts switch the root.
+- No question when the new root already holds the notes and the old one
+  does not; a question when both do (switching back after a test). The
+  first version switched back silently and was changed after a test:
+  the copy may hold newer edits than the original.
+- Refused: nested roots, a non-empty foreign target. No prompt in batch
+  or daemon starts: old root kept, question deferred.
+- Report buffer with saved settings still naming the old root; offer to
+  save `my/auto-commit-push` = nil when the copy has a `.git`.
+- `my/notes-delete-old-root`: disabled until
+  `my/notes-allow-delete-old-root` is set, then two questions, then the
+  trash -- never a plain deletion.
+
+Verified in batch with a separate HOME: first start records the root;
+a change answered /later/ keeps the old root and creates nothing; /copy/
+copies 11 entries including `.git` objects and a symlink with identical
+counts, reports the custom-file line naming the old root, and offers
+the push question; switching back with both roots holding notes asks,
+/later/ keeps the copy, /switch/ goes back without copying; nested and
+foreign targets are refused; the delete command says disabled, and once
+enabled moves the old root to the trash after two yes answers.
+
+---
 ## Session 2026-10-13c — Deleting a note always asks, unless switched off on purpose
 
 ### Why

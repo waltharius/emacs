@@ -10,29 +10,9 @@ are removed; their record is CHANGELOG.md.
 The plan behind Sessions 2026-10-12g and 2026-10-12h: a fixed core in
 the repository, a user layer on top, Customize as the menu (=C-c n ,=).
 Steps 1 (one Customize tree, MyPKS), 2a (notes root as an option,
-registry of silos) and 2c (every module on the registry, disabled
-silos) are done.
-
-** TODO 2b. Move the notes after =my-notes-dir= changes
-- Runs at the next start, before =my/notes-ensure-directories= creates
-  anything at the new root.
-- Copy, verify (file count and total size), switch.  The old folder is
-  always kept.  =cp --reflink=auto= so that a copy on the same btrfs
-  file system is nearly instant and takes no space.
-- Choices: /Copy/, /Skip, I will move my files by myself/, /Ask me next
-  time/.
-- Target already holding the notes (switching back, or a second
-  machine) → switch without copying.
-- Refuse: target not empty with something else, target inside source.
-- =.git= in the copied tree → offer to disable =my/auto-commit-push= for
-  the copy, so a test copy does not push to the same remote.
-- Report what still points at the old root: values saved in the custom
-  file (=my/tasks-extra-agenda-files=), =.blog-state.eld=, desktop
-  session, bookmarks, =recentf=.
-- A command deleting the old folder exists but is *disabled*
-  (=:disabled= / off) until explicitly enabled.  Losing =~/notes= by
-  accident must not be possible.
-- First real test: root =~/notes2= with the live notes.
+registry of silos), 2c (every module on the registry, disabled silos)
+and 2b (moving the notes root: copy only, old root kept, deleting it
+disabled) are done.
 
 ** TODO 3. Settings file per host, in the repository
 =custom-file= = =hosts/<short hostname>.el=, committed.  Settings are

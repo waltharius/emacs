@@ -403,6 +403,265 @@ Denote and dot folders are not reported."
 (add-hook 'emacs-startup-hook
           (lambda () (run-with-idle-timer 3 nil #'my/silo-report-orphans)))
 
+;; MOVING THE NOTES TO A NEW ROOT
+;; ------------------------------
+;; The root that was used last is kept in `my/notes-root-state-file'.
+;; When `my-notes-dir' differs from it at start-up -- changed in
+;; Customize, or by hand in the custom file -- the user is asked, before
+;; anything is created at the new root:
+;;
+;;   Copy        copy the old root to the new one (cp -a, a reflink on
+;;               btrfs), compare file count and total size, and only then
+;;               switch.  The old root is never touched.
+;;   Skip        switch without copying: "I will move my files myself".
+;;   Ask later   keep using the old root for this session.
+;;
+;; No question when the new root already holds the notes and the old
+;; one does not (a second machine, files moved by hand) -- the switch is
+;; simply made -- or when the old root no longer exists.  When BOTH hold
+;; notes (switching back after a test copy) the two may have diverged,
+;; so the switch is asked, and nothing is copied either way.
+;; A new root that is not empty with something else, or that lies
+;; inside the old one or around it, is refused.  Without a terminal or
+;; frame to ask in (batch, daemon start) the old root is kept for the
+;; session and the question waits for the next start.
+;;
+;; Deleting the old root is a separate command, `my/notes-delete-old-root',
+;; and does nothing until `my/notes-allow-delete-old-root' is turned on.
+
+(defcustom my/notes-allow-delete-old-root nil
+  "Non-nil enables `my/notes-delete-old-root'.  Off by default, on purpose.
+The command moves the PREVIOUS notes root to the trash after a copy.
+Until this is turned on it only says that it is disabled."
+  :type 'boolean
+  :group 'mypks-notes)
+
+(defconst my/notes-root-state-file (locate-user-emacs-file "notes-root.eld")
+  "Where the notes root used last, and the one before it, are kept.
+Machine state, not configuration: kept out of git.")
+
+(defconst my/notes-move-buffer "*MyPKS notes move*"
+  "Buffer holding the report of the last move of the notes root.")
+
+(defun my/notes--read-root-state ()
+  "Return the plist in `my/notes-root-state-file', or nil."
+  (when (file-readable-p my/notes-root-state-file)
+    (ignore-errors
+      (with-temp-buffer
+        (insert-file-contents my/notes-root-state-file)
+        (read (current-buffer))))))
+
+(defun my/notes--write-root-state (root &optional previous)
+  "Record ROOT as the notes root in use, and PREVIOUS as the one before."
+  (with-temp-file my/notes-root-state-file
+    (insert ";; Written by 00-core.el: the notes root used last.\n")
+    (prin1 (list :root root :previous previous) (current-buffer))
+    (insert "\n")))
+
+(defun my/notes--same-dir-p (a b)
+  "Non-nil when directory names A and B name the same directory."
+  (equal (file-name-as-directory (expand-file-name a))
+         (file-name-as-directory (expand-file-name b))))
+
+(defun my/notes--tree-stats (dir)
+  "Return (FILES . BYTES) for every non-directory entry under DIR.
+Dot files and .git included; symbolic links count as files of size 0,
+so the comparison does not depend on what they point to."
+  (let ((files 0) (bytes 0))
+    (dolist (file (directory-files-recursively dir "" nil nil nil))
+      (let ((attrs (file-attributes file)))
+        (setq files (1+ files))
+        (unless (stringp (file-attribute-type attrs))
+          (setq bytes (+ bytes (or (file-attribute-size attrs) 0))))))
+    (cons files bytes)))
+
+(defun my/notes--holds-notes-p (dir)
+  "Non-nil when DIR contains a silo folder of `my/silos' with notes in it."
+  (seq-some (lambda (key)
+              (let ((rel (my/silo-get key :directory)))
+                (and rel (not (file-name-absolute-p rel))
+                     (let ((silo (expand-file-name rel dir)))
+                       (and (file-directory-p silo)
+                            (directory-files silo nil
+                                             my/silo--denote-note-regexp t 1))))))
+            (my/silo-keys nil t)))
+
+(defun my/notes--empty-dir-p (dir)
+  "Non-nil when DIR does not exist or has no entries."
+  (or (not (file-exists-p dir))
+      (null (directory-files dir nil directory-files-no-dot-files-regexp t 1))))
+
+(defun my/notes--copy-tree (old new)
+  "Copy the contents of OLD into NEW.  Return nil on success, else a message.
+cp -a keeps modes, times and links; --reflink=auto makes it a
+copy-on-write clone where the file system allows (btrfs), nearly
+instant and taking no space until a file changes."
+  (make-directory new t)
+  (if (executable-find "cp")
+      (with-temp-buffer
+        (let ((status (call-process "cp" nil t nil "-a" "--reflink=auto"
+                                    (concat (file-name-as-directory old) ".")
+                                    (file-name-as-directory new))))
+          (unless (eq status 0)
+            (format "cp failed (%s): %s" status (string-trim (buffer-string))))))
+    (condition-case err
+        (progn (copy-directory old new t t t) nil)
+      (error (error-message-string err)))))
+
+(defun my/notes--custom-file-references (old)
+  "Return lines of `custom-file' that mention the root OLD."
+  (when (and custom-file (file-readable-p custom-file))
+    (let ((forms (delete-dups (list (directory-file-name (expand-file-name old))
+                                    (directory-file-name (abbreviate-file-name
+                                                          (expand-file-name old))))))
+          lines)
+      (with-temp-buffer
+        (insert-file-contents custom-file)
+        (dolist (line (split-string (buffer-string) "\n"))
+          (when (seq-some (lambda (f) (string-search f line)) forms)
+            (push (string-trim line) lines))))
+      (nreverse lines))))
+
+(defun my/notes--move-report (lines)
+  "Put LINES into `my/notes-move-buffer' and show it after start-up."
+  (with-current-buffer (get-buffer-create my/notes-move-buffer)
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (insert (string-join lines "\n") "\n"))
+    (special-mode))
+  (add-hook 'emacs-startup-hook
+            (lambda () (display-buffer my/notes-move-buffer))))
+
+(defun my/notes--ask-move (old new)
+  "Ask what to do about the root change from OLD to NEW.  Return ?c, ?s or ?l."
+  (car (read-multiple-choice
+        (format "Notes root changed: %s -> %s" (abbreviate-file-name old)
+                (abbreviate-file-name new))
+        '((?c "copy" "Copy the notes to the new root, verify, switch; the old root is kept")
+          (?s "skip, I will move my files myself" "Switch to the new root without copying")
+          (?l "ask me next time" "Keep the old root for this session")))))
+
+(defun my/notes-check-root-move ()
+  "Handle a change of `my-notes-dir' since the last start.  See above.
+Runs at load time of 00-core.el, before any path under the root is
+derived or created.  May set `my-notes-dir' back to the old root for
+this session; never changes the saved option."
+  (let* ((state (my/notes--read-root-state))
+         (old (plist-get state :root))
+         (new (file-name-as-directory (expand-file-name my-notes-dir))))
+    (cond
+     ;; First start with this mechanism, or nothing changed.
+     ((or (null old) (my/notes--same-dir-p old new))
+      (unless (equal old new)
+        (my/notes--write-root-state new (plist-get state :previous))))
+     ;; The old root is gone: nothing to copy.
+     ((not (file-directory-p old))
+      (my/notes--write-root-state new old)
+      (message "MyPKS: notes root is now %s (the old %s no longer exists)" new old))
+     ;; The new root already holds the notes, and the old one does not
+     ;; (any more): a second machine, or files moved by hand.  Switch.
+     ((and (my/notes--holds-notes-p new) (not (my/notes--holds-notes-p old)))
+      (my/notes--write-root-state new old)
+      (message "MyPKS: notes root is now %s (the notes are already there; nothing copied)" new))
+     ;; Both hold notes -- typically switching back after a test copy.
+     ;; The two may have diverged, so nothing happens without a yes.
+     ((my/notes--holds-notes-p new)
+      (if (and (not noninteractive) (not (daemonp))
+               (eq (car (read-multiple-choice
+                         (format "Both %s and %s hold notes, possibly different ones."
+                                 (abbreviate-file-name old) (abbreviate-file-name new))
+                         '((?s "switch" "Use the new root as it is; nothing is copied either way")
+                           (?l "ask me next time" "Keep the old root for this session"))))
+                   ?s))
+          (progn (my/notes--write-root-state new old)
+                 (message "MyPKS: notes root is now %s; %s left as it is" new old))
+        (setq my-notes-dir old)
+        (message "MyPKS: still using %s this session" old)))
+     ;; Nested roots: refuse, keep the old one.
+     ((or (file-in-directory-p new old) (file-in-directory-p old new))
+      (setq my-notes-dir old)
+      (my/notes--move-report
+       (list (format "Not moved: %s and %s are inside one another." old new)
+             "Still using the old root for this session.  Choose another root in C-c n ,")))
+     ;; Something else is already there: refuse.
+     ((not (my/notes--empty-dir-p new))
+      (setq my-notes-dir old)
+      (my/notes--move-report
+       (list (format "Not moved: %s is not empty and holds no silos." new)
+             "Still using the old root for this session.  Empty it, or choose another root.")))
+     ;; Nobody to ask: keep the old root, ask next time.
+     ((or noninteractive (daemonp))
+      (setq my-notes-dir old)
+      (message "MyPKS: notes root change to %s postponed: no frame to ask in" new))
+     (t
+      (pcase (my/notes--ask-move old new)
+        (?l (setq my-notes-dir old)
+            (message "MyPKS: still using %s this session; asking again next time" old))
+        (?s (my/notes--write-root-state new old)
+            (my/notes--move-report
+             (append
+              (list (format "Switched to %s without copying." new)
+                    (format "Move your files from %s yourself; the silo folders will be created empty now." old))
+              (when-let* ((refs (my/notes--custom-file-references old)))
+                (cons "\nSaved settings still pointing at the old root (change them in C-c n ,):"
+                      refs)))))
+        (?c (message "MyPKS: copying %s to %s..." old new)
+            (let* ((failure (my/notes--copy-tree old new))
+                   (before (and (not failure) (my/notes--tree-stats old)))
+                   (after (and (not failure) (my/notes--tree-stats new))))
+              (if (or failure (not (equal before after)))
+                  (progn
+                    (setq my-notes-dir old)
+                    (my/notes--move-report
+                     (list "Copy FAILED or incomplete; still using the old root."
+                           (or failure
+                               (format "Old: %d files, %d bytes.  New: %d files, %d bytes."
+                                       (car before) (cdr before) (car after) (cdr after)))
+                           (format "Nothing was removed.  The partial copy is in %s." new))))
+                (my/notes--write-root-state new old)
+                (my/notes--move-report
+                 (append
+                  (list (format "Copied %s to %s: %d files, %d bytes, identical counts."
+                                old new (car after) (cdr after))
+                        (format "Now using %s.  The old root is untouched." new))
+                  (when-let* ((refs (my/notes--custom-file-references old)))
+                    (cons "\nSaved settings still pointing at the old root (change them in C-c n ,):"
+                          refs))
+                  (list "\nAlso check: Hugo sites (re-export), desktop session and recent files,"
+                        "bookmarks, Syncthing folders, and anything outside Emacs using the old path.")))
+                (when (and (file-directory-p (expand-file-name ".git" new))
+                           (eq (car (read-multiple-choice
+                                     "The copy has its own git history with the same remote."
+                                     '((?k "keep pushing" "Automatic commits keep pushing from the new root")
+                                       (?o "turn push off" "Save my/auto-commit-push = nil (07-git.el)"))))
+                               ?o))
+                  (customize-save-variable 'my/auto-commit-push nil)
+                  (message "MyPKS: automatic push turned off (my/auto-commit-push)"))))))))))
+
+(defun my/notes-delete-old-root ()
+  "Move the PREVIOUS notes root to the trash, after a move to a new root.
+Disabled until `my/notes-allow-delete-old-root' is turned on, and then
+asked twice whatever `my/confirm-deletion' says: it removes every note."
+  (interactive)
+  (let* ((state (my/notes--read-root-state))
+         (previous (plist-get state :previous)))
+    (cond
+     ((not my/notes-allow-delete-old-root)
+      (message "Disabled.  Turn on `my/notes-allow-delete-old-root' in C-c n , to use it"))
+     ((or (null previous) (not (file-directory-p previous)))
+      (message "No previous notes root to delete"))
+     ((my/notes--same-dir-p previous my-notes-dir)
+      (message "The previous root is the current one; refusing"))
+     ((and (yes-or-no-p (format "Move the OLD notes root %s to the trash? " previous))
+           (yes-or-no-p (format "Every note under %s goes to the trash.  Really? " previous)))
+      (let ((delete-by-moving-to-trash t))
+        (delete-directory previous t t))
+      (my/notes--write-root-state (plist-get state :root) nil)
+      (message "Moved %s to the trash" previous)))))
+
+;; Must run before anything below derives a path from the root.
+(my/notes-check-root-move)
+
 ;; The variables every module has used so far, now derived.  Kept so
 ;; that modules work unchanged while they move to the functions above;
 ;; they follow the ROLE, not the key.
