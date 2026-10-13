@@ -21,6 +21,42 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-13c — Deleting a note always asks, unless switched off on purpose
+
+### Why
+
+Rule for the configuration: every command that can delete a note asks
+first by default; the user may switch the question off for the session
+or for good, explicitly, and the default after a restart is to ask.
+
+### Inventory
+
+Commands that remove a note for good: `my/denote-delete-note` (with its
+attachments) and the /overwrite/ branch of `my/denote-move-to-silo`.
+Both asked already, with their own `yes-or-no-p`. Moving content, not
+deleting it: capture promotion, inbox extraction, inbox rejection (to
+`inbox-odrzucone/`). Generated files pruned by the Hugo modules are not
+notes.
+
+### What
+
+- `00-core.el`: `my/confirm-deletion` (`ask` / `never`, Customize),
+  `my/confirm-deletion-toggle-session` (off until restart, asked
+  itself; again turns it back on), `my/confirm-deletion-p` used by the
+  commands, `!DEL` in red in the mode line while questions are off, and
+  a *Messages* line for every unasked deletion.
+- `05-notes.el`: both questions go through `my/notes--confirm-deletion`
+  (plain `yes-or-no-p` without `00-core.el`). The second question of a
+  note deletion -- whether to delete its attachments too -- remains
+  governed by `my/denote-delete-attachments`: it is a choice, not a
+  safety prompt.
+- `12-transient.el`: `!` in the Document menu (`C-c n d !`).
+
+Verified in batch: default asks once; switching off asks once and then
+deletes unasked; switching back clears it; `never` never asks. In a
+terminal frame the mode line shows `!DEL ` only while off.
+
+---
 ## Session 2026-10-13b — Writing mode: plain W after the page count
 
 ### Why

@@ -96,7 +96,8 @@
     ("r" "Rename file"    denote-rename-file)
     ("k" "Add keywords"   my/denote-keywords-edit)
     ("c" "Change silo"    my/denote-move-to-silo)
-    ("d" "Delete note"    my/denote-delete-note)]
+    ("d" "Delete note"    my/denote-delete-note)
+    ("!" "Deletion questions on/off (this session)" my/confirm-deletion-toggle-session)]
    [("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================

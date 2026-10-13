@@ -87,6 +87,78 @@ with \"Apply and Save\" go to `custom-file'."
   (customize-group 'mypks))
 
 ;; ============================================================
+;; DELETION: always asked, unless switched off on purpose
+;; ============================================================
+;; Every command that can delete a note asks through
+;; `my/confirm-deletion-p'.  Asking is the default and stays the default
+;; after a restart.  It can be switched off for the rest of the session
+;; (`my/confirm-deletion-toggle-session', asked itself) or for good
+;; (`my/confirm-deletion' set to `never' in Customize, an explicit
+;; choice).  While it is off, the mode line says so in red: deleting
+;; without being asked is a state that must not be forgotten.
+
+(defcustom my/confirm-deletion 'ask
+  "Whether commands that delete notes ask before deleting.
+`ask', the default, asks every time.  `never' deletes without asking,
+in every session until changed back here.  To stop the questions only
+until Emacs restarts, use `my/confirm-deletion-toggle-session' instead."
+  :type '(choice (const :tag "Ask before every deletion (default)" ask)
+                 (const :tag "Never ask -- deletes immediately" never))
+  :group 'mypks-notes)
+
+(defvar my/confirm-deletion--session-off nil
+  "Non-nil while deletion questions are off for this session only.")
+
+(defun my/confirm-deletion-active-p ()
+  "Non-nil when deletions are confirmed by a question."
+  (and (not (eq my/confirm-deletion 'never))
+       (not my/confirm-deletion--session-off)))
+
+(defun my/confirm-deletion-p (prompt)
+  "Ask PROMPT with `yes-or-no-p' unless deletion questions are off.
+Returns non-nil when the deletion may go ahead.  When the question is
+skipped, *Messages* records what was deleted unasked, so the trail
+exists even when the user did not see a prompt."
+  (if (my/confirm-deletion-active-p)
+      (yes-or-no-p prompt)
+    (message "Deleting without confirmation (switched off): %s"
+             (string-trim-right prompt "[ ?]+"))
+    t))
+
+(defun my/confirm-deletion-toggle-session ()
+  "Switch deletion questions off until Emacs restarts, or back on.
+Switching off is itself asked: it is the one moment the user can still
+change their mind before deletions stop being asked."
+  (interactive)
+  (cond
+   (my/confirm-deletion--session-off
+    (setq my/confirm-deletion--session-off nil)
+    (force-mode-line-update t)
+    (message "Deletion questions are ON again"))
+   ((eq my/confirm-deletion 'never)
+    (message "Deletion questions are off for good (`my/confirm-deletion'); change it in C-c n ,"))
+   ((yes-or-no-p "Delete notes WITHOUT asking until Emacs restarts? ")
+    (setq my/confirm-deletion--session-off t)
+    (force-mode-line-update t)
+    (message "Deletion questions are OFF until restart (M-x my/confirm-deletion-toggle-session to turn back on)"))))
+
+(defvar my/confirm-deletion-mode-line
+  '(:eval (unless (my/confirm-deletion-active-p)
+            (concat (propertize "!DEL" 'face 'error
+                                'help-echo "Deletions are not confirmed: see my/confirm-deletion")
+                    " ")))
+  "Mode-line warning shown while deletions are not confirmed.")
+(put 'my/confirm-deletion-mode-line 'risky-local-variable t)
+
+;; The front seam of the mode line belongs to 01-ui.el, which loads
+;; after this file; the symbol is added once init is complete.
+(add-hook 'after-init-hook
+          (lambda ()
+            (when (boundp 'my/mode-line-front-segments)
+              (add-to-list 'my/mode-line-front-segments
+                           'my/confirm-deletion-mode-line))))
+
+;; ============================================================
 ;; CORE VARIABLES: Paths and directories
 ;; ============================================================
 

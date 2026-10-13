@@ -891,6 +891,14 @@ attachments are left alone whatever this says."
                  (const :tag "Never delete" never))
   :group 'my/notes)
 
+(defun my/notes--confirm-deletion (prompt)
+  "Ask PROMPT before deleting a note, as `my/confirm-deletion' says.
+The shared question of 00-core.el, which asks by default and can be
+switched off per session or for good; plain `yes-or-no-p' without it."
+  (if (fboundp 'my/confirm-deletion-p)
+      (my/confirm-deletion-p prompt)
+    (yes-or-no-p prompt)))
+
 (defun my/denote--delete-file (file)
   "Delete FILE with `git rm -f' when it is tracked, plain deletion otherwise.
 Returns the word describing what happened, for the report.
@@ -947,7 +955,7 @@ the working tree."
         (when own
           (message "Attachments of %s: %s" name
                    (string-join (mapcar #'file-name-nondirectory own) ", ")))
-        (when (yes-or-no-p (format "Delete note: %s? " name))
+        (when (my/notes--confirm-deletion (format "Delete note: %s? " name))
           ;; Asked before anything is deleted, so that answering no to
           ;; the second question still leaves a coherent state.
           (let* ((also (and own
@@ -1124,7 +1132,7 @@ the duplicate identifier still needs sorting out afterwards."
                                (car title-matches)
                              (completing-read "Overwrite which note? "
                                               title-matches nil t))))
-               (if (yes-or-no-p (format "Permanently delete %s? "
+               (if (my/notes--confirm-deletion (format "Permanently delete %s? "
                                         (file-name-nondirectory victim)))
                    (my/denote--remove victim)
                  (setq proceed nil))))
