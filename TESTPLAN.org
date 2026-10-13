@@ -1,0 +1,238 @@
+#+title: Test plan
+#+startup: overview
+
+Manual tests of the configuration on a live machine, with the real
+notes.  Part A covers what touches notes and their folders; a failure
+there can lose or misplace writing.  Part B covers appearance and
+interface; a failure there is annoying, not harmful.  Tick boxes with
+=C-c C-c=; the cookies count progress.  Record anything unexpected under
+[[*Findings][Findings]] with the date, the machine and what was done.
+
+Run Part A against a *copy* of the notes (=~/notes2=, section A1), so
+that a bug costs a copy.  Where a check reads "on notes2", it means the
+root is =~/notes2= at that moment.
+
+* Preparation [0/6]
+- [ ] =git -C ~/notes status= clean and pushed; same for =~/.emacs.d=.
+- [ ] A btrfs snapshot of the home subvolume taken today.
+- [ ] All patches applied (=git log --oneline -15= in =~/.emacs.d=);
+      restart; =*Messages*= has no error or backtrace.
+- [ ] =M-x emacs-init-time= noted, on Azazel and on baal, for later
+      comparison.
+- [ ] =C-c n ,= opens the MyPKS tree with six areas.
+- [ ] =hooks/lint.py= and =hooks/parens.el= pass (=git commit= of a
+      trivial change, or run them by hand).
+
+* Part A -- notes and their folders
+** A1. Moving the notes root (copy only) [0/12]
+- [ ] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply
+      and Save.  Echo area: takes effect after a restart.
+- [ ] Restart.  Question with three answers: copy / skip / ask later.
+      Answer /ask me next time/: Emacs runs on =~/notes=, nothing
+      created at =~/notes2=.
+- [ ] Restart, answer /copy/.  Report buffer =*MyPKS notes move*=:
+      identical file count and bytes; "old root untouched".
+- [ ] The question about the git history appears; answer /turn push
+      off/.  =C-h v my/auto-commit-push= → nil, saved.
+- [ ] Report lists saved settings still pointing at =~/notes= (habits
+      file in =my/tasks-extra-agenda-files=).  Fix it in =C-c n ,=, then
+      =C-c a= shows the habits again.
+- [ ] =df -h ~= before and after the copy: on btrfs the copy is a
+      reflink and takes almost no space.
+- [ ] =C-c n c n=, any title: the file is created under =~/notes2/=.
+- [ ] =git -C ~/notes log -1= and =status= unchanged after working on
+      notes2 for a while (auto-commit runs in notes2, no push).
+- [ ] Switch back: =my-notes-dir= = =~/notes/=, restart.  Question
+      "both hold notes"; answer /ask me next time/ → still notes2;
+      restart, answer /switch/ → notes.  Nothing copied either way.
+- [ ] =M-x my/notes-delete-old-root= → "Disabled".  Leave it disabled.
+- [ ] /Skip/ path with a throw-away root (=~/notes3/=): silo folders
+      created empty, report says to move files by hand.  Delete
+      =~/notes3= by hand afterwards and set the root back.
+- [ ] Refusals: a root inside the current one (=~/notes/sub/=) and a
+      non-empty unrelated folder are refused with a report; Emacs keeps
+      the old root.
+
+** A2. Silo registry [0/10]
+- [ ] =C-c n ,= → =my/silos=: three entries (journal, pks, docu) with
+      roles journal / notes / docs.
+- [ ] Add silo =test= (=:directory "test/"=), restart: folder created;
+      =C-c n c n= offers it in /Save in/ (pks first).
+- [ ] A note in =test= appears in =C-c n f n=, in link insertion and in
+      =C-c a= if it has a TODO.
+- [ ] Set =:disabled= on =test=, restart: absent from /Save in/, from
+      =C-c n f n=, link prompts and backlinks; file still on disk and in
+      =git ls-files=.
+- [ ] A link to that note from another note does not open while
+      disabled, and opens again after clearing =:disabled=.
+- [ ] Delete the =test= entry instead of disabling it, restart: about 3 s
+      later =*Messages*= names =test= as a folder with notes but no silo;
+      =M-x my/silo-report-orphans= says the same.
+- [ ] Inbox notes stay hidden from =C-c n f n= (shared exclusion list).
+- [ ] =C-h v denote-excluded-directories-regexp= lists inbox,
+      inbox-odrzucone and any disabled silo, nothing else.
+- [ ] Statistics (=C-c n f s=) largest-notes section covers the enabled
+      silos.
+- [ ] Remove the =test= folder by hand when done.
+
+** A3. Deletion questions [0/8]
+- [ ] =C-c n d d= on a scratch note → asked; /no/ keeps the file.
+- [ ] /yes/ → deleted (=git rm= when tracked); attachments question when
+      the note has its own pictures.
+- [ ] =C-c n d != → asks to switch questions off; mode line shows red
+      =!DEL=.
+- [ ] Delete a scratch note: no question; =*Messages*= records
+      "Deleting without confirmation".
+- [ ] =C-c n d != again → questions back, =!DEL= gone.
+- [ ] Switch off for the session, restart → questions are back.
+- [ ] =C-c n ,= → =my/confirm-deletion= = never → =!DEL= after restart
+      too; set it back to /ask/.
+- [ ] =C-c n d c= (change silo) onto a note with the same title →
+      /overwrite/ asks "Permanently delete".
+
+** A4. Creating and capturing (on notes2) [0/12]
+- [ ] =C-c n c n= new note: title, keywords, silo; opens in a new tab;
+      =C-g= at a prompt leaves no empty tab.
+- [ ] =C-c n c M= Markdown note: same, =.md=.
+- [ ] =C-c n c j= / =J= journal today / for a date, in the Journal tab.
+- [ ] =C-c n c w= / =W= metrics today / for a date.
+- [ ] =C-c n c e= essay; =C-c n c L= linked note.
+- [ ] =C-c n c i= ideas capture from a note: at =C-c C-c= "Keep source
+      link? (y/N)"; RET drops it, =y= keeps it.
+- [ ] Filing under an existing heading (TAB): text lands right under the
+      last line; a second capture from the same note adds no second
+      =Source:= line; from another note it does.
+- [ ] A list item filed that way continues the list; =C-u C-u C-c C-c=
+      renumbers.
+- [ ] =C-c n c m= promote a capture heading to a note (create, then
+      append to an existing one).
+- [ ] =f8= task capture: date prompt lists /other date/ first, RET
+      opens the calendar; =none= second.
+- [ ] =f9= / =C-c n H= habits: mark done, consistency graph.
+- [ ] =C-c a= agenda dispatcher shows tasks from all silos and planner.
+
+** A5. Finding, linking, inserting [0/10]
+- [ ] =C-c n f f= find file, =g= grep, =n= by title/tag, =r= random.
+- [ ] =C-c n f b= backlinks of a linked note.
+- [ ] =C-c n f d= dashboard, =t= tag stats, =h= history, =j= journal
+      gaps, =s= statistics.
+- [ ] =C-c n i t= transclusion: insert, toggle, content shown.
+- [ ] =C-c n i h= / =d= / =w= time, date, week's days.
+- [ ] =C-c n i i= image from disk: compressed, attached, link inserted.
+- [ ] =C-c n i I= attachments folder opens.
+- [ ] =C-c n i u= web link fetches the page title.
+- [ ] =C-c n i H= add to hub.
+- [ ] =C-c n z= Zettelkasten / Folgezettel; =C-c n l= philosophy notes.
+
+** A6. Changing notes in place [0/6]
+- [ ] =C-c n d r= rename; =C-c n d k= add keywords (completion, comma
+      separated).
+- [ ] =C-c n d c= change silo without a title conflict: =git mv=,
+      history kept.
+- [ ] =C-c n != maintenance: keyword rename, *dry run first*, on notes2
+      only; check =git diff --stat= afterwards.
+- [ ] Identifier checks (27): duplicate detection across silos reports,
+      changes nothing unasked.
+- [ ] Inbox review (=C-c n t i=): accept into a silo (all non-journal
+      silos offered), reject (moves to =inbox-odrzucone=), extract
+      region to a new note.
+- [ ] Writing projects (=C-c n p=): new project, new project note goes
+      to the =notes= silo, rebuild membership, project git (=C-c n p G=).
+
+** A7. Git and backups [0/4]
+- [ ] Auto-commit after 5 idle minutes in notes2: commit made, not
+      pushed (push off).  =C-c v a= status.
+- [ ] Backups of a note edited twice appear under =<root>/.backups/=.
+- [ ] Undo history survives a restart (undo-fu-session); vundo opens.
+- [ ] Pre-commit hooks in =~/.emacs.d= block a change that defines a
+      symbol twice, accept a clean one.
+
+** A8. Export and publishing [0/12]
+- [ ] =C-c n x p= journal note with photos → PDF: Playpen embedded
+      (=pdffonts= lists PlaypenSansHebrew-Regular and -Bold), photos
+      present, Polish letters correct.
+- [ ] Same for a pks note (default font) and an =:en:= note (English
+      hyphenation).
+- [ ] =C-c n x P= / =Q= batch PDF by keywords.
+- [ ] ODT and DOCX export (=C-c n x=, office part).
+- [ ] =C-c n x b t= on docs: Geekdoc installed once, no
+      "unpack FAILED".
+- [ ] =C-c n x b v= docs preview: table of contents on top, backlinks
+      below, Polish labels, links to journal and blog under /Więcej/.
+- [ ] =C-c n x b a= export changes; a journal (private) note never on
+      the docs site; a note in a disabled silo not published.
+- [ ] =C-c n x r v= NixOS docs: current file's page opens; saving a
+      =.md= reloads; =f= finds by path; =l= report has no unresolved
+      links.
+- [ ] =C-c n t m= Markdown menu on a Markdown note.
+- [ ] Citations: =C-c b c= checks keys; citar insert; Zotero menu
+      =C-c x=.
+- [ ] Readwise import (=C-c n t r=) into its folder.
+- [ ] Flashcards (=C-c n r=): a review session runs.
+
+* Part B -- appearance and interface
+** B1. Writing mode [0/6]
+- [ ] =C-c n v w= first activation after a fresh start: time it on
+      Azazel and on baal.  Expected: immediate.
+- [ ] Mode line: =W= right after the word and page count; gone after
+      turning the mode off; messages without emoji.
+- [ ] Typing keeps the line at the middle; scrolling and clicking are
+      not disturbed.
+- [ ] In a note with large images the line still holds its place;
+      =C-c u i= hides the images.
+- [ ] If the first activation is still slow on baal: in a fresh Emacs,
+      =M-: (benchmark-run 1 (progn (insert "✍") (redisplay t)))= in
+      =*scratch*=.  Seconds there mean font fallback for symbols is the
+      cost; the emoji in other modules' messages are then worth
+      replacing (BACKLOG).
+- [ ] Positions: =M-x my/set-writing-position-upper= / =lower= /
+      =center=.
+
+** B2. Theme, fonts, faces [0/7]
+- [ ] Current line pink (=#f1d5d0=) on modus-operandi-tinted;
+      =C-c u t= to dark and back: pink returns.
+- [ ] =F4= / =F5= / =S-F4= cycle themes; =C-c u T= select;
+      =C-c u m= / =C-c u M= favourites; =C-c u R= repair.
+- [ ] Fonts per silo: journal Playpen, pks Source Sans 3, docu
+      JetBrains Mono.
+- [ ] Headings sizes and colours, Org blocks wash, links not underlined.
+- [ ] =C-c n v p= padding; =C-c n v c= centred text; =C-c n v i= indent
+      headings; =C-c n v e= emphasis markers; =C-c n v m= images.
+- [ ] =C-c n v T= link tooltips on hover.
+- [ ] Line numbers relative; fill column 95 in notes.
+
+** B3. Mode line and tabs [0/6]
+- [ ] Word count and standard pages in text buffers; region count with
+      an active region.
+- [ ] =!DEL= only while deletion questions are off.
+- [ ] Pinned buffer (=C-c d k=) shows its pin.
+- [ ] Journal commands land in the Journal tab; new notes in new tabs;
+      =C-x t 0= returns.
+- [ ] Detach a buffer / tab to a separate frame.
+- [ ] Window splitting commands behave as documented.
+
+** B4. Session and settings [0/6]
+- [ ] =C-c d s= save session; restart restores buffers and tabs;
+      =C-c d p= shows what the next save keeps.
+- [ ] A setting changed in =C-c n ,= and saved survives a restart.
+- [ ] Settings areas all open; options show their documentation.
+- [ ] Persisted UI state (theme, font height) survives a restart.
+- [ ] Startup time comparable to the one noted in Preparation.
+- [ ] =C-c n h= opens =function_helper.org= in a new tab.
+
+** B5. Typing aids [0/4]
+- [ ] Spelling underlines as you type in Polish notes; =C-c s=
+      corrects the previous word; =C-c S= adds it to the dictionary.
+- [ ] Spelling toggle (=C-c n t T=) on and off.
+- [ ] Typing analytics (=C-c y=) record and report.
+- [ ] Keybindings help and the NuPhy Caps Lock layer.
+
+* Part C -- a clean configuration (later)
+As in BACKLOG.org: =git worktree add ~/emacs-clean -b clean-config=,
+=emacs --init-directory ~/emacs-clean=, =my-notes-dir= pointing at an
+empty test folder.  Record: errors on the first start, missing programs
+and how they are reported, what a new user has to set before the
+first note can be written.  This is the input for the welcome screen.
+
+* Findings
+# Date -- machine -- what was done -- what happened -- expected.

@@ -21,6 +21,26 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-13e — TESTPLAN.org
+
+### Why
+
+After two days of changes to paths, silos, export and the mode line,
+the configuration needs one pass over everything on a live machine,
+with the real notes, and a record of what was checked.
+
+### What
+
+`TESTPLAN.org`: Org checklists with progress cookies. Part A, notes and
+their folders, run against a copy (`~/notes2`): moving the root, the
+silo registry, deletion questions, creating and capturing, finding and
+inserting, changing notes, git and backups, export and publishing.
+Part B, appearance and interface: writing mode (with the font fallback
+check), theme and fonts, mode line and tabs, session and settings,
+typing aids. Part C points at the clean-configuration test in
+BACKLOG.org. A Findings section collects results.
+
+---
 ## Session 2026-10-13d — Moving the notes root: copy, verify, switch
 
 ### Why
