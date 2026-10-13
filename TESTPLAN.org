@@ -12,14 +12,14 @@ Run Part A against a *copy* of the notes (=~/notes2=, section A1), so
 that a bug costs a copy.  Where a check reads "on notes2", it means the
 root is =~/notes2= at that moment.
 
-* Preparation [0/6]
-- [ ] =git -C ~/notes status= clean and pushed; same for =~/.emacs.d=.
-- [ ] A btrfs snapshot of the home subvolume taken today.
-- [ ] All patches applied (=git log --oneline -15= in =~/.emacs.d=);
+* Preparation [4/6]
+- [X] =git -C ~/notes status= clean and pushed; same for =~/.emacs.d=.
+- [X] A btrfs snapshot of the home subvolume taken today.
+- [X] All patches applied (=git log --oneline -15= in =~/.emacs.d=);
       restart; =*Messages*= has no error or backtrace.
 - [ ] =M-x emacs-init-time= noted, on Azazel and on baal, for later
       comparison.
-- [ ] =C-c n ,= opens the MyPKS tree with six areas.
+- [X] =C-c n ,= opens the MyPKS tree with six areas.
 - [ ] =hooks/lint.py= and =hooks/parens.el= pass (=git commit= of a
       trivial change, or run them by hand).
 
