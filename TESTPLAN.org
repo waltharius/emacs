@@ -28,8 +28,8 @@ root is =~/notes2= at that moment.
 Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 2026-10-14a to g).  Run on =~/notes2= where notes are touched.
 
-** R1. Settings tree [0/4]
-- [ ] =C-c n ,=: Notes and silos, Writing, Interface and appearance,
+** R1. Settings tree [1/4]
+- [X] =C-c n ,=: Notes and silos, Writing, Interface and appearance,
       Tools -- in that order, names in words, not =My/...=.
 - [ ] Notes and silos: /Ask before deleting notes/ first, then the
       sub-areas Notes folder and silos, Tasks and habits, then the
