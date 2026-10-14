@@ -21,6 +21,32 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-14h — Test plan and backlog after the first test pass
+
+### Why
+
+The first pass over TESTPLAN.org (Part A) produced the findings fixed
+in sessions 2026-10-14a to f, and an outside code review produced the
+list handled in 2026-10-14g.  What was changed needs retesting, and
+what was not changed needs to be findable with its reason.
+
+### What
+
+- `TESTPLAN.org`: *Part R*, retests of every finding (R1 settings tree,
+  R2 changes without a restart, R3 reports, R4 an empty notes folder,
+  R5 the planner, R6 citations, R7 the keystroke log, R8 the
+  auto-commit message, removing `(org-confirm-babel-evaluate)` by hand,
+  start-up time).  Ticked items whose behaviour changed say so and
+  point to their retest.  The findings are recorded under *Findings*
+  with the session that fixed each.
+- `BACKLOG.org`: progress of the settings work; step 3 takes the
+  review's per-machine state and `safe-local-variable-values` items,
+  step 4 the `setq` on options, step 5 the start-up items; a new
+  *Code review 2026-10-14* section lists every deferred finding with
+  why it waits and how to do it -- non-blocking git first; and the
+  agenda per notes folder, asked for "if possible".
+
+---
 ## Session 2026-10-14g — Audit findings fixed now
 
 ### Why

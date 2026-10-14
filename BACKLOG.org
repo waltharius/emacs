@@ -12,26 +12,40 @@ the repository, a user layer on top, Customize as the menu (=C-c n ,=).
 Steps 1 (one Customize tree, MyPKS), 2a (notes root as an option,
 registry of silos), 2c (every module on the registry, disabled silos)
 and 2b (moving the notes root: copy only, old root kept, deleting it
-disabled) are done.
+disabled) are done; so are the findings of the first test pass
+(2026-10-14a to f: tree by importance, changes without a restart,
+reports that wait for an answer, silo folders created with their first
+note, the planner in its own folder, bundled CSL).
 
 ** TODO 3. Settings file per host, in the repository
 =custom-file= = =hosts/<short hostname>.el=, committed.  Settings are
 versioned and visible; no Syncthing.  A host without a file starts
 empty and says so.  A value wanted on every machine belongs in the core
 defaults (step 4), since Customize saves to one file only.  The current
-=custom.el= is split into the host file and core defaults.
+=custom.el= is split into the host file and core defaults.  With it
+(review 2026-10-14): =ui-state.el= and =theme-state.el= hold per-machine
+state but are tracked (S5) -- move them out of git or into the host
+file; =safe-local-variable-values= must not carry
+=(org-confirm-babel-evaluate)= or an =eval= form into the new files
+(SEC1, SEC2) -- trusted folders get a =.dir-locals.el= instead.
 
 ** TODO 4. Core defaults as a custom theme (=mypks-defaults=)
 Package variables the core sets with =setq= move into a custom theme,
 module by module, so that the =user= theme -- the host file -- always
 wins regardless of load order.  Only values a user may want to change.
+This is also the answer to review finding X7 (=setq= on options of
+=recentf=, =magit=, =desktop=, =save-place=, =ispell=): a theme setting
+goes through the option's =:set= function, as =setopt= would.
 
 ** TODO 5. Module toggles (plugin loader)
 An option listing optional modules to load, with descriptions and
 declared dependencies; =init.el= loads the core always and the rest
 from the list.  Turning a module off takes effect after a restart.
-Toward a plugin contract: own group under an area, options,
-=my/transient-append=, =provide=, dependencies checked with =fboundp=.
+Toward a plugin contract: own group under an area, options applied with
+=my/settings-apply-on-set=, =my/transient-append=, =provide=,
+dependencies checked with =fboundp=.  The loader is the moment for the
+review's start-up findings, since it rewrites =init.el= anyway: see
+/Code review 2026-10-14/, items on start-up and on names.
 
 ** TODO 6. No machine-bound paths (README: install on any Linux)
 Remaining absolute paths outside the notes root (=~/projects/=,
@@ -44,6 +58,15 @@ basic settings, then "Add your silos" with what a silo is in Denote
 terms, then further required settings.  Built on the Customize
 options (=my-notes-dir=, =my/silos=), and the place to link the
 descriptions of =function_helper.org= as the manual.
+
+* Agenda per notes folder
+Asked 2026-10-14 ("if it cannot be done, never mind").  Since
+2026-10-14e the agenda reads the planner (shared on purpose), project
+hubs and =my/tasks-extra-agenda-files=, whose relative entries follow
+the notes folder; the habit entry saved there by an older version is
+offered for removal.  What is left, if wanted: agenda files listed in
+the notes folder itself (a file =agenda-files= at the root, read when
+the folder is in use), so that each collection carries its own list.
 
 * Fonts as configuration, per silo
 Proposed 2026-10-12, after the journal PDF export broke on font lookup.
@@ -85,6 +108,89 @@ emacs --init-directory ~/emacs-clean
 Packages are installed into that directory, so the first start
 downloads them.  Point =my-notes-dir= at a test folder there, not at
 the real notes.
+
+* Code review 2026-10-14
+An outside review of HEAD =281a25a= (grade B+).  Fixed at once: the
+keystroke log (SEC3, X1-X3), the auto-commit file list (X4), the
+sources defcustom (B7), =~/.emacs.d/= (X8), dead fallbacks (M3), the
+load-time error in the root check (X11), the attachments exclusion,
+dead code (M2, S4) -- CHANGELOG 2026-10-14g.  Checked and fine: SEC4
+(every part of the blog's shell command goes through
+=shell-quote-argument=), SEC5 (auto-push of private silos goes to the
+local GitLab only; documented).  Not taken: S4 for =function_helper.org=
+and =CHANGELOG.md= (the manual and the design record), B8 (=mypks-*=
+names areas and =my/...= names module groups -- two levels, on
+purpose).  The rest, in the order worth doing:
+
+** TODO Automatic git without blocking (P1, P2, X5, X6, X10)
+*Why*: the pull at start-up and every idle cycle run =git= with
+=call-process=: Emacs freezes for the network round trip, up to the
+5 s SSH timeout per repository when offline -- with writing projects and
+the planner, several of them.  *Why later*: the largest change of the
+review, and it touches the exit path, where losing a commit is worse
+than waiting.  *How*: =make-process= with a sentinel chain (add →
+commit → pull --rebase → push), one repository after another, as
+=39-project-git.el= and =46-blog.el= already do; the synchronous path
+kept for =kill-emacs-hook= only; the start-up pull asynchronous, buffers
+reverted by =global-auto-revert-mode= when it lands.  At the same time:
+=process-lines= instead of the remaining shell strings (=git status=,
+=rev-list | grep=, =rev-parse=), =condition-case= with =display-warning=
+instead of =ignore-errors= around commit, save and push, and one exit
+path instead of three (=kill-emacs-hook=, =delete-frame-functions=, the
+=save-buffers-kill-emacs= advice -- the advice runs before the "save
+buffers?" question, which is why it exists; check before removing).
+
+** TODO Start-up: early-init.el, compilation, lazy loading (S1-S3, B3, B4, P3, P4, P6, P7)
+*Why*: about 30 000 lines read as source on every start, every theme
+pack loaded to be available, 12 =:demand= and 109 top-level
+=require='s.  *Why later*: belongs with the module loader (step 5),
+which rewrites =init.el=; and every step needs measuring, not guessing.
+*How*: =early-init.el= with the GC threshold, =package-enable-at-startup
+nil= and =load-prefer-newer t=; =package-initialize= then stays where it
+is (B4); modules on =load-path= and =require='d; native or byte
+compilation as a =make= target, the pre-commit hook only checking that
+it compiles.  Lazy loading one module at a time, each measured with
+=M-x use-package-report= (statistics are on) and =emacs-init-time=
+(TESTPLAN Preparation has the baseline): unused theme packs without
+=:demand=, =:defer=/=:commands= for consult, citar, pdf-tools, nov,
+denote-explore, keyfreq.  =use-package-always-ensure= (B3): every
+built-in needs =:ensure nil=; a test on the clean-config branch catches
+a forgotten one.  =use-package-compute-statistics= off once done (P6).
+
+** TODO Names: one prefix (B1)
+*Why*: variables are split between =my-= and =my/=.  *Why later*: a
+rename across 48 modules and the custom file; with the plugin contract
+(step 5), with =define-obsolete-variable-alias= for every old name so
+saved settings keep working.  The ten unprefixed functions: =keylog-*=
+done (2026-10-14g); =insert-current-time=, =insert-current-date=,
+=open-init-el-bottom-split= remain.
+
+** TODO Hooks and advice with names (B2, B6)
+*Why*: an anonymous function cannot be removed with =remove-hook= and
+shows as a closure in =describe-variable=.  *How*: when a module is
+next touched, name its lambdas; left: =init.el= (the after-init GC
+reset), =00-core.el= (the mode-line seam on =after-init-hook=),
+=07-git.el= (the start-up pull).  Advice inside loops
+(=23-fixed-tabs.el=, =31-org-images.el=): guard with =advice-member-p=
+so reloading a module does not stack it.
+
+** TODO Smaller review items
+- B5: =org-user-idle-seconds= override is installed only with
+  =my/writing-use-mutter-idle= on (off, untested); revisit if it is
+  ever turned on -- an =:around= advice falling back to Org's own.
+- B9: 47 =string-match= calls, no =save-match-data=; audit those
+  reachable from hooks, use =string-match-p= where groups are unused.
+- P5: =directory-files-recursively= in 17 places; check none runs at
+  load or from a frequent hook.
+- X12: =my-tasks-agenda-dirs= holds a file (=captures.org=) and is no
+  longer the agenda; rename to what it is (all notes for scans) with an
+  alias.
+- M1: split =46-blog.el= (2 000 lines) and =36-notes-stats.el= when next
+  changed substantially, not for its own sake.
+- M4: start-up messages with emoji ("✨ Emacs ready") -- the emoji cost
+  of font fallback is measured by TESTPLAN B1; drop them if it shows.
+- M5: =whitespace-cleanup= for =.el= files only (=.dir-locals.el= in
+  this repository), never for notes.
 
 * Small items
 - =languageCode= is deprecated (Hugo 0.158) in =hugo/sites/journal= and
