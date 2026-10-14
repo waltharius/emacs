@@ -14,6 +14,7 @@
 ;;   c — check notes for citation keys missing from the bibliography
 ;;   C — rename a citation key across the notes
 ;;   ? — report whether CSL export is configured correctly
+;;   , — settings: the .bib file, Zotero's folder, CSL styles
 ;;
 ;; This module is the menu for 17-bibliography.el and depends on it:
 ;; every command below comes from there or from citar, which that file
@@ -45,7 +46,8 @@
   ["Maintenance"
    [("c" "Check keys in notes"            my/cite-check-keys)
     ("C" "Rename a citation key"          my/cite-rename-key)
-    ("?" "Check CSL export setup"         my/csl-check-setup)]]
+    ("?" "Check CSL export setup"         my/csl-check-setup)
+    ("," "Settings: .bib file, Zotero, CSL" my/bibliography-settings)]]
 
   [("q" "Quit" transient-quit-one)])
 

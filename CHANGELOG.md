@@ -21,6 +21,39 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-14i — Where the bibliography is, as an option
+
+### Why
+
+The Zotero export was written into the package settings as
+`<notes>/refs.bib`, and the attachments folder as
+`~/syncthing/Zotero/storage/`.  Some keep the .bib beside the notes, so
+that it travels with them; others keep it in Zotero's own folder.  It
+should be a choice in the settings, not an edit of the module.
+
+### What
+
+- `my/bibliography-files` (default `("refs.bib")`): relative names are
+  relative to the notes folder and follow it, absolute names stay;
+  several files are read together.  `my/zotero-storage-directory`
+  (default `~/syncthing/Zotero/storage/`, or none).  Both in *Writing →
+  Bibliography and citations*, before the CSL options, applied at once.
+- `my/bibliography-apply` sets `citar-bibliography`,
+  `citar-library-paths` and `org-cite-global-bibliography` from the
+  same list (before citar loads as well, since export reads the Org
+  variable), and `citar-notes-paths` from the silo with role `notes`
+  -- again on `my/silos-changed-hook`.  A missing file is named once per
+  session.  `citar-denote-subdir` follows the notes silo's folder too.
+- `C-c x ,` in the Zotero menu (`my/bibliography-settings`) opens the
+  group.  The group moved to the top of 17-bibliography.el, so its
+  options are listed in that order.
+
+Verified in batch: the default resolves to `<notes>/refs.bib` with the
+notes folder saved as `~/notes` without a slash; setting an absolute
+file plus `refs.bib` in a running session gives both to org-cite at
+once and names the missing one in *Messages*.
+
+---
 ## Session 2026-10-14h — Test plan and backlog after the first test pass
 
 ### Why

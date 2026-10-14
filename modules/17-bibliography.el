@@ -3,7 +3,9 @@
 ;; Citation and bibliography management via Citar + Zotero Better BibTeX.
 ;;
 ;; Prerequisites (already satisfied in packages.nix):
-;;   - ~/notes/refs.bib   — auto-exported by Better BibTeX in Zotero
+;;   - a .bib file auto-exported by Better BibTeX in Zotero; where it is
+;;     is an option, `my/bibliography-files' (C-c x ,), ~/notes/refs.bib
+;;     by default
 ;;   - poppler, poppler_utils, pkg-config, libpng in home.packages (for pdf-tools)
 ;;
 ;; Workflow:
@@ -15,20 +17,93 @@
 ;;; Code:
 
 ;; ============================================================
+;; WHERE THE BIBLIOGRAPHY IS
+;; ============================================================
+;; The .bib file Zotero exports, and the folder holding Zotero's PDFs,
+;; are options rather than paths written into the package settings:
+;; some keep the export beside the notes, so that it travels with them,
+;; others in Zotero's own folder or anywhere else.  A relative name is
+;; relative to the notes folder and follows it; an absolute one stays.
+;; Everything is applied at once (`my/bibliography-apply'), to citar and
+;; to org-cite alike, so the two never read different files.
+
+(defgroup my/bibliography nil
+  "Citations: the bibliography file, Zotero's attachments, CSL export."
+  :tag "Bibliography and citations"
+  :group 'mypks-writing)
+
+(defcustom my/bibliography-files '("refs.bib")
+  "The BibTeX files citations come from, usually exported by Zotero.
+Better BibTeX keeps the export up to date.  A relative name is relative
+to the notes folder (`my-notes-dir') and follows it; an absolute name,
+such as ~/Zotero/refs.bib, stays where it is.  Several files are read
+together.  Takes effect at once."
+  :type '(repeat (file :tag "BibTeX file"))
+  :tag "Bibliography files (.bib from Zotero)"
+  :set (my/settings-apply-on-set #'my/bibliography-apply)
+  :group 'my/bibliography)
+
+(defcustom my/zotero-storage-directory "~/syncthing/Zotero/storage/"
+  "Folder holding the PDFs and other attachments Zotero stores.
+Where citar looks for the file of a reference (`C-c x f').  Nil for
+none.  Takes effect at once."
+  :type '(choice (directory :tag "Folder") (const :tag "None" nil))
+  :tag "Zotero attachments folder (PDFs)"
+  :set (my/settings-apply-on-set #'my/bibliography-apply)
+  :group 'my/bibliography)
+
+(defun my/bibliography-file-list ()
+  "Return `my/bibliography-files' as absolute file names."
+  (mapcar (lambda (file) (expand-file-name file my-notes-dir))
+          my/bibliography-files))
+
+(defvar citar-bibliography)
+(defvar citar-library-paths)
+(defvar citar-notes-paths)
+(defvar org-cite-global-bibliography)
+
+(defvar my/bibliography--told nil
+  "Missing files already reported this session.")
+
+(defun my/bibliography-apply ()
+  "Point citar and org-cite at the bibliography files and Zotero's folder.
+Also points citar's notes at the silo with role `notes'.  Says once per
+session when a bibliography file does not exist."
+  (let ((files (my/bibliography-file-list)))
+    (setq org-cite-global-bibliography files)
+    (with-eval-after-load 'citar
+      (setq citar-bibliography files
+            citar-library-paths (and my/zotero-storage-directory
+                                     (list (expand-file-name my/zotero-storage-directory)))
+            citar-notes-paths (list (my/silo-dir-by-role 'notes))))
+    (dolist (file files)
+      (unless (or (file-readable-p file) (member file my/bibliography--told))
+        (push file my/bibliography--told)
+        (message "Bibliography: %s not found; set the file in C-c x , (Bibliography files)"
+                 (abbreviate-file-name file))))))
+
+(defun my/bibliography-settings ()
+  "Open the settings of the bibliography: files, Zotero folder, CSL."
+  (interactive)
+  (customize-group 'my/bibliography))
+
+;; The notes silo can change while Emacs runs (`my/silos').
+(add-hook 'my/silos-changed-hook #'my/bibliography-apply)
+
+;; ============================================================
 ;; CITAR — citation search and insertion
 ;; ============================================================
 
 (use-package citar
   :ensure t
-  :custom
-  (citar-bibliography (list (expand-file-name "refs.bib" my-notes-dir)))
-  (citar-library-paths '("~/syncthing/Zotero/storage/"))
-  (citar-notes-paths (list (expand-file-name "pks/" my-notes-dir)))
   :config
-  (setq org-cite-global-bibliography (list (expand-file-name "refs.bib" my-notes-dir)))
+  (my/bibliography-apply)
   (setq org-cite-insert-processor 'citar)
   (setq org-cite-follow-processor 'citar)
   (setq org-cite-activate-processor 'citar))
+
+;; Before citar loads too: export reads `org-cite-global-bibliography'.
+(my/bibliography-apply)
 
 ;; ============================================================
 ;; CITATION EXPORT — CSL
@@ -69,11 +144,6 @@
 ;; says so once per session.  Org's own fallback carries only en-US.
 ;; Everything is decided again before each export (`my/csl-apply'), so
 ;; a style dropped into the folder works without a restart.
-
-(defgroup my/bibliography nil
-  "Citations and their export (17-bibliography.el)."
-  :tag "Bibliography and citations"
-  :group 'mypks-writing)
 
 (defconst my/csl-bundled-styles-dir (locate-user-emacs-file "csl/styles/")
   "CSL styles shipped with this configuration; see csl/README.md.")
@@ -327,7 +397,10 @@ present, and the report says when they are the ones in use."
   :ensure t
   :after (citar denote)
   :custom
-  (citar-denote-subdir "pks/")
+  ;; The folder of the notes silo, relative to `denote-directory';
+  ;; "pks/" when that silo lies outside the notes folder.
+  (citar-denote-subdir (let ((name (my/silo-folder-name (or (my/silo-by-role 'notes) 'pks))))
+                         (if name (concat name "/") "pks/")))
   (citar-denote-use-bib-keywords t)
   (citar-denote-title-format "author-year-title")
   (citar-denote-title-format-authors 1)

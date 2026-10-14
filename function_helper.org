@@ -4134,6 +4134,7 @@ Module: =modules/18-zotero-transient.el=
 | c   | =my/cite-check-keys=        | Keys used in notes but absent from refs.bib |
 | C   | =my/cite-rename-key=        | Rename a citation key across the notes   |
 | ?   | =my/csl-check-setup=        | Report whether CSL export is ready       |
+| ,   | =my/bibliography-settings=  | Settings: .bib file, Zotero folder, CSL  |
 
 ** ? — Check CSL export setup
 
@@ -4154,6 +4155,32 @@ The size test matters: a failed =curl -O= leaves a perfectly readable
 from the cause with =Wrong type argument: numberp, nil=.
 
 Run it before submitting anything, and after changing a style.
+
+** , — Where the bibliography is
+:PROPERTIES:
+:CUSTOM_ID: bibliography-files
+:END:
+
+=C-c x ,= opens /Writing/ → /Bibliography and citations/.  The first
+two options say where Zotero's data is:
+
+| Option                         | Default                        | Meaning                                         |
+|--------------------------------+--------------------------------+-------------------------------------------------|
+| =my/bibliography-files=        | =("refs.bib")=                 | the .bib files Better BibTeX exports; several are read together |
+| =my/zotero-storage-directory=  | =~/syncthing/Zotero/storage/= | Zotero's attachments, where =C-c x f= finds the PDF; nil for none |
+
+A *relative* bibliography name is relative to the notes folder and
+follows it, so =refs.bib= beside the notes moves with them; an
+*absolute* one (=~/Zotero/refs.bib=) stays where it is — for a .bib kept
+in Zotero's own folder, outside the notes.  Both take effect at once:
+=my/bibliography-apply= sets citar's =citar-bibliography= and
+=citar-library-paths=, and org-cite's =org-cite-global-bibliography=,
+from the same list, so search, insertion and export never read
+different files.  It also points =citar-notes-paths= at the silo with
+role =notes=, again when the silos change.  A file that does not exist
+is named once per session in *Messages*; =C-c x ?= lists it too.
+
+Function: =my/bibliography-apply=, =my/bibliography-settings=, =my/bibliography-file-list= | Module: =modules/17-bibliography.el=, =modules/18-zotero-transient.el=
 
 ** Styles bundled with the configuration
 :PROPERTIES:
