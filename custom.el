@@ -49,9 +49,9 @@
      (test :directory "test/" :role notes :keyword "test" :disabled t)))
  '(my/tasks-capture-binding "<f8>")
  '(my/tasks-extra-agenda-files
-   '("/home/marcin/notes2/planner/habits.org"
+   '("/home/marcin/notes/planner/habits.org"
      "/home/marcin/projects/mapa-sporu/lektury.org"))
- '(org-confirm-babel-evaluate nil)
+ '(org-confirm-babel-evaluate t)
  '(package-selected-packages nil)
  '(recentf-filename-handlers '(abbreviate-file-name))
  '(safe-local-variable-values
