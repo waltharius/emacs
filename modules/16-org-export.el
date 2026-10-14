@@ -220,7 +220,7 @@ other filters and backends handle them normally."
 ;; OUTPUT DIRECTORY
 ;; ============================================================
 
-(defvar my-pdf-output-dir (expand-file-name "pdf/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
+(defvar my-pdf-output-dir (expand-file-name "pdf/" my-notes-dir)
   "Root directory for exported PDFs.
 Subfolders mirror the notes silo structure automatically.")
 

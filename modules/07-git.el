@@ -68,16 +68,22 @@
   :tag "Automatic commits"
   :group 'mypks-git)
 
-(defcustom my/auto-commit-repository-sources
-  (list (lambda () (list (expand-file-name (if (boundp 'my-notes-dir) my-notes-dir "~/notes/")))))
+(defun my/auto-commit--notes-directory ()
+  "Return the notes folder, the first repository committed automatically."
+  (list (expand-file-name my-notes-dir)))
+
+(defvar my/auto-commit-repository-sources
+  (list #'my/auto-commit--notes-directory)
   "Functions returning directories to auto-commit.
 
 A list of functions rather than a list of directories so that a module
 can contribute repositories this one has never heard of, and so that
 the set can be computed rather than fixed: 39-project-git.el adds every
-writing project, and the number of those changes during a session."
-  :type '(repeat function)
-  :group 'my/git)
+writing project, and the number of those changes during a session;
+37-tasks.el adds the planner folder.
+
+A variable for modules, not an option: it was a `defcustom' holding a
+lambda, which Customize can neither show nor save meaningfully.")
 
 (defcustom my/auto-commit-config-enabled nil
   "When non-nil, the Emacs configuration repository is auto-committed too.
@@ -267,21 +273,25 @@ Returns a short description of what happened, or nil when nothing did."
           (pulled nil)
           (pull-result nil))
       (when (my/auto-commit--dirty-p dir)
+        ;; call-process rather than a shell: safe against file names
+        ;; with apostrophes, semicolons or spaces, of which a Denote
+        ;; collection with Polish titles has plenty.
+        (my/auto-commit--git dir "add" "-A")
+        ;; Listed AFTER staging, from the index.  `git diff --name-only
+        ;; HEAD' before staging left out new files -- new notes, the most
+        ;; common change of all -- and failed in a repository without a
+        ;; first commit.
         (let* ((default-directory (file-name-as-directory dir))
-               (changed (mapconcat
-                         #'file-name-nondirectory
-                         (split-string
-                          (shell-command-to-string
-                           "git diff --name-only HEAD | head -5")
-                          "\n" t)
-                         "\n"))
-               (message-text (format "Auto-commit: %s\n\nChanged:\n%s"
-                                     (format-time-string "%Y-%m-%d %H:%M")
-                                     changed)))
-          ;; call-process rather than a shell: safe against file names
-          ;; with apostrophes, semicolons or spaces, of which a Denote
-          ;; collection with Polish titles has plenty.
-          (my/auto-commit--git dir "add" "-A")
+               (files (ignore-errors
+                        (process-lines "git" "diff" "--cached" "--name-only")))
+               (message-text
+                (format "Auto-commit: %s\n\nChanged (%d):\n%s%s"
+                        (format-time-string "%Y-%m-%d %H:%M")
+                        (length files)
+                        (mapconcat #'file-name-nondirectory (seq-take files 5) "\n")
+                        (if (> (length files) 5)
+                            (format "\n... and %d more" (- (length files) 5))
+                          ""))))
           (setq committed (eq 0 (my/auto-commit--git
                                  dir "commit" "-m" message-text)))))
       ;; Pull before pushing: a push on top of an old state is rejected,
@@ -394,7 +404,7 @@ between the versions inside a file, and `r r' in Magit continues the
 rebase.  The next automatic cycle pushes the result."
   (interactive)
   (let* ((dir (file-name-as-directory
-               (expand-file-name (or dir (if (boundp 'my-notes-dir) my-notes-dir "~/notes/")))))
+               (expand-file-name (or dir my-notes-dir))))
          (default-directory dir))
     (my/auto-commit--save-buffers)
     (when (my/auto-commit--dirty-p dir)
@@ -460,8 +470,12 @@ Called at load and whenever `my/auto-commit-idle-seconds' changes."
 
 (add-hook 'delete-frame-functions 'my/auto-commit-on-frame-delete)
 
-(advice-add 'save-buffers-kill-emacs :before
-            (lambda (&rest _) (my/auto-commit-all-once)))
+(defun my/auto-commit--before-kill (&rest _)
+  "Commit before `save-buffers-kill-emacs' asks about anything.
+Named so that it can be removed with `advice-remove'."
+  (my/auto-commit-all-once))
+
+(advice-add 'save-buffers-kill-emacs :before #'my/auto-commit--before-kill)
 
 ;; ============================================================
 ;; MANUAL COMMIT FUNCTIONS
@@ -470,15 +484,15 @@ Called at load and whenever `my/auto-commit-idle-seconds' changes."
 (defun my/commit-notes-now ()
   "Manually commit notes changes."
   (interactive)
-  (let ((default-directory (expand-file-name (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))))
+  (let ((default-directory (expand-file-name my-notes-dir)))
     (magit-stage-all)
     (magit-commit-create)))
 
 (defun my/commit-config-now ()
   "Manually commit config changes."
   (interactive)
-  (let ((default-directory (expand-file-name "~/.emacs.d/")))
-    (shell-command "git add init.el modules/ .gitignore")
+  (let ((default-directory (expand-file-name user-emacs-directory)))
+    (call-process "git" nil nil nil "add" "init.el" "modules/" ".gitignore")
     (magit-status)))
 
 ;; ============================================================
@@ -488,13 +502,13 @@ Called at load and whenever `my/auto-commit-idle-seconds' changes."
 (defun my/notes-git-status ()
   "Open Magit status for notes."
   (interactive)
-  (let ((default-directory (expand-file-name (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))))
+  (let ((default-directory (expand-file-name my-notes-dir)))
     (magit-status)))
 
 (defun my/config-git-status ()
   "Open Magit status for config."
   (interactive)
-  (let ((default-directory (expand-file-name "~/.emacs.d/")))
+  (let ((default-directory (expand-file-name user-emacs-directory)))
     (magit-status)))
 
 ;; ============================================================

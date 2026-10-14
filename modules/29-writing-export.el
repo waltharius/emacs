@@ -53,7 +53,7 @@
   :tag "Export: writing projects"
   :group 'mypks-writing)
 
-(defcustom my/office-output-dir (expand-file-name "export/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
+(defcustom my/office-output-dir (expand-file-name "export/" my-notes-dir)
   "Root directory for exported office documents.
 
 Used for notes that do not belong to a writing project.  Subdirectories

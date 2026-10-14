@@ -483,7 +483,7 @@ off, so it is safe to call at any time."
 (use-package desktop
   :ensure nil
   :init
-  (setq desktop-dirname             "~/.emacs.d/desktop/"
+  (setq desktop-dirname             (locate-user-emacs-file "desktop/")
         desktop-base-file-name      "desktop"
         desktop-base-lock-name      "desktop.lock"
         desktop-path               (list desktop-dirname)
@@ -710,7 +710,7 @@ which loads after this file."
   :init
   (save-place-mode 1)
   :config
-  (setq save-place-file "~/.emacs.d/saveplace"))
+  (setq save-place-file (locate-user-emacs-file "saveplace")))
 
 ;; ============================================================
 ;; TAB-BAR-MODE: Workspace tabs (like browser tabs)
@@ -960,7 +960,7 @@ it."
 (defun open-init-el-bottom-split ()
   "Open init.el in bottom window split."
   (interactive)
-  (let ((init-file (expand-file-name "~/.emacs.d/init.el")))
+  (let ((init-file (locate-user-emacs-file "init.el")))
     (split-window-below)
     (other-window 1)
     (find-file init-file)))

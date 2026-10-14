@@ -3590,7 +3590,19 @@ returns a list of directories. A list of functions rather than a list
 of directories, so that the set can be *computed*: the number of
 writing projects changes during a session, and
 =39-project-git.el= contributes them by calling
-=my/project-git-repositories= rather than by naming them.
+=my/project-git-repositories= rather than by naming them;
+=37-tasks.el= adds the planner folder.  A variable for modules, not an
+option: as a =defcustom= holding a lambda it showed in Customize as an
+uneditable Lisp expression.
+
+** The commit message
+
+=Auto-commit: <date>=, then =Changed (N):= and the first five file
+names, then =... and N more=.  The list is read from the index after
+=git add -A= (=git diff --cached --name-only=), so new files — new
+notes, the most common change — are listed; before 2026-10 it was read
+with =git diff --name-only HEAD= before staging, which left them out and
+failed in a repository without a first commit.
 
 ** Reading the result
 
@@ -6541,10 +6553,10 @@ hand-editing either from memory.
 | C-c w d   | =my/open-notes-dashboard=       | =15-workspace.el=                          |
 | C-c w x   | =my/notes-explore=              | =15-workspace.el=                          |
 | C-c w r   | =denote-explore-random-note=    | =15-workspace.el=                          |
-| C-c a k   | =keyfreq-show=                  | =14-typing-analytics.el=                   |
-| C-c a s   | =keylog-status=                 | =14-typing-analytics.el=                   |
-| C-c a t   | =keylog-disable=                | =14-typing-analytics.el=                   |
-| C-c a T   | =keylog-enable=                 | =14-typing-analytics.el=                   |
+| C-c y k   | =keyfreq-show=                  | =14-typing-analytics.el=                   |
+| C-c y s   | =my/keylog-status=              | =14-typing-analytics.el=                   |
+| C-c y t   | =my/keylog-disable=             | =14-typing-analytics.el=                   |
+| C-c y T   | =my/keylog-enable=              | =14-typing-analytics.el=                   |
 | <f8>      | =my/task-capture=               | =37-tasks.el=                              |
 | <f9>      | =my/habit-log=                  | =38-habits.el=                             |
 | C-x g     | =magit-status=                  | =07-git.el=                                |
@@ -6683,7 +6695,7 @@ every macro in the table above.
 :CUSTOM_ID: nuphy-layer-rationale
 :END:
 
-Chosen from =keyfreq= output (=C-c a k=) rather than by guesswork.
+Chosen from =keyfreq= output (=C-c y k=) rather than by guesswork.
 =my/spell-correct-previous= was the second most-invoked command in the
 configuration and had no binding at all; =my/notes-menu= was first.
 
@@ -7990,6 +8002,34 @@ Function: =my/repo-docs-report= | Module: =modules/47-repo-docs.el=
 | =l= | Last report |
 
 Function: =my/repo-docs-menu= | Module: =modules/47-repo-docs.el=
+
+* Typing analytics (C-c y)
+:PROPERTIES:
+:CUSTOM_ID: typing-analytics
+:END:
+
+Two kinds of data, for choosing an ergonomic keyboard.  /Command
+frequency/ (=keyfreq=, =C-c y k=): command names only, always on.
+/Keystroke log/: every typed character with its time, appended to
+=~/.emacs.d/keys= (git-ignored) — *off by default*, because it is a
+plain-text copy of the writing outside the notes folder.
+
+| Key       | Does                                         |
+|-----------+----------------------------------------------|
+| =C-c y s= | status: on or off, buffered keys, file size  |
+| =C-c y T= | log for this session                         |
+| =C-c y t= | stop logging for this session                |
+
+=my/keylog-enabled= (/Tools/ → /Typing analytics/) logs in every
+session; it takes effect at once.  A buffer visiting a note of a
+private silo (the journal) is never logged.  Every self-inserting
+command counts, =org-self-insert-command= in notes included (the old
+test for =self-insert-command= only recorded almost nothing in Org);
+times come from =float-time=; enabling twice starts one idle timer, not
+two, and disabling stops it.  The old names =keylog-*= are obsolete
+aliases of =my/keylog-*=.
+
+Function: =my/keylog-enable=, =my/keylog-disable=, =my/keylog-status= | Module: =modules/14-typing-analytics.el=
 
 * Settings (C-c n ,)
 :PROPERTIES:

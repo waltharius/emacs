@@ -499,7 +499,7 @@ once, which is what a change in how pages are produced requires.")
 (defun my/blog--notes-root ()
   "Return the notes tree, falling back when 00-core.el is absent."
   (file-name-as-directory
-   (expand-file-name (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))))
+   (expand-file-name my-notes-dir)))
 
 (defun my/blog--silo-of (file)
   "Return the silo FILE is in, as a string, or nil.

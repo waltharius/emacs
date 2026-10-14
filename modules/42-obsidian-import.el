@@ -125,7 +125,7 @@ the other half.  Zero disables the check."
 
 (defun my/obsidian-import--notes-root ()
   "Return the notes tree, falling back when 00-core.el is absent."
-  (expand-file-name (if (boundp 'my-notes-dir) my-notes-dir "~/notes/")))
+  (expand-file-name my-notes-dir))
 
 (defun my/obsidian-import--save-notes ()
   "Save every modified buffer visiting a file in the notes tree.

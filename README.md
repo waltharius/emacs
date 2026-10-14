@@ -174,9 +174,10 @@ missing one disables a feature rather than breaking the configuration:
 | `python3` with PyYAML | runs the Obsidian import script | `42-obsidian-import.el` |
 | LaTeX | PDF export | `16-org-export.el` |
 
-Optional and non-obvious: `keylog` (typing analytics) is not on any
-package archive and must be installed by hand; `14-typing-analytics.el`
-handles its absence.
+Typing analytics (`14-typing-analytics.el`): command frequency
+(`keyfreq`, from MELPA) is on; the character-level keystroke log is
+**off by default** (`my/keylog-enabled`) and never records notes of a
+private silo.
 
 ---
 
@@ -438,7 +439,7 @@ is why they disappear cleanly when a module is removed.
 | `C-c w` | workspace: `d` dashboard, `x` tag stats, `r` random note, `s` statistics |
 | `C-c u` | appearance: `w` text width, `f` font size, `p` padding, `+`/`-`/`0` scale, `s` save scale to note |
 | `C-c r` | Readwise: `s` sync, `r` review, `o` open folder |
-| `C-c y` | typing analytics: `k` command frequency, `s` keylog status, `t`/`T` disable and re-enable |
+| `C-c y` | typing analytics: `k` command frequency, `s` keylog status, `t`/`T` keylog off/on for the session |
 | `C-c m` | `c` create submenu, `w` writing mode, `k` keywords |
 | `C-c e` | `b` eval buffer, `r` eval region |
 | `C-c o i` | open `init.el` |

@@ -1234,10 +1234,10 @@ appears with its first note."
   "Autosave directory for note files.")
 
 ;; Emacs configuration directories
-(defvar my-emacs-backups (expand-file-name "~/.emacs.d/backups/")
+(defvar my-emacs-backups (locate-user-emacs-file "backups/")
   "Backup directory for other files.")
 
-(defvar my-emacs-autosaves (expand-file-name "~/.emacs.d/autosaves/")
+(defvar my-emacs-autosaves (locate-user-emacs-file "autosaves/")
   "Autosave directory for other files.")
 
 ;; TEXT WRAPPING: Fill column for normal notes

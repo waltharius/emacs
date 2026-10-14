@@ -58,7 +58,7 @@ identifier clash protection is disabled"))))
   :tag "Inbox review"
   :group 'mypks-notes)
 
-(defcustom my/inbox-directory (expand-file-name "inbox/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
+(defcustom my/inbox-directory (expand-file-name "inbox/" my-notes-dir)
   "Staging folder with migrated notes awaiting review.
 Hidden from Denote; takes effect at once."
   :type 'directory
@@ -66,7 +66,7 @@ Hidden from Denote; takes effect at once."
   :group 'my/inbox-settings)
 
 (defcustom my/inbox-reject-directory
-  (expand-file-name "inbox-odrzucone/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
+  (expand-file-name "inbox-odrzucone/" my-notes-dir)
   "Where rejected notes go.  A trash folder, not deletion - review
 mistakes are certain over months of processing; empty it once, at the
 end.  Hidden from Denote; takes effect at once."

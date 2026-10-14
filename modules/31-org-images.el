@@ -114,7 +114,7 @@
 
 (defcustom my/org-image-attachments-directory
   (expand-file-name "attachments/"
-                    (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
+                    my-notes-dir)
   "Directory holding images referenced from notes.
 Kept inside the notes tree so that Syncthing carries attachments and
 notes together, and hidden from Denote's file listing.  Takes effect at

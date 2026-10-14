@@ -21,6 +21,72 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-14g — Audit findings fixed now
+
+### Why
+
+An outside review of the repository (2026-10-14, HEAD `281a25a`) graded
+it B+ and listed about forty findings.  Those that are bugs, privacy
+risks, or that touch what this batch already changes are fixed here;
+the rest are in BACKLOG.org with the reason for waiting and the way to
+do them.  The numbers below are the review's.
+
+### What
+
+- *Keystroke log off by default, and fixed* (SEC3, X1, X2, X3, B1 for
+  these names).  `my/keylog-enabled`, default nil, applied at once;
+  `C-c y T` / `C-c y t` switch it for one session.  Never records a
+  buffer visiting a note of a private silo.  Records every
+  self-inserting command: the test for `self-insert-command` alone
+  missed `org-self-insert-command`, i.e. almost all typing in notes.
+  Times from `float-time` instead of the parts of `current-time`.
+  Enabling twice started a second idle timer and disabling never
+  stopped one; the timer is now kept and cancelled.  Functions and
+  variables renamed `my/keylog-*`, the old names kept as obsolete
+  aliases.  The start-up message of keyfreq is gone (M4).
+- *Auto-commit message lists new files* (X4): read from the index after
+  `git add -A` (`git diff --cached --name-only`, `process-lines`), with
+  a count and "... and N more".  Before, `git diff --name-only HEAD`
+  ran before staging, left out new notes and failed in a repository
+  without a first commit.
+- `my/auto-commit-repository-sources` is a variable, its first entry a
+  named function (`my/auto-commit--notes-directory`) (B7): a lambda in
+  a `defcustom` showed in Customize as an uneditable expression.
+- The `save-buffers-kill-emacs` advice is a named function,
+  `my/auto-commit--before-kill` (part of B2); `my/commit-config-now`
+  stages with `call-process` instead of a shell string (part of X6).
+- `user-emacs-directory` instead of `~/.emacs.d/` in seven places (X8):
+  backup and autosave folders, desktop folder, save-place file, the
+  init file opener, the configuration's git commands.
+- The fallback `(if (boundp 'my-notes-dir) my-notes-dir "~/notes/")`
+  removed from eleven places (M3): 00-core.el always loads first, so
+  the branch was dead and duplicated the default.
+- Commented-out `ido` block removed from 02-editing.el (M2);
+  `.gitignore_old` removed (S4).
+- Also fixed in this batch, recorded in their own sessions: Denote's
+  attachments exclusion (2026-10-14b), a load-time error in the notes
+  folder check stopping start-up (X11, 2026-10-14c).
+
+### Not changed, with reasons
+
+- `function_helper.org` and `CHANGELOG.md` as "stray files" (S4): they
+  are the manual and the design record, kept on purpose and checked by
+  the pre-commit hook.
+- `safe-local-variable-values` (SEC1, SEC2) lives in `custom.el`, which
+  Customize rewrites and which may hold uncommitted changes on each
+  machine; a patch to it would fail to apply.  To be removed by hand in
+  Customize; the entry `(org-confirm-babel-evaluate)` lets any Org file
+  turn off the confirmation before running code blocks.
+- The rest: BACKLOG.org, section "Code review 2026-10-14".
+
+Verified in batch: with the log enabled, two characters typed in a
+journal note are not recorded and two in a pks note are, one idle
+timer exists after enabling twice, disabling removes hook and timer
+and writes the buffered keys; the old name `keylog-status` still
+works.  An automatic commit in a fresh repository with seven new notes
+succeeds and lists "Changed (7)", five names and "... and 2 more".
+
+---
 ## Session 2026-10-14f — CSL styles bundled, used when the notes have none
 
 ### Why

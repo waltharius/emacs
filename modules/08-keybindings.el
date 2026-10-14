@@ -111,9 +111,9 @@
 ;; TYPING ANALYTICS (already defined in 14-typing-analytics.el)
 ;; ============================================================
 ;; C-c y k = keyfreq-show (command frequency stats)
-;; C-c y s = keylog-status
-;; C-c y t = keylog-disable (temporarily)
-;; C-c y T = keylog-enable
+;; C-c y s = my/keylog-status
+;; C-c y t = my/keylog-disable (this session)
+;; C-c y T = my/keylog-enable (this session)
 ;; Moved off C-c a in August 2026 to free that key for `org-agenda'.
 
 ;; ============================================================
@@ -237,8 +237,8 @@ Workspace / Dashboards:
 Typing Analytics:
   C-c y k - Command frequency stats (keyfreq)
   C-c y s - Keylog status
-  C-c y t - Disable keylog temporarily
-  C-c y T - Re-enable keylog
+  C-c y t - Keylog off (this session)
+  C-c y T - Keylog on (this session; off by default)
 
 Tasks and habits:
   C-c a   - Org agenda
