@@ -4133,13 +4133,47 @@ finished.
 
 =my/csl-check-setup= reports, in one line each: whether =citeproc= and
 =oc-csl= loaded, whether =org-cite-export-processors= has a fallback
-entry, whether the style and locale directories exist, and whether the
-style and Polish locale files are real XML rather than error pages.
+entry, which style file and locale folder are in use (own or bundled,
+see [[#csl-bundled][Styles bundled with the configuration]]), and
+whether the style and Polish locale files are real XML rather than
+error pages.
 The size test matters: a failed =curl -O= leaves a perfectly readable
 14-byte file containing =404: Not Found=, and citeproc then fails far
 from the cause with =Wrong type argument: numberp, nil=.
 
 Run it before submitting anything, and after changing a style.
+
+** Styles bundled with the configuration
+:PROPERTIES:
+:CUSTOM_ID: csl-bundled
+:END:
+
+Citation export needs a style and a locale.  The user's own folders
+come first — =my/csl-styles-dir= (=<notes>/csl/=) and
+=my/csl-locales-dir= (=<notes>/csl-locales/=), options in /Writing/ →
+/Bibliography and citations/ — because a style is a requirement of the
+text and travels with the writing.  When they lack the default style
+(=my/csl-default-style=) or the Polish locale — a fresh installation, a
+new and empty notes folder — the copies in =csl/= of this repository are
+used instead: =chicago-notes-bibliography.csl=, =locales-pl-PL.xml= and
+=locales-en-US.xml=, unchanged from the Citation Style Language
+repositories, CC BY-SA 3.0 (=csl/README.md= names sources and dates).
+*Messages* says once per session which bundled file is in use; when no
+style is found at all, a warning says what to put where.
+
+=my/csl-apply= sets =org-cite-csl-styles-dir=, =org-cite-csl-locales-dir=
+and =org-cite-export-processors= (the default style by its full file
+name, so it may come from either place).  It runs when =oc= loads, when
+one of the three options changes, and before every export
+(=org-export-before-processing-functions=), so a style dropped into the
+folder is used at the next export without a restart.  A style named
+per document (=#+cite_export: csl apa.csl=) is looked up in the user's
+folder, or in the bundled one while the user's does not exist.
+
+=my/csl-check-setup= counts bundled files as present and says when they
+are the ones in use.
+
+Function: =my/csl-apply=, =my/csl-check-setup= | Module: =modules/17-bibliography.el=
 
 * Capture System
 :PROPERTIES:

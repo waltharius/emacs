@@ -21,6 +21,56 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-14f — CSL styles bundled, used when the notes have none
+
+### Why
+
+Finding of the test pass: export with citations failed on a new notes
+folder.  The CSL style and locales lived only beside the notes
+(`csl/`, `csl-locales/`), so a fresh installation or a new, empty notes
+folder had none, and the failure said nothing about what was missing.
+
+### What
+
+- `csl/` in this repository: `styles/chicago-notes-bibliography.csl`,
+  `locales/locales-pl-PL.xml`, `locales/locales-en-US.xml`, unchanged
+  from the Citation Style Language repositories (CC BY-SA 3.0;
+  `csl/README.md` names sources, dates and the licence).
+- `my/csl-styles-dir`, `my/csl-locales-dir` and `my/csl-default-style`
+  are options (group *Bibliography and citations*, under Writing),
+  applied at once.
+- `my/csl-apply`: the user's folders first, the bundled copies when the
+  default style or the Polish locale is missing there.  The default
+  style is given to `org-cite-export-processors` by its full file
+  name, so it may come from either place; per-document styles are
+  looked up in the user's folder.  Runs when `oc` loads, on a change of
+  the options, and before every export
+  (`org-export-before-processing-functions`), so a style dropped into
+  the folder is used without a restart.  *Messages* says once per
+  session when a bundled file is in use; with no style anywhere, a
+  warning says what to put where.
+- `my/csl-check-setup` reports which files are in use and counts the
+  bundled ones as present.
+- The settings and the `(require 'oc-csl)` are now in separate forms,
+  keeping the rule recorded in the old comment: a failing require must
+  not take the settings with it.
+
+### Rejected
+
+- *Only a message at the first export*: correct, but the export would
+  still fail until the user found a style; the bundled copy costs 300 kB
+  and makes it work.
+- *Org's own fallback style*: Org ships `chicago-author-date.csl` and
+  only the en-US locale; the notes use a note style in Polish.
+
+Verified in batch with citeproc-el and its dependencies fetched from
+their repositories: on a notes folder without CSL files a Polish
+document exports to ASCII with footnote citations, a shortened
+repeated note and a bibliography, headed "Przypis"; *Messages* names
+the bundled files; with the files copied into the notes' `csl/` and
+`csl-locales/` those are used instead and nothing is said.
+
+---
 ## Session 2026-10-14e — The planner in its own folder, with git
 
 ### Why

@@ -60,23 +60,52 @@
   :ensure t
   :after oc)
 
-(defvar my/csl-styles-dir (expand-file-name "csl/" my-notes-dir)
+;; WHERE THE STYLES COME FROM.  The user's folders beside the notes come
+;; first: a style is a requirement of the text, decided by the journal
+;; or publisher, and travels with the writing.  When they lack the
+;; default style or the Polish locale -- a fresh installation, a new and
+;; empty notes folder -- the copies bundled with this configuration in
+;; csl/ are used instead, so export works from the first day; *Messages*
+;; says so once per session.  Org's own fallback carries only en-US.
+;; Everything is decided again before each export (`my/csl-apply'), so
+;; a style dropped into the folder works without a restart.
+
+(defgroup my/bibliography nil
+  "Citations and their export (17-bibliography.el)."
+  :tag "Bibliography and citations"
+  :group 'mypks-writing)
+
+(defconst my/csl-bundled-styles-dir (locate-user-emacs-file "csl/styles/")
+  "CSL styles shipped with this configuration; see csl/README.md.")
+
+(defconst my/csl-bundled-locales-dir (locate-user-emacs-file "csl/locales/")
+  "CSL locales shipped with this configuration; see csl/README.md.")
+
+(defcustom my/csl-styles-dir (expand-file-name "csl/" my-notes-dir)
   "Directory holding CSL style files (.csl).
 
 Kept beside the notes rather than in .emacs.d because a style is part
 of a document's requirements, not part of the editor: which style a
 text uses is decided by the journal or publisher, and the file has to
-travel with the writing.")
+travel with the writing.  The default style, when missing here, is
+taken from `my/csl-bundled-styles-dir'.  Takes effect at once."
+  :type 'directory
+  :set (my/settings-apply-on-set #'my/csl-apply)
+  :group 'my/bibliography)
 
-(defvar my/csl-locales-dir (expand-file-name "csl-locales/" my-notes-dir)
+(defcustom my/csl-locales-dir (expand-file-name "csl-locales/" my-notes-dir)
   "Directory holding CSL locale files (locales-*.xml).
 
 Separate from the styles directory because citeproc looks the two up
 independently: every style shares the same locale data for a given
-language.  Without it citeproc uses the locales bundled with Org,
-which carry only en-US, so a Polish document renders English terms.")
+language.  Without the Polish locale here, the folder
+`my/csl-bundled-locales-dir' is used; Org's own carries only en-US, so
+a Polish document would render English terms.  Takes effect at once."
+  :type 'directory
+  :set (my/settings-apply-on-set #'my/csl-apply)
+  :group 'my/bibliography)
 
-(defvar my/csl-default-style "chicago-notes-bibliography.csl"
+(defcustom my/csl-default-style "chicago-notes-bibliography.csl"
   "CSL style used when a document does not name its own.
 
 A note style, since footnote citations are the default need here.
@@ -88,38 +117,10 @@ property of the text rather than of the configuration:
 Note the plural in \"notes\": the CSL styles repository renamed the
 Chicago styles, and the old singular name now 404s.  Verify the
 downloaded file is around 100 kB rather than the 14 bytes of an error
-page -- `my/csl-check-setup\=' checks this.")
-
-(with-eval-after-load 'oc
-  ;; The styles directory is set unconditionally and first.  Loading
-  ;; oc-csl can fail -- most plausibly because citeproc is not
-  ;; installed yet -- and an error inside `with-eval-after-load' aborts
-  ;; the remainder of the block silently.  With the require on top, a
-  ;; missing citeproc therefore left `org-cite-export-processors'
-  ;; unset, Org fell back to its built-in `basic' processor, and export
-  ;; produced "(Author, Year)" with no bibliography and no visible
-  ;; error anywhere.
-  (setq org-cite-csl-styles-dir my/csl-styles-dir)
-  ;; Citeproc needs locale data for terms ("ibid.", "and", date
-  ;; formats).  Left unset it falls back to the locales bundled with
-  ;; Org inside the Nix store, which carry only en-US -- so a Polish
-  ;; document silently renders English wording.
-  (setq org-cite-csl-locales-dir my/csl-locales-dir)
-  (unless (require 'oc-csl nil t)
-    (message "org-cite: oc-csl unavailable (is citeproc installed?) -- \
-citations will export through the basic processor"))
-  ;; NOTE the plural.  `org-cite-export-processors' is the global
-  ;; setting: an alist keyed by export backend, where `t' is the
-  ;; fallback for every backend without its own entry.  The SINGULAR
-  ;; `org-cite-export-processor' is a buffer-local variable set by a
-  ;; `#+cite_export:' keyword, so assigning it globally has no effect
-  ;; -- Org then silently falls back to the `basic' processor, which
-  ;; emits a plain "(Author, Year)" and no bibliography.
-  ;;
-  ;; Each entry is (BACKEND PROCESSOR BIBLIOGRAPHY-STYLE), mirroring
-  ;; the argument order of the #+cite_export: keyword.
-  (setq org-cite-export-processors
-        `((t csl ,my/csl-default-style))))
+page -- `my/csl-check-setup\=' checks this.  Takes effect at once."
+  :type 'string
+  :set (my/settings-apply-on-set #'my/csl-apply)
+  :group 'my/bibliography)
 
 (defun my/csl--valid-file-p (file opening-tag)
   "Return non-nil when FILE looks like real XML containing OPENING-TAG.
@@ -137,69 +138,158 @@ layout parameters, and the export fails far away from the cause with
          (goto-char (point-min))
          (search-forward opening-tag nil t))))
 
+(defun my/csl--default-style-file ()
+  "Return the default style file to use, absolute, or nil if there is none.
+The user's styles folder first, then the bundled copy."
+  (seq-find (lambda (file) (my/csl--valid-file-p file "<style"))
+            (list (expand-file-name my/csl-default-style my/csl-styles-dir)
+                  (expand-file-name my/csl-default-style my/csl-bundled-styles-dir))))
+
+(defun my/csl--locales-dir ()
+  "Return the locales folder to use: the user's when it has the Polish locale."
+  (if (my/csl--valid-file-p (expand-file-name "locales-pl-PL.xml" my/csl-locales-dir)
+                            "<locale")
+      my/csl-locales-dir
+    my/csl-bundled-locales-dir))
+
+(defvar my/csl--told nil
+  "What `my/csl-apply' already said this session, so that it says it once.")
+
+(defvar org-cite-csl-styles-dir)
+(defvar org-cite-csl-locales-dir)
+(defvar org-cite-export-processors)
+
+(defun my/csl--bundled-p (file)
+  "Non-nil when FILE is one of the CSL files bundled in csl/."
+  (and file (string-prefix-p (expand-file-name (locate-user-emacs-file "csl/"))
+                             (expand-file-name file))))
+
+(defun my/csl-apply (&rest _)
+  "Point org-cite at the CSL styles and locales to use; say what is missing.
+Called when Org's citation library loads, when an option changes, and
+before every export, so that a style added to the folder is used at the
+next export.  Arguments, given by the export hook, are ignored."
+  (with-eval-after-load 'oc
+    (let* ((style (my/csl--default-style-file))
+           (locales (my/csl--locales-dir))
+           (bundled (delq nil (list (and (my/csl--bundled-p style) "the default style")
+                                    (and (my/csl--bundled-p locales) "the locales"))))
+           (note (cond
+                  ((null style)
+                   (format "no CSL style %s in %s nor in %s, so citations will not export.  Put the style file in the first folder (from https://github.com/citation-style-language/styles); M-x my/csl-check-setup lists what else is missing"
+                           my/csl-default-style my/csl-styles-dir my/csl-bundled-styles-dir))
+                  (bundled
+                   (format "%s from the CSL files bundled with the configuration (csl/); put your own in %s and %s to use them instead"
+                           (string-join bundled " and ")
+                           my/csl-styles-dir my/csl-locales-dir)))))
+      ;; Styles a document names by file are looked up here; the default
+      ;; style is given by its full name, so it may come from either.
+      (setq org-cite-csl-styles-dir
+            (if (file-directory-p my/csl-styles-dir)
+                my/csl-styles-dir
+              my/csl-bundled-styles-dir))
+      (setq org-cite-csl-locales-dir locales)
+      ;; NOTE the plural.  `org-cite-export-processors' is the global
+      ;; setting: an alist keyed by export backend, where `t' is the
+      ;; fallback for every backend without its own entry.  The SINGULAR
+      ;; `org-cite-export-processor' is a buffer-local variable set by a
+      ;; `#+cite_export:' keyword, so assigning it globally has no
+      ;; effect -- Org then silently falls back to the `basic' processor,
+      ;; which emits a plain "(Author, Year)" and no bibliography.
+      ;;
+      ;; Each entry is (BACKEND PROCESSOR BIBLIOGRAPHY-STYLE), mirroring
+      ;; the argument order of the #+cite_export: keyword.
+      (setq org-cite-export-processors
+            `((t csl ,(or style my/csl-default-style))))
+      (when (and note (not (member note my/csl--told)))
+        (push note my/csl--told)
+        (if style
+            (message "Citations: %s" note)
+          (display-warning 'citations note :warning))))))
+
+;; Set before oc-csl is required, and in a form of its own: loading
+;; oc-csl can fail -- most plausibly because citeproc is not installed
+;; yet -- and an error inside `with-eval-after-load' aborts the
+;; remainder of the block silently.  When the settings shared a block
+;; with the require, a missing citeproc left `org-cite-export-processors'
+;; unset, Org fell back to its built-in `basic' processor, and export
+;; produced "(Author, Year)" with no bibliography and no visible error.
+(my/csl-apply)
+
+(with-eval-after-load 'oc
+  (unless (require 'oc-csl nil t)
+    (message "org-cite: oc-csl unavailable (is citeproc installed?) -- \
+citations will export through the basic processor")))
+
+(add-hook (if (boundp 'org-export-before-processing-functions)
+              'org-export-before-processing-functions
+            'org-export-before-processing-hook)
+          #'my/csl-apply)
+
 (defun my/csl-check-setup ()
   "Report whether CSL export is ready, and what is missing if not.
 
 Written because every failure here is silent: a missing style
 directory or an unreadable .bib does not raise an error, it just
 produces an export with no bibliography, which is easy not to notice
-until the document is finished."
+until the document is finished.  Files bundled in csl/ count as
+present, and the report says when they are the ones in use."
   (interactive)
-  (let ((problems nil))
+  (my/csl-apply)
+  (let ((problems nil)
+        (notes nil)
+        (style (my/csl--default-style-file))
+        (locales (my/csl--locales-dir)))
     (unless (featurep 'citeproc)
       (push "citeproc is not loaded (M-x package-install RET citeproc)" problems))
     (unless (featurep 'oc-csl)
       (push "oc-csl is not loaded -- export falls back to the basic processor"
             problems))
-    (unless (and (boundp 'org-cite-csl-locales-dir)
-                 org-cite-csl-locales-dir
-                 (equal (expand-file-name org-cite-csl-locales-dir)
-                        (expand-file-name my/csl-locales-dir)))
-      (push (format "org-cite-csl-locales-dir is %S, expected %S"
-                    (and (boundp 'org-cite-csl-locales-dir)
-                         org-cite-csl-locales-dir)
-                    my/csl-locales-dir)
-            problems))
     (unless (assq t org-cite-export-processors)
       (push "org-cite-export-processors has no fallback entry -- citations will export via the basic processor"
             problems))
-    (unless (file-directory-p my/csl-styles-dir)
-      (push (format "no CSL styles directory: %s" my/csl-styles-dir) problems))
-    (unless (file-directory-p my/csl-locales-dir)
-      (push (format "no CSL locales directory: %s" my/csl-locales-dir) problems))
-    (let ((locale (expand-file-name "locales-pl-PL.xml" my/csl-locales-dir)))
-      (cond
-       ((not (file-readable-p locale))
-        (push (format "Polish locale missing: %s" locale) problems))
-       ((not (my/csl--valid-file-p locale "<locale"))
-        (push (format "not a CSL locale (%d bytes): %s"
-                      (file-attribute-size (file-attributes locale)) locale)
-              problems))))
-    (unless (equal (expand-file-name my/csl-locales-dir)
-                   (and org-cite-csl-locales-dir
-                        (expand-file-name org-cite-csl-locales-dir)))
-      (push (format "org-cite-csl-locales-dir is %S, not %S -- the setq did not take effect"
-                    org-cite-csl-locales-dir my/csl-locales-dir)
+    (unless (equal (and (boundp 'org-cite-csl-locales-dir) org-cite-csl-locales-dir)
+                   locales)
+      (push (format "org-cite-csl-locales-dir is %S, expected %S -- the setting did not take effect"
+                    (and (boundp 'org-cite-csl-locales-dir) org-cite-csl-locales-dir)
+                    locales)
             problems))
-    (let ((style (expand-file-name my/csl-default-style my/csl-styles-dir)))
+    (let ((own (expand-file-name "locales-pl-PL.xml" my/csl-locales-dir)))
       (cond
-       ((not (file-readable-p style))
-        (push (format "default style missing: %s" style) problems))
-       ((not (my/csl--valid-file-p style "<style"))
-        (push (format "not a CSL style (%d bytes): %s"
-                      (file-attribute-size (file-attributes style)) style)
+       ((not (file-readable-p own))
+        (push (format "Polish locale: bundled copy in use (none in %s)" my/csl-locales-dir)
+              notes))
+       ((not (my/csl--valid-file-p own "<locale"))
+        (push (format "not a CSL locale (%d bytes): %s -- bundled copy in use"
+                      (file-attribute-size (file-attributes own)) own)
               problems))))
+    (let ((own (expand-file-name my/csl-default-style my/csl-styles-dir)))
+      (cond
+       ((null style)
+        (push (format "default style %s found neither in %s nor bundled"
+                      my/csl-default-style my/csl-styles-dir)
+              problems))
+       ((and (file-readable-p own) (not (my/csl--valid-file-p own "<style")))
+        (push (format "not a CSL style (%d bytes): %s -- bundled copy in use"
+                      (file-attribute-size (file-attributes own)) own)
+              problems))
+       ((my/csl--bundled-p style)
+        (push (format "default style: bundled copy in use (none in %s)" my/csl-styles-dir)
+              notes))))
     (dolist (bib (if (listp org-cite-global-bibliography)
                      org-cite-global-bibliography
                    (list org-cite-global-bibliography)))
       (unless (file-readable-p bib)
         (push (format "bibliography not readable: %s" bib) problems)))
     (if problems
-        (message "CSL export NOT ready:\n- %s" (string-join (nreverse problems) "\n- "))
-      (message "CSL export ready: %s via %S + %s"
-               my/csl-default-style
+        (message "CSL export NOT ready:\n- %s%s"
+                 (string-join (nreverse problems) "\n- ")
+                 (if notes (concat "\nAlso: " (string-join notes "; ")) ""))
+      (message "CSL export ready: %s via %S + %s%s"
+               (abbreviate-file-name style)
                (cadr (assq t org-cite-export-processors))
-               (string-join org-cite-global-bibliography ", ")))))
+               (string-join org-cite-global-bibliography ", ")
+               (if notes (concat "\n" (string-join notes "; ")) "")))))
 
 ;; ============================================================
 ;; DENOTE TEMPLATE: Bibliographic note front matter
