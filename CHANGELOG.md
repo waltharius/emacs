@@ -21,6 +21,34 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-14k — Note backups in the notes folder again
+
+### Why
+
+Found while adding the bibliography option: `custom.el` now holds
+`my-notes-dir` as `"~/notes"`, as typed in Customize.  The backup and
+autosave lists take regexps matched against the absolute file name,
+and the notes folder was put there as written: `"~/notes"` never
+matches `/home/marcin/notes/...`.  Since the folder was first saved in
+Customize, notes have been backed up and autosaved under
+`~/.emacs.d/backups/` and `autosaves/` instead of `<notes>/.backups/`.
+Nothing was lost -- the backups exist, in the other place.  With the
+default value (already expanded) it had worked, which is why TESTPLAN
+A7 passed earlier.
+
+### What
+
+- `my/notes--root-regexp`: the notes folder expanded, with a slash,
+  quoted, anchored at the start.  Used for both lists.
+
+Not normalising the option itself: a setter rewriting the value makes
+Customize show it as "changed outside Customize" after every start.
+
+Verified in batch with `my-notes-dir` = `"~/notes"`: a note's backup
+and autosave names point into `<notes>/.backups/` and
+`<notes>/.autosaves/`, any other file into `~/.emacs.d/backups/`.
+
+---
 ## Session 2026-10-14j — Keystroke log written in smaller batches
 
 ### Why

@@ -4533,9 +4533,19 @@ not on every save.* This is the part that is easy to misread: with
 *editing sessions*, not the last ten saves — usually far more history
 than the number suggests, not less.
 
-Notes go to =~/notes/.backups/=, everything else to
-=~/.emacs.d/backups/=. File names are the original's full path with
-=/= replaced by =!=, suffixed =.~N~=.
+Notes go to =<notes folder>/.backups/= (autosaves to =.autosaves/=),
+everything else to =~/.emacs.d/backups/=. File names are the
+original's full path with =/= replaced by =!=, suffixed =.~N~=.
+
+The two lists that decide this (=backup-directory-alist=,
+=auto-save-file-name-transforms=) hold regexps matched against the
+*absolute* file name, so the notes folder is put there expanded, with a
+slash, and quoted (=my/notes--root-regexp=).  Until 2026-10-14 it was
+put there as written in the option: once Customize had saved it as
+=~/notes= (as typed), no note matched and notes were backed up under
+=~/.emacs.d/backups/= instead.
+
+Function: =my/notes--root-regexp= | Module: =modules/00-core.el=
 
 =M-x diff-backup= diffs the current file against its most recent
 backup. Older versions open with =C-x C-f= like any text file.

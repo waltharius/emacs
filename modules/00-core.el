@@ -1326,14 +1326,22 @@ than signalling an error."
 ;; FILE HANDLING: Backups and autosaves
 ;; ============================================================
 
-;; Separate backups by location (notes vs other files)
+;; Separate backups and autosaves by location (notes vs other files).
+;; Both alists hold REGEXPS matched against the absolute file name, so
+;; the notes folder goes in expanded, with a slash, and quoted.  The
+;; option itself may hold "~/notes" -- Customize saves what was typed --
+;; and a key of "~/notes/" never matched "/home/<user>/notes/...": notes
+;; were then backed up and autosaved under ~/.emacs.d/ instead.
+(defun my/notes--root-regexp ()
+  "Return a regexp matching file names under the notes folder."
+  (concat "\\`" (regexp-quote (file-name-as-directory (expand-file-name my-notes-dir)))))
+
 (setq backup-directory-alist
-      `((,my-notes-dir . ,my-notes-backups)
+      `((,(my/notes--root-regexp) . ,my-notes-backups)
         (".*" . ,my-emacs-backups)))
 
-;; Separate autosaves by location
 (setq auto-save-file-name-transforms
-      `((,(concat my-notes-dir ".*") ,my-notes-autosaves t)
+      `((,(concat (my/notes--root-regexp) ".*") ,my-notes-autosaves t)
         (".*" ,my-emacs-autosaves t)))
 
 ;; Backup settings (keep more versions for safety)
