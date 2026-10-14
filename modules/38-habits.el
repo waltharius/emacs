@@ -33,8 +33,8 @@
 ;;
 ;; RELATION TO OTHER MODULES
 ;; - 37-tasks.el is required in practice, not in code: this module adds
-;;   its file to `my/tasks-extra-agenda-files' and appends to that
-;;   module's menu.  Without it the habit file is not in the agenda, so
+;;   its file to the agenda through `my/tasks-agenda-file-functions',
+;;   lives in that module's planner folder, and appends to its menu.  Without it the habit file is not in the agenda, so
 ;;   no graphs are drawn, and the commands still work.
 ;; - 37-tasks.el also sets `org-log-done' and `org-log-into-drawer',
 ;;   which org-habit needs.  Set here as well, because a habit file
@@ -64,18 +64,23 @@
   :tag "Habits"
   :group 'mypks-tasks)
 
-(defcustom my/habits-file
-  (expand-file-name "habits.org"
-                    (if (boundp 'my/tasks-directory)
-                        my/tasks-directory
-                      (expand-file-name "planner/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))))
+(defcustom my/habits-file "habits.org"
   "File holding every habit.
+Relative to the planner folder (`my/tasks-directory' of 37-tasks.el,
+`~/projects/planner/' without it), or absolute.  See `my/habits--file'.
 
 One file, not one per habit and not spread through the hubs: the point
 of a habit list is that it is read in one go, and org-habit draws its
 graphs from the agenda regardless of which file an entry came from."
   :type 'file
   :group 'my/habits)
+
+(defun my/habits--file ()
+  "Return the absolute name of `my/habits-file'."
+  (expand-file-name my/habits-file
+                    (if (boundp 'my/tasks-directory)
+                        my/tasks-directory
+                      "~/projects/planner/")))
 
 (defcustom my/habits-heading "Habits"
   "Top-level heading in `my/habits-file' that habits live under."
@@ -187,23 +192,24 @@ returning a list of \"YYYY-MM-DD\" strings, newest first."
 
 (defun my/habits--ensure-file ()
   "Create `my/habits-file' with its heading when it does not exist."
-  (unless (file-exists-p my/habits-file)
-    (make-directory (file-name-directory my/habits-file) t)
-    (with-temp-file my/habits-file
-      (insert (my/habits--file-template)))
-    (message "Created %s" my/habits-file)))
+  (let ((file (my/habits--file)))
+    (unless (file-exists-p file)
+      (make-directory (file-name-directory file) t)
+      (with-temp-file file
+        (insert (my/habits--file-template)))
+      (message "Created %s" file))))
 
 ;;;###autoload
 (defun my/habits-open ()
   "Open `my/habits-file', creating it if necessary."
   (interactive)
   (my/habits--ensure-file)
-  (find-file my/habits-file))
+  (find-file (my/habits--file)))
 
 (defun my/habits--buffer ()
   "Return a buffer visiting `my/habits-file'."
   (my/habits--ensure-file)
-  (find-file-noselect my/habits-file))
+  (find-file-noselect (my/habits--file)))
 
 ;; ============================================================
 ;; FINDING HABITS
@@ -218,7 +224,7 @@ what org-habit itself reads and a habit filed elsewhere is still a
 habit."
   (let (found)
     (dolist (file (delete-dups
-                   (append (list my/habits-file)
+                   (append (list (my/habits--file))
                            (when (boundp 'org-agenda-files) org-agenda-files))))
       (when (file-exists-p file)
         (with-current-buffer (find-file-noselect file)
@@ -263,7 +269,7 @@ habit."
 (defun my/habits--capture-target ()
   "Put point on `my/habits-heading' in `my/habits-file'."
   (my/habits--ensure-file)
-  (set-buffer (org-capture-target-buffer my/habits-file))
+  (set-buffer (org-capture-target-buffer (my/habits--file)))
   (widen)
   (goto-char (point-min))
   (if (re-search-forward
@@ -519,12 +525,20 @@ Safe to run repeatedly: the drawer is replaced, not appended to."
 ;; ============================================================
 ;; AGENDA
 ;; ============================================================
-;; 37-tasks.el owns `org-agenda-files' and reads this list.  Adding the
-;; file rather than setting the variable is what keeps that ownership
-;; intact: this module never has to know what else is in the agenda.
+;; 37-tasks.el owns `org-agenda-files' and asks the functions in
+;; `my/tasks-agenda-file-functions'.  Joining that way rather than
+;; setting the variable keeps the ownership intact: this module never
+;; has to know what else is in the agenda.  It used to add its file to
+;; `my/tasks-extra-agenda-files', the user's option, where it was saved
+;; as an absolute path the next time the option was saved -- and then
+;; read from the old notes folder after a move, the habits shown twice.
+
+(defun my/habits--agenda-files ()
+  "Return the habit file, for the agenda."
+  (list (my/habits--file)))
 
 (with-eval-after-load '37-tasks
-  (add-to-list 'my/tasks-extra-agenda-files my/habits-file t)
+  (add-hook 'my/tasks-agenda-file-functions #'my/habits--agenda-files)
   (when (fboundp 'my/tasks-update-agenda-files)
     (my/tasks-update-agenda-files)))
 

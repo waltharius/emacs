@@ -3179,7 +3179,8 @@ edited.
 
 ** The files
 
-=~/notes/planner/tasks.org=, created on first use with three
+=~/projects/planner/tasks.org= (=my/tasks-file= in the planner
+folder =my/tasks-directory=), created on first use with three
 top-level headings:
 
 | Heading   | Holds                                              |
@@ -3191,11 +3192,41 @@ top-level headings:
 Inbox and Tasks are separate so that the inbox can reach zero. A list
 that never empties stops being read.
 
-Inside the notes tree, so Syncthing carries it and the btrfs snapshots
-cover it. Not a Denote silo: nothing here has an identifier and
-nothing here is a note. Deliberately not under =~/.emacs.d/=, which is
-configuration rather than content and whose git history should not
-fill with daily task churn.
+*The planner folder is its own place*, =~/projects/planner/=, next to
+the writing projects and independent of the notes folder and the
+silos: tasks span every collection, and switching or moving the notes
+folder must not switch the task list or start an empty one.  Like the
+notes it is a git repository committed automatically by =07-git.el=
+(=my/tasks--repository-directories= joins its sources; a folder that is
+not a repository is skipped).  Not a Denote silo: nothing here has an
+identifier and nothing here is a note.  Not under =~/.emacs.d/= either,
+which is configuration rather than content.  =my/tasks-file= and
+=my/habits-file= are names relative to the planner folder (absolute
+names work too), so changing =my/tasks-directory= takes both along at
+once.
+
+*The move out of the notes folder.*  Until 2026-10 the planner was
+=planner/= inside the notes folder.  The first start that finds task
+or habit files there and no =tasks.org= in the new folder asks, before
+anything is created in the new folder:
+
+| Answer             | What happens                                                        |
+|--------------------+---------------------------------------------------------------------|
+| copy + git         | =cp -a= into the new folder, file lists compared, =git init= and a first commit (local; add a remote by hand) |
+| copy only          | the same without a repository                                       |
+| use the old folder | the old folder is saved as =my/tasks-directory=                     |
+| ask me next time   | the old folder is used for this session                             |
+
+The old folder is never changed; it stays in the notes repository until
+deleted by hand.  The result is a report that waits for an answer
+([[#notes-reports][Reports that wait for an answer]]): DONE, REFUSED
+when the new folder already holds other files, FAILED when the copy
+differs.  When saved agenda entries point into the old folder (the
+habit file was saved there by an older version of =38-habits.el=), the
+report offers to remove them, since the planner's files are read
+anyway and the entries show every habit twice.
+
+Function: =my/tasks-check-planner-move=, =my/tasks--repository-directories= | Module: =modules/37-tasks.el=
 
 The file is written with the same =#+todo:= keyword set as a project
 hub, so a task refiled from one to the other keeps its state instead
@@ -3204,8 +3235,15 @@ of becoming plain text no agenda view will show.
 ** Who owns org-agenda-files
 
 This module, for the whole configuration. The list is
-=my/tasks-file=, plus =my/tasks-extra-agenda-files=, plus the hub file
-of every writing project.
+=my/tasks-file=, plus the files other modules return through
+=my/tasks-agenda-file-functions= (the habit file), plus
+=my/tasks-extra-agenda-files=, plus the hub file of every writing
+project.
+
+=my/tasks-extra-agenda-files= is the user's own list.  A *relative*
+name in it is relative to the notes folder, so it follows that folder:
+switched to another collection, the agenda reads that collection's
+file of the same name.  An absolute name stays where it is.
 
 =28-writing-projects.el= used to set the variable itself and now
 delegates: =my/writing-projects-update-agenda-files= calls this
@@ -3228,9 +3266,14 @@ The silos are still not in the list, and that is deliberate; see
 
 ** Extending the agenda from another module
 
-Push a file onto =my/tasks-extra-agenda-files=. Nothing else is
-needed, and this module need not know what the file is for.
-=38-habits.el= joins the agenda this way.
+Add a function returning files to =my/tasks-agenda-file-functions=
+(=add-hook=). Nothing else is needed, and this module need not know
+what the file is for. =38-habits.el= joins the agenda this way.
+
+Not by pushing onto =my/tasks-extra-agenda-files=, as =38-habits.el=
+used to: that option is the user's, and a module's entry in it was
+saved with it the next time it was saved — as an absolute path which,
+after the notes folder moved, kept the agenda reading the old folder.
 
 ** Logging
 
@@ -3244,13 +3287,13 @@ entries, so a habit module depends on both.
 
 | Variable                      | Meaning                            |
 |-------------------------------+------------------------------------|
-| =my/tasks-directory=          | Where the task files live          |
-| =my/tasks-file=               | Tasks belonging to no project      |
+| =my/tasks-directory=          | The planner folder (=~/projects/planner/=) |
+| =my/tasks-file=               | Tasks belonging to no project, relative to the planner folder |
 | =my/tasks-category=           | =#+category:= of a new tasks file  |
 | =my/tasks-heading-inbox=      | Heading captures land under        |
 | =my/tasks-heading-active=     | Heading for filed general tasks    |
 | =my/tasks-heading-someday=    | Heading for the parked ones        |
-| =my/tasks-extra-agenda-files= | Files other modules contribute     |
+| =my/tasks-extra-agenda-files= | More agenda files, chosen by hand; relative to the notes folder |
 | =my/tasks-capture-key=        | Key inside =org-capture-templates= |
 | =my/tasks-capture-binding=    | Global key, nil for none           |
 | =my/tasks-date-keyword=       | ='scheduled= or ='deadline=        |
@@ -3422,7 +3465,7 @@ being logged for the duration of the =org-todo= call.
 
 | Variable                   | Meaning                               |
 |----------------------------+---------------------------------------|
-| =my/habits-file=           | Where habits live                     |
+| =my/habits-file=           | Where habits live, relative to the planner folder |
 | =my/habits-heading=        | Top-level heading they sit under      |
 | =my/habits-repeaters=      | Repeat periods offered                |
 | =my/habits-capture-key=    | Key inside =org-capture-templates=    |
@@ -8040,7 +8083,7 @@ other path under the notes is derived from them.
 
 | Option         | Default    | Meaning                                                    |
 |----------------+------------+------------------------------------------------------------|
-| =my-notes-dir= | =~/notes/= | root holding every silo, the planner, captures, exports    |
+| =my-notes-dir= | =~/notes/= | root holding every silo, captures, exports                 |
 | =my/silos=     | journal, pks, docu | the registry of silos                              |
 
 A *silo*, in Denote terms, is a folder used as =denote-directory= for
@@ -8080,7 +8123,7 @@ effect]].
 
 Derived from the root, unless saved otherwise in Customize: the backups
 and autosaves (=.backups/=, =.autosaves/=), =captures.org= (in the
-journal silo), the planner (=planner/=), PDF and office exports
+journal silo), PDF and office exports
 (=pdf/=, =export/=), the bibliography (=refs.bib=), the inbox and its
 rejects, the auto-commit repository, and every list of "all silos"
 (agenda, identifier checks, project scans, inbox link scan).

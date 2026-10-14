@@ -21,6 +21,63 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-14e — The planner in its own folder, with git
+
+### Why
+
+Findings of the test pass.  On the copied notes folder (`~/notes2`) the
+planner came along -- `my/tasks-directory` was derived from the notes
+folder -- although tasks span every collection and belong to none.
+And the agenda showed habits from `~/notes` and `~/notes2` together: the
+habit file had been pushed by `38-habits.el` into
+`my/tasks-extra-agenda-files`, the user's option, and saved with it as
+an absolute path the next time the option was saved.
+
+### What
+
+- `my/tasks-directory` defaults to `~/projects/planner/`, next to the
+  writing projects and independent of the notes folder; tag *Planner
+  folder*; takes effect at once.  `my/tasks-file` and `my/habits-file`
+  are names relative to it (`tasks.org`, `habits.org`; absolute names
+  still work), read through `my/tasks--file` and `my/habits--file`, so
+  changing the folder takes both along.
+- Git: `my/tasks--repository-directories` joins 07-git.el's
+  `my/auto-commit-repository-sources`; the planner is committed and
+  pushed like the notes when it is a repository, skipped otherwise.
+- `my/tasks-check-planner-move`, at load: when the old
+  `<notes>/planner/` holds files and the new folder has no `tasks.org`,
+  ask -- *copy + git* (copy, compare file lists, `git init`, first
+  commit), *copy only*, *use the old folder* (saved), *ask next time*
+  (old folder for the session) -- before anything is created in the new
+  folder.  Outcome as a report from `00-core.el`: DONE, REFUSED (new
+  folder holds other files), FAILED (copy differs, git failed).  The
+  old folder is never changed.  Saved agenda entries pointing into it
+  are offered for removal.  An error in the check keeps the old folder
+  for the session (`my/tasks--check-planner-move-safely`).
+- `my/tasks-agenda-file-functions`: how modules join the agenda.
+  `38-habits.el` uses it instead of the user's option.
+- `my/tasks-extra-agenda-files`: a relative name is relative to the
+  notes folder, so an entry follows the folder -- each collection can
+  have its own agenda file of the same name.
+- README: the layout lists `~/projects/planner/`.
+
+### Not done
+
+- *An agenda per notes folder* beyond relative entries: the agenda reads
+  the planner (shared, by the decision above), project hubs and the
+  entries of `my/tasks-extra-agenda-files`; none of these are notes of
+  a silo.  With the habit entry gone from the saved option, switching
+  the notes folder changes only what relative entries point to.
+- *Deleting the old `planner/`*: left to the user, like the old notes
+  folder.
+
+Verified in batch with answers fed in: tasks and habits in
+`<notes>/planner/` and a saved absolute habit entry; *copy + git*
+copies both files, starts a repository with one commit, reports DONE,
+and *remove them* saves the agenda option without the stale entry,
+keeping the others; the agenda then lists the planner's two files once.
+
+---
 ## Session 2026-10-14d — A silo's folder appears with its first note
 
 ### Why

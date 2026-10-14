@@ -124,8 +124,8 @@ decisions here are actively hostile to anyone who did not make them:
   messages are English; docstrings are English; prompts, note templates
   and the philosophy note types are Polish. Journal front matter is
   written with `#+language: pl`.
-- **Paths are assumed, not configured.** `~/notes/` with three silos, a
-  planner directory, an inbox and an attachments folder. They are
+- **Paths are assumed, not configured.** `~/notes/` with three silos,
+  an inbox and an attachments folder, and `~/projects/planner/`. They are
   variables in `00-core.el`, but nothing checks whether the layout
   makes sense for you.
 - **It assumes Linux.** Developed on NixOS with GNOME under Wayland.
@@ -189,12 +189,12 @@ handles its absence.
 ├── docu/                   technical notes        keyword: docu
 ├── inbox/                  staging for migrated notes (excluded from Denote)
 ├── attachments/            compressed images      (excluded from Denote)
-├── planner/                tasks.org, habits.org  (outside the silos)
 ├── csl-locales/            CSL locale files for citation export
 ├── pdf/                    PDF export destination
 └── refs.bib                exported from Zotero via Better BibTeX
 
 ~/projects/<slug>/          writing-project scaffolding (not notes)
+~/projects/planner/         tasks.org, habits.org  (own git repository)
 ~/.emacs.d/                 this repository
 ```
 

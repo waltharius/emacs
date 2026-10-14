@@ -52,8 +52,17 @@
 ;; - Appends to the menus of 12-transient via `my/transient-append', so
 ;;   a missing 12-transient leaves the entry out instead of breaking
 ;;   init.
-;; - 38-habits.el is expected to add its file to
-;;   `my/tasks-extra-agenda-files'.  Nothing here knows about habits.
+;; - 38-habits.el adds its file through `my/tasks-agenda-file-functions'.
+;;   Nothing here knows about habits.
+;; - 07-git.el, when present, commits the planner folder like the notes
+;;   when it is a git repository (`my/tasks--repository-directories').
+;;
+;; THE PLANNER FOLDER is its own place, `~/projects/planner/' by default,
+;; independent of the notes folder and of the silos: tasks span every
+;; collection, and moving or switching the notes folder must not move
+;; the task list or start an empty one.  Until 2026-10 it was
+;; `planner/' inside the notes folder; the first start after the change
+;; offers to copy it (`my/tasks-check-planner-move').
 ;;
 ;; Docs: ~/.emacs.d/function_helper.org::#tasks
 
@@ -73,21 +82,35 @@
   :tag "Tasks and planner"
   :group 'mypks-tasks)
 
-(defcustom my/tasks-directory (expand-file-name "planner/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
-  "Directory holding the task and habit files.
+(defcustom my/tasks-directory (expand-file-name "~/projects/planner/")
+  "The planner folder: the task and habit files.
 
-Inside the notes tree so that Syncthing carries it and the btrfs
-snapshots cover it, but not a Denote silo: nothing here has an
-identifier and nothing here is a note.  Deliberately not under
-`user-emacs-directory', which is configuration rather than content and
-whose git history should not fill with daily task churn."
+Outside the notes folder and independent of it: tasks span every
+collection of notes, and switching the notes folder must not switch
+the task list.  Next to the writing projects, and like them its own
+git repository, committed automatically when 07-git.el is loaded.  Not
+a Denote silo: nothing here has an identifier and nothing here is a
+note.  Not under `user-emacs-directory' either, which is configuration
+rather than content and whose history should not fill with daily task
+churn.
+
+Takes effect at once; nothing is moved.  The first start after the
+default moved here from the notes folder offers to copy the old
+planner (`my/tasks-check-planner-move')."
   :type 'directory
+  :tag "Planner folder"
+  :set (my/settings-apply-on-set #'my/tasks-update-agenda-files)
   :group 'my/tasks)
 
-(defcustom my/tasks-file (expand-file-name "tasks.org" my/tasks-directory)
-  "File holding tasks that belong to no writing project."
+(defcustom my/tasks-file "tasks.org"
+  "File holding tasks that belong to no writing project.
+Relative to `my/tasks-directory', or absolute.  See `my/tasks--file'."
   :type 'file
   :group 'my/tasks)
+
+(defun my/tasks--file ()
+  "Return the absolute name of `my/tasks-file'."
+  (expand-file-name my/tasks-file my/tasks-directory))
 
 (defcustom my/tasks-category "general"
   "Value written as `#+category:' into a newly created `my/tasks-file'.
@@ -121,13 +144,23 @@ never reaches zero stops being read."
   :group 'my/tasks)
 
 (defcustom my/tasks-extra-agenda-files nil
-  "Additional files `org-agenda' should read.
+  "Additional files `org-agenda' should read, chosen by hand.
 
-The hook other modules use to join the agenda without this one knowing
-about them.  Non-existent files are dropped rather than signalling, so
-a module may add a file it has not created yet."
+A relative name is relative to the notes folder (`my-notes-dir'), so
+it follows that folder: the agenda of another collection reads that
+collection's file of the same name.  An absolute name stays where it
+is.  Non-existent files are dropped rather than signalling.
+
+For the user only.  Modules join the agenda through
+`my/tasks-agenda-file-functions' instead: a module that added its file
+here had it saved with the option the next time the option was saved,
+as an absolute path that then outlived a move of the folder."
   :type '(repeat file)
   :group 'my/tasks)
+
+(defvar my/tasks-agenda-file-functions nil
+  "Functions of no arguments returning files `org-agenda' should read.
+How other modules join the agenda without this one knowing about them.")
 
 (defcustom my/tasks-capture-key "t"
   "Key of the task template inside `org-capture-templates'.
@@ -241,18 +274,19 @@ where the repetition comes from."
 
 (defun my/tasks--ensure-file ()
   "Create `my/tasks-file' with its headings when it does not exist."
-  (unless (file-exists-p my/tasks-file)
-    (make-directory (file-name-directory my/tasks-file) t)
-    (with-temp-file my/tasks-file
-      (insert (my/tasks--file-template)))
-    (message "Created %s" my/tasks-file)))
+  (let ((file (my/tasks--file)))
+    (unless (file-exists-p file)
+      (make-directory (file-name-directory file) t)
+      (with-temp-file file
+        (insert (my/tasks--file-template)))
+      (message "Created %s" file))))
 
 ;;;###autoload
 (defun my/tasks-open ()
   "Open `my/tasks-file', creating it if necessary."
   (interactive)
   (my/tasks--ensure-file)
-  (find-file my/tasks-file))
+  (find-file (my/tasks--file)))
 
 ;; ============================================================
 ;; ROUTING
@@ -410,7 +444,7 @@ must.  Falls back to the inbox when the routed project turns out to
 have no hub file -- a project directory can be deleted while a note
 still declares it, and losing the capture over that would be absurd."
   (let* ((hub (my/tasks--hub-file my/tasks--slug))
-         (file (or hub my/tasks-file))
+         (file (or hub (my/tasks--file)))
          (heading (if hub
                       (my/tasks--project-tasks-heading)
                     my/tasks-heading-inbox)))
@@ -420,7 +454,7 @@ still declares it, and losing the capture over that would be absurd."
     (unless hub (my/tasks--ensure-file))
     (setq my/tasks--destination
           (format "%s / %s"
-                  (or my/tasks--slug (file-name-nondirectory my/tasks-file))
+                  (or my/tasks--slug (file-name-nondirectory (my/tasks--file)))
                   heading))
     (set-buffer (org-capture-target-buffer file))
     (my/tasks--goto-heading heading)))
@@ -558,8 +592,11 @@ Works in an Org buffer and in the agenda."
   (seq-filter
    #'file-exists-p
    (delete-dups
-    (append (list my/tasks-file)
-            my/tasks-extra-agenda-files
+    (append (list (my/tasks--file))
+            (seq-mapcat (lambda (fn) (ignore-errors (funcall fn)))
+                        my/tasks-agenda-file-functions)
+            (mapcar (lambda (file) (expand-file-name file my-notes-dir))
+                    my/tasks-extra-agenda-files)
             (when (fboundp 'my/writing-hub-file)
               (mapcar #'my/writing-hub-file (my/tasks--project-slugs)))))))
 
@@ -584,6 +621,185 @@ state that gets diagnosed as \"the agenda is broken\".  The cost is one
 
 (with-eval-after-load 'org
   (my/tasks-update-agenda-files))
+
+;; ============================================================
+;; THE PLANNER FOLDER: GIT, AND THE MOVE OUT OF THE NOTES FOLDER
+;; ============================================================
+;; Committed like the notes: 07-git.el commits and pushes every
+;; directory its sources return that is a git repository, and skips the
+;; rest, so the planner joins when it has a repository and costs
+;; nothing when it does not.  Inside the notes folder (the old place,
+;; or a folder chosen there) it has no repository of its own and the
+;; notes repository already holds it.
+
+(defun my/tasks--repository-directories ()
+  "Return the planner folder, for 07-git.el's automatic commits."
+  (list my/tasks-directory))
+
+(with-eval-after-load '07-git
+  ;; `add-hook' works on any list of functions, and with a quoted
+  ;; symbol needs no declaration of 07-git.el's variable here.
+  (add-hook 'my/auto-commit-repository-sources
+            #'my/tasks--repository-directories t))
+
+;; The default moved from <notes>/planner/ to ~/projects/planner/ in
+;; 2026-10.  At the first start that finds the old folder with task or
+;; habit files and no task file in the new one, the user is asked --
+;; before anything is created in the new folder, which a capture would
+;; otherwise do, starting an empty task list next to the real one:
+;;
+;;   c  copy the old folder and start a git repository there (local; a
+;;      remote is added by hand)
+;;   k  copy only
+;;   u  keep using the old folder (saved as `my/tasks-directory')
+;;   l  ask at the next start; the old folder is used for this session
+;;
+;; The old folder is never changed: it stays in the notes repository
+;; until deleted by hand.  The result is a report from 00-core.el
+;; (`my/notes-report') when that module is loaded.
+
+(defun my/tasks--legacy-directory ()
+  "Return the planner folder of the old default, inside the notes folder."
+  (file-name-as-directory (expand-file-name "planner/" my-notes-dir)))
+
+(defun my/tasks--planner-files (dir)
+  "Return the files under DIR, relative to it, without .git; nil if none."
+  (when (file-directory-p dir)
+    (sort (seq-remove (lambda (f) (string-match-p "\\`\\.git/" f))
+                      (mapcar (lambda (f) (file-relative-name f dir))
+                              (directory-files-recursively dir "" nil)))
+          #'string<)))
+
+(defun my/tasks--report (kind title lines &optional choices)
+  "Report through 00-core.el's `my/notes-report', or as a message."
+  (if (fboundp 'my/notes-report)
+      (my/notes-report kind title lines choices)
+    (message "%s: %s" title (string-join lines " "))
+    nil))
+
+(defun my/tasks--git-init (dir)
+  "Make DIR a git repository with one commit.  Return nil, or a failure."
+  (let ((default-directory (file-name-as-directory dir)))
+    (with-temp-buffer
+      (if (and (eq 0 (call-process "git" nil t nil "init" "--quiet"))
+               (eq 0 (call-process "git" nil t nil "add" "-A"))
+               (eq 0 (call-process "git" nil t nil "commit" "--quiet" "-m"
+                                   "Planner: copied from the notes folder")))
+          nil
+        (format "git failed: %s" (string-trim (buffer-string)))))))
+
+(defun my/tasks--stale-agenda-entries (legacy)
+  "Return entries of `my/tasks-extra-agenda-files' inside LEGACY."
+  (seq-filter (lambda (file)
+                (string-prefix-p legacy (expand-file-name file my-notes-dir)))
+              my/tasks-extra-agenda-files))
+
+(defun my/tasks--copy-planner (legacy new)
+  "Copy the folder LEGACY into NEW.  Return nil, or a failure message.
+The copy must hold the same files as the original, .git aside."
+  (make-directory new t)
+  (let ((failure (with-temp-buffer
+                   (unless (eq 0 (call-process "cp" nil t nil "-a" "--reflink=auto"
+                                               (concat legacy ".") new))
+                     (string-trim (buffer-string))))))
+    (or failure
+        (let ((old (my/tasks--planner-files legacy))
+              (copy (my/tasks--planner-files new)))
+          (unless (equal old copy)
+            (format "Old: %d files.  Copy: %d files." (length old) (length copy)))))))
+
+(defun my/tasks-check-planner-move ()
+  "Offer to copy the planner from the notes folder to `my/tasks-directory'.
+See the commentary above.  Runs when this module loads."
+  (let* ((legacy (my/tasks--legacy-directory))
+         (new (file-name-as-directory (expand-file-name my/tasks-directory)))
+         (short-old (abbreviate-file-name legacy))
+         (short-new (abbreviate-file-name new)))
+    (cond
+     ;; Nothing to move, or the new folder is already the planner.
+     ((or (equal legacy new)
+          (null (my/tasks--planner-files legacy))
+          (file-exists-p (my/tasks--file))))
+     ;; Nobody to ask: use the old folder, ask at the next start.
+     ((or noninteractive (and (daemonp) (eq (selected-frame) terminal-frame)))
+      (setq my/tasks-directory legacy)
+      (message "Planner: still in %s this session; the move to %s waits for a frame"
+               short-old short-new))
+     ;; Something else is already in the new folder.
+     ((my/tasks--planner-files new)
+      (setq my/tasks-directory legacy)
+      (my/tasks--report
+       'refused (format "Planner NOT copied to %s" short-new)
+       (list (format "%s already holds files, but no %s." short-new my/tasks-file)
+             (format "Still using %s for this session." short-old)
+             "Empty it, move the files yourself, or choose another planner folder in C-c n ,")))
+     (t
+      (let ((answer (car (read-multiple-choice
+                          (format "Planner moves out of the notes folder: %s -> %s"
+                                  short-old short-new)
+                          '((?c "copy + git" "Copy, then start a local git repository there")
+                            (?k "copy only" "Copy; no repository")
+                            (?u "use the old folder" "Keep the planner in the notes folder (saved)")
+                            (?l "ask me next time" "Use the old folder for this session"))))))
+        (pcase answer
+          (?u (customize-save-variable 'my/tasks-directory short-old)
+              (my/tasks--report 'done "Planner stays in the notes folder"
+                                (list (format "%s saved as the planner folder (C-c n ,)."
+                                              short-old))))
+          ((or ?c ?k)
+           (let ((failure (my/tasks--copy-planner legacy new)))
+             (if failure
+                 (progn
+                   (setq my/tasks-directory legacy)
+                   (my/tasks--report
+                    'failed (format "Copying the planner to %s failed" short-new)
+                    (list failure
+                          (format "Still using %s for this session." short-old)
+                          (format "Nothing was removed.  The partial copy is in %s." short-new))))
+               (let ((git-failure (and (eq answer ?c) (my/tasks--git-init new)))
+                     (stale (my/tasks--stale-agenda-entries legacy)))
+                 (when (eq (my/tasks--report
+                            (if git-failure 'failed 'done)
+                            (format "Planner copied to %s" short-new)
+                            (append
+                             (list (format "%d files copied; the old folder %s is untouched"
+                                           (length (my/tasks--planner-files legacy)) short-old)
+                                   "and still in the notes repository: delete it by hand when satisfied.")
+                             (cond (git-failure (list "" git-failure
+                                                      "The copy is complete; the repository was not made."))
+                                   ((eq answer ?c)
+                                    (list "" "A local git repository was started there, committed"
+                                          "automatically like the notes.  Add a remote to push it:"
+                                          (format "  git -C %s remote add origin <url>" short-new))))
+                             (when stale
+                               (append (list "" "Saved agenda entries pointing into the old folder:")
+                                       (mapcar (lambda (f) (concat "  " f)) stale)
+                                       (list "The planner's own files are read anyway; keeping these"
+                                             "shows every habit and task twice."))))
+                            (if stale
+                                '((?r "remove them" "Remove those entries from my/tasks-extra-agenda-files (saved)")
+                                  (?k "keep them" "Leave the saved agenda entries as they are"))
+                              '((?o "ok" "Close the report"))))
+                           ?r)
+                   (customize-save-variable
+                    'my/tasks-extra-agenda-files
+                    (seq-remove (lambda (f) (member f stale)) my/tasks-extra-agenda-files)))))))
+          (_ (setq my/tasks-directory legacy)
+             (message "Planner: still in %s this session; asking again next time"
+                      short-old))))))))
+
+(defun my/tasks--check-planner-move-safely ()
+  "Run `my/tasks-check-planner-move'; on an error keep the old folder.
+Start-up must not stop over the planner."
+  (condition-case err
+      (my/tasks-check-planner-move)
+    (error
+     (when (my/tasks--planner-files (my/tasks--legacy-directory))
+       (setq my/tasks-directory (my/tasks--legacy-directory)))
+     (message "Planner: the move check failed (%s); using %s"
+              (error-message-string err) my/tasks-directory))))
+
+(my/tasks--check-planner-move-safely)
 
 ;; ============================================================
 ;; LOGGING
