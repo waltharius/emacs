@@ -12,117 +12,117 @@ Run Part A against a *copy* of the notes (=~/notes2=, section A1), so
 that a bug costs a copy.  Where a check reads "on notes2", it means the
 root is =~/notes2= at that moment.
 
-* Preparation [4/6]
+* Preparation [6/6]
 - [X] =git -C ~/notes status= clean and pushed; same for =~/.emacs.d=.
 - [X] A btrfs snapshot of the home subvolume taken today.
 - [X] All patches applied (=git log --oneline -15= in =~/.emacs.d=);
       restart; =*Messages*= has no error or backtrace.
-- [ ] =M-x emacs-init-time= noted, on Azazel and on baal, for later
+- [X] =M-x emacs-init-time= noted, on Azazel and on baal, for later
       comparison.
 - [X] =C-c n ,= opens the MyPKS tree with six areas.
-- [ ] =hooks/lint.py= and =hooks/parens.el= pass (=git commit= of a
+- [X] =hooks/lint.py= and =hooks/parens.el= pass (=git commit= of a
       trivial change, or run them by hand).
 
 * Part A -- notes and their folders
-** A1. Moving the notes root (copy only) [0/12]
-- [ ] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply
+** A1. Moving the notes root (copy only) [12/12]
+- [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply
       and Save.  Echo area: takes effect after a restart.
-- [ ] Restart.  Question with three answers: copy / skip / ask later.
+- [X] Restart.  Question with three answers: copy / skip / ask later.
       Answer /ask me next time/: Emacs runs on =~/notes=, nothing
       created at =~/notes2=.
-- [ ] Restart, answer /copy/.  Report buffer =*MyPKS notes move*=:
+- [X] Restart, answer /copy/.  Report buffer =*MyPKS notes move*=:
       identical file count and bytes; "old root untouched".
-- [ ] The question about the git history appears; answer /turn push
+- [X] The question about the git history appears; answer /turn push
       off/.  =C-h v my/auto-commit-push= → nil, saved.
-- [ ] Report lists saved settings still pointing at =~/notes= (habits
+- [X] Report lists saved settings still pointing at =~/notes= (habits
       file in =my/tasks-extra-agenda-files=).  Fix it in =C-c n ,=, then
       =C-c a= shows the habits again.
-- [ ] =df -h ~= before and after the copy: on btrfs the copy is a
+- [X] =df -h ~= before and after the copy: on btrfs the copy is a
       reflink and takes almost no space.
-- [ ] =C-c n c n=, any title: the file is created under =~/notes2/=.
-- [ ] =git -C ~/notes log -1= and =status= unchanged after working on
+- [X] =C-c n c n=, any title: the file is created under =~/notes2/=.
+- [X] =git -C ~/notes log -1= and =status= unchanged after working on
       notes2 for a while (auto-commit runs in notes2, no push).
-- [ ] Switch back: =my-notes-dir= = =~/notes/=, restart.  Question
+- [X] Switch back: =my-notes-dir= = =~/notes/=, restart.  Question
       "both hold notes"; answer /ask me next time/ → still notes2;
       restart, answer /switch/ → notes.  Nothing copied either way.
-- [ ] =M-x my/notes-delete-old-root= → "Disabled".  Leave it disabled.
-- [ ] /Skip/ path with a throw-away root (=~/notes3/=): silo folders
+- [X] =M-x my/notes-delete-old-root= → "Disabled".  Leave it disabled.
+- [X] /Skip/ path with a throw-away root (=~/notes3/=): silo folders
       created empty, report says to move files by hand.  Delete
       =~/notes3= by hand afterwards and set the root back.
-- [ ] Refusals: a root inside the current one (=~/notes/sub/=) and a
+- [X] Refusals: a root inside the current one (=~/notes/sub/=) and a
       non-empty unrelated folder are refused with a report; Emacs keeps
       the old root.
 
-** A2. Silo registry [0/10]
-- [ ] =C-c n ,= → =my/silos=: three entries (journal, pks, docu) with
+** A2. Silo registry [10/10]
+- [X] =C-c n ,= → =my/silos=: three entries (journal, pks, docu) with
       roles journal / notes / docs.
-- [ ] Add silo =test= (=:directory "test/"=), restart: folder created;
+- [X] Add silo =test= (=:directory "test/"=), restart: folder created;
       =C-c n c n= offers it in /Save in/ (pks first).
-- [ ] A note in =test= appears in =C-c n f n=, in link insertion and in
+- [X] A note in =test= appears in =C-c n f n=, in link insertion and in
       =C-c a= if it has a TODO.
-- [ ] Set =:disabled= on =test=, restart: absent from /Save in/, from
+- [X] Set =:disabled= on =test=, restart: absent from /Save in/, from
       =C-c n f n=, link prompts and backlinks; file still on disk and in
       =git ls-files=.
-- [ ] A link to that note from another note does not open while
+- [X] A link to that note from another note does not open while
       disabled, and opens again after clearing =:disabled=.
-- [ ] Delete the =test= entry instead of disabling it, restart: about 3 s
+- [X] Delete the =test= entry instead of disabling it, restart: about 3 s
       later =*Messages*= names =test= as a folder with notes but no silo;
       =M-x my/silo-report-orphans= says the same.
-- [ ] Inbox notes stay hidden from =C-c n f n= (shared exclusion list).
-- [ ] =C-h v denote-excluded-directories-regexp= lists inbox,
+- [X] Inbox notes stay hidden from =C-c n f n= (shared exclusion list).
+- [X] =C-h v denote-excluded-directories-regexp= lists inbox,
       inbox-odrzucone and any disabled silo, nothing else.
-- [ ] Statistics (=C-c n f s=) largest-notes section covers the enabled
+- [X] Statistics (=C-c n f s=) largest-notes section covers the enabled
       silos.
-- [ ] Remove the =test= folder by hand when done.
+- [X] Remove the =test= folder by hand when done.
 
-** A3. Deletion questions [0/8]
-- [ ] =C-c n d d= on a scratch note → asked; /no/ keeps the file.
-- [ ] /yes/ → deleted (=git rm= when tracked); attachments question when
+** A3. Deletion questions [8/8]
+- [X] =C-c n d d= on a scratch note → asked; /no/ keeps the file.
+- [X] /yes/ → deleted (=git rm= when tracked); attachments question when
       the note has its own pictures.
-- [ ] =C-c n d != → asks to switch questions off; mode line shows red
+- [X] =C-c n d != → asks to switch questions off; mode line shows red
       =!DEL=.
-- [ ] Delete a scratch note: no question; =*Messages*= records
+- [X] Delete a scratch note: no question; =*Messages*= records
       "Deleting without confirmation".
-- [ ] =C-c n d != again → questions back, =!DEL= gone.
-- [ ] Switch off for the session, restart → questions are back.
-- [ ] =C-c n ,= → =my/confirm-deletion= = never → =!DEL= after restart
+- [X] =C-c n d != again → questions back, =!DEL= gone.
+- [X] Switch off for the session, restart → questions are back.
+- [X] =C-c n ,= → =my/confirm-deletion= = never → =!DEL= after restart
       too; set it back to /ask/.
-- [ ] =C-c n d c= (change silo) onto a note with the same title →
+- [X] =C-c n d c= (change silo) onto a note with the same title →
       /overwrite/ asks "Permanently delete".
 
-** A4. Creating and capturing (on notes2) [0/12]
-- [ ] =C-c n c n= new note: title, keywords, silo; opens in a new tab;
+** A4. Creating and capturing (on notes2) [12/12]
+- [X] =C-c n c n= new note: title, keywords, silo; opens in a new tab;
       =C-g= at a prompt leaves no empty tab.
-- [ ] =C-c n c M= Markdown note: same, =.md=.
-- [ ] =C-c n c j= / =J= journal today / for a date, in the Journal tab.
-- [ ] =C-c n c w= / =W= metrics today / for a date.
-- [ ] =C-c n c e= essay; =C-c n c L= linked note.
-- [ ] =C-c n c i= ideas capture from a note: at =C-c C-c= "Keep source
+- [X] =C-c n c M= Markdown note: same, =.md=.
+- [X] =C-c n c j= / =J= journal today / for a date, in the Journal tab.
+- [X] =C-c n c w= / =W= metrics today / for a date.
+- [X] =C-c n c e= essay; =C-c n c L= linked note.
+- [X] =C-c n c i= ideas capture from a note: at =C-c C-c= "Keep source
       link? (y/N)"; RET drops it, =y= keeps it.
-- [ ] Filing under an existing heading (TAB): text lands right under the
+- [X] Filing under an existing heading (TAB): text lands right under the
       last line; a second capture from the same note adds no second
       =Source:= line; from another note it does.
-- [ ] A list item filed that way continues the list; =C-u C-u C-c C-c=
+- [X] A list item filed that way continues the list; =C-u C-u C-c C-c=
       renumbers.
-- [ ] =C-c n c m= promote a capture heading to a note (create, then
+- [X] =C-c n c m= promote a capture heading to a note (create, then
       append to an existing one).
-- [ ] =f8= task capture: date prompt lists /other date/ first, RET
+- [X] =f8= task capture: date prompt lists /other date/ first, RET
       opens the calendar; =none= second.
-- [ ] =f9= / =C-c n H= habits: mark done, consistency graph.
-- [ ] =C-c a= agenda dispatcher shows tasks from all silos and planner.
+- [X] =f9= / =C-c n H= habits: mark done, consistency graph.
+- [X] =C-c a= agenda dispatcher shows tasks from all silos and planner.
 
-** A5. Finding, linking, inserting [0/10]
-- [ ] =C-c n f f= find file, =g= grep, =n= by title/tag, =r= random.
-- [ ] =C-c n f b= backlinks of a linked note.
-- [ ] =C-c n f d= dashboard, =t= tag stats, =h= history, =j= journal
+** A5. Finding, linking, inserting [10/10]
+- [X] =C-c n f f= find file, =g= grep, =n= by title/tag, =r= random.
+- [X] =C-c n f b= backlinks of a linked note.
+- [X] =C-c n f d= dashboard, =t= tag stats, =h= history, =j= journal
       gaps, =s= statistics.
-- [ ] =C-c n i t= transclusion: insert, toggle, content shown.
-- [ ] =C-c n i h= / =d= / =w= time, date, week's days.
-- [ ] =C-c n i i= image from disk: compressed, attached, link inserted.
-- [ ] =C-c n i I= attachments folder opens.
-- [ ] =C-c n i u= web link fetches the page title.
-- [ ] =C-c n i H= add to hub.
-- [ ] =C-c n z= Zettelkasten / Folgezettel; =C-c n l= philosophy notes.
+- [X] =C-c n i t= transclusion: insert, toggle, content shown.
+- [X] =C-c n i h= / =d= / =w= time, date, week's days.
+- [X] =C-c n i i= image from disk: compressed, attached, link inserted.
+- [X] =C-c n i I= attachments folder opens.
+- [X] =C-c n i u= web link fetches the page title.
+- [X] =C-c n i H= add to hub.
+- [X] =C-c n z= Zettelkasten / Folgezettel; =C-c n l= philosophy notes.
 
 ** A6. Changing notes in place [0/6]
 - [ ] =C-c n d r= rename; =C-c n d k= add keywords (completion, comma
@@ -236,3 +236,5 @@ first note can be written.  This is the input for the welcome screen.
 
 * Findings
 # Date -- machine -- what was done -- what happened -- expected.
+2026-10-13 - azazel - init time - 2.671078 seconds (baal not available now)
+
