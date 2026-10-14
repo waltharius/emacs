@@ -33,16 +33,21 @@
  '(display-battery-mode t)
  '(display-line-numbers-type 'relative)
  '(display-time-mode t)
- '(my-notes-dir "~/notes/")
+ '(my-notes-dir "~/notes")
+ '(my/auto-commit-idle-seconds 300)
  '(my/auto-commit-push nil)
  '(my/confirm-deletion 'ask)
+ '(my/denote-hub-keyword "hub")
+ '(my/font-default-height 135)
  '(my/silos
    '((journal :directory "journal/" :role journal :keyword "journal"
               :private t :description "Private daily entries.")
      (pks :directory "pks/" :role notes :keyword nil :private nil
           :description "Personal knowledge system: regular notes.")
      (docu :directory "docu/" :role docs :keyword "docu" :private nil
-           :description "Documentation and technical notes.")))
+           :description "Documentation and technical notes.")
+     (test :directory "test/" :role notes :keyword "test" :disabled t)))
+ '(my/tasks-capture-binding "<f8>")
  '(my/tasks-extra-agenda-files
    '("/home/marcin/notes2/planner/habits.org"
      "/home/marcin/projects/mapa-sporu/lektury.org"))

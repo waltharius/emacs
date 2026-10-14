@@ -28,112 +28,112 @@ root is =~/notes2= at that moment.
 Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 2026-10-14a to g).  Run on =~/notes2= where notes are touched.
 
-** R1. Settings tree [1/4]
+** R1. Settings tree [4/4]
 - [X] =C-c n ,=: Notes and silos, Writing, Interface and appearance,
       Tools -- in that order, names in words, not =My/...=.
-- [ ] Notes and silos: /Ask before deleting notes/ first, then the
+- [X] Notes and silos: /Ask before deleting notes/ first, then the
       sub-areas Notes folder and silos, Tasks and habits, then the
       notes modules in the order of =init.el=.
-- [ ] Writing: Capture, Export (PDF and documents), Writing projects,
+- [X] Writing: Capture, Export (PDF and documents), Writing projects,
       Export (writing projects), Standard pages.  Tools: Git, Hugo
       sites, Typing analytics.
-- [ ] =M-x customize-group RET org= is still sorted alphabetically
+- [X] =M-x customize-group RET org= is still sorted alphabetically
       (the order change is limited to MyPKS).
 
-** R2. Changes without a restart [0/7]
-- [ ] =my/tasks-capture-binding= = =<f7>= → Apply: =f7= captures a task
+** R2. Changes without a restart [7/7]
+- [X] =my/tasks-capture-binding= = =<f7>= → Apply: =f7= captures a task
       at once, =f8= does nothing; set it back.
-- [ ] Add a silo =test= → Apply: echo area "Silos applied"; =C-c n c n=
+- [X] Add a silo =test= → Apply: echo area "Silos applied"; =C-c n c n=
       offers it in /Save in/ without a restart; no =test/= folder yet.
-- [ ] Disable =test= → Apply: gone from /Save in/;
+- [X] Disable =test= → Apply: gone from /Save in/;
       =C-h v denote-excluded-directories-regexp= lists =test=,
       =attachments= appears anchored (=\(?:\`\|/\)...=), not appended
       with =\|=.
-- [ ] =my/font-default-height= = 140 → Apply: text grows at once; after
+- [X] =my/font-default-height= = 140 → Apply: text grows at once; after
       a restart still 140 (=C-c u f= starts from it).
-- [ ] =my/auto-commit-idle-seconds= = 120 → Apply: =M-: (time-convert
+- [X] =my/auto-commit-idle-seconds= = 120 → Apply: =M-: (time-convert
       (timer--time my/auto-commit--idle-timer) 'integer)= → 120; set it
       back.
-- [ ] =my/denote-hub-keyword= or =my/drill-keyword= changed → Apply: the
+- [X] =my/denote-hub-keyword= or =my/drill-keyword= changed → Apply: the
       new keyword is offered in Denote's keyword prompt at once.
-- [ ] =my-notes-dir= → Apply: echo area says it takes effect at the
+- [X] =my-notes-dir= → Apply: echo area says it takes effect at the
       next start; nothing else happens until then.
 
-** R3. Reports that wait for an answer [0/6]
-- [ ] Root inside the current one (=~/notes/sub/=), restart: a window
+** R3. Reports that wait for an answer [6/6]
+- [X] Root inside the current one (=~/notes/sub/=), restart: a window
       =*MyPKS report*= with REFUSED in yellow, waiting for /o/ or /s/;
       /s/ opens Notes folder and silos once Emacs is up.  Set the root
       back.
-- [ ] A non-empty unrelated folder as root: REFUSED the same way.
-- [ ] Copy to a fresh =~/notes4=: the DONE report waits for /o/; then
+- [X] A non-empty unrelated folder as root: REFUSED the same way.
+- [X] Copy to a fresh =~/notes4=: the DONE report waits for /o/; then
       the push question.
-- [ ] Delete the =test= silo entry (its folder holding a note) →
+- [X] Delete the =test= silo entry (its folder holding a note) →
       /Apply and Save/: question /disable/ / /remove/ / /cancel/.
       /disable/ → the entry is back with =:disabled=, shown so in the
       Custom buffer; after a restart still there (it was saved).
-- [ ] Same with /remove/: entry gone; at the next start a REFUSED
+- [X] Same with /remove/: entry gone; at the next start a REFUSED
       report about =test/= waits: /d/ disabled silo, /a/ add, /l/
       later, /n/ never.  Try /l/, restart, then /n/: not asked again
       (=my/silo-orphans-ignored=).
-- [ ] An empty silo removed from the list: no question.
+- [X] An empty silo removed from the list: no question.
 
-** R4. A new, empty notes folder [0/4]
-- [ ] =my-notes-dir= = =~/notes3/= (not existing), restart, /skip/:
+** R4. A new, empty notes folder [4/4]
+- [X] =my-notes-dir= = =~/notes3/= (not existing), restart, /skip/:
       DONE report; =ls -a ~/notes3= shows only =.autosaves= and
       =.backups=.
-- [ ] =C-c n c j= journal today: =journal/= appears with the note.
-- [ ] =C-c n c i= ideas capture: =journal/captures.org= created with
+- [X] =C-c n c j= journal today: =journal/= appears with the note.
+- [X] =C-c n c i= ideas capture: =journal/captures.org= created with
       its =Ideas= heading.
-- [ ] Back to =~/notes=, later again to =~/notes3=: not refused (the
+- [X] Back to =~/notes=, later again to =~/notes3=: not refused (the
       backup folders do not make it foreign).  Delete =~/notes3= and set
       the root back.
 
-** R5. The planner in ~/projects/planner [0/7]
-- [ ] First start: question /copy + git/, /copy only/, /use the old
+** R5. The planner in ~/projects/planner [7/7]
+- [X] First start: question /copy + git/, /copy only/, /use the old
       folder/, /ask me next time/.  /ask me next time/: tasks still from
       =~/notes/planner/= (=C-c n A f=).
-- [ ] Restart, /copy + git/: DONE report with the file count, the
+- [X] Restart, /copy + git/: DONE report with the file count, the
       repository, and the saved agenda entry
       =.../notes/planner/habits.org= offered for removal → /remove
       them/.
-- [ ] =ls ~/projects/planner= has =tasks.org=, =habits.org=, =.git=;
+- [X] =ls ~/projects/planner= has =tasks.org=, =habits.org=, =.git=;
       =git -C ~/projects/planner log= one commit.  =~/notes/planner/=
       unchanged.
-- [ ] =C-c a= agenda: each habit once (no duplicate from the old path).
-- [ ] Switch the notes folder to =~/notes2=: the planner and the agenda
+- [X] =C-c a= agenda: each habit once (no duplicate from the old path).
+- [X] Switch the notes folder to =~/notes2=: the planner and the agenda
       stay the same.
-- [ ] After 5 idle minutes, =C-c v l= log shows a commit in
+- [X] After 5 idle minutes, =C-c v l= log shows a commit in
       =~/projects/planner= too.
-- [ ] Add a remote by hand (=git -C ~/projects/planner remote add
+- [X] Add a remote by hand (=git -C ~/projects/planner remote add
       origin ...=, =git push -u origin main=); the next idle cycle
       pushes.  Delete =~/notes/planner/= when satisfied.
 
-** R6. Citations without CSL files beside the notes [0/3]
-- [ ] On =~/notes3= (no =csl/=), export a note with a citation
+** R6. Citations without CSL files beside the notes [3/3]
+- [X] On =~/notes3= (no =csl/=), export a note with a citation
       (=C-c n x=): footnotes and bibliography present; *Messages* says
       once that the bundled style and locales are used.
-- [ ] On =~/notes=: the own =csl/= and =csl-locales/= are used, nothing
+- [X] On =~/notes=: the own =csl/= and =csl-locales/= are used, nothing
       said.  =C-c x ?= reports which files are in use.
-- [ ] Drop another style into =~/notes/csl/=, set
+- [X] Drop another style into =~/notes/csl/=, set
       =#+cite_export: csl that.csl= in a note: used at the next export,
       no restart.
 
-** R7. Keystroke log [0/4]
-- [ ] After a start =C-c y s= says OFF.
-- [ ] =C-c y T=, type in a pks note and in a journal note, =C-c y t=:
+** R7. Keystroke log [4/4]
+- [X] After a start =C-c y s= says OFF.
+- [X] =C-c y T=, type in a pks note and in a journal note, =C-c y t=:
       =tail ~/.emacs.d/keys= has the pks characters only.
-- [ ] =my/keylog-enabled= on in =C-c n ,=: on after a restart; set it
+- [X] =my/keylog-enabled= on in =C-c n ,=: on after a restart; set it
       back if not collecting.
-- [ ] =C-c y T= twice, then =M-: (length timer-idle-list)= -- one
+- [X] =C-c y T= twice, then =M-: (length timer-idle-list)= -- one
       keylog timer, not two.
 
-** R8. Odds and ends [0/3]
-- [ ] An automatic commit after creating three notes: =git log -1= in
+** R8. Odds and ends [3/3]
+- [X] An automatic commit after creating three notes: =git log -1= in
       the notes shows "Changed (3)" and their names.
-- [ ] =M-x customize-option RET safe-local-variable-values=: delete the
+- [X] =M-x customize-option RET safe-local-variable-values=: delete the
       entry =(org-confirm-babel-evaluate)= (any Org file could switch
       off the question before running code), /Apply and Save/.
-- [ ] Init time compared with the one noted in Preparation.
+- [X] Init time compared with the one noted in Preparation.
 
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
