@@ -66,17 +66,46 @@
 (defvar my/keylog-file (expand-file-name "keys" user-emacs-directory)
   "File to store raw keystroke data with timestamps.")
 
-(defvar my/keylog-buffer-size 1000
-  "Number of keystrokes to buffer before writing to disk.")
+;; WHEN THE LOG REACHES THE DISK.  Keystrokes are collected in memory
+;; and appended to the file in batches, whichever comes first:
+;;   - `my/keylog-buffer-size' keystrokes collected;
+;;   - `my/keylog-autosave-interval' seconds since the last write, checked
+;;     at each keystroke, so continuous typing is written too;
+;;   - `my/keylog-idle-save-seconds' of idleness: whatever is collected;
+;;   - turning the log off, and quitting Emacs.
+;; At most that much is lost if Emacs crashes.  Until 2026-10 it was 1000
+;; keystrokes, or five minutes checked only after a minute of idleness,
+;; so continuous typing reached the disk once per 1000 characters.
+
+(defcustom my/keylog-buffer-size 200
+  "Keystrokes collected in memory before they are appended to the log."
+  :type 'integer
+  :tag "Write after this many keystrokes"
+  :group 'my/typing-analytics)
+
+(defcustom my/keylog-autosave-interval 60
+  "Seconds after which collected keystrokes are written while typing."
+  :type 'integer
+  :tag "Write at least every N seconds"
+  :group 'my/typing-analytics)
+
+(defcustom my/keylog-idle-save-seconds 30
+  "Seconds of idleness after which collected keystrokes are written.
+Takes effect at the next `my/keylog-enable', or at once when the log
+is on."
+  :type 'integer
+  :tag "Write after N seconds idle"
+  :set (my/settings-apply-on-set #'my/keylog--restart-timer)
+  :group 'my/typing-analytics)
 
 (defvar my/keylog-buffer nil
   "Buffer for keystroke data before writing to file.")
 
+(defvar my/keylog--count 0
+  "Number of keystrokes in `my/keylog-buffer'.")
+
 (defvar my/keylog-last-save-time (current-time)
   "Last time the keylog was saved to disk.")
-
-(defvar my/keylog-autosave-interval 300
-  "Seconds between automatic saves (default: 5 minutes).")
 
 (defvar my/keylog--timer nil
   "Idle timer saving the keylog buffer; one at most.")
@@ -97,7 +126,10 @@ elsewhere.  Not in the minibuffer, and not in a private silo."
              (characterp last-command-event)
              (not (my/keylog--private-buffer-p)))
     (push (cons (float-time) (char-to-string last-command-event)) my/keylog-buffer)
-    (when (>= (length my/keylog-buffer) my/keylog-buffer-size)
+    (setq my/keylog--count (1+ my/keylog--count))
+    (when (or (>= my/keylog--count my/keylog-buffer-size)
+              (> (float-time (time-since my/keylog-last-save-time))
+                 my/keylog-autosave-interval))
       (my/keylog-save-buffer))))
 
 (defun my/keylog-save-buffer ()
@@ -108,14 +140,19 @@ elsewhere.  Not in the minibuffer, and not in a private silo."
         (insert (format "%.6f\t%s\n" (car entry) (cdr entry))))
       (write-region (point-min) (point-max) my/keylog-file t 'silent))
     (setq my/keylog-buffer nil
+          my/keylog--count 0
           my/keylog-last-save-time (current-time))))
 
 (defun my/keylog-autosave ()
-  "Automatically save keylog buffer if enough time has passed."
-  (when (and my/keylog-buffer
-             (> (float-time (time-since my/keylog-last-save-time))
-                my/keylog-autosave-interval))
-    (my/keylog-save-buffer)))
+  "Write whatever is collected; run after `my/keylog-idle-save-seconds' idle."
+  (my/keylog-save-buffer))
+
+(defun my/keylog--restart-timer ()
+  "Restart the idle timer with the current delay, when the log is on."
+  (when (timerp my/keylog--timer)
+    (cancel-timer my/keylog--timer)
+    (setq my/keylog--timer
+          (run-with-idle-timer my/keylog-idle-save-seconds t #'my/keylog-autosave))))
 
 (defun my/keylog-enable ()
   "Start keystroke logging for this session.
@@ -124,7 +161,8 @@ in every session, turn on `my/keylog-enabled' in C-c n ,."
   (interactive)
   (add-hook 'post-self-insert-hook #'my/keylog-record-keystroke)
   (unless (timerp my/keylog--timer)
-    (setq my/keylog--timer (run-with-idle-timer 60 t #'my/keylog-autosave)))
+    (setq my/keylog--timer
+          (run-with-idle-timer my/keylog-idle-save-seconds t #'my/keylog-autosave)))
   (add-hook 'kill-emacs-hook #'my/keylog-save-buffer)
   (when (called-interactively-p 'interactive)
     (message "Keystroke logging ON for this session (%s); private silos are skipped"

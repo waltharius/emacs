@@ -21,6 +21,33 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-14j — Keystroke log written in smaller batches
+
+### Why
+
+Finding: the keystroke log held a lot in memory before anything reached
+the file.  It wrote after 1000 keystrokes, or -- only after a minute of
+idleness -- when five minutes had passed since the last write.  While
+typing without a pause, that meant once per thousand characters, and a
+crash lost up to that many.
+
+### What
+
+- Written whichever comes first: `my/keylog-buffer-size` keystrokes
+  (now 200), `my/keylog-autosave-interval` seconds since the last write
+  (now 60, checked at each keystroke, so continuous typing is written
+  too), `my/keylog-idle-save-seconds` of idleness (30, everything
+  collected), turning the log off, quitting Emacs.
+- The three are options in *Tools → Typing analytics*; the idle delay
+  restarts the timer at once (`my/keylog--restart-timer`).
+- A counter replaces `length` of the buffer on every keystroke.
+
+Verified in batch with a batch size of 3: two keystrokes stay in
+memory, the third writes three lines; a keystroke after a write two
+minutes old writes at once; the idle save writes the rest; changing the
+idle delay leaves one timer with the new delay.
+
+---
 ## Session 2026-10-14i — Where the bibliography is, as an option
 
 ### Why

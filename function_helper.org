@@ -8048,7 +8048,18 @@ plain-text copy of the writing outside the notes folder.
 | =C-c y t= | stop logging for this session                |
 
 =my/keylog-enabled= (/Tools/ → /Typing analytics/) logs in every
-session; it takes effect at once.  A buffer visiting a note of a
+session; it takes effect at once.
+
+*When the log reaches the disk.*  Keystrokes are collected in memory
+and appended to the file in batches, whichever comes first: after
+=my/keylog-buffer-size= keystrokes (200), when
+=my/keylog-autosave-interval= seconds (60) have passed since the last
+write — checked at each keystroke, so continuous typing is written too
+— after =my/keylog-idle-save-seconds= (30) of idleness, when the log is
+turned off, and when Emacs quits.  At most one batch is lost if Emacs
+crashes.  Until 2026-10 the batch was 1000 keystrokes and the five
+minute limit was checked only after a minute of idleness, so while
+typing the file grew once per thousand characters.  A buffer visiting a note of a
 private silo (the journal) is never logged.  Every self-inserting
 command counts, =org-self-insert-command= in notes included (the old
 test for =self-insert-command= only recorded almost nothing in Org);
