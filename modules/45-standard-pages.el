@@ -56,6 +56,7 @@ Named without the slash, matching `my-journal-gaps' in
 35-journal-gaps.el: a group sharing a symbol with a command makes both
 harder to find, and the pre-commit duplicate scan cannot tell the two
 apart."
+  :tag "Standard pages"
   :group 'mypks-writing)
 
 (defcustom my/standard-page-characters 1800

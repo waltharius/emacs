@@ -51,6 +51,7 @@
 
 (defgroup my/denote-identifiers nil
   "Denote identifier checks across silos (27-denote-identifiers.el)."
+  :tag "Note identifiers"
   :group 'mypks-notes)
 
 (defcustom my/denote-scan-exclude-regexp "/\\."

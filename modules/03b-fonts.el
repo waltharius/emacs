@@ -65,6 +65,7 @@
 
 (defgroup my/fonts nil
   "Typeface configuration for notes."
+  :tag "Fonts"
   :group 'mypks-interface)
 
 (defcustom my/font-default "JetBrains Mono"

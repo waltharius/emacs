@@ -7933,20 +7933,41 @@ Function: =my/settings= | Module: =modules/00-core.el=
 :CUSTOM_ID: settings-tree
 :END:
 
-| Area (group)                         | Module groups                                                                                                                                                                    |
-|--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Notes and silos (=mypks-notes=)      | =my/notes=, =my/dashboard=, =my-dashboards=, =my/readwise=, =my/inbox-settings=, =my/denote-identifiers=, =my/link-tooltips=, =my/org-images=, =my-denote-hubs=, =my-journal-gaps=, =my-notes-stats=, =my/markdown=, =my/notes-search=, =my/obsidian=, =my/drill= |
-| Capture, tasks and habits (=mypks-tasks=) | =my/capture=, =my/tasks=, =my/habits=                                                                                                                                       |
-| Writing and export (=mypks-writing=) | =my/writing-projects=, =my/writing-export=, =my-standard-pages=                                                                                                                   |
-| Hugo sites (=mypks-publishing=)      | =my/blog=, =my/repo-docs=                                                                                                                                                         |
-| Interface and appearance (=mypks-interface=) | =my/desktop=, =my-ui=, =my/fonts=, =my/theme=, =my/visual-fill=, =my/appearance=, =my-image-display=, and the mode-line faces                                              |
-| Git (=mypks-git=)                    | =my/git=, =my/project-git=                                                                                                                                                        |
+Areas in order of importance, each holding sub-areas, so that a new
+module joins the branch it belongs to without anything above it being
+renamed:
+
+| Area (group)                                 | Sub-areas, in display order                                                                                                                                                                 |
+|----------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1. Notes and silos (=mypks-notes=)           | Notes folder and silos (=mypks-silos=), Tasks and habits (=mypks-tasks=: =my/tasks=, =my/habits=), then Notes, Dashboard, Journal dashboards, Readwise import, Inbox review, Note identifiers, Link tooltips, Images and attachments, Hubs, Journal gaps, Statistics, Markdown notes, Search, Obsidian import, Review cards |
+| 2. Writing (=mypks-writing=)                 | Capture (=my/capture=), Export: PDF and documents (=my/org-export=), Writing projects, Export: writing projects, Standard pages                                                             |
+| 3. Interface and appearance (=mypks-interface=) | Session, Interface, Fonts, Theme, Text width, Appearance, Image display, and the mode-line faces                                                                                         |
+| 4. Tools (=mypks-tools=)                     | Git (=mypks-git=: =my/git=, =my/project-git=), Hugo sites (=mypks-publishing=: =my/blog=, =my/repo-docs=)                                                                                    |
+
+Options of an area come first, sub-areas after them, under
+/Subgroups/.  The option /Ask before deleting notes/ sits directly in
+/Notes and silos/.
+
+*Order of definition, not the alphabet.*  Customize sorts the members
+of a group alphabetically by symbol name (=custom-buffer-sort-alphabetically=),
+which would put Git before Notes.  Inside the MyPKS tree
+=my/settings--keep-order= (around =customize-group=) turns sorting off
+while a group of the tree is drawn, and keeps it off in that buffer for
+redraws.  Sub-areas then follow the order in which modules load, so a
+module's place in the list follows its number in =init.el=.  Every
+other Customize buffer is sorted as before.
+
+*Names, not symbols.*  Every group has a =:tag=, and the core options
+too (/Notes folder/, /Silos/, /Ask before deleting notes/), so the tree
+reads in words.  The symbol stays what =C-h v= and the custom file use.
 
 The root and area groups are defined in =00-core.el=. A module names
 its area with =:group= in its own =defgroup=; without =00-core.el= the
 area is merely undefined and the module works unchanged. Groups hold no
 values, so moving an option to another group never touches a saved
 setting.
+
+Function: =my/settings--keep-order=, =my/settings--tree-groups= | Module: =modules/00-core.el=
 
 ** What is not here yet
 :PROPERTIES:
@@ -7965,7 +7986,8 @@ setting.
 :CUSTOM_ID: notes-root-and-silos
 :END:
 
-Two options in /Notes and silos/ describe where the notes are; every
+Two options in /Notes and silos/ → /Notes folder and silos/ describe
+where the notes are; every
 other path under the notes is derived from them.
 
 | Option         | Default    | Meaning                                                    |

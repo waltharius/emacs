@@ -226,6 +226,7 @@
 
 (defgroup my/desktop nil
   "Custom desktop-save buffer trimming."
+  :tag "Session (desktop)"
   :group 'mypks-interface)
 
 (defconst my/desktop-max-buffers 10
@@ -735,6 +736,7 @@ which loads after this file."
 
 (defgroup my-ui nil
   "Interface conventions shared by several modules."
+  :tag "Interface"
   :group 'mypks-interface)
 
 (defcustom my/reports-tab-name "Stats"

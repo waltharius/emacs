@@ -77,6 +77,7 @@
 Named without the slash, matching `my-dashboards' in 21-dashboards.el:
 a group sharing a symbol with a command makes both harder to find, and
 the pre-commit duplicate scan cannot tell the two apart."
+  :tag "Journal gaps"
   :group 'mypks-notes)
 
 (defcustom my/journal-gaps-default-days 90

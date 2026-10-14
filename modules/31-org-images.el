@@ -109,6 +109,7 @@
 
 (defgroup my/org-images nil
   "Images in notes: attachment, compression, links (31-org-images.el)."
+  :tag "Images and attachments"
   :group 'mypks-notes)
 
 (defcustom my/org-image-attachments-directory

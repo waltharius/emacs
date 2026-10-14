@@ -74,6 +74,7 @@
 
 (defgroup my/link-tooltips nil
   "Mouse tooltips over Denote links."
+  :tag "Link tooltips"
   :group 'mypks-notes)
 
 (defcustom my/link-tooltip-style 'identifier

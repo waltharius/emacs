@@ -72,6 +72,7 @@
 
 (defgroup my/writing-projects nil
   "Managing long-form writing projects."
+  :tag "Writing projects"
   :group 'mypks-writing)
 
 (defcustom my/writing-projects-directory (expand-file-name "~/projects/")

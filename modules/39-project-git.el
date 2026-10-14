@@ -57,6 +57,7 @@
 
 (defgroup my/project-git nil
   "Remotes and staleness checks for writing project repositories."
+  :tag "Project repositories"
   :group 'mypks-git)
 
 (defcustom my/project-git-remote-format

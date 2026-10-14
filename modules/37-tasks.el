@@ -70,6 +70,7 @@
 
 (defgroup my/tasks nil
   "Capturing and routing tasks without leaving the current buffer."
+  :tag "Tasks and planner"
   :group 'mypks-tasks)
 
 (defcustom my/tasks-directory (expand-file-name "planner/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))

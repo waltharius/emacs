@@ -99,6 +99,7 @@
 
 (defgroup my/org-export nil
   "PDF export of notes through LaTeX (16-org-export.el)."
+  :tag "Export: PDF and documents"
   :group 'mypks-writing)
 
 (defcustom my/latex-journal-font

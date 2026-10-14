@@ -92,6 +92,7 @@
 
 (defgroup my/markdown nil
   "Markdown notes living beside Org notes."
+  :tag "Markdown notes"
   :group 'mypks-notes)
 
 (defcustom my/markdown-denote-file-type 'markdown-yaml

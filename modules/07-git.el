@@ -65,6 +65,7 @@
 
 (defgroup my/git nil
   "Automatic commits of the notes repository (07-git.el)."
+  :tag "Automatic commits"
   :group 'mypks-git)
 
 (defcustom my/auto-commit-repository-sources

@@ -80,6 +80,7 @@
 
 (defgroup my/drill nil
   "Spaced repetition on top of org-drill."
+  :tag "Review cards (drill)"
   :group 'mypks-notes)
 
 (defcustom my/drill-keyword "karty"

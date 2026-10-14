@@ -65,6 +65,7 @@
 
 (defgroup my-image-display nil
   "Showing and hiding inline images in note buffers."
+  :tag "Image display"
   :group 'mypks-interface)
 
 (defcustom my/image-display-record-choice t

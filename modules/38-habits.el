@@ -61,6 +61,7 @@
 
 (defgroup my/habits nil
   "Binary habit tracking on top of org-habit."
+  :tag "Habits"
   :group 'mypks-tasks)
 
 (defcustom my/habits-file

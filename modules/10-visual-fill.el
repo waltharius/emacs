@@ -22,6 +22,7 @@
 
 (defgroup my/visual-fill nil
   "Centred text width (10-visual-fill.el)."
+  :tag "Text width"
   :group 'mypks-interface)
 
 (defcustom my/fill-column-docu 100

@@ -57,6 +57,7 @@
 ;; collision as a duplicate definition, which is what it is.
 (defgroup my/obsidian nil
   "Import notes written in Obsidian into the notes tree."
+  :tag "Obsidian import"
   :group 'mypks-notes)
 
 (defcustom my/obsidian-vault-directory

@@ -78,6 +78,7 @@
 
 (defgroup my/appearance nil
   "Faces and settings for the visual layer."
+  :tag "Appearance"
   :group 'mypks-interface)
 
 (defface my/dashboard-title

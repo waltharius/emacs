@@ -50,6 +50,7 @@
 
 (defgroup my/writing-export nil
   "Export to office formats."
+  :tag "Export: writing projects"
   :group 'mypks-writing)
 
 (defcustom my/office-output-dir (expand-file-name "export/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))

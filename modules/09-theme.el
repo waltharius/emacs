@@ -117,6 +117,7 @@
 
 (defgroup my/theme nil
   "Theme browsing and the light/dark switch (09-theme.el)."
+  :tag "Theme"
   :group 'mypks-interface)
 
 (defcustom my/theme-known-light

@@ -118,6 +118,7 @@
 
 (defgroup my/notes-search nil
   "Full-text search of the notes (41-notes-search.el)."
+  :tag "Search"
   :group 'mypks-notes)
 
 (defcustom my/notes-search-ignored-directories

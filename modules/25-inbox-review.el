@@ -55,6 +55,7 @@ identifier clash protection is disabled"))))
 
 (defgroup my/inbox-settings nil
   "Reviewing the inbox silo (25-inbox-review.el)."
+  :tag "Inbox review"
   :group 'mypks-notes)
 
 (defcustom my/inbox-directory (expand-file-name "inbox/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))

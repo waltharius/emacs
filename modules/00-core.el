@@ -43,6 +43,23 @@
 ;; records the membership and shows nothing, and the module works as
 ;; before.  Groups carry no values, so moving an option between groups
 ;; never touches a saved setting.
+;;
+;; THE TREE, in order of importance rather than of the alphabet:
+;;
+;;   MyPKS
+;;   1. Notes and silos        notes folder and silos first, then tasks
+;;                             and habits, then each notes module
+;;   2. Writing                capture, export, writing projects, pages
+;;   3. Interface and appearance
+;;   4. Tools                  git, Hugo sites
+;;
+;; An area holds sub-areas, so a new module joins the branch it belongs
+;; to -- a group of its own with `:group' naming that branch -- without
+;; renaming anything above it.  Customize sorts the members of a group
+;; alphabetically by symbol name by default
+;; (`custom-buffer-sort-alphabetically'), which would put Git before
+;; Notes; inside this tree the order of definition is kept instead, see
+;; `my/settings--keep-order'.  Everywhere else Customize behaves as set.
 
 (defgroup mypks nil
   "Settings of the MyPKS Emacs configuration: notes, writing, sites."
@@ -50,23 +67,23 @@
   :group 'emacs)
 
 (defgroup mypks-notes nil
-  "Notes and silos: creation, search, review, statistics, imports."
+  "Notes and silos: the notes folder, silos, tasks, search, review, imports."
   :tag "Notes and silos"
   :group 'mypks)
 
+(defgroup mypks-silos nil
+  "The notes folder and the silos in it: where notes are, and which collections."
+  :tag "Notes folder and silos"
+  :group 'mypks-notes)
+
 (defgroup mypks-tasks nil
-  "Capture, tasks and habits."
-  :tag "Capture, tasks and habits"
-  :group 'mypks)
+  "Tasks, the planner and habits."
+  :tag "Tasks and habits"
+  :group 'mypks-notes)
 
 (defgroup mypks-writing nil
-  "Writing projects and their export."
-  :tag "Writing and export"
-  :group 'mypks)
-
-(defgroup mypks-publishing nil
-  "Hugo sites built from notes and from repositories."
-  :tag "Hugo sites"
+  "Writing: capture, export, writing projects, standard pages."
+  :tag "Writing"
   :group 'mypks)
 
 (defgroup mypks-interface nil
@@ -74,15 +91,65 @@
   :tag "Interface and appearance"
   :group 'mypks)
 
-(defgroup mypks-git nil
-  "Automatic commits of the notes and project repositories."
-  :tag "Git"
+(defgroup mypks-tools nil
+  "Tools: automatic git commits and Hugo sites."
+  :tag "Tools"
   :group 'mypks)
+
+(defgroup mypks-git nil
+  "Automatic commits of the notes, planner and project repositories."
+  :tag "Git"
+  :group 'mypks-tools)
+
+(defgroup mypks-publishing nil
+  "Hugo sites built from notes and from repositories."
+  :tag "Hugo sites"
+  :group 'mypks-tools)
+
+(defun my/settings--tree-groups ()
+  "Return every group in the MyPKS tree, `mypks' included."
+  (let ((todo (list 'mypks)) groups)
+    (while todo
+      (let ((group (pop todo)))
+        (unless (memq group groups)
+          (push group groups)
+          (dolist (member (get group 'custom-group))
+            (when (eq (nth 1 member) 'custom-group)
+              (push (car member) todo))))))
+    groups))
+
+;; Declared special so that the `let' below binds the real option even
+;; though cus-edit.el, which defines it, loads only with Customize.
+(defvar custom-buffer-sort-alphabetically)
+
+(defun my/settings--keep-order (fn &optional group &rest args)
+  "Around `customize-group': keep the MyPKS tree in definition order.
+FN is the original command, GROUP and ARGS its arguments.  For a group
+of the tree, `custom-buffer-sort-alphabetically' is nil while the buffer
+is built, and stays nil in that buffer, where Customize redraws a group
+after a change.  Any other group is shown exactly as before."
+  (let* ((symbol (if (stringp group) (intern-soft group) group))
+         (ours (and symbol (memq symbol (my/settings--tree-groups)))))
+    (if (not ours)
+        (apply fn group args)
+      ;; Loaded first, so that the binding below is not the one cus-edit
+      ;; finds when its `defcustom' runs.
+      (require 'cus-edit)
+      ;; The DEFAULT value, not a `let': a subgroup is opened from a
+      ;; Custom buffer of the tree, where the option is buffer-local, and
+      ;; a `let' there would bind only that buffer's value while the new
+      ;; buffer reads the global one.
+      (cl-letf (((default-value 'custom-buffer-sort-alphabetically) nil))
+        (prog1 (apply fn group args)
+          (when (derived-mode-p 'Custom-mode)
+            (setq-local custom-buffer-sort-alphabetically nil)))))))
+
+(advice-add 'customize-group :around #'my/settings--keep-order)
 
 (defun my/settings ()
   "Open the settings of this configuration in Customize.
-Every option of every loaded module, arranged by area.  Values saved
-with \"Apply and Save\" go to `custom-file'."
+Every option of every loaded module, arranged by area in order of
+importance.  Values saved with \"Apply and Save\" go to `custom-file'."
   (interactive)
   (customize-group 'mypks))
 
@@ -104,6 +171,7 @@ in every session until changed back here.  To stop the questions only
 until Emacs restarts, use `my/confirm-deletion-toggle-session' instead."
   :type '(choice (const :tag "Ask before every deletion (default)" ask)
                  (const :tag "Never ask -- deletes immediately" never))
+  :tag "Ask before deleting notes"
   :group 'mypks-notes)
 
 (defvar my/confirm-deletion--session-off nil
@@ -201,7 +269,8 @@ Everything under it -- silos with relative directories, planner,
 captures, exports, backups -- is derived from this value."
   :type 'directory
   :set #'my/notes--set-needs-restart
-  :group 'mypks-notes)
+  :tag "Notes folder"
+  :group 'mypks-silos)
 
 (defcustom my/silos
   '((journal :directory "journal/" :role journal :keyword "journal"
@@ -248,7 +317,8 @@ Order matters where a list of silos is shown or scanned."
                         (:disabled boolean)
                         (:description string))))
   :set #'my/notes--set-needs-restart
-  :group 'mypks-notes)
+  :tag "Silos"
+  :group 'mypks-silos)
 
 (defun my/notes-path (relative)
   "Return RELATIVE expanded under `my-notes-dir'."
@@ -434,7 +504,8 @@ Denote and dot folders are not reported."
 The command moves the PREVIOUS notes root to the trash after a copy.
 Until this is turned on it only says that it is disabled."
   :type 'boolean
-  :group 'mypks-notes)
+  :tag "Allow deleting the old notes folder"
+  :group 'mypks-silos)
 
 (defconst my/notes-root-state-file (locate-user-emacs-file "notes-root.eld")
   "Where the notes root used last, and the one before it, are kept.

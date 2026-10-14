@@ -316,6 +316,7 @@ pushes the informative tags further right.")
 
 (defgroup my/dashboard nil
   "The Notes Dashboard: sections, limits and column layout."
+  :tag "Dashboard"
   :group 'mypks-notes)
 
 (defcustom my/dashboard-recent-days 10

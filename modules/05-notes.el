@@ -107,6 +107,7 @@
 
 (defgroup my/notes nil
   "Note creation commands."
+  :tag "Notes"
   :group 'mypks-notes)
 
 (defcustom my/notes-keyword-preselect 'prompt

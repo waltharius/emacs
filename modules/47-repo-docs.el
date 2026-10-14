@@ -96,6 +96,7 @@
 
 (defgroup my/repo-docs nil
   "Markdown documentation of a git repository as a Hugo site."
+  :tag "Repository docs site"
   :group 'mypks-publishing)
 
 (defcustom my/repo-docs-repository "~/nixos/"

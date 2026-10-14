@@ -21,6 +21,58 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-14a — Settings tree in order of importance
+
+### Why
+
+Findings of the first test pass: the MyPKS tree showed its areas in
+alphabetical order (Capture, Git, Hugo, Interface, Notes, Writing), so
+the most used part came fifth, and every module group appeared under
+its symbol (`My/Notes`).  For someone arriving from Obsidian the tree
+should read as notes first, then writing, then appearance, then tools.
+
+### What
+
+- Four areas, in this order: *Notes and silos* (sub-areas: *Notes
+  folder and silos*, *Tasks and habits*, then each notes module),
+  *Writing* (capture, export, writing projects, standard pages),
+  *Interface and appearance*, *Tools* (*Git*, *Hugo sites*).  New
+  groups: `mypks-silos`, `mypks-tools`.  `mypks-tasks` moved under
+  Notes, `mypks-git` and `mypks-publishing` under Tools, the capture
+  group to Writing.
+- `my-notes-dir`, `my/silos` and `my/notes-allow-delete-old-root` moved
+  to *Notes folder and silos*.  `my/confirm-deletion` stays directly in
+  *Notes and silos*.
+- `:tag` on every module group and on the core options, so the tree
+  reads in words; the symbols are unchanged, and so is every saved
+  value -- groups hold no values.
+- `my/settings--keep-order`, around `customize-group`: for a group of
+  the MyPKS tree, `custom-buffer-sort-alphabetically` is nil while the
+  buffer is drawn and stays nil in that buffer.  Members keep the order
+  of definition, which for module groups is the load order of
+  `init.el`.  Other Customize buffers are untouched.
+
+### Rejected
+
+- *Renaming groups to sort right* (`mypks-1-notes`): Customize sorts by
+  symbol name, so numbered symbols would order the tree, but every
+  `defgroup` and every `:group` in 48 modules would change, and the
+  next area inserted between two others would need renumbering.
+- *Setting `custom-buffer-sort-alphabetically` to nil globally*: a
+  choice about every Customize buffer of every package, made to fix
+  one tree.
+- *A `let` around the call*: a subgroup is opened from a Custom buffer
+  of the tree, where the option is already buffer-local, and a `let`
+  there binds only that buffer's value.  The new buffer read the
+  global value and came out sorted; found in a batch test.  The default
+  value is bound instead (`cl-letf` on `default-value`).
+
+Verified in batch: MyPKS lists Notes and silos, Writing, Interface and
+appearance, Tools; Notes and silos opened from it lists its option,
+then Notes folder and silos, Tasks and habits, then module groups;
+`custom-buffer-sort-alphabetically` keeps its global value t.
+
+---
 ## Session 2026-10-13e — TESTPLAN.org
 
 ### Why
