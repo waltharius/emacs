@@ -21,6 +21,67 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-14c — Reports that wait for an answer
+
+### Why
+
+Findings of the test pass.  A refused move of the notes folder (a new
+folder inside the old one) was reported in a buffer that opened among
+the session's other buffers at start-up, easy to miss: the user would
+keep working in the old folder believing it was the new one.  The
+report about a deleted silo's folder was a line in *Messages*, gone
+behind the desktop's "lazily opening" lines.  A change made expecting a
+result has to say whether it happened, and wait until that was read.
+
+### What
+
+- `my/notes-report`: a report in `*MyPKS report*`, shown in a window,
+  that waits for an answer (`read-multiple-choice`).  Three outcomes:
+  DONE, REFUSED (a safeguard: nothing changed), FAILED (unexpected:
+  nothing removed), with faces `my/notes-report-done`, `-refused`,
+  `-failed`.  Without a frame to ask in -- batch, or a daemon whose
+  only frame is the initial one -- the report goes to *Messages* and
+  the answer is nil, which every caller treats as "change nothing".
+- Moving the notes folder: every outcome is such a report.  The two
+  refusals offer to open the settings once Emacs is up
+  (`my/notes-open-silo-settings`).  `my/notes--move-report` and the
+  buffer `*MyPKS notes move*` are gone.
+- `my/notes--check-root-move-safely` (audit finding X11): an
+  unexpected error while checking the folder keeps the old root, shows
+  a FAILED report and lets Emacs start; before, it stopped every module
+  from loading.
+- Folders with notes that are not silos: one report per folder, a
+  second after start-up, answers *disabled silo* / *add as silo* /
+  *later* / *never ask*.  Adding saves `my/silos` with a key made from
+  the folder name (`my/silo--add-folder`); *never* fills the new option
+  `my/silo-orphans-ignored`.
+- Removing a silo in Customize: when its folder holds any file, the
+  setter (`my/silos--set`, `my/silos--confirm-removals`) asks *disable*
+  (default) / *remove* / *cancel* before the change takes effect.  A
+  folder that is empty or missing is removed without a question; a key
+  renamed with the same folder is not a removal.  The answer is
+  written back to Customize afterwards (`my/silos--sync-customize`): a
+  value just saved is saved again as adjusted, a customized one set
+  again, and open Custom buffers are redrawn -- otherwise *Apply and
+  Save* would have written the list without the silo.
+- `my/settings--live-p`: one test for "a change in a running Emacs"
+  (after init, and not while a file loads), now used by every setter.
+  The previous test (`after-init-time` alone) would also have fired
+  while a file was being loaded after start-up.
+
+Verified in batch with answers fed in: a folder inside the old one and
+a non-empty foreign folder are REFUSED and the old root kept; a copy
+reports DONE with counts; switching back with notes in both asks, then
+reports DONE; an error inside the check reports FAILED and keeps the
+root.  Removing two silos with *Apply and Save*: the empty one goes
+silently, the one with a note is asked about, *disable* keeps it
+disabled in the session, in the saved value and in the custom file,
+and hides it from Denote; *remove* removes it; the start-up report
+then asks about the folder and *never ask* saves it to
+`my/silo-orphans-ignored`.  An open Custom buffer shows the adjusted
+value after the sync.
+
+---
 ## Session 2026-10-14b — Settings take effect at once
 
 ### Why

@@ -176,13 +176,20 @@ importance.  Values saved with \"Apply and Save\" go to `custom-file'."
 ;; other option changes, unless the user has set them explicitly; see
 ;; `my/settings-reevaluate-dependents'.
 
+(defun my/settings--live-p ()
+  "Non-nil when a setter runs for a change made in a running Emacs.
+Not during init, and not while a file loads: `defcustom' calls the
+setter itself when its module is loaded, and that is no change at all."
+  (and after-init-time (not load-file-name)))
+
 (defun my/settings-apply-on-set (function)
   "Return a Customize setter that stores the value and calls FUNCTION.
-FUNCTION, of no arguments, runs only after init, and only when it is
-defined: during start-up the module applies its options itself."
+FUNCTION, of no arguments, runs only for a change in a running Emacs
+\(`my/settings--live-p'), and only when it is defined: during start-up
+the module applies its options itself."
   (lambda (symbol value)
     (set-default-toplevel-value symbol value)
-    (when (and after-init-time (fboundp function))
+    (when (and (my/settings--live-p) (fboundp function))
       (funcall function))))
 
 (defun my/settings-set-needs-restart (symbol value)
@@ -190,9 +197,7 @@ defined: during start-up the module applies its options itself."
 Sets SYMBOL to VALUE; when Emacs is already running, says that the
 change takes effect at the next start rather than pretending otherwise."
   (set-default-toplevel-value symbol value)
-  ;; Not while a file loads: `defcustom' calls this setter itself when
-  ;; the module is loaded, and that is no change at all.
-  (when (and after-init-time (not load-file-name))
+  (when (my/settings--live-p)
     (message "%s: saved; takes effect at the next start of Emacs"
              (or (get symbol 'custom-tag) symbol))))
 
@@ -382,6 +387,22 @@ notes to the new folder; see `my/notes-check-root-move'."
   :tag "Notes folder"
   :group 'mypks-silos)
 
+(defun my/silos--set (symbol value)
+  "Customize setter of `my/silos': ask about removals, then apply.
+At start-up only stores VALUE in SYMBOL.  Defined before the option,
+which calls it when it is defined; the functions it calls once Emacs
+is up are defined further down (removal question, `my/silos-apply')."
+  (let* ((old (and (default-boundp symbol) (default-value symbol)))
+         (live (my/settings--live-p))
+         (adjusted (if (and live old)
+                       (my/silos--confirm-removals old value)
+                     value)))
+    (set-default-toplevel-value symbol adjusted)
+    (when live
+      (my/silos-apply))
+    (unless (equal adjusted value)
+      (run-at-time 0 nil #'my/silos--sync-customize value adjusted))))
+
 (defcustom my/silos
   '((journal :directory "journal/" :role journal :keyword "journal"
              :private t
@@ -429,7 +450,7 @@ options derived from the silos are recomputed (`my/silos-apply')."
                         (:private boolean)
                         (:disabled boolean)
                         (:description string))))
-  :set (my/settings-apply-on-set #'my/silos-apply)
+  :set #'my/silos--set
   :tag "Silos"
   :group 'mypks-silos)
 
@@ -582,28 +603,112 @@ FUNCTION takes no arguments; see `my/denote-excluded-directory-functions'."
 ;; Disabled silos inside the root are hidden from Denote.
 (my/denote-exclude-directory-function #'my/silo--disabled-folders)
 
+;; REPORTS THAT WAIT FOR AN ANSWER
+;; ---------------------------------
+;; A change of the notes folder or of the silos is made expecting a
+;; result.  Whether it happened is said in a window that stays until it
+;; is answered -- not in *Messages*, where the line scrolls away among
+;; start-up messages and the user goes on working in the old folder
+;; believing it is the new one.  Three outcomes, told apart in words and
+;; colour:
+;;
+;;   DONE     what was asked happened
+;;   REFUSED  a safeguard stopped it on purpose; nothing changed
+;;   FAILED   something unexpected went wrong; nothing was removed
+;;
+;; Without a frame to ask in (batch, a daemon with no client frame) the
+;; report goes to *Messages* and stays in its buffer, and the answer is
+;; nil, which every caller treats as "change nothing".
+
+(defconst my/notes-report-buffer "*MyPKS report*"
+  "Buffer holding the last report about the notes folder or the silos.")
+
+(defface my/notes-report-done '((t :inherit success :weight bold))
+  "Heading of a report whose change was made."
+  :group 'mypks-silos)
+
+(defface my/notes-report-refused '((t :inherit warning :weight bold))
+  "Heading of a report whose change a safeguard stopped."
+  :group 'mypks-silos)
+
+(defface my/notes-report-failed '((t :inherit error :weight bold))
+  "Heading of a report whose change failed unexpectedly."
+  :group 'mypks-silos)
+
+(defun my/notes-report (kind title lines &optional choices)
+  "Show a report of KIND with TITLE and LINES; return the answer's key.
+KIND is `done', `refused' or `failed'.  CHOICES is a list for
+`read-multiple-choice'; by default one answer, ?o \"ok\".  The report
+stays in `my/notes-report-buffer' after the answer.  Returns nil when
+there is no frame to ask in."
+  (let* ((label (pcase kind ('done "DONE") ('refused "REFUSED") (_ "FAILED")))
+         (face (pcase kind
+                 ('done 'my/notes-report-done)
+                 ('refused 'my/notes-report-refused)
+                 (_ 'my/notes-report-failed)))
+         (choices (or choices '((?o "ok" "Close the report"))))
+         (buffer (get-buffer-create my/notes-report-buffer)))
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert (propertize (format "%s  %s" label title) 'face face) "\n\n"
+                (string-join lines "\n") "\n")
+        (pcase kind
+          ('refused (insert "\nA safeguard, not an error: nothing was changed.\n"))
+          ('failed (insert "\nNothing was removed.  Details above; *Messages* has the rest.\n"))))
+      (special-mode))
+    (if (or noninteractive
+            ;; A daemon whose only frame is the initial, invisible one.
+            (and (daemonp) (eq (selected-frame) terminal-frame)))
+        (progn
+          (message "MyPKS %s: %s -- %s" label title (string-join lines " "))
+          nil)
+      (let ((window (display-buffer buffer '((display-buffer-pop-up-window
+                                              display-buffer-use-some-window)))))
+        (unwind-protect
+            (progn
+              (redisplay t)
+              (car (read-multiple-choice (format "%s: %s" label title) choices)))
+          (when (window-live-p window)
+            (quit-restore-window window 'bury)))))))
+
+(defun my/notes-open-silo-settings ()
+  "Open the settings of the notes folder and the silos."
+  (interactive)
+  (customize-group 'mypks-silos))
+
 ;; FOLDERS WITH NOTES THAT ARE NOT SILOS
 ;; -------------------------------------
 ;; A silo whose entry was deleted rather than disabled is still a folder
 ;; of notes under the root, and Denote, rooted there, still shows them.
-;; Reported once after start-up, so the user can add the entry back
-;; (disabled, if that was the intent).  Only top-level folders, only
-;; files named the Denote way and ending in .org or .md: attachments
-;; carry Denote-like names too, and a deep scan of the whole tree at
-;; every start would be slow.
+;; Shortly after start-up each such folder is shown in a report that
+;; waits for an answer: add it back as a disabled silo (hidden, nothing
+;; lost), add it as a silo, ask again next time, or never ask about it.
+;; Only top-level folders, only files named the Denote way and ending in
+;; .org or .md: attachments carry Denote-like names too, and a deep scan
+;; of the whole tree at every start would be slow.
 
 (defconst my/silo--denote-note-regexp
   "\\`[0-9]\\{8\\}T[0-9]\\{6\\}.*\\.\\(?:org\\|md\\)\\'"
   "File names counted as Denote notes by the orphan check.")
 
+(defcustom my/silo-orphans-ignored nil
+  "Folders under the notes folder that hold notes and are deliberately not silos.
+Names relative to `my-notes-dir', without a slash.  Not reported at
+start-up.  Filled by the answer \"never ask\" of that report."
+  :type '(repeat string)
+  :tag "Folders with notes that are not silos"
+  :group 'mypks-silos)
+
 (defun my/silo-orphans ()
   "Return top-level folders under `my-notes-dir' holding notes but no silo.
 Folders in `my/silos' (disabled ones included), folders hidden from
-Denote and dot folders are not reported."
+Denote, `my/silo-orphans-ignored' and dot folders are not reported."
   (let* ((root (file-name-as-directory (expand-file-name my-notes-dir)))
          (known (append (delq nil (mapcar #'my/silo-folder-name
                                           (my/silo-keys nil t)))
-                        (my/denote-excluded-names))))
+                        (my/denote-excluded-names)
+                        my/silo-orphans-ignored)))
     (when (file-directory-p root)
       (seq-filter
        (lambda (name)
@@ -614,21 +719,133 @@ Denote and dot folders are not reported."
                                my/silo--denote-note-regexp t 1)))
        (directory-files root nil directory-files-no-dot-files-regexp t)))))
 
+(defun my/silo--new-key (name)
+  "Return a key for a silo in folder NAME, not yet used in `my/silos'."
+  (let* ((base (intern (replace-regexp-in-string "[^[:alnum:]-]" "-" name)))
+         (key base) (n 1))
+    (while (assq key my/silos)
+      (setq n (1+ n) key (intern (format "%s-%d" base n))))
+    key))
+
+(defun my/silo--add-folder (name disabled)
+  "Add folder NAME as a silo, DISABLED or not, and save `my/silos'."
+  (customize-save-variable
+   'my/silos
+   (append my/silos
+           (list (list (my/silo--new-key name)
+                       :directory (concat name "/") :role nil :keyword nil
+                       :private nil :disabled disabled
+                       :description "Added from a folder with notes that was not a silo.")))))
+
 (defun my/silo-report-orphans ()
-  "Say which folders under the root hold notes but are not in `my/silos'."
+  "Ask about each folder under the root that holds notes but is not a silo."
   (interactive)
   (let ((orphans (my/silo-orphans)))
-    (cond
-     (orphans
-      (message "MyPKS: folders with notes not in my/silos: %s (C-c n , to add them, disabled if unwanted)"
-               (string-join orphans ", ")))
-     ((called-interactively-p 'interactive)
-      (message "MyPKS: every folder with notes is a silo")))))
+    (if (null orphans)
+        (when (called-interactively-p 'interactive)
+          (message "MyPKS: every folder with notes is a silo"))
+      (dolist (name orphans)
+        (pcase (my/notes-report
+                'refused
+                (format "Folder %s/ holds notes but is not a silo" name)
+                (list (format "Folder: %s" (expand-file-name name my-notes-dir))
+                      "Its entry in the silos was deleted, or it was made by hand."
+                      "Denote still shows its notes in searches and link prompts."
+                      ""
+                      "  d  add it as a DISABLED silo: hidden, nothing lost, one checkbox to bring back"
+                      "  a  add it as a silo: its notes are used like any other"
+                      "  l  ask me again at the next start"
+                      "  n  never ask about this folder (my/silo-orphans-ignored)")
+                '((?d "disabled silo" "Add as a disabled silo: hidden, nothing lost")
+                  (?a "add as silo" "Add as an enabled silo")
+                  (?l "later" "Ask again at the next start")
+                  (?n "never ask" "Do not report this folder again")))
+          (?d (my/silo--add-folder name t))
+          (?a (my/silo--add-folder name nil))
+          (?n (customize-save-variable 'my/silo-orphans-ignored
+                                       (append my/silo-orphans-ignored (list name))))
+          (_ nil))))))
 
-;; Idle rather than at load: it reads the disk, and the result is a
-;; message, which start-up messages would push out of sight.
-(add-hook 'emacs-startup-hook
-          (lambda () (run-with-idle-timer 3 nil #'my/silo-report-orphans)))
+;; Shortly after start-up rather than at load: it reads the disk, and
+;; the frame should be drawn before a question appears in it.
+(defun my/silo--report-orphans-soon ()
+  "Run `my/silo-report-orphans' once Emacs is idle after start-up."
+  (run-with-idle-timer 1 nil #'my/silo-report-orphans))
+
+(add-hook 'emacs-startup-hook #'my/silo--report-orphans-soon)
+
+;; REMOVING A SILO IN CUSTOMIZE
+;; ----------------------------
+;; Deleting an entry from `my/silos' leaves its folder alone, but the
+;; folder then becomes an unregistered folder of notes.  When the folder
+;; holds anything, the change is asked about before it is made: keep the
+;; silo as disabled (the default answer), remove the entry, or cancel.
+;; The answer is written back to Customize, so that the value shown --
+;; and saved, when "Apply and Save" was used -- is the one in effect.
+
+(defun my/silos--holds-files-p (key value)
+  "Non-nil when the folder of silo KEY in VALUE exists and is not empty."
+  (when-let* ((dir (plist-get (cdr (assq key value)) :directory))
+              (abs (expand-file-name dir my-notes-dir)))
+    (and (file-directory-p abs)
+         (directory-files abs nil directory-files-no-dot-files-regexp t 1))))
+
+(defun my/silos--confirm-removals (old new)
+  "Return NEW, adjusted by the answers about silos of OLD missing from it.
+A silo counts as removed when neither its key nor its folder is in NEW
+-- renaming a key keeps the folder -- and is asked about only when its
+folder holds files."
+  (let ((result new))
+    (dolist (entry old)
+      (let* ((key (car entry))
+             (dir (plist-get (cdr entry) :directory)))
+        (unless (or (assq key new)
+                    (seq-find (lambda (e) (equal (plist-get (cdr e) :directory) dir))
+                              new)
+                    (not (my/silos--holds-files-p key old)))
+          (pcase (my/notes-report
+                  'refused
+                  (format "Silo %s removed from the list" key)
+                  (list (format "Its folder %s still holds files; nothing deletes them."
+                                (expand-file-name dir my-notes-dir))
+                        ""
+                        "  d  keep the silo, DISABLED: hidden everywhere, nothing lost (recommended)"
+                        "  r  remove the entry: the folder stays, Denote still shows its notes,"
+                        "     and the start-up check will ask about it"
+                        "  c  cancel: keep the silo as it was")
+                  '((?d "disable" "Keep it as a disabled silo")
+                    (?r "remove" "Remove the entry; the folder stays")
+                    (?c "cancel" "Keep the silo unchanged")))
+            (?r nil)
+            (?c (setq result (append result (list entry))))
+            ;; ?d, and no answer at all: nothing is lost either way.
+            (_ (setq result (append result
+                                    (list (cons key (plist-put (copy-sequence (cdr entry))
+                                                               :disabled t))))))))))
+    result))
+
+(declare-function custom-redraw "cus-edit" (widget))
+(declare-function custom-variable-state-set-and-redraw "cus-edit" (widget))
+(defvar custom-options)
+
+(defun my/silos--sync-customize (asked adjusted)
+  "Make Customize hold ADJUSTED where the user had set ASKED.
+Runs after the Customize command that set `my/silos' has finished: a
+saved value equal to ASKED is saved again as ADJUSTED, a customized one
+set again, and open Custom buffers are redrawn."
+  (cond
+   ((and (get 'my/silos 'saved-value)
+         (equal (ignore-errors (eval (car (get 'my/silos 'saved-value)) t)) asked))
+    (customize-save-variable 'my/silos adjusted))
+   ((get 'my/silos 'customized-value)
+    (customize-set-variable 'my/silos adjusted)))
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (when (and (derived-mode-p 'Custom-mode) (boundp 'custom-options))
+        (dolist (widget custom-options)
+          (when (eq (widget-value widget) 'my/silos)
+            (custom-redraw widget)
+            (custom-variable-state-set-and-redraw widget)))))))
 
 ;; MOVING THE NOTES TO A NEW ROOT
 ;; ------------------------------
@@ -653,6 +870,11 @@ Denote and dot folders are not reported."
 ;; frame to ask in (batch, daemon start) the old root is kept for the
 ;; session and the question waits for the next start.
 ;;
+;; Every outcome is shown by `my/notes-report' and waits for an answer:
+;; DONE (switched, copied), REFUSED (a safeguard), FAILED (the copy, or
+;; an unexpected error -- which keeps the old root and never stops the
+;; rest of Emacs from starting).
+;;
 ;; Deleting the old root is a separate command, `my/notes-delete-old-root',
 ;; and does nothing until `my/notes-allow-delete-old-root' is turned on.
 
@@ -667,9 +889,6 @@ Until this is turned on it only says that it is disabled."
 (defconst my/notes-root-state-file (locate-user-emacs-file "notes-root.eld")
   "Where the notes root used last, and the one before it, are kept.
 Machine state, not configuration: kept out of git.")
-
-(defconst my/notes-move-buffer "*MyPKS notes move*"
-  "Buffer holding the report of the last move of the notes root.")
 
 (defun my/notes--read-root-state ()
   "Return the plist in `my/notes-root-state-file', or nil."
@@ -750,15 +969,26 @@ instant and taking no space until a file changes."
             (push (string-trim line) lines))))
       (nreverse lines))))
 
-(defun my/notes--move-report (lines)
-  "Put LINES into `my/notes-move-buffer' and show it after start-up."
-  (with-current-buffer (get-buffer-create my/notes-move-buffer)
-    (let ((inhibit-read-only t))
-      (erase-buffer)
-      (insert (string-join lines "\n") "\n"))
-    (special-mode))
-  (add-hook 'emacs-startup-hook
-            (lambda () (display-buffer my/notes-move-buffer))))
+(defun my/notes--old-root-lines (old)
+  "Return report lines about saved settings that still name OLD."
+  (when-let* ((refs (my/notes--custom-file-references old)))
+    (cons "\nSaved settings still pointing at the old folder (change them in C-c n ,):"
+          refs)))
+
+(defun my/notes--refuse-move (old new reason)
+  "Keep OLD as the root for this session and report the refusal of NEW.
+REASON is one line.  The answer may open the settings once Emacs is up."
+  (setq my-notes-dir old)
+  (when (eq (my/notes-report
+             'refused
+             (format "Notes folder NOT changed to %s" (abbreviate-file-name new))
+             (list reason
+                   (format "Still using %s for this session." (abbreviate-file-name old))
+                   "The setting stays as saved; this check runs again at the next start.")
+             '((?o "ok, keep the old folder" "Keep working in the old folder")
+               (?s "open settings" "Choose another folder once Emacs has started")))
+            ?s)
+    (add-hook 'emacs-startup-hook #'my/notes-open-silo-settings)))
 
 (defun my/notes--ask-move (old new)
   "Ask what to do about the root change from OLD to NEW.  Return ?c, ?s or ?l."
@@ -785,12 +1015,17 @@ this session; never changes the saved option."
      ;; The old root is gone: nothing to copy.
      ((not (file-directory-p old))
       (my/notes--write-root-state new old)
-      (message "MyPKS: notes root is now %s (the old %s no longer exists)" new old))
+      (my/notes-report 'done (format "Notes folder is now %s" (abbreviate-file-name new))
+                       (list (format "The old folder %s no longer exists, so nothing was copied."
+                                     (abbreviate-file-name old)))))
      ;; The new root already holds the notes, and the old one does not
      ;; (any more): a second machine, or files moved by hand.  Switch.
      ((and (my/notes--holds-notes-p new) (not (my/notes--holds-notes-p old)))
       (my/notes--write-root-state new old)
-      (message "MyPKS: notes root is now %s (the notes are already there; nothing copied)" new))
+      (my/notes-report 'done (format "Notes folder is now %s" (abbreviate-file-name new))
+                       (list "The notes were already there; nothing was copied."
+                             (format "%s holds no notes and was left as it is."
+                                     (abbreviate-file-name old)))))
      ;; Both hold notes -- typically switching back after a test copy.
      ;; The two may have diverged, so nothing happens without a yes.
      ((my/notes--holds-notes-p new)
@@ -802,21 +1037,21 @@ this session; never changes the saved option."
                            (?l "ask me next time" "Keep the old root for this session"))))
                    ?s))
           (progn (my/notes--write-root-state new old)
-                 (message "MyPKS: notes root is now %s; %s left as it is" new old))
+                 (my/notes-report 'done (format "Notes folder is now %s" (abbreviate-file-name new))
+                                  (list (format "Nothing was copied; %s was left as it is."
+                                                (abbreviate-file-name old)))))
         (setq my-notes-dir old)
         (message "MyPKS: still using %s this session" old)))
      ;; Nested roots: refuse, keep the old one.
      ((or (file-in-directory-p new old) (file-in-directory-p old new))
-      (setq my-notes-dir old)
-      (my/notes--move-report
-       (list (format "Not moved: %s and %s are inside one another." old new)
-             "Still using the old root for this session.  Choose another root in C-c n ,")))
+      (my/notes--refuse-move
+       old new (format "%s and %s lie inside one another: a copy would copy itself."
+                       (abbreviate-file-name old) (abbreviate-file-name new))))
      ;; Something else is already there: refuse.
      ((not (my/notes--empty-dir-p new))
-      (setq my-notes-dir old)
-      (my/notes--move-report
-       (list (format "Not moved: %s is not empty and holds no silos." new)
-             "Still using the old root for this session.  Empty it, or choose another root.")))
+      (my/notes--refuse-move
+       old new (format "%s is not empty and holds no silos: its files are not notes of this system."
+                       (abbreviate-file-name new))))
      ;; Nobody to ask: keep the old root, ask next time.
      ((or noninteractive (daemonp))
       (setq my-notes-dir old)
@@ -826,13 +1061,12 @@ this session; never changes the saved option."
         (?l (setq my-notes-dir old)
             (message "MyPKS: still using %s this session; asking again next time" old))
         (?s (my/notes--write-root-state new old)
-            (my/notes--move-report
+            (my/notes-report
+             'done (format "Notes folder is now %s" (abbreviate-file-name new))
              (append
-              (list (format "Switched to %s without copying." new)
-                    (format "Move your files from %s yourself; the silo folders will be created empty now." old))
-              (when-let* ((refs (my/notes--custom-file-references old)))
-                (cons "\nSaved settings still pointing at the old root (change them in C-c n ,):"
-                      refs)))))
+              (list "Switched without copying, as asked."
+                    (format "Move your files from %s yourself." (abbreviate-file-name old)))
+              (my/notes--old-root-lines old))))
         (?c (message "MyPKS: copying %s to %s..." old new)
             (let* ((failure (my/notes--copy-tree old new))
                    (before (and (not failure) (my/notes--tree-stats old)))
@@ -840,21 +1074,21 @@ this session; never changes the saved option."
               (if (or failure (not (equal before after)))
                   (progn
                     (setq my-notes-dir old)
-                    (my/notes--move-report
-                     (list "Copy FAILED or incomplete; still using the old root."
-                           (or failure
+                    (my/notes-report
+                     'failed (format "Copy to %s failed or is incomplete" (abbreviate-file-name new))
+                     (list (or failure
                                (format "Old: %d files, %d bytes.  New: %d files, %d bytes."
                                        (car before) (cdr before) (car after) (cdr after)))
-                           (format "Nothing was removed.  The partial copy is in %s." new))))
+                           (format "Still using %s.  The partial copy is in %s."
+                                   (abbreviate-file-name old) (abbreviate-file-name new)))))
                 (my/notes--write-root-state new old)
-                (my/notes--move-report
+                (my/notes-report
+                 'done (format "Notes copied; the notes folder is now %s" (abbreviate-file-name new))
                  (append
                   (list (format "Copied %s to %s: %d files, %d bytes, identical counts."
                                 old new (car after) (cdr after))
-                        (format "Now using %s.  The old root is untouched." new))
-                  (when-let* ((refs (my/notes--custom-file-references old)))
-                    (cons "\nSaved settings still pointing at the old root (change them in C-c n ,):"
-                          refs))
+                        (format "The old folder %s is untouched." (abbreviate-file-name old)))
+                  (my/notes--old-root-lines old)
                   (list "\nAlso check: Hugo sites (re-export), desktop session and recent files,"
                         "bookmarks, Syncthing folders, and anything outside Emacs using the old path.")))
                 (when (and (file-directory-p (expand-file-name ".git" new))
@@ -865,6 +1099,24 @@ this session; never changes the saved option."
                                ?o))
                   (customize-save-variable 'my/auto-commit-push nil)
                   (message "MyPKS: automatic push turned off (my/auto-commit-push)"))))))))))
+
+(defun my/notes--check-root-move-safely ()
+  "Run `my/notes-check-root-move'; on an unexpected error keep the old root.
+An error here must not stop Emacs from starting: every module loads
+after this, and none would load at all."
+  (condition-case err
+      (my/notes-check-root-move)
+    (error
+     (let ((old (plist-get (my/notes--read-root-state) :root)))
+       (when old (setq my-notes-dir old))
+       ;; The report itself must not be what stops start-up either.
+       (condition-case nil
+           (my/notes-report
+            'failed "Checking the notes folder failed"
+            (list (format "Unexpected error: %s" (error-message-string err))
+                  (format "Using %s for this session." my-notes-dir)))
+         (error (message "MyPKS: checking the notes folder failed: %s; using %s"
+                         (error-message-string err) my-notes-dir)))))))
 
 (defun my/notes-delete-old-root ()
   "Move the PREVIOUS notes root to the trash, after a move to a new root.
@@ -888,7 +1140,7 @@ asked twice whatever `my/confirm-deletion' says: it removes every note."
       (message "Moved %s to the trash" previous)))))
 
 ;; Must run before anything below derives a path from the root.
-(my/notes-check-root-move)
+(my/notes--check-root-move-safely)
 
 ;; The variables every module has used so far, now derived.  Kept so
 ;; that modules work unchanged while they move to the functions above;

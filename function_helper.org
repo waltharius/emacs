@@ -8128,14 +8128,27 @@ needing no hiding. Each folder matches as a whole path component, so
 hiding =pks= does not hide =pks-old=. Setting the variable directly
 would erase the others.
 
-*Folders with notes that are not silos* — an entry deleted rather than
-disabled — are still seen by Denote, which is rooted at the notes
-folder. A few seconds after start-up *Messages* names such top-level
-folders (holding =.org= or =.md= files with Denote names, so the
-attachments folder is not one of them); =M-x my/silo-report-orphans=
-checks on demand.
+*Removing an entry in Customize is asked about* when its folder holds
+any file: /d/ keep the silo, disabled (the default and recommended
+answer: hidden everywhere, nothing lost), /r/ remove the entry (the
+folder stays, Denote still shows its notes, and the start-up check
+asks about it), /c/ cancel.  An empty or missing folder is removed
+without a question, and renaming a key while keeping the folder is not
+a removal.  The answer is written back to Customize
+(=my/silos--sync-customize=): the value shown, and saved when /Apply
+and Save/ was used, is the one in effect.
 
-Function: =my/silo-report-orphans=, =my/denote-exclude-directory=, =my/denote-exclude-directory-function=, =my/denote-excluded-names=, =my/notes-read-silo-dir= | Module: =modules/00-core.el=, =modules/05-notes.el=
+*Folders with notes that are not silos* — an entry deleted rather than
+disabled, or a folder made by hand — are still seen by Denote, which is
+rooted at the notes folder. A second after start-up each such
+top-level folder (holding =.org= or =.md= files with Denote names, so
+the attachments folder is not one of them) is shown in a report that
+waits for an answer: /d/ add it as a disabled silo, /a/ add it as a
+silo, /l/ ask at the next start, /n/ never ask (the folder goes to
+=my/silo-orphans-ignored=).  Adding saves =my/silos= with a key made
+from the folder name.  =M-x my/silo-report-orphans= asks on demand.
+
+Function: =my/silo-report-orphans=, =my/silos--confirm-removals=, =my/denote-exclude-directory=, =my/denote-exclude-directory-function=, =my/denote-excluded-names=, =my/notes-read-silo-dir= | Module: =modules/00-core.el=, =modules/05-notes.el=
 
 *** Moving the notes root
 :PROPERTIES:
@@ -8162,16 +8175,55 @@ around it, and a new root that is not empty with something else.  In
 batch or a daemon start nobody can answer, so the old root is kept and
 the question waits.
 
-After a copy the report (=*MyPKS notes move*=) lists saved settings
-still naming the old root, and, when the copy has its own =.git=,
-offers to turn automatic push off (=my/auto-commit-push=), so that a
-test copy does not push to the same remote.
+*Every outcome is a report that waits for an answer*
+([[#notes-reports][Reports that wait for an answer]]): DONE when the
+folder changed (copied, switched, the old one gone), REFUSED for the
+two safeguards above — with the choice to open the settings once Emacs
+is up — and FAILED for a copy whose counts differ.  A refusal is never
+only a line in *Messages*: working on in the old folder while believing
+it is the new one is exactly what the report prevents.
+
+After a copy the report lists saved settings still naming the old
+root, and, when the copy has its own =.git=, a question offers to turn
+automatic push off (=my/auto-commit-push=), so that a test copy does
+not push to the same remote.
+
+An unexpected error during the check keeps the old root for the
+session, shows a FAILED report and lets Emacs start normally
+(=my/notes--check-root-move-safely=); an error there used to stop every
+module from loading.
 
 =my/notes-delete-old-root= moves the previous root to the trash.  It is
 *disabled* until =my/notes-allow-delete-old-root= is turned on, and then
 asks twice regardless of the deletion settings.
 
-Function: =my/notes-check-root-move=, =my/notes-delete-old-root= | Module: =modules/00-core.el=
+Function: =my/notes-check-root-move=, =my/notes--check-root-move-safely=, =my/notes-delete-old-root= | Module: =modules/00-core.el=
+
+*** Reports that wait for an answer
+:PROPERTIES:
+:CUSTOM_ID: notes-reports
+:END:
+
+A change of the notes folder or the silos is made expecting a result,
+so the result is shown in a window (=*MyPKS report*=) that stays until
+it is answered, never only in *Messages*, where it scrolls away among
+start-up messages.  Three outcomes, told apart in words and colour:
+
+| Heading | Meaning                                                   | Face                      |
+|---------+-----------------------------------------------------------+---------------------------|
+| DONE    | what was asked happened                                   | =my/notes-report-done=    |
+| REFUSED | a safeguard stopped it on purpose; nothing changed        | =my/notes-report-refused= |
+| FAILED  | something unexpected went wrong; nothing was removed      | =my/notes-report-failed=  |
+
+The answer is a key (=read-multiple-choice=); the buffer stays for
+reading afterwards.  Without a frame to ask in (batch, a daemon with no
+client frame yet) the report goes to *Messages* and there is no answer,
+which every caller treats as "change nothing" (a removed silo then
+stays, disabled).  Used by the move of the
+notes folder, the removal of a silo and the folders with notes that are
+not silos.
+
+Function: =my/notes-report=, =my/notes-open-silo-settings= | Module: =modules/00-core.el=
 
 Functions for modules: =my/silo-dir= (by key), =my/silo-dir-by-role=,
 =my/silo-by-role=, =my/silo-keys= and =my/silo-dirs= (optionally
