@@ -135,6 +135,24 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
       off the question before running code), /Apply and Save/.
 - [X] Init time compared with the one noted in Preparation.
 
+** R9. Bibliography, keystroke log batches, backups [0/6]
+- [ ] =C-c x ,= opens Bibliography and citations: /Bibliography files/
+      and /Zotero attachments folder/ first, CSL options after.
+- [ ] Set the bibliography to an absolute file outside the notes (a copy
+      of =refs.bib= in =~/Zotero/=), Apply: =C-c x i= offers its keys at
+      once; a wrong name is named once in *Messages*.  Set it back to
+      =refs.bib=.
+- [ ] =C-c x f= on a bibliographic note still opens the PDF from the
+      Zotero folder.
+- [ ] Keystroke log on (=C-c y T=), type a paragraph without pausing:
+      =wc -l ~/.emacs.d/keys= grows every 200 characters or every
+      minute; after 30 s idle =C-c y s= shows 0 buffered.
+- [ ] Edit and save a note twice in two sessions: =ls ~/notes/.backups/=
+      has its backup; =~/.emacs.d/backups/= gets no new note backups.
+- [ ] Old note backups made since the folder was saved as =~/notes= are
+      in =~/.emacs.d/backups/= (names starting =!home!marcin!notes!=);
+      move them to =~/notes/.backups/= if wanted.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply
