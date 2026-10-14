@@ -52,7 +52,7 @@
  '(safe-local-variable-values
    '((eval progn (visual-fill-column-mode -1)
            (setq-local visual-fill-column-width nil)
-           (setq-local visual-fill-column-center-text nil))
+           (setq-local visual-fill-column-center-text nil))))
  '(size-indication-mode t)
  '(tab-bar-mode t))
 (custom-set-faces
