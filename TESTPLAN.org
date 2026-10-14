@@ -153,6 +153,24 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
       in =~/.emacs.d/backups/= (names starting =!home!marcin!notes!=);
       move them to =~/notes/.backups/= if wanted.
 
+** R10. Settings of this machine [0/7]
+- [ ] First start after the patch on Azazel: DONE report "Settings of
+      azazel now in ~/.emacs.d/hosts/azazel/"; =hosts/azazel/custom.el=
+      and =ui-state.el= exist; every setting as before.
+- [ ] =C-c n , ,= opens Customize; save any value: it lands in
+      =hosts/azazel/custom.el= (=C-c n , f= opens it), =custom.el= at the
+      top is unchanged.
+- [ ] Theme or font size changed with keys (=C-c u f=): written to
+      =hosts/azazel/ui-state.el=.
+- [ ] Commit =hosts/= (=C-c v C= stages it), push, pull on baal, start:
+      the same DONE report for baal (its own copy of the old file).
+- [ ] On baal change a value and save; on Azazel after a pull the value
+      is unchanged (separate files).
+- [ ] =C-c n , u= → =azazel= on baal, restart: baal reads and saves
+      =hosts/azazel/custom.el=; =C-c n , u= → =baal= returns.
+- [ ] After both machines started once: =git rm custom.el ui-state.el=,
+      commit; both machines still start with their settings.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

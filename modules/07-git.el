@@ -492,7 +492,7 @@ Named so that it can be removed with `advice-remove'."
   "Manually commit config changes."
   (interactive)
   (let ((default-directory (expand-file-name user-emacs-directory)))
-    (call-process "git" nil nil nil "add" "init.el" "modules/" ".gitignore")
+    (call-process "git" nil nil nil "add" "init.el" "modules/" ".gitignore" "hosts/")
     (magit-status)))
 
 ;; ============================================================

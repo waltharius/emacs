@@ -8087,17 +8087,79 @@ Function: =my/keylog-enable=, =my/keylog-disable=, =my/keylog-status= | Module: 
 Every option of this configuration in one Customize tree, the same
 interface as =M-x customize-face=: =TAB= moves between fields, =RET=
 on a button acts, /State/ → /Save for future sessions/ (or the
-/Apply and Save/ button at the top) writes the value to =custom-file=.
+/Apply and Save/ button at the top) writes the value to =custom-file=
+— this machine's =hosts/<host>/custom.el=, see
+[[#settings-host][Settings of this machine]].
+
+| Key         | Does                                              |
+|-------------+---------------------------------------------------|
+| =C-c n , ,= | open the settings (Customize)                     |
+| =C-c n , f= | open this machine's settings file                 |
+| =C-c n , c= | copy the settings of another machine over this one's |
+| =C-c n , u= | use another machine's settings here, from the next start |
+
+Function: =my/settings-menu= | Module: =modules/12-transient.el=
 
 ** a — Open the settings
 :PROPERTIES:
 :CUSTOM_ID: fn-my-settings
 :END:
 
-=C-c n ,= opens the group =mypks= ("MyPKS"). Named MyPKS rather than
+=C-c n , ,= opens the group =mypks= ("MyPKS"). Named MyPKS rather than
 PKS because =pks/= is already a silo.
 
 Function: =my/settings= | Module: =modules/00-core.el=
+
+** Settings of this machine
+:PROPERTIES:
+:CUSTOM_ID: settings-host
+:END:
+
+Each machine keeps its settings in the repository, in a folder of its
+own:
+
+| File                       | Holds                                                   |
+|----------------------------+---------------------------------------------------------|
+| =hosts/<host>/custom.el=   | what Customize saves (=C-c n , ,=)                      |
+| =hosts/<host>/ui-state.el= | choices made with keys: theme, font size, text width    |
+
+=<host>= is the machine's short host name, lower case (=azazel=,
+=baal=).  After a reinstall the same machine finds its settings again,
+and two machines never write into each other's file.  A value wanted on
+both is saved on both.  The folder is committed by hand like the rest
+of the configuration; =C-c v C= (=my/commit-config-now=) stages =hosts/=
+with the code.
+
+*Which folder an Emacs uses*, first match wins: the environment
+variable =MYPKS_HOST=; the file =~/.emacs.d/host= (one line, not in
+git), written by =C-c n , u=; the host name.  =C-c n , u= with the
+machine's own name removes the file again.
+
+*First start on a machine.*  Its folder is created, then:
+
+| Situation                                  | What happens                                            |
+|--------------------------------------------+---------------------------------------------------------|
+| the old shared =custom.el= exists          | copied in (the move to per-machine files, once per machine); reported |
+| other machines have settings               | a question: copy one of them, or start with the defaults |
+| nothing to copy from                       | an empty settings file with a header; reported          |
+
+The old =ui-state.el= is copied in the same way.  Once every machine has
+started once, the old =custom.el= and =ui-state.el= at the top of the
+repository are read by nothing and can be removed with =git rm=.
+
+*Copying another machine's settings* (=C-c n , c=) replaces this
+machine's file after a question and applies it at once; values the
+other file does not set return to their defaults at the next start.
+
+A settings file that cannot be read (an unbalanced parenthesis after a
+hand edit) is reported as FAILED, and Emacs starts with the defaults
+instead of stopping in the debugger.  =M-x check-parens= in the file
+finds the place.
+
+Loaded at the top of =00-core.el=, before any option is defined;
+=init.el= no longer loads a custom file itself.
+
+Function: =my/host-settings-open=, =my/host-settings-copy-from=, =my/host-settings-use= | Module: =modules/00-core.el=
 
 ** The tree
 :PROPERTIES:
@@ -8189,9 +8251,10 @@ Function: =my/settings-apply-on-set=, =my/settings-set-needs-restart=, =my/setti
 
 - Twenty modules have no options at all; what they set with =setq= is
   fixed until a module is converted.
-- =custom.el= still lives in the repository and loads before the
-  modules, so a module's =setq= of the same variable wins over a saved
-  value. Both change when the user layer is split off.
+- A module's =setq= of a package variable still wins over a value
+  saved in Customize for it, because the settings file loads before the
+  modules.  Changes with step 4 of BACKLOG.org (core defaults as a
+  custom theme).
 
 
 ** Notes root and silos

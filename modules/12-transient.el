@@ -236,6 +236,23 @@ menu carries when the feature module is absent."
          (message "transient: could not replace `%s' in %s: %s"
                   key prefix (error-message-string err))))))))
 
+;; ============================================================
+;; SUB-MENU: Settings  (C-c n ,)
+;; Docs: ~/.emacs.d/function_helper.org::#settings
+;; ============================================================
+;; "," again opens Customize, so the old key sequence plus one comma
+;; still reaches it.  The machine commands come from 00-core.el.
+
+(transient-define-prefix my/settings-menu ()
+  "Settings of this configuration and of this machine."
+  [["Settings"
+    ("," "Open settings (Customize)"            my/settings)
+    ("f" "This machine's settings file"         my/host-settings-open)]
+   ["Machines"
+    ("c" "Copy settings from another machine"   my/host-settings-copy-from)
+    ("u" "Use another machine's settings here"  my/host-settings-use)]
+   [("q" "Quit" transient-quit-one)]])
+
 (transient-define-prefix my/notes-menu ()
   "Unified menu for all note operations."
   [["Notes"
@@ -247,7 +264,7 @@ menu carries when the feature module is absent."
    ["Settings & Tools"
     ("v" "View → center/writing/indent/emphasis"         my/notes-view-menu)
     ("t" "Tools → zotero/spelling"        my/notes-tools-menu)
-    ("," "Settings (Customize)"  my/settings)
+    ("," "Settings →"  my/settings-menu)
     ;; "l" is reserved: 19-philosophy-notes.el appends it dynamically
     ;; Quick correct access as this is most used functions for me.
     ;; Both also have direct global bindings in 08-keybindings.el

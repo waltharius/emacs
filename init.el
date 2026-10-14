@@ -27,13 +27,11 @@
             (message "✨ Emacs ready (Main)!")))
 
 ;; ============================================================
-;; CUSTOM FILE: Load early so face definitions are set before
-;; any package loads org (prevents nil :foreground warnings)
+;; CUSTOM FILE: one per machine, hosts/<host>/custom.el
 ;; ============================================================
-
-(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
-(when (file-exists-p custom-file)
-  (load custom-file))
+;; Set and loaded at the top of modules/00-core.el, before any option
+;; is defined and before any package loads Org (which is what loading
+;; it early here was for).  See "Settings of this machine" there.
 
 ;; ============================================================
 ;; WINDOW TITLE: Identify this is window

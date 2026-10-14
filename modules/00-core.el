@@ -27,6 +27,169 @@
 (setq use-package-always-ensure t)  ; Auto-install packages
 
 ;; ============================================================
+;; SETTINGS OF THIS MACHINE: hosts/<host>/
+;; ============================================================
+;; Each machine keeps its own settings in the repository:
+;;
+;;   hosts/<host>/custom.el     what Customize saves (C-c n ,)
+;;   hosts/<host>/ui-state.el   choices made with keys: theme, font size
+;;
+;; <host> is the machine's short host name, so after a reinstall the
+;; same machine finds its settings again, and two machines never write
+;; into each other's file.  A value wanted on both is simply saved on
+;; both.  Committed by hand, like the rest of the configuration
+;; (`my/commit-config-now' stages hosts/ too).
+;;
+;; Which folder this Emacs uses, first match wins:
+;;   1. the environment variable MYPKS_HOST
+;;   2. the file `my/host-choice-file' (one line, not in git), written by
+;;      `my/host-settings-use' to use another machine's settings here
+;;   3. the host name
+;;
+;; FIRST START ON A MACHINE.  Its folder is created.  When the old,
+;; shared custom.el or ui-state.el exists, it is copied in (the move to
+;; per-machine files, once per machine).  Otherwise, when other machines
+;; have settings, the user chooses: copy one of them, or start with the
+;; defaults.  The outcome is reported once 00-core.el can show reports.
+;;
+;; Loaded here, at the top of the core, rather than in init.el: the
+;; settings must be read before any option is defined below, and the
+;; host logic belongs with them.
+
+(defconst my/hosts-directory (locate-user-emacs-file "hosts/")
+  "Folder holding one folder of settings per machine.")
+
+(defconst my/host-choice-file (locate-user-emacs-file "host")
+  "File naming the folder in `my/hosts-directory' this Emacs uses.
+Machine-local and not in git; absent means the host name.")
+
+(defun my/host--system-name ()
+  "Return this machine's short host name, lower case."
+  (downcase (car (split-string (system-name) "\\."))))
+
+(defun my/host--read-choice ()
+  "Return the host folder named in `my/host-choice-file', or nil."
+  (when (file-readable-p my/host-choice-file)
+    (with-temp-buffer
+      (insert-file-contents my/host-choice-file)
+      (let ((name (string-trim (buffer-string))))
+        (unless (string-empty-p name) name)))))
+
+(defconst my/host-name
+  (let ((env (getenv "MYPKS_HOST")))
+    (or (and env (not (string-empty-p env)) env)
+        (my/host--read-choice)
+        (my/host--system-name)))
+  "Name of the folder in `my/hosts-directory' this Emacs uses.")
+
+(defconst my/host-directory
+  (file-name-as-directory (expand-file-name my/host-name my/hosts-directory))
+  "This Emacs's settings folder: hosts/<host>/.")
+
+(defvar my/host--reports nil
+  "Reports about the settings folder, shown once reports can be shown.
+Each is (KIND TITLE LINES).")
+
+(defconst my/host--custom-header
+  ";;; custom.el --- Settings of this machine, saved by Customize -*- lexical-binding: t; -*-
+
+;; Written by Customize (C-c n ,).  One file per machine, in
+;; hosts/<host>/ of the configuration repository; see \"Settings of
+;; this machine\" in function_helper.org.
+"
+  "Start of a new, empty settings file.")
+
+(defun my/host--other-hosts ()
+  "Return the names of other machines that have a settings file."
+  (when (file-directory-p my/hosts-directory)
+    (seq-filter (lambda (name)
+                  (and (not (equal name my/host-name))
+                       (file-readable-p
+                        (expand-file-name "custom.el"
+                                          (expand-file-name name my/hosts-directory)))))
+                (directory-files my/hosts-directory nil
+                                 directory-files-no-dot-files-regexp t))))
+
+(defun my/host--prepare ()
+  "Make sure this machine's settings folder and file exist.  See above."
+  (let ((custom (expand-file-name "custom.el" my/host-directory))
+        (state (expand-file-name "ui-state.el" my/host-directory))
+        (legacy-custom (locate-user-emacs-file "custom.el"))
+        (legacy-state (locate-user-emacs-file "ui-state.el"))
+        (short (abbreviate-file-name my/host-directory)))
+    (make-directory my/host-directory t)
+    (unless (file-exists-p custom)
+      (cond
+       ;; The move from the shared files, once per machine.
+       ((file-readable-p legacy-custom)
+        (copy-file legacy-custom custom)
+        (push (list 'done (format "Settings of %s now in %s" my/host-name short)
+                    (list (format "Copied from %s, which is no longer read."
+                                  (abbreviate-file-name legacy-custom))
+                          "Customize (C-c n ,) saves to the new file from now on."
+                          "Commit hosts/ in ~/.emacs.d.  Once every machine has started"
+                          "once, the old custom.el and ui-state.el can be removed (git rm)."))
+              my/host--reports))
+       ;; A new machine, other machines known: ask.
+       ((and (my/host--other-hosts) (not noninteractive))
+        (let* ((others (my/host--other-hosts))
+               (defaults "start with the defaults")
+               (answer (completing-read
+                        (format "No settings for this machine (%s) yet.  Copy from: "
+                                my/host-name)
+                        (append (mapcar (lambda (h) (concat "copy from " h)) others)
+                                (list defaults))
+                        nil t nil nil defaults)))
+          (if (string-prefix-p "copy from " answer)
+              (let ((from (substring answer (length "copy from "))))
+                (copy-file (expand-file-name "custom.el"
+                                             (expand-file-name from my/hosts-directory))
+                           custom)
+                (push (list 'done (format "Settings of %s copied to %s" from my/host-name)
+                            (list (format "%s now starts from %s's settings; from here on" short from)
+                                  "each machine changes only its own file."))
+                      my/host--reports))
+            (with-temp-file custom (insert my/host--custom-header))
+            (push (list 'done (format "%s starts with the default settings" my/host-name)
+                        (list (format "Settings saved in C-c n , go to %scustom.el." short)))
+                  my/host--reports))))
+       ;; A first machine, or no one to ask.
+       (t
+        (with-temp-file custom (insert my/host--custom-header))
+        (push (list 'done (format "%s starts with the default settings" my/host-name)
+                    (list (format "Settings saved in C-c n , go to %scustom.el." short)))
+              my/host--reports))))
+    (when (and (not (file-exists-p state)) (file-readable-p legacy-state))
+      (copy-file legacy-state state))
+    (setq my/host--reports (nreverse my/host--reports))))
+
+(defun my/host--load-settings ()
+  "Prepare and load this machine's settings file; never stop start-up."
+  (condition-case err
+      (my/host--prepare)
+    (error (push (list 'failed "Preparing this machine's settings failed"
+                       (list (error-message-string err)
+                             "Emacs starts with the defaults; nothing was removed."))
+                 my/host--reports)))
+  (setq custom-file (expand-file-name "custom.el" my/host-directory))
+  (when (file-exists-p custom-file)
+    (condition-case err
+        (load custom-file nil t)
+      (error (push (list 'failed (format "Reading %s failed" (abbreviate-file-name custom-file))
+                         (list (error-message-string err)
+                               "Settings saved there are not applied this session."
+                               "M-x check-parens in that file finds an unbalanced parenthesis."))
+                   my/host--reports)))))
+
+(my/host--load-settings)
+
+(defun my/host--show-reports ()
+  "Show the reports collected while preparing this machine's settings."
+  (dolist (report my/host--reports)
+    (apply #'my/notes-report report))
+  (setq my/host--reports nil))
+
+;; ============================================================
 ;; SETTINGS MENU: one Customize tree for the whole configuration
 ;; ============================================================
 ;; Customize arranges options in groups, as folders.  Every module's
@@ -152,6 +315,60 @@ Every option of every loaded module, arranged by area in order of
 importance.  Values saved with \"Apply and Save\" go to `custom-file'."
   (interactive)
   (customize-group 'mypks))
+
+;; THIS MACHINE'S SETTINGS FILE, FROM THE MENU (C-c n , then a key)
+
+(defun my/host-settings-open ()
+  "Open this machine's settings file, hosts/<host>/custom.el."
+  (interactive)
+  (find-file custom-file))
+
+(defun my/host--read-other (prompt)
+  "Ask with PROMPT for another machine that has settings; return its name."
+  (let ((others (my/host--other-hosts)))
+    (unless others
+      (user-error "No other machine has settings in %s"
+                  (abbreviate-file-name my/hosts-directory)))
+    (completing-read prompt others nil t)))
+
+(defun my/host-settings-copy-from (host)
+  "Copy the settings file of HOST over this machine's, and apply it.
+This machine's file is replaced -- after a question; the old version
+stays in git once committed.  Values HOST does not set keep their
+current value until Emacs restarts."
+  (interactive (list (my/host--read-other "Copy the settings of: ")))
+  (let ((from (expand-file-name "custom.el" (expand-file-name host my/hosts-directory))))
+    (when (yes-or-no-p (format "Replace this machine's settings (%s) with %s's? "
+                               my/host-name host))
+      (copy-file from custom-file t)
+      (load custom-file nil t)
+      (my/notes-report 'done (format "Settings of %s copied to %s" host my/host-name)
+                       (list (format "%s now holds %s's settings, applied."
+                                     (abbreviate-file-name custom-file) host)
+                             "Values set before but not in that file are back to their"
+                             "defaults after a restart.  Commit hosts/ to keep it.")))))
+
+(defun my/host-settings-use (host)
+  "Make this Emacs read and save HOST's settings, from the next start.
+Written to `my/host-choice-file', which is not in git: the choice
+belongs to this installation.  Choosing this machine's own name
+removes the choice.  The environment variable MYPKS_HOST overrides
+both."
+  (interactive
+   (list (completing-read "Use the settings of: "
+                          (delete-dups (cons (my/host--system-name)
+                                             (my/host--other-hosts)))
+                          nil nil nil nil (my/host--system-name))))
+  (if (equal host (my/host--system-name))
+      (when (file-exists-p my/host-choice-file)
+        (delete-file my/host-choice-file))
+    (with-temp-file my/host-choice-file
+      (insert host "\n")))
+  (my/notes-report 'done (format "From the next start this Emacs uses the settings of %s" host)
+                   (list (format "Read from and saved to %s"
+                                 (abbreviate-file-name
+                                  (expand-file-name "custom.el"
+                                                    (expand-file-name host my/hosts-directory)))))))
 
 ;; WHEN A CHANGE TAKES EFFECT
 ;; --------------------------
@@ -1143,6 +1360,10 @@ asked twice whatever `my/confirm-deletion' says: it removes every note."
       (my/notes--write-root-state (plist-get state :root) nil)
       (message "Moved %s to the trash" previous)))))
 
+;; Reports about this machine's settings first: they say which settings
+;; the rest of start-up uses.
+(my/host--show-reports)
+
 ;; Must run before anything below derives a path from the root.
 (my/notes--check-root-move-safely)
 
@@ -1407,9 +1628,11 @@ than signalling an error."
 ;; Read once at startup, written on every change.  The file is tiny
 ;; and the writes are rare, so no batching is worth the complexity.
 
-(defconst my/ui-state-file (locate-user-emacs-file "ui-state.el")
-  "File holding interactively chosen UI settings.
-Safe to delete: every reader falls back to a compiled-in default.")
+(defconst my/ui-state-file (expand-file-name "ui-state.el" my/host-directory)
+  "File holding interactively chosen UI settings, per machine.
+In hosts/<host>/, next to that machine's custom.el, so that a reinstall
+finds them again.  Safe to delete: every reader falls back to a
+compiled-in default.")
 
 (defvar my/ui-state nil
   "Plist of persisted UI settings.  See `my/ui-state-file'.")

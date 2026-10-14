@@ -182,3 +182,7 @@ games/
 
 # Notes root used last on this machine (00-core.el): state, not configuration.
 notes-root.eld
+
+# Which hosts/<host>/ folder this installation uses, when not its own
+# host name (00-core.el, `my/host-settings-use'): a local choice.
+/host

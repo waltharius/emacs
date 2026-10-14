@@ -21,6 +21,60 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-14l — One settings folder per machine (step 3)
+
+### Why
+
+Step 3 of the settings plan, with the decisions made today: every
+machine keeps its own settings in the repository, so that a reinstall
+does not mean configuring again and the two laptops never overwrite
+each other's values; a value wanted on both may simply be saved on
+both.  The state of the interface (theme, font size) goes with them.
+Also a way to use another machine's settings from the menu.
+
+### What
+
+- `00-core.el`, at the top, before any option: `hosts/<host>/custom.el`
+  is `custom-file`, `hosts/<host>/ui-state.el` is `my/ui-state-file`.
+  `<host>` is `MYPKS_HOST`, else the one line of `~/.emacs.d/host` (not
+  in git), else the short host name in lower case.
+- First start on a machine (`my/host--prepare`): the folder is created;
+  the old shared `custom.el` and `ui-state.el` are copied in when they
+  exist; otherwise, when other machines have settings, a question --
+  copy one of them, or start with the defaults; otherwise an empty file
+  with a header.  The outcome is a report, shown before the notes
+  folder check.
+- A settings file that does not read (an unbalanced parenthesis, as
+  happened today) is reported as FAILED; Emacs starts with the
+  defaults instead of stopping in the debugger.
+- `C-c n ,` is now a small menu (`my/settings-menu`): `,` Customize,
+  `f` this machine's file, `c` copy another machine's settings over
+  this one's and apply them (`my/host-settings-copy-from`), `u` use
+  another machine's settings from the next start (`my/host-settings-use`).
+- `init.el` no longer loads `custom.el`; `my/commit-config-now` stages
+  `hosts/`; `/host` is ignored by git; `theme-state.el`, written by a
+  former version and read by nothing, is removed.
+- BACKLOG.org: step 3 done; a plan for a public repository without
+  personal data -- the code public, `hosts/` as a separate private
+  repository inside `~/.emacs.d`, so that nothing has to be kept in
+  step between two copies of the code.
+
+### Rejected
+
+- *A shared file plus a file per machine* (`hosts/common.el`): proposed
+  earlier, declined -- duplicates are acceptable, two layers of settings
+  are one more thing to explain.
+- *File names `<host>.custom.el`*: a folder per machine keeps the two
+  files of one machine together and is copied as one.
+
+Verified in batch with fake machine names: the move from the old
+`custom.el` on "azazel" (values and UI state kept, report), a new
+"baal" copying azazel's settings after the question, a third machine
+starting with the defaults (header file, report), a broken settings
+file reported as FAILED with start-up continuing, and `my/host-settings-use`
+making the next start read azazel's folder.
+
+---
 ## Session 2026-10-14k — Note backups in the notes folder again
 
 ### Why
