@@ -460,7 +460,7 @@ date in its title does not."
     (user-error "05-notes.el is not loaded, cannot read the journal silo"))
   (sort (delq nil
               (mapcar #'my/journal-file-date
-                      (directory-files my-notes-journal t "\\.org\\'")))
+                      (my/notes-files my-notes-journal "\\.org\\'")))
         #'string>))
 
 (defun my/habits--set-scheduled (date repeat)

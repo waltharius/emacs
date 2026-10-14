@@ -588,6 +588,7 @@ note records where it came from in :extracted_from:."
          (target (expand-file-name fname dir))
          (source (file-name-nondirectory (or buffer-file-name
                                              (buffer-name)))))
+    (my/notes-ensure-directory-of target)
     (with-temp-file target
       (insert (format "#+title:      %s\n" title)
               (format "#+date:       %s\n"

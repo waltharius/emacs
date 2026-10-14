@@ -21,6 +21,52 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-14d — A silo's folder appears with its first note
+
+### Why
+
+Finding of the test pass: switching to a new, empty notes folder and
+answering *skip, I will move my files myself* filled it with
+`journal/`, `pks/` and `docu/` at once.  A new folder chosen that way is
+often meant as a separate collection -- kept apart on disk like a second
+Obsidian vault -- and folders it may never use are clutter there.
+
+### What
+
+- `my/notes-ensure-directories` creates only the notes folder and its
+  `.backups/` and `.autosaves/` (and Emacs's own backup folders); no
+  silo folder.
+- `my/notes--create-missing-directory` on `before-save-hook`: saving a
+  file under the notes folder creates its folder.  Covers a new note,
+  a capture target, the first journal entry -- everything saved from a
+  buffer.  Outside the notes folder Emacs's own question stays.
+- `my/notes-ensure-directory-of` for code writing without a buffer:
+  the back-dated journal note (`with-temp-file`), moving a note to
+  another silo (`my/denote--relocate`, `my/--move-note-to-silo`),
+  extracting from the inbox.
+- `my/notes-files` lists a folder that may not exist yet as empty.
+  Used where a silo's folder was listed directly: journal lookups and
+  the week list (05-notes), metrics and front-matter normalisation
+  (05b), gaps (35), the journal habit derivation (38), Readwise quote
+  lookup (24).  `directory-files` signals on a missing folder.
+- `captures.org` is created at start-up only when the journal folder
+  exists, otherwise by the first ideas capture
+  (`my/capture--ensure-captures-file`).
+- `my/notes--empty-dir-p` ignores `.backups/` and `.autosaves/`, which
+  Emacs creates itself: switching back to a new notes folder used once
+  must not be refused as "not empty".
+
+Denote creates the folder it is let-bound to by itself
+(`denote-directories`), so commands binding `denote-directory` to a
+silo needed no change.
+
+Verified in batch: a new folder after start-up holds only `.autosaves`
+and `.backups`; the journal list of a missing folder is empty; saving a
+journal note into it creates `journal/`; a folder with only `.backups`
+counts as empty; nothing is created for a file outside the notes
+folder.
+
+---
 ## Session 2026-10-14c — Reports that wait for an answer
 
 ### Why

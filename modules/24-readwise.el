@@ -457,7 +457,7 @@ where citing a passage in a book note silently hides it from review.
 Scanned in one pass over pks: a book can hold hundreds of highlights,
 and grepping per quote would be quadratic."
   (let ((table (make-hash-table :test #'equal)))
-    (dolist (file (directory-files-recursively my-notes-pks "\\.org\\'"))
+    (dolist (file (my/notes-files my-notes-pks "\\.org\\'" t))
       (with-temp-buffer
         (insert-file-contents file)
         (goto-char (point-min))

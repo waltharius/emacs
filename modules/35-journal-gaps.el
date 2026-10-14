@@ -139,7 +139,7 @@ load-bearing: a retitled journal note dropped out of the report
 silently, and a report that silently omits days is worse than no
 report, because its whole content is a claim about what is missing."
   (let ((map (make-hash-table :test #'equal)))
-    (dolist (file (directory-files my-notes-journal t "\\.org\\'") map)
+    (dolist (file (my/notes-files my-notes-journal "\\.org\\'") map)
       (when-let* ((date (and (fboundp 'my/journal-file-date)
                              (my/journal-file-date file))))
         ;; First one wins.  Two files for one day is a duplicate, and

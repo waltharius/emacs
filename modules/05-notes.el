@@ -411,7 +411,7 @@ FILES defaults to the .org files in the journal silo.  Compares parsed
 dates rather than matching a slug pattern, so it finds a note whose
 title has been changed."
   (seq-find (lambda (file) (equal (my/journal-file-date file) date))
-            (or files (directory-files my-notes-journal t "\\.org\\'"))))
+            (or files (my/notes-files my-notes-journal "\\.org\\'"))))
 
 (defun my/journal-title (date)
   "Return the `#+title:' a journal note for DATE should carry."
@@ -443,6 +443,8 @@ overwriting an existing file -- is checked for explicitly."
          (added-at (format-time-string "%Y-%m-%d %a %H:%M")))
     (when (file-exists-p filepath)
       (user-error "Plik %s już istnieje" filename))
+    ;; The journal silo's folder appears with its first note.
+    (my/notes-ensure-directory-of filepath)
     (with-temp-file filepath
       (insert (format "#+title:      %s\n" (my/journal-title date)))
       (insert (format "#+date:       %s\n"
@@ -674,7 +676,7 @@ CURRENT-FILE is the file being written into, which is never linked."
 (defun my/journal-week-links (monday &optional current-file)
   "Return the Org list of the week starting at MONDAY, as a string.
 CURRENT-FILE, when given, is rendered as text rather than as a link."
-  (let ((files (directory-files my-notes-journal t "\\.org\\'"))
+  (let ((files (my/notes-files my-notes-journal "\\.org\\'"))
         (index -1))
     (mapconcat (lambda (time)
                  (setq index (1+ index))
@@ -1047,6 +1049,7 @@ exists from Emacs 29 onwards while Denote itself supports 28.1."
   "Move SOURCE to TARGET, using \"git mv\" when SOURCE is tracked.
 Mirrors the git handling of `my/denote-delete-note' so that history
 is preserved instead of showing an unrelated delete plus add."
+  (my/notes-ensure-directory-of target)
   (let ((default-directory (file-name-directory source)))
     (if (and (executable-find "git")
              (= 0 (call-process "git" nil nil nil

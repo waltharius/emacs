@@ -8085,6 +8085,19 @@ journal silo), the planner (=planner/=), PDF and office exports
 rejects, the auto-commit repository, and every list of "all silos"
 (agenda, identifier checks, project scans, inbox link scan).
 
+*A silo's folder appears with its first note.*  At start-up only the
+notes folder and its =.backups/= and =.autosaves/= are created, so a
+new, empty notes folder — a separate collection, apart on disk like a
+second Obsidian vault — stays empty instead of filling with =journal/=,
+=pks/= and =docu/= it may never use.  Saving a file under the notes
+folder creates its folder (=my/notes--create-missing-directory= on
+=before-save-hook=); code writing without a buffer calls
+=my/notes-ensure-directory-of=; code listing a silo uses
+=my/notes-files=, which treats a missing folder as empty.  The ideas
+file =captures.org= is created by the first capture.  A notes folder
+holding only =.backups/= and =.autosaves/= still counts as empty when
+switching to it.
+
 *Every enabled silo is used everywhere a list of silos is needed*: the
 =Save in:= prompt of a new note (=my/notes-read-silo-dir=, the =notes=
 silo offered first), the agenda, identifier checks, capture's title
@@ -8163,7 +8176,7 @@ root*:
 | Answer | What happens |
 |--------+--------------|
 | copy | =cp -a --reflink=auto= old → new, file count and bytes compared, then the new root is used; the old one is never touched |
-| skip, I will move my files myself | the new root is used; silo folders are created empty |
+| skip, I will move my files myself | the new root is used; nothing is created in it but =.backups/= and =.autosaves/= |
 | ask me next time | the old root is used for this session |
 
 No question when the new root already holds the notes and the old one
@@ -8230,6 +8243,8 @@ Functions for modules: =my/silo-dir= (by key), =my/silo-dir-by-role=,
 filtered; disabled silos only on request), =my/silo-enabled-p=,
 =my/silo-folder-name= (folder relative to the root), =my/silo-get= (one property), =my/silo-of= (which silo a file
 is in), =my/notes-path= (a path under the root),
-=my/notes-ensure-directories=.
+=my/notes-ensure-directories= (the root and its backup folders),
+=my/notes-ensure-directory-of= (the folder of a file about to be
+written), =my/notes-files= (files of a folder that may not exist yet).
 
-Function: =my/silo-dir=, =my/silo-dir-by-role=, =my/silo-keys=, =my/silo-dirs=, =my/silo-of=, =my/notes-path= | Module: =modules/00-core.el=
+Function: =my/silo-dir=, =my/silo-dir-by-role=, =my/silo-keys=, =my/silo-dirs=, =my/silo-of=, =my/notes-path=, =my/notes-ensure-directory-of=, =my/notes-files= | Module: =modules/00-core.el=

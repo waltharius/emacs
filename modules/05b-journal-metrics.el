@@ -555,7 +555,7 @@ Commit or stash the notes repository before running this with WRITE."
   (let ((changed 0)
         (scanned 0)
         (names nil))
-    (dolist (file (directory-files my-notes-journal t "\\.org\\'"))
+    (dolist (file (my/notes-files my-notes-journal "\\.org\\'"))
       (with-temp-buffer
         (insert-file-contents file)
         (org-mode)
@@ -617,7 +617,7 @@ first."
     (dolist (dir (if (fboundp 'my/silo-dirs)
                      (my/silo-dirs)
                    (list my-notes-journal my-notes-pks my-notes-docu)))
-      (dolist (file (directory-files dir t "\\.org\\'"))
+      (dolist (file (my/notes-files dir "\\.org\\'"))
         (with-temp-buffer
           (insert-file-contents file)
           (setq scanned (1+ scanned))

@@ -122,15 +122,25 @@ started via `my/capture-idea', not the generic org-capture menu)."
 ;; ORG-CAPTURE: Templates
 ;; ============================================================
 
+(defun my/capture--ensure-captures-file (&optional only-if-folder-exists)
+  "Create `my-journal-captures' with its heading when it does not exist.
+With ONLY-IF-FOLDER-EXISTS, do nothing while the journal silo has no
+folder yet: at start-up a new, empty notes folder is left empty, and
+the file is made by the first capture instead."
+  (unless (file-exists-p my-journal-captures)
+    (when (or (not only-if-folder-exists)
+              (file-directory-p (file-name-directory my-journal-captures)))
+      (make-directory (file-name-directory my-journal-captures) t)
+      (with-temp-file my-journal-captures
+        (insert "#+title: Ideas\n")
+        (insert "#+filetags: :captures:\n\n")
+        (insert "* Ideas\n\n")))))
+
 (use-package org-capture
   :ensure nil
   :config
 
-  (unless (file-exists-p my-journal-captures)
-    (with-temp-file my-journal-captures
-      (insert "#+title: Ideas\n")
-      (insert "#+filetags: :captures:\n\n")
-      (insert "* Ideas\n\n")))
+  (my/capture--ensure-captures-file t)
 
   (setq org-capture-templates
         '(("j" "Ideas capture" entry
@@ -553,6 +563,7 @@ where org-capture put it."
 Opens capture buffer to the RIGHT of the current window.
 Records SOURCE link to the originating note automatically."
   (interactive)
+  (my/capture--ensure-captures-file)
   (setq my/capture-origin-window (selected-window))
   (org-capture nil "j"))
 
@@ -656,6 +667,7 @@ If FILE is visited by a buffer, update that buffer too."
          (new-path   (expand-file-name (file-name-nondirectory old-path) target-dir))
          (buf        (find-buffer-visiting old-path)))
     (unless (file-equal-p (file-name-directory old-path) target-dir)
+      (my/notes-ensure-directory-of new-path)
       (rename-file old-path new-path 1)
       (when (buffer-live-p buf)
         (with-current-buffer buf

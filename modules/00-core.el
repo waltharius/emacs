@@ -934,9 +934,13 @@ so the comparison does not depend on what they point to."
             (my/silo-keys nil t)))
 
 (defun my/notes--empty-dir-p (dir)
-  "Non-nil when DIR does not exist or has no entries."
+  "Non-nil when DIR does not exist or holds nothing but this system's own.
+The backup and autosave folders Emacs creates in a notes folder do not
+make it someone else's: switching back to a new, still empty notes
+folder must not be refused because of them."
   (or (not (file-exists-p dir))
-      (null (directory-files dir nil directory-files-no-dot-files-regexp t 1))))
+      (null (seq-remove (lambda (name) (member name '(".backups" ".autosaves")))
+                        (directory-files dir nil directory-files-no-dot-files-regexp t)))))
 
 (defun my/notes--copy-tree (old new)
   "Copy the contents of OLD into NEW.  Return nil on success, else a message.
@@ -1256,21 +1260,67 @@ Raised from 80 for that reason.")
 With denote-infer-keywords enabled, Denote will automatically
 add any new keywords found in existing notes.")
 
-;; Create all directories if they don't exist.  A function rather than
-;; top-level code so that a step which must run before anything is
-;; created -- moving the notes to a new root -- can run first.
+;; FOLDERS ARE CREATED WHEN SOMETHING GOES INTO THEM
+;; -------------------------------------------------
+;; At start-up only the notes folder itself and the backup and autosave
+;; folders are created.  A silo's folder appears with its first note: a
+;; new, empty notes folder -- a separate collection, kept apart from the
+;; main one on disk like a second Obsidian vault -- stays empty until
+;; something is written, instead of filling with journal/, pks/ and
+;; docu/ it may never use.
+;;
+;; Three helpers make that safe for the modules:
+;;   `my/notes--create-missing-directory'  on `before-save-hook': saving a
+;;                                         file under the notes folder
+;;                                         creates its folder (a new note,
+;;                                         a capture, the first journal)
+;;   `my/notes-ensure-directory-of'        for code writing a file without
+;;                                         a buffer (`with-temp-file',
+;;                                         `rename-file')
+;;   `my/notes-files'                      lists a folder that may not
+;;                                         exist yet, as empty
+;; Denote creates the folder it is let-bound to by itself.
+
 (defun my/notes-ensure-directories ()
-  "Create the notes root, every silo and the backup directories if missing."
-  (dolist (dir (append (list my-notes-dir)
-                       (my/silo-dirs)
-                       (list my-notes-backups
-                             my-notes-autosaves
-                             my-emacs-backups
-                             my-emacs-autosaves)))
+  "Create the notes root and the backup and autosave folders if missing.
+Silo folders are not created here; see the commentary above."
+  (dolist (dir (list my-notes-dir
+                     my-notes-backups
+                     my-notes-autosaves
+                     my-emacs-backups
+                     my-emacs-autosaves))
     (unless (file-exists-p dir)
       (make-directory dir t))))
 
 (my/notes-ensure-directories)
+
+(defun my/notes-ensure-directory-of (file)
+  "Create the folder FILE goes into, when FILE is under the notes folder.
+Returns FILE.  Outside the notes folder nothing is created: Emacs's own
+question about a missing folder stays where it is."
+  (let ((dir (file-name-directory (expand-file-name file))))
+    (when (and dir
+               (not (file-directory-p dir))
+               (file-in-directory-p dir (expand-file-name my-notes-dir)))
+      (make-directory dir t)))
+  file)
+
+(defun my/notes--create-missing-directory ()
+  "Before saving a file under the notes folder, create its folder if missing."
+  (when buffer-file-name
+    (my/notes-ensure-directory-of buffer-file-name)))
+
+(add-hook 'before-save-hook #'my/notes--create-missing-directory)
+
+(defun my/notes-files (dir regexp &optional recursive)
+  "Return the files in DIR whose names match REGEXP, as absolute names.
+With RECURSIVE, the files in its sub-folders too.  A folder that does
+not exist -- a silo without its first note -- has no files, rather
+than signalling an error."
+  (when (and dir (file-directory-p dir))
+    (if recursive
+        (directory-files-recursively dir regexp)
+      (directory-files dir t regexp))))
 
 ;; ============================================================
 ;; FILE HANDLING: Backups and autosaves
