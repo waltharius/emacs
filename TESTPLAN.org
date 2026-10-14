@@ -124,27 +124,27 @@ root is =~/notes2= at that moment.
 - [X] =C-c n i H= add to hub.
 - [X] =C-c n z= Zettelkasten / Folgezettel; =C-c n l= philosophy notes.
 
-** A6. Changing notes in place [0/6]
-- [ ] =C-c n d r= rename; =C-c n d k= add keywords (completion, comma
+** A6. Changing notes in place [6/6]
+- [X] =C-c n d r= rename; =C-c n d k= add keywords (completion, comma
       separated).
-- [ ] =C-c n d c= change silo without a title conflict: =git mv=,
+- [X] =C-c n d c= change silo without a title conflict: =git mv=,
       history kept.
-- [ ] =C-c n != maintenance: keyword rename, *dry run first*, on notes2
+- [X] =C-c n != maintenance: keyword rename, *dry run first*, on notes2
       only; check =git diff --stat= afterwards.
-- [ ] Identifier checks (27): duplicate detection across silos reports,
+- [X] Identifier checks (27): duplicate detection across silos reports,
       changes nothing unasked.
-- [ ] Inbox review (=C-c n t i=): accept into a silo (all non-journal
+- [X] Inbox review (=C-c n t i=): accept into a silo (all non-journal
       silos offered), reject (moves to =inbox-odrzucone=), extract
       region to a new note.
-- [ ] Writing projects (=C-c n p=): new project, new project note goes
+- [X] Writing projects (=C-c n p=): new project, new project note goes
       to the =notes= silo, rebuild membership, project git (=C-c n p G=).
 
-** A7. Git and backups [0/4]
-- [ ] Auto-commit after 5 idle minutes in notes2: commit made, not
+** A7. Git and backups [4/4]
+- [X] Auto-commit after 5 idle minutes in notes2: commit made, not
       pushed (push off).  =C-c v a= status.
-- [ ] Backups of a note edited twice appear under =<root>/.backups/=.
-- [ ] Undo history survives a restart (undo-fu-session); vundo opens.
-- [ ] Pre-commit hooks in =~/.emacs.d= block a change that defines a
+- [X] Backups of a note edited twice appear under =<root>/.backups/=.
+- [X] Undo history survives a restart (undo-fu-session); vundo opens.
+- [X] Pre-commit hooks in =~/.emacs.d= block a change that defines a
       symbol twice, accept a clean one.
 
 ** A8. Export and publishing [0/12]
@@ -171,21 +171,21 @@ root is =~/notes2= at that moment.
 - [ ] Flashcards (=C-c n r=): a review session runs.
 
 * Part B -- appearance and interface
-** B1. Writing mode [0/6]
-- [ ] =C-c n v w= first activation after a fresh start: time it on
+** B1. Writing mode [6/6]
+- [X] =C-c n v w= first activation after a fresh start: time it on
       Azazel and on baal.  Expected: immediate.
-- [ ] Mode line: =W= right after the word and page count; gone after
+- [X] Mode line: =W= right after the word and page count; gone after
       turning the mode off; messages without emoji.
-- [ ] Typing keeps the line at the middle; scrolling and clicking are
+- [X] Typing keeps the line at the middle; scrolling and clicking are
       not disturbed.
-- [ ] In a note with large images the line still holds its place;
+- [X] In a note with large images the line still holds its place;
       =C-c u i= hides the images.
-- [ ] If the first activation is still slow on baal: in a fresh Emacs,
+- [X] If the first activation is still slow on baal: in a fresh Emacs,
       =M-: (benchmark-run 1 (progn (insert "✍") (redisplay t)))= in
       =*scratch*=.  Seconds there mean font fallback for symbols is the
       cost; the emoji in other modules' messages are then worth
       replacing (BACKLOG).
-- [ ] Positions: =M-x my/set-writing-position-upper= / =lower= /
+- [X] Positions: =M-x my/set-writing-position-upper= / =lower= /
       =center=.
 
 ** B2. Theme, fonts, faces [0/7]

@@ -33,16 +33,26 @@
  '(display-battery-mode t)
  '(display-line-numbers-type 'relative)
  '(display-time-mode t)
+ '(my-notes-dir "~/notes/")
+ '(my/auto-commit-push nil)
+ '(my/confirm-deletion 'ask)
+ '(my/silos
+   '((journal :directory "journal/" :role journal :keyword "journal"
+              :private t :description "Private daily entries.")
+     (pks :directory "pks/" :role notes :keyword nil :private nil
+          :description "Personal knowledge system: regular notes.")
+     (docu :directory "docu/" :role docs :keyword "docu" :private nil
+           :description "Documentation and technical notes.")))
  '(my/tasks-extra-agenda-files
-   '("/home/marcin/notes/planner/habits.org"
+   '("/home/marcin/notes2/planner/habits.org"
      "/home/marcin/projects/mapa-sporu/lektury.org"))
+ '(org-confirm-babel-evaluate nil)
  '(package-selected-packages nil)
  '(recentf-filename-handlers '(abbreviate-file-name))
  '(safe-local-variable-values
    '((eval progn (visual-fill-column-mode -1)
            (setq-local visual-fill-column-width nil)
            (setq-local visual-fill-column-center-text nil))
-     (org-confirm-babel-evaluate)))
  '(size-indication-mode t)
  '(tab-bar-mode t))
 (custom-set-faces
