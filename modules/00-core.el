@@ -153,6 +153,122 @@ importance.  Values saved with \"Apply and Save\" go to `custom-file'."
   (interactive)
   (customize-group 'mypks))
 
+;; WHEN A CHANGE TAKES EFFECT
+;; --------------------------
+;; Most options are read when they are used, so a change made in
+;; Customize works at once.  The ones a module reads only while it loads
+;; -- a key binding, a timer, a capture template, a list derived from the
+;; silos -- are given a setter that applies the new value immediately:
+;;
+;;   (defcustom my/x ... :set (my/settings-apply-on-set #'my/x--apply))
+;;
+;; The setter stores the value and, once Emacs is up, calls the module's
+;; apply function.  While Emacs starts, `defcustom' itself calls the
+;; setter; the module then applies its options once, at the end of its
+;; own load, so nothing runs before the module is complete.
+;;
+;; Only the notes folder (`my-notes-dir') still needs a restart: changing
+;; it means moving the notes, which is done at start-up, before anything
+;; under the folder is opened.  Its setter says so.
+;;
+;; Options whose DEFAULT is computed from another option -- every list of
+;; silo folders, the per-silo font styles -- are recomputed when that
+;; other option changes, unless the user has set them explicitly; see
+;; `my/settings-reevaluate-dependents'.
+
+(defun my/settings-apply-on-set (function)
+  "Return a Customize setter that stores the value and calls FUNCTION.
+FUNCTION, of no arguments, runs only after init, and only when it is
+defined: during start-up the module applies its options itself."
+  (lambda (symbol value)
+    (set-default-toplevel-value symbol value)
+    (when (and after-init-time (fboundp function))
+      (funcall function))))
+
+(defun my/settings-set-needs-restart (symbol value)
+  "Customize setter for an option that cannot change while Emacs runs.
+Sets SYMBOL to VALUE; when Emacs is already running, says that the
+change takes effect at the next start rather than pretending otherwise."
+  (set-default-toplevel-value symbol value)
+  ;; Not while a file loads: `defcustom' calls this setter itself when
+  ;; the module is loaded, and that is no change at all.
+  (when (and after-init-time (not load-file-name))
+    (message "%s: saved; takes effect at the next start of Emacs"
+             (or (get symbol 'custom-tag) symbol))))
+
+;; Two things modules set from options at load, given one helper each so
+;; that a change can undo the previous value: a global key, and a
+;; capture template.
+
+(defvar my/settings--bound-keys nil
+  "Alist of (COMMAND . KEY) bound by `my/settings-bind-key'.")
+
+(defun my/settings-bind-key (command key)
+  "Bind KEY, a `kbd' string or nil, globally to COMMAND.
+The key COMMAND received from an earlier call is released first, if it
+still runs COMMAND; a key rebound to something else since is left as
+it is."
+  (let ((old (alist-get command my/settings--bound-keys)))
+    (when (and old (eq (global-key-binding (kbd old)) command))
+      (global-unset-key (kbd old))))
+  (when key
+    (global-set-key (kbd key) command))
+  (setf (alist-get command my/settings--bound-keys) key))
+
+(defvar org-capture-templates)
+
+(defun my/settings-capture-template (template)
+  "Add TEMPLATE to `org-capture-templates', now or once Org capture loads.
+An existing template with the same target (its fourth element, such as
+\\='(function my/x--target)) is removed first, so a changed key replaces
+the template instead of adding a second one."
+  (with-eval-after-load 'org-capture
+    (setq org-capture-templates
+          (seq-remove (lambda (entry)
+                        (and (consp entry) (equal (nth 3 entry) (nth 3 template))))
+                      org-capture-templates))
+    (add-to-list 'org-capture-templates template t)))
+
+(defun my/settings--tree-options ()
+  "Return every option in the MyPKS tree."
+  (let (options)
+    (dolist (group (my/settings--tree-groups))
+      (dolist (member (get group 'custom-group))
+        (when (eq (nth 1 member) 'custom-variable)
+          (push (car member) options))))
+    (delete-dups options)))
+
+(defun my/settings--form-mentions-p (form symbols)
+  "Non-nil when FORM contains one of SYMBOLS anywhere."
+  (cond ((symbolp form) (memq form symbols))
+        ((consp form)
+         (or (my/settings--form-mentions-p (car form) symbols)
+             (my/settings--form-mentions-p (cdr form) symbols)))
+        ((vectorp form)
+         (seq-some (lambda (x) (my/settings--form-mentions-p x symbols)) form))))
+
+(defun my/settings-reevaluate-dependents (symbols)
+  "Recompute options whose default refers to one of SYMBOLS.
+Only options of the MyPKS tree the user has not set (no saved and no
+customized value): a value chosen by hand is never replaced.  The
+option's own setter is used, so a dependent that applies itself does.
+Returns the options recomputed."
+  (let (done)
+    (dolist (option (my/settings--tree-options))
+      (let ((standard (car (get option 'standard-value))))
+        (when (and standard
+                   (not (get option 'saved-value))
+                   (not (get option 'customized-value))
+                   (my/settings--form-mentions-p standard symbols))
+          (condition-case err
+              (progn
+                (funcall (or (get option 'custom-set) #'set-default)
+                         option (eval standard t))
+                (push option done))
+            (error (message "MyPKS: could not recompute %s: %s"
+                            option (error-message-string err)))))))
+    (nreverse done)))
+
 ;; ============================================================
 ;; DELETION: always asked, unless switched off on purpose
 ;; ============================================================
@@ -250,25 +366,19 @@ change their mind before deletions stop being asked."
 ;;   notes    default silo of new notes (the knowledge base)
 ;;   docs     documentation, monospaced (03b-fonts.el, 10-visual-fill.el)
 ;;
-;; Both options are read when modules load: a change takes effect at the
-;; next start of Emacs, and says so when made from Customize.
-
-(defun my/notes--set-needs-restart (symbol value)
-  "Customize setter for options that modules read at load time.
-Sets SYMBOL to VALUE; when Emacs is already running, says that the
-change takes effect after a restart rather than pretending otherwise."
-  (set-default-toplevel-value symbol value)
-  ;; Not while a file loads: `defcustom' calls this setter itself when
-  ;; the module is loaded, and that is no change at all.
-  (when (and after-init-time (not load-file-name))
-    (message "%s changed: takes effect after restarting Emacs" symbol)))
+;; A change of the root takes effect at the next start of Emacs, where
+;; moving the notes is offered.  A change of the silos takes effect at
+;; once (`my/silos-apply').
 
 (defcustom my-notes-dir (expand-file-name "~/notes/")
   "Root of the notes: the folder holding every silo.
-Everything under it -- silos with relative directories, planner,
-captures, exports, backups -- is derived from this value."
+Everything under it -- silos with relative directories, captures,
+exports, backups -- is derived from this value.
+
+Takes effect at the next start of Emacs, which first offers to copy the
+notes to the new folder; see `my/notes-check-root-move'."
   :type 'directory
-  :set #'my/notes--set-needs-restart
+  :set #'my/settings-set-needs-restart
   :tag "Notes folder"
   :group 'mypks-silos)
 
@@ -303,7 +413,10 @@ searches and link prompts (`denote-excluded-directories-regexp'), until
 files alone, but then the folder is just a folder under the root that
 Denote still sees; a start-up check reports such folders.
 
-Order matters where a list of silos is shown or scanned."
+Order matters where a list of silos is shown or scanned.
+
+Takes effect at once: lists of silos, Denote's hidden folders and the
+options derived from the silos are recomputed (`my/silos-apply')."
   :type '(alist :key-type (symbol :tag "Key")
                 :value-type
                 (plist :tag "Properties"
@@ -316,7 +429,7 @@ Order matters where a list of silos is shown or scanned."
                         (:private boolean)
                         (:disabled boolean)
                         (:description string))))
-  :set #'my/notes--set-needs-restart
+  :set (my/settings-apply-on-set #'my/silos-apply)
   :tag "Silos"
   :group 'mypks-silos)
 
@@ -389,12 +502,20 @@ must tell \"in a disabled silo\" from \"in no silo\"."
 ;; -------------------------------------
 ;; `denote-excluded-directories-regexp' is one variable, and more than
 ;; one module needs a folder hidden from Denote: the inbox and its
-;; rejects (25-inbox-review.el), disabled silos (here).  A module that
-;; set the variable outright would erase what another had set, so each
-;; adds a folder with `my/denote-exclude-directory' and the regexp is
-;; rebuilt from the whole list.  Folders are relative to `my-notes-dir'
-;; (= `denote-directory'); each matches as a whole path component, so
-;; excluding pks does not exclude pks-old.
+;; rejects (25-inbox-review.el), the attachments (31-org-images.el),
+;; disabled silos (here).  A module that set the variable outright would
+;; erase what another had set, so the regexp is always rebuilt from all
+;; of them:
+;;
+;;   `my/denote-exclude-directory'            a folder, once
+;;   `my/denote-excluded-directory-functions' a function returning folders,
+;;                                            asked again on every rebuild,
+;;                                            for folders that follow an
+;;                                            option (the inbox, the silos)
+;;
+;; Folders are relative to `my-notes-dir' (= `denote-directory'); each
+;; matches as a whole path component, so excluding pks does not exclude
+;; pks-old.  A folder outside the root needs no hiding and is dropped.
 
 (defvar denote-excluded-directories-regexp)
 
@@ -402,28 +523,64 @@ must tell \"in a disabled silo\" from \"in no silo\"."
   "Folders under `my-notes-dir' hidden from Denote, relative, no slash.
 Add with `my/denote-exclude-directory'; the regexp follows.")
 
-(defun my/denote--update-excluded-regexp ()
+(defvar my/denote-excluded-directory-functions nil
+  "Functions of no arguments returning folders to hide from Denote.
+Each returns a list of directories, absolute or relative to
+`my-notes-dir'.  Called on every rebuild of the regexp, so a folder
+that follows an option is hidden where the option points now.")
+
+(defun my/notes-relative-folder (dir)
+  "Return DIR relative to `my-notes-dir', without a trailing slash.
+DIR may be absolute or already relative.  Nil when DIR is outside the
+root or is the root itself."
+  (let* ((root (file-name-as-directory (expand-file-name my-notes-dir)))
+         (abs (file-name-as-directory (expand-file-name dir root))))
+    (when (and (string-prefix-p root abs) (not (equal abs root)))
+      (directory-file-name (substring abs (length root))))))
+
+(defun my/denote-excluded-names ()
+  "Return every folder hidden from Denote, relative to the root."
+  (delete-dups
+   (delq nil
+         (mapcar #'my/notes-relative-folder
+                 (append my/denote-excluded-directories
+                         (seq-mapcat (lambda (fn)
+                                       (condition-case nil (funcall fn)
+                                         (error nil)))
+                                     my/denote-excluded-directory-functions))))))
+
+(defun my/denote-update-excluded-regexp ()
   "Set `denote-excluded-directories-regexp' from the excluded folders.
 Each folder matches as a whole path component wherever Denote's version
 applies the regexp: to a path relative to `denote-directory', as now,
 or to a longer one."
-  (setq denote-excluded-directories-regexp
-        (when my/denote-excluded-directories
-          (concat "\\(?:\\`\\|/\\)"
-                  (regexp-opt my/denote-excluded-directories)
-                  "\\(?:/\\|\\'\\)"))))
+  (let ((names (my/denote-excluded-names)))
+    (setq denote-excluded-directories-regexp
+          (when names
+            (concat "\\(?:\\`\\|/\\)"
+                    (regexp-opt names)
+                    "\\(?:/\\|\\'\\)")))))
 
 (defun my/denote-exclude-directory (relative)
   "Hide folder RELATIVE (to `my-notes-dir') from Denote's file operations."
   (let ((name (directory-file-name relative)))
     (unless (member name my/denote-excluded-directories)
       (push name my/denote-excluded-directories)
-      (my/denote--update-excluded-regexp))))
+      (my/denote-update-excluded-regexp))))
+
+(defun my/denote-exclude-directory-function (function)
+  "Hide from Denote the folders FUNCTION returns, now and after changes.
+FUNCTION takes no arguments; see `my/denote-excluded-directory-functions'."
+  (add-hook 'my/denote-excluded-directory-functions function)
+  (my/denote-update-excluded-regexp))
+
+(defun my/silo--disabled-folders ()
+  "Return the folders of the disabled silos."
+  (mapcar #'my/silo-dir
+          (my/silo-keys (lambda (k) (not (my/silo-enabled-p k))) t)))
 
 ;; Disabled silos inside the root are hidden from Denote.
-(dolist (key (my/silo-keys (lambda (k) (not (my/silo-enabled-p k))) t))
-  (when-let* ((name (my/silo-folder-name key)))
-    (my/denote-exclude-directory name)))
+(my/denote-exclude-directory-function #'my/silo--disabled-folders)
 
 ;; FOLDERS WITH NOTES THAT ARE NOT SILOS
 ;; -------------------------------------
@@ -446,7 +603,7 @@ Denote and dot folders are not reported."
   (let* ((root (file-name-as-directory (expand-file-name my-notes-dir)))
          (known (append (delq nil (mapcar #'my/silo-folder-name
                                           (my/silo-keys nil t)))
-                        my/denote-excluded-directories)))
+                        (my/denote-excluded-names))))
     (when (file-directory-p root)
       (seq-filter
        (lambda (name)
@@ -735,18 +892,19 @@ asked twice whatever `my/confirm-deletion' says: it removes every note."
 
 ;; The variables every module has used so far, now derived.  Kept so
 ;; that modules work unchanged while they move to the functions above;
-;; they follow the ROLE, not the key.
-(defvar my-notes-journal (my/silo-dir-by-role 'journal)
+;; they follow the ROLE, not the key.  Set by `my/silos--derive-variables'
+;; below, again whenever `my/silos' changes.
+(defvar my-notes-journal nil
   "Directory of the journal silo (role `journal' in `my/silos').")
 
-(defvar my-notes-pks (my/silo-dir-by-role 'notes)
+(defvar my-notes-pks nil
   "Directory of the default notes silo (role `notes' in `my/silos').")
 
-(defvar my-notes-docu (my/silo-dir-by-role 'docs)
+(defvar my-notes-docu nil
   "Directory of the documentation silo (role `docs' in `my/silos').")
 
 ;; Capture file
-(defvar my-journal-captures (expand-file-name "captures.org" my-notes-journal)
+(defvar my-journal-captures nil
   "Ideas capture file - thoughts and ideas worth developing later.
 Use C-c n c i to add entries, C-c n c m to promote to full Denote note.")
 
@@ -771,9 +929,46 @@ still recognise and convert the files that briefly used it.")
 All three are readable; only 2 is written.")
 
 ;; Agenda scans every silo + captures file
-(defvar my-tasks-agenda-dirs
-  (append (my/silo-dirs) (list my-journal-captures))
-  "All locations org-agenda should scan for TODO items.")
+(defvar my-tasks-agenda-dirs nil
+  "Every enabled silo and the captures file: \"all notes\" for scans.")
+
+(defun my/silos--derive-variables ()
+  "Set the variables derived from `my/silos' and the root."
+  (setq my-notes-journal (my/silo-dir-by-role 'journal)
+        my-notes-pks (my/silo-dir-by-role 'notes)
+        my-notes-docu (my/silo-dir-by-role 'docs)
+        my-journal-captures (expand-file-name "captures.org" my-notes-journal)
+        my-tasks-agenda-dirs (append (my/silo-dirs) (list my-journal-captures))))
+
+(my/silos--derive-variables)
+
+(defconst my/silos--dependency-symbols
+  '(my/silos my-notes-journal my-notes-pks my-notes-docu my-journal-captures
+    my-tasks-agenda-dirs my/silo-dir my/silo-dirs my/silo-keys
+    my/silo-dir-by-role my/silo-by-role)
+  "Symbols whose presence in an option's default makes it follow the silos.")
+
+(defvar my/silos-changed-hook nil
+  "Hook run after `my/silos' changed and was applied while Emacs runs.
+For a module that keeps something derived from the silos outside an
+option -- an option's default is recomputed without it.")
+
+(defun my/silos-apply ()
+  "Apply a changed `my/silos' at once.
+Derived variables, Denote's hidden folders and every option whose
+default is computed from the silos (unless set by hand) follow; then
+`my/silos-changed-hook' runs.  No folder is created: a silo's folder
+appears with its first note."
+  (my/silos--derive-variables)
+  (my/denote-update-excluded-regexp)
+  (let ((recomputed (my/settings-reevaluate-dependents
+                     my/silos--dependency-symbols)))
+    (run-hooks 'my/silos-changed-hook)
+    (message "Silos applied: %s%s"
+             (mapconcat #'symbol-name (my/silo-keys) ", ")
+             (if recomputed
+                 (format "; recomputed %d dependent option(s)" (length recomputed))
+               ""))))
 
 ;; Backup directories
 (defvar my-notes-backups (my/notes-path ".backups/")

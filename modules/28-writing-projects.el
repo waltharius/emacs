@@ -140,8 +140,10 @@ merely skips keyword lines, drawers and comments."
   :group 'my/writing-projects)
 
 (defcustom my/writing-clock-idle-minutes 10
-  "Minutes of idleness after which Org asks what to do with the time."
+  "Minutes of idleness after which Org asks what to do with the time.
+Takes effect at once."
   :type 'integer
+  :set (my/settings-apply-on-set #'my/writing--apply-clock-options)
   :group 'my/writing-projects)
 
 (defcustom my/writing-clock-auto-clockout-seconds 600
@@ -156,8 +158,10 @@ hour of that is already enough to make the day\='s figures fiction.
 Note that `org-clock-idle-time' handles the other half of the problem:
 when idleness is noticed while Emacs is still open, Org asks what to do
 with the time rather than deciding.  This is the fallback for when
-nobody is there to answer.  Nil disables it."
+nobody is there to answer.  Nil disables it.  Takes effect from the
+next clock-in."
   :type '(choice integer (const nil))
+  :set (my/settings-apply-on-set #'my/writing--apply-clock-options)
   :group 'my/writing-projects)
 
 (defcustom my/writing-use-mutter-idle nil
@@ -175,8 +179,10 @@ machine before enabling:
     /org/gnome/Mutter/IdleMonitor/Core \\
     org.gnome.Mutter.IdleMonitor.GetIdletime
 
-This is off by default because it has not been tested here."
+This is off by default because it has not been tested here.  Takes
+effect at once."
   :type 'boolean
+  :set (my/settings-apply-on-set #'my/writing--apply-idle-source)
   :group 'my/writing-projects)
 
 ;; Section headings written into every new hub, and looked for when
@@ -895,11 +901,23 @@ of the two can have the last word."
   ;; timestamp inside a CLOCK line moves by a useful amount.  Correcting
   ;; by hand is the fallback whenever idle detection is not trustworthy.
   (setq org-time-stamp-rounding-minutes '(0 5))
-  (setq org-clock-idle-time my/writing-clock-idle-minutes)
-  (org-clock-persistence-insinuate)
-  (when my/writing-clock-auto-clockout-seconds
+  (org-clock-persistence-insinuate))
+
+(defvar org-clock-idle-time)
+(defvar org-clock-auto-clockout-timer)
+
+(defun my/writing--apply-clock-options ()
+  "Hand the idle and auto clock-out options to Org, now or once it loads.
+Org's auto clock-out reads `org-clock-auto-clockout-timer' at every
+clock-in and does nothing when it is nil, so switching it off needs no
+hook removed."
+  (with-eval-after-load 'org-clock
+    (setq org-clock-idle-time my/writing-clock-idle-minutes)
     (setq org-clock-auto-clockout-timer my/writing-clock-auto-clockout-seconds)
-    (org-clock-auto-clockout-insinuate)))
+    (when my/writing-clock-auto-clockout-seconds
+      (org-clock-auto-clockout-insinuate))))
+
+(my/writing--apply-clock-options)
 
 ;; Idle time under Wayland.  Org knows how to ask macOS and X11 how long
 ;; the user has been idle; under Wayland it can only ask Emacs, so time
@@ -920,9 +938,14 @@ of the two can have the last word."
   (or (ignore-errors (my/writing--mutter-idle-seconds))
       (org-emacs-idle-seconds)))
 
-(when my/writing-use-mutter-idle
+(defun my/writing--apply-idle-source ()
+  "Take idle time from Mutter or from Org, as `my/writing-use-mutter-idle' says."
   (with-eval-after-load 'org-clock
-    (advice-add 'org-user-idle-seconds :override #'my/writing--user-idle-seconds)))
+    (if my/writing-use-mutter-idle
+        (advice-add 'org-user-idle-seconds :override #'my/writing--user-idle-seconds)
+      (advice-remove 'org-user-idle-seconds #'my/writing--user-idle-seconds))))
+
+(my/writing--apply-idle-source)
 
 ;; ============================================================
 ;; MENU

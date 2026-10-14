@@ -29,9 +29,9 @@
 ;; same one, which is what 27-denote-identifiers.el exists to report.  It
 ;; reads .org files only, so images never reach it; the exposure is
 ;; Denote itself, which walks the whole tree for every prompt.  This
-;; module therefore adds the folder to
-;; `denote-excluded-directories-regexp' -- extending, never replacing,
-;; the value 25-inbox-review.el sets for the staging inbox.
+;; module therefore hides the folder from Denote through the shared list
+;; of 00-core.el (`my/denote-exclude-directory-function'), next to the
+;; inbox of 25-inbox-review.el and the disabled silos.
 ;;
 ;; WHY RESIZING ALONE IS NOT ENOUGH
 ;;
@@ -91,7 +91,7 @@
 ;; RELATED
 ;;
 ;; 11-org-appearance.el  display width of inline images
-;; 25-inbox-review.el    owns the base `denote-excluded-directories-regexp'
+;; 00-core.el            shared list of folders hidden from Denote
 ;; 26-maintenance.el     integrity checks; reads .org files only
 ;;
 ;; Docs: ~/.emacs.d/function_helper.org::#fn-my-org-image-insert
@@ -117,8 +117,10 @@
                     (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
   "Directory holding images referenced from notes.
 Kept inside the notes tree so that Syncthing carries attachments and
-notes together, and excluded from Denote's file listing at load time."
+notes together, and hidden from Denote's file listing.  Takes effect at
+once."
   :type 'directory
+  :set (my/settings-apply-on-set #'my/denote-update-excluded-regexp)
   :group 'my/org-images)
 
 (defcustom my/org-image-max-pixels 1600
@@ -205,20 +207,18 @@ keymap alone."
 ;; ============================================================
 ;; DENOTE: keep the attachment folder out of the note listing
 ;; ============================================================
-;; The base value belongs to 25-inbox-review.el and is extended here,
-;; never overwritten; evaluating this twice is harmless.
+;; One entry of the shared list of hidden folders in 00-core.el, given
+;; as a function so that it follows the option.  It used to be appended
+;; to the regexp as a bare name: unanchored, so it also hid any folder
+;; merely containing "attachments" in its path, and lost again whenever
+;; 00-core.el rebuilt the regexp.
 
-(with-eval-after-load 'denote
-  (let ((name (file-name-nondirectory
-               (directory-file-name my/org-image-attachments-directory))))
-    (when (and (stringp name) (not (string-empty-p name)))
-      (let ((current (and (boundp 'denote-excluded-directories-regexp)
-                          denote-excluded-directories-regexp)))
-        (unless (and current (string-match-p (regexp-quote name) current))
-          (setq denote-excluded-directories-regexp
-                (if current
-                    (concat current "\\|" (regexp-quote name))
-                  (regexp-quote name))))))))
+(defun my/org-image--excluded-folders ()
+  "Return the attachments folder, for Denote's hidden folders."
+  (list my/org-image-attachments-directory))
+
+(when (fboundp 'my/denote-exclude-directory-function)
+  (my/denote-exclude-directory-function #'my/org-image--excluded-folders))
 
 ;; ============================================================
 ;; NAMING

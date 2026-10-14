@@ -104,16 +104,20 @@ normal."
   :group 'my/habits)
 
 (defcustom my/habits-capture-key "h"
-  "Key of the habit template inside `org-capture-templates'."
+  "Key of the habit template inside `org-capture-templates'.
+Takes effect at once."
   :type 'string
+  :set (my/settings-apply-on-set #'my/habits--register-template)
   :group 'my/habits)
 
 (defcustom my/habits-log-binding "<f9>"
   "Global key running `my/habit-log', or nil for none.
 
 Unmodified, for the same reason as the task key: a habit gets logged
-when it is remembered, which is rarely a moment with both hands free."
+when it is remembered, which is rarely a moment with both hands free.
+Takes effect at once."
   :type '(choice string (const nil))
+  :set (my/settings-apply-on-set #'my/habits--apply-binding)
   :group 'my/habits)
 
 (defcustom my/habits-derived-cap 40
@@ -272,15 +276,16 @@ habit."
     (insert "* " my/habits-heading "\n")
     (forward-line -1)))
 
-(with-eval-after-load 'org-capture
-  (add-to-list
-   'org-capture-templates
+(defun my/habits--register-template ()
+  "Register the habit template under `my/habits-capture-key'."
+  (my/settings-capture-template
    (list my/habits-capture-key "Habit"
          'entry
          '(function my/habits--capture-target)
          '(function my/habits--capture-template)
-         :empty-lines 1)
-   t))
+         :empty-lines 1)))
+
+(my/habits--register-template)
 
 ;;;###autoload
 (defun my/habit-new ()
@@ -556,8 +561,11 @@ Safe to run repeatedly: the drawer is replaced, not appended to."
 ;; KEYBINDING
 ;; ============================================================
 
-(when my/habits-log-binding
-  (global-set-key (kbd my/habits-log-binding) #'my/habit-log))
+(defun my/habits--apply-binding ()
+  "Bind `my/habits-log-binding' to `my/habit-log'."
+  (my/settings-bind-key #'my/habit-log my/habits-log-binding))
+
+(my/habits--apply-binding)
 
 (provide '38-habits)
 ;;; 38-habits.el ends here

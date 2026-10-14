@@ -131,8 +131,11 @@ list exists so that grep-based commands OUTSIDE this module -- `rgrep',
 `project-find-regexp', `consult-grep' -- skip them too.
 
 The commands in this module do not depend on it: they exclude every dot
-directory by glob, so a new one needs no entry here."
-  :type '(repeat string) :group 'my/notes-search)
+directory by glob, so a new one needs no entry here.  Takes effect at
+once."
+  :type '(repeat string)
+  :set (my/settings-apply-on-set #'my/notes-search--apply-exclusions)
+  :group 'my/notes-search)
 
 (defcustom my/notes-search-earliest-year 1990
   "Year used as the lower bound of an open-ended date range.
@@ -157,8 +160,10 @@ deliberate question."
 
 Set to nil to force plain grep.  Both back ends support everything this
 module does; ripgrep is faster and excludes hidden directories on its
-own, grep needs to be told."
-  :type 'boolean :group 'my/notes-search)
+own, grep needs to be told.  Takes effect at once."
+  :type 'boolean
+  :set (my/settings-apply-on-set #'my/notes-search--apply-backend)
+  :group 'my/notes-search)
 
 ;; ============================================================
 ;; EXCLUSIONS FOR EVERY OTHER GREP IN EMACS
@@ -168,19 +173,43 @@ own, grep needs to be told."
 ;; require it when they run; this form covers the case where something
 ;; else loads grep first.
 
-(with-eval-after-load 'grep
-  (dolist (dir my/notes-search-ignored-directories)
-    (add-to-list 'grep-find-ignored-directories dir)))
+(defvar my/notes-search--ignored-added nil
+  "Names this module added to `grep-find-ignored-directories'.
+Kept so that a name removed from the option is removed there too,
+without touching names other code added.")
+
+(defvar grep-find-ignored-directories)
+
+(defun my/notes-search--apply-exclusions ()
+  "Make `grep-find-ignored-directories' follow the option, now or once grep loads."
+  (with-eval-after-load 'grep
+    (dolist (dir my/notes-search--ignored-added)
+      (unless (member dir my/notes-search-ignored-directories)
+        (setq grep-find-ignored-directories
+              (delete dir grep-find-ignored-directories))))
+    (dolist (dir my/notes-search-ignored-directories)
+      (unless (member dir grep-find-ignored-directories)
+        (add-to-list 'grep-find-ignored-directories dir)
+        (push dir my/notes-search--ignored-added)))))
+
+(my/notes-search--apply-exclusions)
 
 ;; The plain `consult-denote-grep' is no longer on the Find menu, but it
 ;; is still one `M-x' away and is what other Denote integrations call.
 ;; Pointing it at ripgrep gives it the same exclusions for free.
 
-(with-eval-after-load 'consult-denote
-  (when (and my/notes-search-prefer-ripgrep
-             (executable-find "rg")
-             (boundp 'consult-denote-grep-command))
-    (setq consult-denote-grep-command #'consult-ripgrep)))
+(defvar consult-denote-grep-command)
+
+(defun my/notes-search--apply-backend ()
+  "Point `consult-denote-grep-command' at ripgrep or back at its default."
+  (with-eval-after-load 'consult-denote
+    (when (boundp 'consult-denote-grep-command)
+      (setq consult-denote-grep-command
+            (if (and my/notes-search-prefer-ripgrep (executable-find "rg"))
+                #'consult-ripgrep
+              (eval (car (get 'consult-denote-grep-command 'standard-value)) t))))))
+
+(my/notes-search--apply-backend)
 
 ;; ============================================================
 ;; TOKENISER

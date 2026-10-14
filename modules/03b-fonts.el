@@ -72,8 +72,11 @@
   "Monospaced family for `default' and `fixed-pitch'.
 This is the body text of any buffer that does not turn on
 `variable-pitch-mode', and the family of every spacing-sensitive
-element (tables, source blocks, inline code) in every buffer."
-  :type 'string :group 'my/fonts)
+element (tables, source blocks, inline code) in every buffer.
+Takes effect at once."
+  :type 'string
+  :set (my/settings-apply-on-set #'my/fonts-apply)
+  :group 'my/fonts)
 
 (defcustom my/font-variable-pitch "Source Sans 3"
   "Proportional family for `variable-pitch'.
@@ -81,8 +84,11 @@ The session-wide default, used wherever no silo entry applies --
 headings in a buffer outside the notes tree, `*Help*', and so on.
 Notes inside a silo override it per buffer, see `my/font-silo-styles'.
 
-NOT the journal handwriting family; that is a silo entry."
-  :type 'string :group 'my/fonts)
+NOT the journal handwriting family; that is a silo entry.
+Takes effect at once."
+  :type 'string
+  :set (my/settings-apply-on-set #'my/fonts-apply)
+  :group 'my/fonts)
 
 (defcustom my/font-default-height 130
   "Height of the `default' face, in units of 1/10 pt.
@@ -90,8 +96,13 @@ NOT the journal handwriting family; that is a silo entry."
 configuration; every other face is relative to it, which is what lets
 `text-scale-adjust' and `default-text-scale-mode' (34-appearance.el)
 scale a buffer coherently instead of moving one face out from under
-the others."
-  :type 'integer :group 'my/fonts)
+the others.
+
+Takes effect at once, and becomes the size `C-c u f' starts from and
+remembers: a value set here replaces the one stored by that command."
+  :type 'integer
+  :set (my/settings-apply-on-set #'my/fonts--height-option-changed)
+  :group 'my/fonts)
 
 ;; ============================================================
 ;; PER-SILO STYLES
@@ -178,6 +189,13 @@ variable or after attaching a new display."
                       :weight 'normal))
 
 (my/fonts-apply)
+
+(defun my/fonts--height-option-changed ()
+  "Apply `my/font-default-height' as set in Customize, and remember it.
+Stored like a size chosen with `C-c u f', which would otherwise win at
+the next start over the value just set."
+  (my/fonts-apply)
+  (my/ui-state-set :font-height my/font-default-height))
 
 ;; A theme reassigns the faces it covers when it loads, and `default'
 ;; is one of them.  Re-applying afterwards keeps the font choice from

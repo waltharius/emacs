@@ -85,8 +85,10 @@
 
 (defcustom my/drill-keyword "karty"
   "Denote keyword that marks a note as a card deck.
-Matched against the `__keyword' component of the file name."
+Matched against the `__keyword' component of the file name.
+Takes effect at once; existing decks keep the keyword they carry."
   :type 'string
+  :set (my/settings-apply-on-set #'my/drill--register-keyword)
   :group 'my/drill)
 
 (defcustom my/drill-card-title "Karta"
@@ -161,8 +163,12 @@ The name only has to be recognisable when a deck is read as a note."
 
 ;; Register the keyword so it completes in `denote-rename-file-keywords'
 ;; before the first deck exists, as 33-denote-hubs.el does for hubs.
-(with-eval-after-load 'denote
-  (add-to-list 'denote-known-keywords my/drill-keyword))
+(defun my/drill--register-keyword ()
+  "Offer `my/drill-keyword' among Denote's known keywords."
+  (with-eval-after-load 'denote
+    (add-to-list 'denote-known-keywords my/drill-keyword)))
+
+(my/drill--register-keyword)
 
 ;; ============================================================
 ;; FINDING DECKS

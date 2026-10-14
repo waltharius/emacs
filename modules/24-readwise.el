@@ -70,14 +70,17 @@ The book's own category is appended automatically, so a book gets
   :type '(repeat string)
   :group 'my/readwise)
 
-(defvar my/readwise-state-file
-  (expand-file-name "last-sync.txt" my/readwise-directory)
-  "File recording the timestamp of the last successful sync.
+(defun my/readwise--state-file ()
+  "Return the file recording the timestamp of the last successful sync.
+
+Computed from `my/readwise-directory' on every use, so that changing
+that option in Customize moves the state with it.
 
 Stored beside the imported files, not in .emacs.d, and that placement
 is deliberate: losing the directory should mean losing the state too,
 so that the next sync re-imports everything rather than silently
-skipping books whose files are gone.")
+skipping books whose files are gone."
+  (expand-file-name "last-sync.txt" my/readwise-directory))
 
 (defconst my/readwise--export-url "https://readwise.io/api/v2/export/"
   "Readwise export endpoint.")
@@ -291,16 +294,16 @@ per sync."
 
 (defun my/readwise--last-sync ()
   "Return the stored last-sync timestamp, or nil when there is none."
-  (when (file-readable-p my/readwise-state-file)
+  (when (file-readable-p (my/readwise--state-file))
     (with-temp-buffer
-      (insert-file-contents my/readwise-state-file)
+      (insert-file-contents (my/readwise--state-file))
       (let ((s (string-trim (buffer-string))))
         (unless (string-empty-p s) s)))))
 
 (defun my/readwise--save-sync-time (time)
-  "Write TIME, an ISO 8601 string, to `my/readwise-state-file'."
+  "Write TIME, an ISO 8601 string, to `my/readwise--state-file'."
   (make-directory my/readwise-directory t)
-  (with-temp-file my/readwise-state-file
+  (with-temp-file (my/readwise--state-file)
     (insert time "\n")))
 
 ;; ============================================================

@@ -116,8 +116,9 @@ used one after the other."
   "Seconds of idleness before an automatic commit and push.
 
 Five minutes: long enough that it never fires mid-sentence, short
-enough that a coffee break is a backup."
+enough that a coffee break is a backup.  Takes effect at once."
   :type 'integer
+  :set (my/settings-apply-on-set #'my/auto-commit--arm-timer)
   :group 'my/git)
 
 (defvar my/auto-commit-log-buffer "*auto-commit*"
@@ -426,9 +427,16 @@ rebase.  The next automatic cycle pushes the result."
   (let ((inhibit-message t))
     (ignore-errors (my/auto-commit-all))))
 
-(setq my/auto-commit--idle-timer
-      (run-with-idle-timer my/auto-commit-idle-seconds t
-                           #'my/auto-commit--on-idle))
+(defun my/auto-commit--arm-timer ()
+  "Start the idle timer, replacing a running one.
+Called at load and whenever `my/auto-commit-idle-seconds' changes."
+  (when (timerp my/auto-commit--idle-timer)
+    (cancel-timer my/auto-commit--idle-timer))
+  (setq my/auto-commit--idle-timer
+        (run-with-idle-timer my/auto-commit-idle-seconds t
+                             #'my/auto-commit--on-idle)))
+
+(my/auto-commit--arm-timer)
 
 ;; The exit path still runs once per session.  With the idle timer in
 ;; place it usually finds nothing to do, which is the point: the work

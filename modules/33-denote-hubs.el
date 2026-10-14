@@ -69,8 +69,10 @@
 
 (defcustom my/denote-hub-keyword "hub"
   "Denote keyword that marks a note as a hub.
-Matched against the `__keyword' component of the file name."
+Matched against the `__keyword' component of the file name.
+Takes effect at once; existing hubs keep the keyword they carry."
   :type 'string
+  :set (my/settings-apply-on-set #'my/denote-hub--register-keyword)
   :group 'my-denote-hubs)
 
 (defcustom my/denote-hub-directory my-notes-pks
@@ -86,8 +88,12 @@ only prompt specified for hub creation is the title."
 ;; Register the keyword so it completes in `denote-rename-file-keywords'
 ;; and friends before the first hub exists, the same way
 ;; 19-philosophy-notes.el registers its own vocabulary.
-(with-eval-after-load 'denote
-  (add-to-list 'denote-known-keywords my/denote-hub-keyword))
+(defun my/denote-hub--register-keyword ()
+  "Offer `my/denote-hub-keyword' among Denote's known keywords."
+  (with-eval-after-load 'denote
+    (add-to-list 'denote-known-keywords my/denote-hub-keyword)))
+
+(my/denote-hub--register-keyword)
 
 ;; ============================================================
 ;; FINDING HUBS

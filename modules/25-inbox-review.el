@@ -59,15 +59,20 @@ identifier clash protection is disabled"))))
   :group 'mypks-notes)
 
 (defcustom my/inbox-directory (expand-file-name "inbox/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
-  "Staging folder with migrated notes awaiting review."
-  :type 'directory :group 'my/inbox-settings)
+  "Staging folder with migrated notes awaiting review.
+Hidden from Denote; takes effect at once."
+  :type 'directory
+  :set (my/settings-apply-on-set #'my/denote-update-excluded-regexp)
+  :group 'my/inbox-settings)
 
 (defcustom my/inbox-reject-directory
   (expand-file-name "inbox-odrzucone/" (if (boundp 'my-notes-dir) my-notes-dir "~/notes/"))
   "Where rejected notes go.  A trash folder, not deletion - review
 mistakes are certain over months of processing; empty it once, at the
-end."
-  :type 'directory :group 'my/inbox-settings)
+end.  Hidden from Denote; takes effect at once."
+  :type 'directory
+  :set (my/settings-apply-on-set #'my/denote-update-excluded-regexp)
+  :group 'my/inbox-settings)
 
 (defcustom my/inbox-silos
   ;; Every silo except the journal, named by its key.
@@ -97,14 +102,18 @@ inbox, because notes still awaiting review link to each other."
 ;; Keep the staging area and the trash invisible to Denote: with
 ;; `denote-directory' set to ~/notes/ every subdirectory is a silo by
 ;; default, and half-reviewed notes showing up in denote searches
-;; would defeat the point of staging.  Both folders are added to the
-;; shared list of 00-core.el rather than set as the whole regexp, which
-;; would erase what other code hides (disabled silos).  Without
-;; 00-core.el the old regexp is set directly: "inbox" also matches
-;; "inbox-odrzucone" as a substring.
-(if (fboundp 'my/denote-exclude-directory)
-    (dolist (dir (list my/inbox-directory my/inbox-reject-directory))
-      (my/denote-exclude-directory (file-relative-name dir my-notes-dir)))
+;; would defeat the point of staging.  Both folders are given to the
+;; shared list of 00-core.el, as a function so that they are hidden
+;; where the options point now, rather than set as the whole regexp,
+;; which would erase what other code hides (disabled silos,
+;; attachments).  Without 00-core.el the old regexp is set directly:
+;; "inbox" also matches "inbox-odrzucone" as a substring.
+(defun my/inbox--excluded-folders ()
+  "Return the inbox and its rejects, for Denote's hidden folders."
+  (list my/inbox-directory my/inbox-reject-directory))
+
+(if (fboundp 'my/denote-exclude-directory-function)
+    (my/denote-exclude-directory-function #'my/inbox--excluded-folders)
   (setq denote-excluded-directories-regexp "inbox"))
 
 ;; ============================================================

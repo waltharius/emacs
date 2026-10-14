@@ -133,8 +133,10 @@ a module may add a file it has not created yet."
   "Key of the task template inside `org-capture-templates'.
 
 Only relevant when reaching the template through the generic
-`org-capture' menu.  `my/task-capture' fires it directly."
+`org-capture' menu.  `my/task-capture' fires it directly.  Takes
+effect at once."
   :type 'string
+  :set (my/settings-apply-on-set #'my/tasks--register-template)
   :group 'my/tasks)
 
 (defcustom my/tasks-capture-binding "<f8>"
@@ -142,8 +144,9 @@ Only relevant when reaching the template through the generic
 
 A single unmodified key on purpose.  This command is meant to be
 pressed mid-sentence; anything needing two hands gets skipped and the
-task gets forgotten instead."
+task gets forgotten instead.  Takes effect at once."
   :type '(choice string (const nil))
+  :set (my/settings-apply-on-set #'my/tasks--apply-binding)
   :group 'my/tasks)
 
 (defcustom my/tasks-date-keyword 'scheduled
@@ -438,9 +441,9 @@ other templates and for aborts."
 
 (add-hook 'org-capture-after-finalize-hook #'my/tasks--report-destination)
 
-(with-eval-after-load 'org-capture
-  (add-to-list
-   'org-capture-templates
+(defun my/tasks--register-template ()
+  "Register the task template under `my/tasks-capture-key'."
+  (my/settings-capture-template
    (list my/tasks-capture-key "Task"
          'entry
          '(function my/tasks--capture-target)
@@ -449,8 +452,9 @@ other templates and for aborts."
          ;; Newest first, matching every other list in this
          ;; configuration, and so that a task just written is on screen
          ;; rather than below a screenful of older ones.
-         :prepend t)
-   t))
+         :prepend t)))
+
+(my/tasks--register-template)
 
 ;; ============================================================
 ;; THE COMMAND
@@ -627,8 +631,11 @@ state that gets diagnosed as \"the agenda is broken\".  The cost is one
 ;; KEYBINDING
 ;; ============================================================
 
-(when my/tasks-capture-binding
-  (global-set-key (kbd my/tasks-capture-binding) #'my/task-capture))
+(defun my/tasks--apply-binding ()
+  "Bind `my/tasks-capture-binding' to `my/task-capture'."
+  (my/settings-bind-key #'my/task-capture my/tasks-capture-binding))
+
+(my/tasks--apply-binding)
 
 ;; "C-c a" is the agenda key in every piece of Org documentation, every
 ;; tutorial and every answer on the subject.  It was a prefix for

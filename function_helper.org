@@ -1209,10 +1209,13 @@ The number ignores the extension, because one note can end up with a
 PNG and a JPEG and they must not both claim =-0=.
 
 Reusing the note's identifier means two files under =~/notes/= carry the
-same one. The attachment folder is therefore added to
-=denote-excluded-directories-regexp= at load time — extending the value
-=25-inbox-review.el= sets for the inbox, never replacing it — so Denote
-prompts, backlinks and keyword completion never see it.
+same one. The attachment folder is therefore hidden from Denote through
+the shared list of =00-core.el= (=my/denote-exclude-directory-function=,
+next to the inbox and the disabled silos), so Denote prompts, backlinks
+and keyword completion never see it.  It follows
+=my/org-image-attachments-directory= at once when that changes.  (It
+used to be appended to the regexp as a bare name: unanchored, and lost
+whenever the shared list rebuilt the regexp.)
 =26-maintenance.el= and =27-denote-identifiers.el= read =.org= files
 only, so images were already invisible to them.
 
@@ -2746,7 +2749,7 @@ instead of duplicating an unreliable string.
 | =my/readwise-directory=     | Where book files are written             |
 | =my/readwise-categories=    | Which Readwise categories to keep        |
 | =my/readwise-file-keywords= | Denote keywords added to every file      |
-| =my/readwise-state-file=    | Last-sync timestamp                      |
+| =my/readwise--state-file=   | Last-sync timestamp (=last-sync.txt= in the directory, computed on use) |
 
 =my/readwise-categories= defaults to =("books")=; adding =articles= is
 a one-item change and needs no code edit.
@@ -2825,9 +2828,12 @@ the identifier survives in the file name, but =#+title:=,
 =denote-directory= is the notes root, so every subdirectory beneath it
 is visible to every Denote command, dashboard and search. Half-reviewed
 imports showing up there would defeat the point of staging, so the
-module sets =denote-excluded-directories-regexp= to ="inbox"=. That
-also matches =inbox-odrzucone/= as a substring, which is intended:
-rejected notes should be less visible still.
+module hides the inbox and its rejects through the shared list of
+=00-core.el= (see [[#silo-disabled][Switching a silo off]]), following
+=my/inbox-directory= and =my/inbox-reject-directory= at once when they
+change.  Without =00-core.el= it sets
+=denote-excluded-directories-regexp= to ="inbox"=, which also matches
+=inbox-odrzucone/= as a substring.
 
 Rejection *moves* rather than deletes. Several hundred decisions taken
 over weeks will contain mistakes; the folder gets emptied once, at the
@@ -7969,6 +7975,48 @@ setting.
 
 Function: =my/settings--keep-order=, =my/settings--tree-groups= | Module: =modules/00-core.el=
 
+** When a change takes effect
+:PROPERTIES:
+:CUSTOM_ID: settings-when
+:END:
+
+*At once*, for every option, with one exception.  Most options are read
+when they are used, so /Apply/ is enough.  The few that a module reads
+only while it loads — a key, a timer, a capture template, a folder
+hidden from Denote — have a setter that applies the new value
+immediately (=my/settings-apply-on-set=):
+
+| Option                                                          | What follows at once                                         |
+|-----------------------------------------------------------------+--------------------------------------------------------------|
+| =my/silos=                                                      | lists of silos, derived variables, Denote's hidden folders, options computed from the silos (=my/silos-apply=) |
+| =my/inbox-directory=, =my/inbox-reject-directory=, =my/org-image-attachments-directory= | Denote's hidden folders                      |
+| =my/font-default=, =my/font-variable-pitch=, =my/font-default-height= | the base faces; the height is also what =C-c u f= remembers |
+| =my/auto-commit-idle-seconds=                                   | the idle timer is restarted                                  |
+| =my/tasks-capture-binding=, =my/habits-log-binding=             | the old key is released, the new one bound (=my/settings-bind-key=) |
+| =my/tasks-capture-key=, =my/habits-capture-key=                 | the capture template is replaced (=my/settings-capture-template=) |
+| =my/denote-hub-keyword=, =my/drill-keyword=                     | offered among Denote's known keywords                        |
+| =my/notes-search-ignored-directories=, =my/notes-search-prefer-ripgrep= | =grep-find-ignored-directories=, =consult-denote-grep-command= |
+| =my/writing-clock-idle-minutes=, =my/writing-clock-auto-clockout-seconds=, =my/writing-use-mutter-idle= | Org's idle handling; auto clock-out from the next clock-in |
+| =my/readwise-directory=                                         | the last-sync file moves with it                             |
+
+*At the next start*: only the notes folder (=my-notes-dir=), because
+changing it means moving the notes, which is offered at start-up before
+anything under the folder is opened.  Its setter says so in the echo
+area (=my/settings-set-needs-restart=).
+
+*Options computed from another option* — every "list of silos" option,
+the per-silo font styles, the hub folder — are recomputed when the
+silos change, by =my/settings-reevaluate-dependents=: an option of the
+tree whose default mentions the silos is evaluated again, *unless the
+user has set it* (a saved or customized value is never replaced).
+
+For a module: =(defcustom my/x ... :set (my/settings-apply-on-set
+#'my/x--apply))=, with =my/x--apply= called once at the end of the
+module's own load.  During start-up the setter only stores the value;
+the module applies its options itself when it is complete.
+
+Function: =my/settings-apply-on-set=, =my/settings-set-needs-restart=, =my/settings-reevaluate-dependents=, =my/settings-bind-key=, =my/settings-capture-template=, =my/silos-apply= | Module: =modules/00-core.el=
+
 ** What is not here yet
 :PROPERTIES:
 :CUSTOM_ID: settings-not-yet
@@ -8022,8 +8070,13 @@ working. A configuration without a silo for some role is valid; the
 variable then points at an uncreated =<root>/<role>/= and
 *Messages* says so once.
 
-*Takes effect at the next start of Emacs.* Modules compute their paths
-when they load; a change made in Customize says so in the echo area.
+*The root takes effect at the next start of Emacs*, which offers to
+move the notes (see [[#notes-root-move][Moving the notes root]]).  *The
+silos take effect at once*: =my/silos-apply= recomputes the derived
+variables, Denote's hidden folders and every option whose default is
+computed from the silos and was not set by hand, then runs
+=my/silos-changed-hook=; see [[#settings-when][When a change takes
+effect]].
 
 Derived from the root, unless saved otherwise in Customize: the backups
 and autosaves (=.backups/=, =.autosaves/=), =captures.org= (in the
@@ -8063,12 +8116,17 @@ Links from other notes into it do not open while it is off, and open
 again when it is back: Denote links by identifier.
 
 *Denote's excluded folders are one shared list.*
-=denote-excluded-directories-regexp= is a single variable, and both the
-inbox (=25-inbox-review.el=) and disabled silos need folders hidden. A
-module adds a folder with =my/denote-exclude-directory= (relative to
-the root) and the regexp is rebuilt from =my/denote-excluded-directories=;
-each folder matches as a whole path component, so hiding =pks= does not
-hide =pks-old=. Setting the variable directly would erase the others.
+=denote-excluded-directories-regexp= is a single variable, and the
+inbox (=25-inbox-review.el=), the attachments (=31-org-images.el=) and
+disabled silos all need folders hidden. A module adds a fixed folder
+with =my/denote-exclude-directory=, or a function returning folders
+with =my/denote-exclude-directory-function=; the function is asked
+again on every rebuild, so a folder that follows an option is hidden
+where the option points now. =my/denote-excluded-names= lists the
+result, relative to the root; folders outside the root are dropped,
+needing no hiding. Each folder matches as a whole path component, so
+hiding =pks= does not hide =pks-old=. Setting the variable directly
+would erase the others.
 
 *Folders with notes that are not silos* — an entry deleted rather than
 disabled — are still seen by Denote, which is rooted at the notes
@@ -8077,7 +8135,7 @@ folders (holding =.org= or =.md= files with Denote names, so the
 attachments folder is not one of them); =M-x my/silo-report-orphans=
 checks on demand.
 
-Function: =my/silo-report-orphans=, =my/denote-exclude-directory=, =my/notes-read-silo-dir= | Module: =modules/00-core.el=, =modules/05-notes.el=
+Function: =my/silo-report-orphans=, =my/denote-exclude-directory=, =my/denote-exclude-directory-function=, =my/denote-excluded-names=, =my/notes-read-silo-dir= | Module: =modules/00-core.el=, =modules/05-notes.el=
 
 *** Moving the notes root
 :PROPERTIES:

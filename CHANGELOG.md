@@ -21,6 +21,75 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-14b — Settings take effect at once
+
+### Why
+
+Finding of the test pass: every change of a silo said "takes effect
+after restarting Emacs", and a full restart for a small change is
+tiresome.  Most options were in fact already read when used; the
+restart was needed only where a module read an option once, while
+loading -- a key binding, a timer, a capture template, a list of
+silos, a folder hidden from Denote -- and nothing said which ones
+those were.
+
+### What
+
+- `00-core.el`: `my/settings-apply-on-set` returns a Customize setter
+  that stores the value and, once Emacs is up, calls the module's
+  apply function.  During start-up the setter only stores; each module
+  applies its options once, at the end of its own load.
+  `my/settings-set-needs-restart` (renamed from
+  `my/notes--set-needs-restart`) is left for the one option that cannot
+  change in a running session, `my-notes-dir`.
+- `my/settings-reevaluate-dependents`: options of the MyPKS tree whose
+  default mentions given symbols are evaluated again, through their own
+  setter, unless the user saved or customized a value.  Used by the
+  silos: every "list of silos" option and the per-silo font styles
+  follow a change of `my/silos`.
+- `my/silos-apply`: derived variables (`my-notes-journal` and the
+  others, now set by `my/silos--derive-variables`), Denote's hidden
+  folders, dependent options, then `my/silos-changed-hook`.  Creates no
+  folder.
+- Denote's hidden folders: besides fixed folders,
+  `my/denote-exclude-directory-function` registers a function asked on
+  every rebuild, so a folder that follows an option is hidden where the
+  option points now.  Used by the inbox, the attachments and the
+  disabled silos.  `my/denote-excluded-names`, `my/notes-relative-folder`.
+- `31-org-images.el` no longer appends `attachments` to the regexp: the
+  bare name was unanchored (any path containing the word matched, as
+  `C-h v denote-excluded-directories-regexp` showed) and was lost
+  whenever the shared list rebuilt the regexp -- which now happens on
+  every silo change.
+- Applied at once, each by a small apply function of its module: fonts
+  (family, variable-pitch family, height -- the height is also stored
+  where `C-c u f` keeps it, which would otherwise win at the next
+  start), the auto-commit idle timer, the task and habit keys
+  (`my/settings-bind-key` releases the old key) and capture templates
+  (`my/settings-capture-template` replaces the entry with the same
+  target), the hub and drill keywords, the grep exclusions and the
+  search back end, the writing clock's idle options and the Mutter idle
+  source, the inbox folders.  Readwise's state file is computed from
+  the directory on use (`my/readwise--state-file`).
+
+### Rejected
+
+- *Recomputing every option of the tree* on a silo change:
+  `custom-reevaluate-setting` on all of them would also reset values
+  that code changed with `setq` after load.  Only options whose default
+  form mentions the silos are recomputed.
+- *A restart prompt after each change*: a question for something that
+  no longer needs answering.
+
+Verified in batch: changing `my/silos` with `customize-set-variable`
+moves `my-notes-pks` and the agenda list to the new notes silo,
+recomputes an unsaved dependent option and leaves a saved one alone,
+adds a disabled silo to the regexp next to a function-provided inbox,
+creates no folder; `my/settings-bind-key` releases F8 when the key
+moves to F7; a changed template key replaces the template.
+Byte-compiled offline: no new warnings.
+
+---
 ## Session 2026-10-14a — Settings tree in order of importance
 
 ### Why
