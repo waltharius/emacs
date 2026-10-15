@@ -667,8 +667,9 @@ preferable to reimplementing a buffer-local version."
 (with-eval-after-load '12-transient
   (when (fboundp 'my/transient-append)
     (my/transient-append 'my/notes-create-menu "L"
-                         '("M" "Markdown note" my/markdown-new-note))
-    (my/transient-append 'my/notes-tools-menu "z"
+                         '("M" "Markdown note" my/markdown-new-note)))
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-tools-menu "q"
                          '("m" "Markdown →" my/markdown-menu))))
 
 (provide '40-markdown)

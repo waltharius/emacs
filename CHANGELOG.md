@@ -21,6 +21,52 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-16d — Decoupling 1: Zotero and the bibliography optional, Readwise without Zettelkasten
+
+### Why
+
+First part of the decoupling step of the module toggles (BACKLOG.org).
+The module contract (2026-10-16c) showed 17-bibliography and
+18-zotero-transient as core only because the Tools menu of
+12-transient.el named `my/zotero-menu`.  Worse, that entry was the
+anchor of four others: Readwise, Inbox, Markdown and Obsidian import
+were appended after `z`, so without the Zotero module all four
+disappeared from the menu.  And 24-readwise needed 22-zettelkasten for
+one action of its quote list.
+
+### What
+
+- 12-transient.el: `my/transient-insert`, the counterpart of
+  `my/transient-append` that inserts before its anchor; both share
+  `my/transient--add`.  The Tools menu (`C-c n t`): the Bibliography
+  column removed; a column *Integrations* holding only Quit, before
+  which the modules insert their entries.  Quit is the anchor because
+  no module owns it.  Main menu label: "Tools → spelling/integrations".
+- 18-zotero-transient.el inserts `z` itself; 24-readwise, 25-inbox-review,
+  40-markdown and 42-obsidian-import insert before `q` instead of
+  appending after `z`.  Order in the column: z r i m o.
+- 24-readwise.el: the zettel action needs `my/zettel-adopt`.  Without
+  22-zettelkasten it is refused before anything is written, the
+  `[zettel]` button is not offered and the list header leaves `z` out.
+  `MyPKS-Requires` no longer lists 22-zettelkasten.
+- Headers: 17-bibliography and 18-zotero-transient `MyPKS-Optional:
+  yes`.  Core 17 modules, optional 35.
+- hooks/module_contract.py: `my/transient-insert` counts as a guarded
+  use like `my/transient-append`.
+- function_helper.org: the Integrations column and who fills it (Tools
+  menu), the Readwise zettel note, `my/transient-insert` among the
+  shared helpers, contract rule 10 (anchor on the menu's own entries),
+  core and optional regenerated.  BACKLOG.org: parts 1-3 of the
+  decoupling.  TESTPLAN.org: R14.
+
+### Checked
+
+In batch: the Tools menu with Zotero, Readwise and Obsidian import
+loaded lists `z r o q` in Integrations; without Zotero `r o q`; with
+12-transient alone `q`.  Readwise without the Zettelkasten module
+refuses `zettel` with a message and draws three buttons; with it, four.
+
+---
 ## Session 2026-10-16c — Module contract: headers in every module, the check 'modules'
 
 ### Why

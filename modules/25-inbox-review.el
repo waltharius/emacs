@@ -683,8 +683,8 @@ note records where it came from in :extracted_from:."
 ;; without it init aborts here with a void-function error naming this
 ;; file rather than the missing one.
 (with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-append)
-    (my/transient-append 'my/notes-tools-menu "z"
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-tools-menu "q"
                          '("i" "Inbox \u2192" my/inbox-menu))))
 
 (provide '25-inbox-review)

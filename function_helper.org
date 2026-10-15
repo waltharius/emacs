@@ -2066,6 +2066,23 @@ External tool integrations and spelling. New external integrations
 should be added here rather than at top level.
 Module: =modules/12-transient.el=
 
+The *Integrations* column holds only =q= Quit in =12-transient.el=.
+Every other entry is inserted before =q= by the module it opens, with
+=my/transient-insert=, so a module that is absent or turned off takes
+its entry with it and leaves the rest of the column in place:
+
+| Key | Contributed by |
+|-----+----------------|
+| =z= Zotero / Bib | =18-zotero-transient.el= |
+| =r= Readwise | =24-readwise.el= |
+| =i= Inbox | =25-inbox-review.el= |
+| =m= Markdown | =40-markdown.el= |
+| =o= Obsidian import | =42-obsidian-import.el= |
+
+Quit is the anchor because no module owns it.  Until 2026-10-16 the
+entries were appended after =z=, so without the Zotero module the
+other four disappeared too.
+
 *** z — Zotero / Bib
 :PROPERTIES:
 :CUSTOM_ID: menu-zotero
@@ -2672,6 +2689,11 @@ buttons beneath each quote:
 | =q=   | Back to the book list                                   |
 
 Each quote line shows its id, location and a clickable Readwise URL.
+
+=z= needs =22-zettelkasten.el=.  Without it the key refuses before
+anything is written, the list offers no =[zettel]= button, and the
+other actions work as before -- Readwise does not require the
+Zettelkasten module.
 
 The action buttons carry a marker pointing at the quote button rather
 than their own copy of the record, so the done state lives in one
@@ -6223,8 +6245,10 @@ Checked:
 Not checked yet -- the target, reached module by module (BACKLOG.org,
 /Module toggles/):
 
-10. Menu entries only through =my/transient-append= or
-    =my/transient-replace=, called from the module itself.
+10. Menu entries only through =my/transient-append=,
+    =my/transient-insert= or =my/transient-replace=, called from the
+    module itself, and anchored on an entry of the menu's own module
+    (12-transient.el), never on another optional module's entry.
     12-transient.el and 08-keybindings.el still name the commands of
     other modules directly, which is most of why the core is as large
     as it is (below).
@@ -6271,7 +6295,8 @@ is:
 
 Faces and groups always count as guarded: a missing face is drawn with
 the default one, an option without its group is still an option.  The
-arguments of =my/transient-append= and =my/transient-replace=, which
+arguments of =my/transient-append=, =my/transient-insert= and
+=my/transient-replace=, which
 skip a menu they cannot find, and of =remq=, =memq= and similar, which
 compare a name without calling it, count as guarded too.
 
@@ -6296,16 +6321,17 @@ working.  When it is wrong all the same, the pair goes into
 :CUSTOM_ID: module-contract-core
 :END:
 
-Core, =MyPKS-Optional: no= (19): =00-core=, =01-ui=, =02-editing=, =03-spelling=, =04-denote=, =05-notes=, =06-capture=, =07-git=, =08-keybindings=, =10-visual-fill=, =11-org-appearance=, =12-transient=, =13-centered-writing=, =15-workspace=, =16-org-export=, =17-bibliography=, =18-zotero-transient=, =23-fixed-tabs=, =27-denote-identifiers=.
+Core, =MyPKS-Optional: no= (17): =00-core=, =01-ui=, =02-editing=, =03-spelling=, =04-denote=, =05-notes=, =06-capture=, =07-git=, =08-keybindings=, =10-visual-fill=, =11-org-appearance=, =12-transient=, =13-centered-writing=, =15-workspace=, =16-org-export=, =23-fixed-tabs=, =27-denote-identifiers=.
 
 These are the configuration itself (00-core, 01-ui, 02-editing,
 04-denote, 05-notes, 07-git, the key bindings and the main menu) and
 every module they need.  Several are core only because 12-transient.el
 or 08-keybindings.el name their commands: spelling, capture, centred
-writing, the dashboard, export, the bibliography and Zotero, fixed tabs.
-Moving those entries into the modules (rule 10) makes them optional.
+writing, the dashboard, export, fixed tabs.  Moving those entries into
+the modules (rule 10) makes them optional; the bibliography and Zotero
+went first (2026-10-16d).
 
-Optional (33):
+Optional (35):
 
 | Module | What | Requires |
 |---+---+---|
@@ -6314,11 +6340,13 @@ Optional (33):
 | =05b-journal-metrics= | Structured daily metrics for journal notes | =05-notes= |
 | =09-theme= | Theme configuration and light/dark switching | -- |
 | =14-typing-analytics= | Track typing patterns for ergonomic analysis | -- |
+| =17-bibliography= | Zotero/Citar bibliography integration | -- |
+| =18-zotero-transient= | Transient menu for bibliography/Zotero | =17-bibliography= |
 | =19-philosophy-notes= | Philosophy note types (Denote) | -- |
 | =20-transclusion= | Obsidian-style transclusion for Denote notes | -- |
 | =21-dashboards= | Historical note dashboards | =01-ui= |
 | =22-zettelkasten= | Folgezettel sequences with denote-sequence | -- |
-| =24-readwise= | Import Readwise highlights | =01-ui= =05-notes= =22-zettelkasten= |
+| =24-readwise= | Import Readwise highlights | =01-ui= =05-notes= |
 | =25-inbox-review= | Review migrated Obsidian notes | =27-denote-identifiers= |
 | =26-maintenance= | Integrity checks and collection-wide repairs | =27-denote-identifiers= |
 | =28-writing-projects= | Writing projects: registry, membership, progress | -- |
@@ -6431,6 +6459,7 @@ rather than defines, and repeating it is harmless.
 | =my/notes--completion-keys= | =05-notes.el= | 06-capture.el |
 | =my/fixed-tab-goto= | =01-ui.el= | 15-workspace.el, 21-dashboards.el |
 | =my/transient-append= | =12-transient.el= | every module adding a menu entry |
+| =my/transient-insert= | =12-transient.el= | the modules of Tools → Integrations |
 | =my/transient-replace= | =12-transient.el= | 41-notes-search.el |
 
 Resolution is at call time, so load order does not constrain these —

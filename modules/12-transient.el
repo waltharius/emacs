@@ -1,6 +1,6 @@
 ;;; 12-transient.el --- Transient menu for notes (hierarchical) -*- lexical-binding: t; -*-
 
-;; MyPKS-Requires: 03-spelling 05-notes 06-capture 10-visual-fill 11-org-appearance 13-centered-writing 15-workspace 16-org-export 18-zotero-transient 23-fixed-tabs
+;; MyPKS-Requires: 03-spelling 05-notes 06-capture 10-visual-fill 11-org-appearance 13-centered-writing 15-workspace 16-org-export 23-fixed-tabs
 ;; MyPKS-Optional: no
 
 ;;; Commentary:
@@ -139,17 +139,21 @@
 ;; Docs: ~/.emacs.d/function_helper.org::#menu-notes-tools
 ;; ============================================================
 
+;; The Integrations column is filled by the modules themselves, each
+;; inserting its entry before "q" with `my/transient-insert':
+;; 18-zotero-transient.el (z), 24-readwise.el (r), 25-inbox-review.el
+;; (i), 40-markdown.el (m), 42-obsidian-import.el (o).  Quit is the
+;; anchor because it is the one entry no module owns.
 (transient-define-prefix my/notes-tools-menu ()
   "External tools and integrations."
-  [["Bibliography"
-    ("z" "Zotero / Bib →" my/zotero-menu)]
-   ["Spelling"
+  [["Spelling"
     ("s" "Correct previous"  my/spell-correct-previous  :transient t)
     ("a" "Add to dict"       my/spell-add-previous-to-dict :transient t)
     ("S" "Check visible"     my/spell-check-visible)
     ("b" "Check full buffer" my/spell-check-buffer-full)
     ("T" "Toggle spellcheck" my/toggle-flyspell)]
-   [("q" "Quit" transient-quit-one)]])
+   ["Integrations"
+    ("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================
 ;; HELPER: Open function_helper.org in new tab
@@ -187,6 +191,27 @@
 ;; entry out and says so, which is the correct outcome -- an entry
 ;; whose neighbour does not exist has nowhere meaningful to go.
 
+(defun my/transient--add (prefix anchor suffix before)
+  "Add SUFFIX to PREFIX next to ANCHOR; before it when BEFORE is non-nil.
+The shared body of `my/transient-append' and `my/transient-insert'."
+  (let ((key (car suffix)))
+    (cond
+     ((not (fboundp prefix))
+      (message "transient: no %s, skipping `%s'" prefix key))
+     ((ignore-errors (transient-get-suffix prefix key))
+      nil)
+     ((not (ignore-errors (transient-get-suffix prefix anchor)))
+      (message "transient: %s has no `%s' to add next to, skipping `%s'"
+               prefix anchor key))
+     (t
+      (condition-case err
+          (if before
+              (transient-insert-suffix prefix anchor suffix)
+            (transient-append-suffix prefix anchor suffix))
+        (error
+         (message "transient: could not add `%s' to %s: %s"
+                  key prefix (error-message-string err))))))))
+
 (defun my/transient-append (prefix anchor suffix)
   "Add SUFFIX to PREFIX after ANCHOR, without ever signalling.
 
@@ -195,21 +220,17 @@ SUFFIX is a transient suffix specification such as
 defined, when ANCHOR is not present in it, or when SUFFIX\\='s key is
 already bound there -- the last case making re-evaluation of a module
 during development harmless."
-  (let ((key (car suffix)))
-    (cond
-     ((not (fboundp prefix))
-      (message "transient: no %s, skipping `%s'" prefix key))
-     ((ignore-errors (transient-get-suffix prefix key))
-      nil)
-     ((not (ignore-errors (transient-get-suffix prefix anchor)))
-      (message "transient: %s has no `%s' to append after, skipping `%s'"
-               prefix anchor key))
-     (t
-      (condition-case err
-          (transient-append-suffix prefix anchor suffix)
-        (error
-         (message "transient: could not add `%s' to %s: %s"
-                  key prefix (error-message-string err))))))))
+  (my/transient--add prefix anchor suffix nil))
+
+(defun my/transient-insert (prefix anchor suffix)
+  "Add SUFFIX to PREFIX before ANCHOR, without ever signalling.
+
+As `my/transient-append', for a column whose only fixed entry is its
+last one.  The Integrations column of the Tools menu holds nothing but
+Quit (\"q\") until modules insert themselves before it: anchored on a
+key that belongs to this file, an entry does not disappear when the
+module that used to be its neighbour is turned off."
+  (my/transient--add prefix anchor suffix t))
 
 (defun my/transient-replace (prefix key suffix)
   "Replace the entry bound to KEY in PREFIX with SUFFIX, without signalling.
@@ -270,7 +291,7 @@ menu carries when the feature module is absent."
     ("x" "Export → pdf/batch-any/batch-all"       my/notes-export-menu)]
    ["Settings & Tools"
     ("v" "View → center/writing/indent/emphasis"         my/notes-view-menu)
-    ("t" "Tools → zotero/spelling"        my/notes-tools-menu)
+    ("t" "Tools → spelling/integrations"  my/notes-tools-menu)
     ("," "Settings →"  my/settings-menu)
     ;; "l" is reserved: 19-philosophy-notes.el appends it dynamically
     ;; Quick correct access as this is most used functions for me.

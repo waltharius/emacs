@@ -1,7 +1,7 @@
 ;;; 17-bibliography.el --- Zotero/Citar bibliography integration -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires:
-;; MyPKS-Optional: no
+;; MyPKS-Optional: yes
 ;; Docs: ~/.emacs.d/function_helper.org::#citing-howto
 
 ;;; Commentary:

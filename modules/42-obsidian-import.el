@@ -283,8 +283,8 @@ reported instead."
 ;; Appended rather than declared in 12-transient.el, so that deleting
 ;; this file removes the entry with it -- same pattern as 40-markdown.el.
 (with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-append)
-    (my/transient-append 'my/notes-tools-menu "z"
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-tools-menu "q"
                          '("o" "Obsidian import →" my/obsidian-import-menu))))
 
 (provide '42-obsidian-import)

@@ -1,7 +1,7 @@
 ;;; 18-zotero-transient.el --- Transient menu for bibliography/Zotero -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires: 17-bibliography
-;; MyPKS-Optional: no
+;; MyPKS-Optional: yes
 ;; Docs: ~/.emacs.d/function_helper.org::#menu-zotero-detail
 
 ;;; Commentary:
@@ -57,6 +57,14 @@
   [("q" "Quit" transient-quit-one)])
 
 (global-set-key (kbd "C-c x") 'my/zotero-menu)
+
+;; Inserted into the Integrations column of the Tools menu (C-c n t z)
+;; rather than declared in 12-transient.el, so that turning this module
+;; off takes the entry with it and leaves the menu whole.
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-tools-menu "q"
+                         '("z" "Zotero / Bib →" my/zotero-menu))))
 
 (provide '18-zotero-transient)
 ;;; 18-zotero-transient.el ends here

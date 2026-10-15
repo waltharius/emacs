@@ -1,6 +1,6 @@
 ;;; 24-readwise.el --- Import Readwise highlights -*- lexical-binding: t; -*-
 
-;; MyPKS-Requires: 01-ui 05-notes 22-zettelkasten
+;; MyPKS-Requires: 01-ui 05-notes
 ;; MyPKS-Optional: yes
 ;; Docs: ~/.emacs.d/function_helper.org::#menu-readwise
 
@@ -39,6 +39,7 @@
 (require 'url)
 (require 'auth-source)
 (require 'json)
+(require 'seq)
 (require 'seq)
 (require 'transient)
 
@@ -530,7 +531,12 @@ note about something else -- typically the book -- so it is marked
 with #+name: instead and stays available.
 
 Metadata is embedded rather than linked: the imported file is
-disposable by design, so a link to it would eventually dangle."
+disposable by design, so a link to it would eventually dangle.
+
+\='zettel needs 22-zettelkasten.el; without it the action is refused
+before anything is written, and the list offers no zettel button."
+  (when (and (eq action 'zettel) (not (fboundp 'my/zettel-adopt)))
+    (user-error "Zettel needs 22-zettelkasten.el, which is not loaded; RET or o make a plain note"))
   (let* ((denote-directory my-notes-pks)
          (with-note (my/readwise--ask-include-note record))
          (buffer nil))
@@ -551,7 +557,7 @@ disposable by design, so a link to it would eventually dangle."
           (goto-char (point-max))
           (my/readwise--insert-quote record book t with-note)
           (save-buffer))))
-    (when (eq action 'zettel)
+    (when (and (eq action 'zettel) (fboundp 'my/zettel-adopt))
       (with-current-buffer buffer
         ;; Runs on the finished note, so the sequence commands see a
         ;; real file with front matter already in place.
@@ -825,10 +831,14 @@ to the one quote button that carries the done state.  Marking that
 single button therefore disarms all five entry points at once, instead
 of each needing its own bookkeeping."
   (insert "      ")
-  (dolist (spec '(("note" . stay)
-                  ("note+open" . open)
-                  ("zettel" . zettel)
-                  ("add to existing" . append)))
+  (dolist (spec (seq-remove
+                 ;; No zettel button without 22-zettelkasten.el.
+                 (lambda (spec) (and (eq (cdr spec) 'zettel)
+                                     (not (fboundp 'my/zettel-adopt))))
+                 '(("note" . stay)
+                   ("note+open" . open)
+                   ("zettel" . zettel)
+                   ("add to existing" . append))))
     (insert-text-button
      (concat "[" (car spec) "]")
      'follow-link t
@@ -852,8 +862,9 @@ of each needing its own bookkeeping."
         (my/readwise-quotes-mode)
         (setq my/readwise--book book)
         (insert (or (plist-get book :title) "") "\n"
-                (format "%d unprocessed | RET note | o note+open | z zettel | a add to existing | q back\n\n"
-                        (length pending)))
+                (format "%d unprocessed | RET note | o note+open | %sa add to existing | q back\n\n"
+                        (length pending)
+                        (if (fboundp 'my/zettel-adopt) "z zettel | " "")))
         (dolist (record pending)
           (let ((cited (eq (gethash (plist-get record :id) promoted) 'cited)))
             (insert (format "  [%s]%s"
@@ -1001,11 +1012,12 @@ use it up."
 ;; ============================================================
 ;; MENU
 ;; ============================================================
-;; Appended to the Tools submenu next to Zotero, since both are
-;; external-service integrations feeding the same bibliographic
-;; workflow.  Same append mechanism as 19-philosophy-notes.el and
-;; 22-zettelkasten.el use on the main menu, with the same guard
-;; against stacking a duplicate entry on re-evaluation.
+;; Inserted into the Integrations column of the Tools submenu, beside
+;; Zotero, since both are external-service integrations feeding the
+;; same bibliographic workflow.  Inserted before Quit, the one entry
+;; of that column no module owns, so it stays when Zotero is off; the
+;; same guard as every `my/transient-append' against stacking a
+;; duplicate entry on re-evaluation.
 ;;
 ;; The review and promotion commands will join this submenu once they
 ;; exist; the direct C-c r bindings stay as a fast path for the one
@@ -1027,8 +1039,8 @@ use it up."
 ;; without it init aborts here with a void-function error naming this
 ;; file rather than the missing one.
 (with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-append)
-    (my/transient-append 'my/notes-tools-menu "z"
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-tools-menu "q"
                          '("r" "Readwise →" my/readwise-menu))))
 
 ;; ============================================================

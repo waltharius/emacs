@@ -94,6 +94,12 @@ Next, in order:
    dashboard, export, the bibliography with Zotero, and fixed tabs can
    become optional.  Small ones along the way: the Readwise /zettel/
    action guarded, so that Readwise does not need 22-zettelkasten.
+   - Done 2026-10-16d, part 1: Zotero and the bibliography optional
+     (the Tools menu's Integrations column filled by the modules, before
+     Quit); Readwise without 22-zettelkasten.
+   - Part 2: spelling, writing mode, centred text, Org appearance (the
+     View menu and the Spelling column of Tools).
+   - Part 3: capture, export, the dashboard, fixed tabs.
 2. *A minor mode per module* (rule 12), the integrations first:
    Obsidian import, Readwise, Zotero, blog, drill.
 3. *The loader*: =init.el= reads the headers, an option lists the

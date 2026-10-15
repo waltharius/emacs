@@ -30,9 +30,9 @@ the other one -- when it is:
   `customize-save-variable 'my/v'): naming a variable does not read it;
 - a face or a customization group: a missing face is drawn with the
   default face, a missing group leaves an option ungrouped;
-- an argument of `my/transient-append' or `my/transient-replace', which
-  skip a menu they cannot find, or of `remq', `memq' and the like,
-  which compare a name without calling it.
+- an argument of `my/transient-append', `my/transient-insert' or
+  `my/transient-replace', which skip a menu they cannot find, or of
+  `remq', `memq' and the like, which compare a name without calling it.
 
 Everything else is hard.  The reader errs towards hard: a dependency
 declared that is not strictly needed costs a toggle; one missed costs
@@ -67,7 +67,8 @@ CLIMB_HEADS = {"and", "or", "not", "null"}
 # Calls whose quoted argument names a symbol without calling it, or which
 # tolerate a symbol that does not exist.
 DATA_HEADS = {"remq", "remove", "delq", "delete", "memq", "member", "eq",
-              "equal", "assq", "my/transient-append", "my/transient-replace"}
+              "equal", "assq", "my/transient-append", "my/transient-insert",
+              "my/transient-replace"}
 DELIMITERS = set("()[]\"; \t\n\r'`,")
 
 
