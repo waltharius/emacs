@@ -21,6 +21,31 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-15f — A check for personal strings before every commit
+
+### Why
+
+Step 1 of making this repository public: nothing personal may enter it
+again once it is clean.  The check has to know what is personal, and
+that list is personal too.
+
+### What
+
+- `hooks/lint.py`, check `personal` (blocking): every text file git
+  would commit -- tracked, and untracked not ignored, `csl/` excepted --
+  is searched for the entries of `private-strings.txt` in the settings
+  folder, found as 00-core.el finds it (`MYPKS_DIR`, `mypks-local.eld`,
+  `~/.config/mypks/`).  One entry per line, case ignored; `re:` starts a
+  regular expression.  Without the list the check passes, so it does
+  nothing on anyone else's machine.
+- `hooks/HOOKS-README.md` describes it.
+
+First run with a list of eleven entries (name, the two host names, the
+home network's domain and GitLab port and namespace, an SSH key name,
+a private project, two Syncthing paths, a machine model): 72 lines in
+nine files; cleaned in the next session.
+
+---
 ## Session 2026-10-15e — Old settings files out of the repository
 
 ### Why

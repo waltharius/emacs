@@ -49,6 +49,7 @@ rollback or a deliberately partial commit.
 | `keys` | Does every key the `08-keybindings.el` help text lists get bound somewhere? | yes |
 | `changelog` | Were modules staged without a `CHANGELOG.md` entry? | yes |
 | `menus` | Is every command `function_helper.org` mentions reachable from a menu or a key — or listed, with its reason, under *Commands without a menu entry*? | yes |
+| `personal` | Does a file git would commit contain a string from the private list `private-strings.txt` in the settings folder? | yes (passes when the list does not exist) |
 | `coverage` | Is every command a menu runs mentioned in `function_helper.org`? | no — advisory |
 | `private` | Is a `--` symbol called from outside its module? | no — advisory |
 
@@ -73,6 +74,29 @@ switch, and an entry there that is no longer an interactive command
 fails the check too, so the list cannot rot.  Only commands the manual
 mentions are checked: an undocumented command is the `coverage`
 check's business.
+
+### `personal`: the list is private, the check is public
+
+This repository is meant to be public; what must not appear in it —
+names, host names, addresses of the home network, private project names
+— is itself private.  So the list lives in the settings folder
+(`~/.config/mypks/private-strings.txt` by default; wherever 00-core.el
+finds the settings: `MYPKS_DIR`, else `mypks-local.eld`, else
+`~/.config/mypks/`), never in the repository:
+
+```text
+# One entry per line, matched ignoring case.
+yourname
+your-laptop
+home.lan
+# re: starts a regular expression; a comment is a line of its own
+re:\bsecond-host\b
+```
+
+Every text file git would commit is read, line by line — tracked files
+and untracked ones not ignored — except `csl/`, third-party files kept
+unchanged.  Without the list there is nothing to look for, and the
+check passes: on anyone else's machine it does not apply.
 
 ### Why `private` is advisory
 

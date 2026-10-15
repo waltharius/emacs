@@ -308,6 +308,101 @@ def check_menu_reachability():
     return problems
 
 
+# ------------------------------------------------------------------
+# Personal strings.  The repository is meant to be public; the list of
+# what must not appear in it is not, so it lives in the settings folder
+# (00-core.el, `my/settings-directory'), outside the repository.
+# ------------------------------------------------------------------
+
+PERSONAL_LIST = "private-strings.txt"
+
+# Third-party files, copied unchanged and not ours to edit.
+PERSONAL_SKIP = ("csl/",)
+
+
+def settings_directory():
+    """Return the settings folder as 00-core.el finds it.
+
+    MYPKS_DIR, else :directory in mypks-local.eld beside init.el, else
+    ~/.config/mypks/.
+    """
+    env = os.environ.get("MYPKS_DIR")
+    if env:
+        return os.path.expanduser(env)
+    local = os.path.join(ROOT, "mypks-local.eld")
+    if os.path.exists(local):
+        m = re.search(r':directory\s+"([^"]+)"', open(local, encoding="utf-8").read())
+        if m:
+            return os.path.expanduser(m.group(1))
+    return os.path.expanduser("~/.config/mypks/")
+
+
+def personal_patterns():
+    """Return (pattern, label) pairs from the private list, or None if absent.
+
+    One entry per line; blank lines and lines starting with # ignored.
+    A plain line matches as a substring, ignoring case.  A line starting
+    with `re:' is a Python regular expression, also ignoring case.
+    """
+    path = os.path.join(settings_directory(), PERSONAL_LIST)
+    if not os.path.exists(path):
+        return None
+    patterns = []
+    for line in open(path, encoding="utf-8").read().split("\n"):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("re:"):
+            patterns.append((re.compile(line[3:], re.I), line))
+        else:
+            patterns.append((re.compile(re.escape(line), re.I), line))
+    return patterns
+
+
+def repository_files():
+    """Text files git would commit: tracked, plus untracked not ignored."""
+    try:
+        out = subprocess.run(
+            ["git", "-c", "core.quotePath=false", "ls-files", "-z",
+             "--cached", "--others", "--exclude-standard"],
+            cwd=ROOT, capture_output=True, text=True, check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    files = []
+    for path in out.split("\0"):
+        if not path or path.startswith(PERSONAL_SKIP):
+            continue
+        full = os.path.join(ROOT, path)
+        if not os.path.isfile(full):
+            continue
+        try:
+            files.append((path, open(full, encoding="utf-8").read()))
+        except (UnicodeDecodeError, OSError):
+            continue    # binary: not text anyone reads
+    return files
+
+
+def check_personal_strings():
+    """A personal string -- a name, a host, an address -- in a file git would commit.
+
+    The strings come from private-strings.txt in the settings folder,
+    which is outside the repository, so the list itself is never
+    committed.  Without that file the check has nothing to look for and
+    passes: on someone else's machine it simply does not apply.
+    """
+    patterns = personal_patterns()
+    if patterns is None:
+        return []
+    problems = []
+    for path, text in repository_files():
+        for number, line in enumerate(text.split("\n"), 1):
+            for rx, label in patterns:
+                if rx.search(line):
+                    problems.append(f"{path}:{number}: {label!r} in: {line.strip()[:90]}")
+    return problems
+
+
 def staged_files():
     out = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
@@ -339,6 +434,7 @@ CHECKS = {
     "changelog": (check_changelog, "modules staged without a CHANGELOG entry"),
     "coverage": (check_menu_coverage, "menu commands function_helper.org never mentions"),
     "menus": (check_menu_reachability, "documented commands no menu or key reaches"),
+    "personal": (check_personal_strings, "personal strings (private-strings.txt) in files git would commit"),
 }
 
 # Checks that report but never block.  `private' is here because the
