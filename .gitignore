@@ -192,3 +192,6 @@ notes-root.eld
 # The settings live in the settings folder (~/.config/mypks/ by
 # default), not here.  hosts/ held them briefly in October 2026.
 /hosts/
+
+# Python byte code of hooks/lint.py, written when it runs.
+__pycache__/

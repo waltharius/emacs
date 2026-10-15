@@ -21,6 +21,23 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-15e — Old settings files out of the repository
+
+### Why
+
+Since 2026-10-15a the settings live in the settings folder, and both
+machines have started once and copied theirs there.  The copies in the
+repository -- `hosts/`, `custom.el`, `ui-state.el` -- are read by nothing
+and hold personal values.  `hooks/__pycache__/` had been committed by
+accident: Python writes it whenever the hook runs.
+
+### What
+
+- Removed: `hosts/`, `custom.el`, `ui-state.el` (all already in
+  `.gitignore` or no longer read), `hooks/__pycache__/lint.cpython-313.pyc`.
+- `.gitignore`: `__pycache__/`.
+
+---
 ## Session 2026-10-15d — Step 6 closed; the image prompt follows the desktop's folders
 
 ### Why
