@@ -248,6 +248,9 @@ menu carries when the feature module is absent."
   [["Settings"
     ("," "Open settings (Customize)"            my/settings)
     ("f" "This machine's settings file"         my/host-settings-open)]
+   ["Notes folder"
+    ("n" "Notes folder and silos settings"      my/notes-open-silo-settings)
+    ("o" "Folders with notes not in a silo"     my/silo-report-orphans)]
    ["Machines"
     ("c" "Copy settings from another machine"   my/host-settings-copy-from)
     ("u" "Use another machine's settings here"  my/host-settings-use)]

@@ -8097,6 +8097,8 @@ on a button acts, /State/ → /Save for future sessions/ (or the
 | =C-c n , f= | open this machine's settings file                 |
 | =C-c n , c= | copy the settings of another machine over this one's |
 | =C-c n , u= | use another machine's settings here, from the next start |
+| =C-c n , n= | settings of the notes folder and the silos        |
+| =C-c n , o= | ask about folders with notes that are not silos   |
 | =C-c n , *= | favourite settings, in one Customize buffer       |
 | =C-c n , += | add the setting at point (or one by name) to the favourites |
 | =C-c n , -= | remove a favourite                                |
@@ -8520,3 +8522,31 @@ is in), =my/notes-path= (a path under the root),
 written), =my/notes-files= (files of a folder that may not exist yet).
 
 Function: =my/silo-dir=, =my/silo-dir-by-role=, =my/silo-keys=, =my/silo-dirs=, =my/silo-of=, =my/notes-path=, =my/notes-ensure-directory-of=, =my/notes-files= | Module: =modules/00-core.el=
+
+* Commands without a menu entry
+:PROPERTIES:
+:CUSTOM_ID: commands-without-menu
+:END:
+
+Every command this manual mentions is reachable from a menu or a key,
+except the ones below, left to =M-x= on purpose.  The pre-commit check
+=menus= (=hooks/lint.py=) fails on a documented command that no menu or
+key reaches and that is not listed here — so a new command either gets
+a place in a menu, or a line here saying why not.  Listing a command
+here is the switch; the reason is for the reader.
+
+| Command                                 | Why only M-x                                                         |
+|-----------------------------------------+----------------------------------------------------------------------|
+| =my/denote-hub-list-for-note=           | a one-line report, asked rarely; the hub menu adds and opens hubs     |
+| =my/denote-hub-sort-entries=            | tidying a hub by hand, rarely                                         |
+| =my/desktop-force-save=                 | repair, for a session lock left by a crashed Emacs                    |
+| =my/desktop-status=                     | diagnostic                                                            |
+| =my/fixed-tab-refresh-advice=           | applies a changed option; needed only after changing it               |
+| =my/fonts-apply=                        | re-applies the fonts after attaching a display; runs by itself otherwise |
+| =my/journal-gaps-summary=               | the short form of =C-c n f j=, meant for hooks                        |
+| =my/journal-migrate-metrics-format=     | one-off migration of old journal notes                               |
+| =my/notes-delete-old-root=              | deletes a whole notes folder; kept out of menus on purpose, and disabled until allowed |
+| =my/notes-normalize-front-matter-gap=   | one-off migration of old notes                                       |
+| =my/org-image-recompress-attachments=   | batch maintenance of all attachments                                 |
+| =my/standard-pages-report=              | details of the count the mode line already shows                     |
+| =my/writing-clear-char-cache=           | needed only after changing =my/writing-count-with-pandoc=            |

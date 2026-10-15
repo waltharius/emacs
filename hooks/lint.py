@@ -230,6 +230,84 @@ def check_menu_coverage():
     return sorted(set(problems))
 
 
+EXEMPT_ID = "commands-without-menu"
+
+KEY_BINDING_RES = [
+    # (global-set-key (kbd "C-c x") #'my/x), define-key, keymap-set ...
+    re.compile(r"\((?:global-set-key|global-unset-key|define-key|keymap-set|keymap-global-set|bind-key)\b"
+               r"[^\n]*?#?'(my/[A-Za-z0-9/_?-]+)"),
+    # use-package :bind / :bind-keymap pairs: ("C-c u t" . my/theme-toggle)
+    re.compile(r'\("[^"\n]+"\s*\.\s*#?\'?(my/[A-Za-z0-9/_?-]+)\)'),
+    # 00-core.el's helper for keys taken from options
+    re.compile(r"my/settings-bind-key\s+#?'(my/[A-Za-z0-9/_?-]+)"),
+]
+
+
+def interactive_commands():
+    """Return every `my/' function whose body contains `(interactive'."""
+    found = set()
+    for _, text in modules():
+        for m in re.finditer(r"^\((?:defun|cl-defun)\s+(my/[^\s()]+)", text, re.M):
+            rest = text[m.end():]
+            nxt = re.search(r"^\(", rest, re.M)
+            if "(interactive" in rest[: nxt.start() if nxt else len(rest)]:
+                found.add(m.group(1))
+    return found
+
+
+def reachable_commands():
+    """Return every `my/' command a transient menu or a key reaches."""
+    found = set()
+    for _, text in modules():
+        code = code_of(text)
+        found.update(m.group(3) for m in MENU_SUFFIX_RE.finditer(code))
+        for rx in KEY_BINDING_RES:
+            found.update(m.group(1) for m in rx.finditer(code))
+    return found
+
+
+def helper_section(helper, custom_id):
+    """Return the text of the Org section carrying CUSTOM_ID, or ''."""
+    m = re.search(r"^(\*+) .*\n:PROPERTIES:\n(?::[^\n]*\n)*?:CUSTOM_ID: " + re.escape(custom_id) + r"\n",
+                  helper, re.M)
+    if not m:
+        return ""
+    depth = len(m.group(1))
+    end = re.compile(r"^\*{1,%d} " % depth, re.M).search(helper, m.end())
+    return helper[m.start(): end.start() if end else len(helper)]
+
+
+def check_menu_reachability():
+    """A command function_helper.org documents that no menu or key reaches.
+
+    Every interactive `my/' command the manual mentions should be
+    reachable without remembering its name: from a transient menu, or a
+    key.  A command deliberately left to M-x -- a one-off migration, a
+    diagnostic, something dangerous -- is listed, with its reason, in the
+    section `Commands without a menu entry' (CUSTOM_ID
+    commands-without-menu), in the first column of its table, which is
+    the switch this check reads.
+    """
+    if not os.path.exists(HELPER):
+        return ["function_helper.org is missing"]
+    helper = open(HELPER, encoding="utf-8").read()
+    # The first column of the table in that section; names in the
+    # reasons are prose.
+    exempt = set(re.findall(r"^\|\s*=(my/[A-Za-z0-9/_?-]+)=",
+                            helper_section(helper, EXEMPT_ID), re.M))
+    if not helper_section(helper, EXEMPT_ID):
+        return [f"function_helper.org has no section with CUSTOM_ID {EXEMPT_ID}"]
+    documented = set(re.findall(r"=(my/[A-Za-z0-9/_?-]+)=", helper))
+    missing = (documented & interactive_commands()) - reachable_commands() - exempt
+    problems = [f"{c} is documented but no menu or key reaches it "
+                f"(add it to a menu, or to #{EXEMPT_ID} with the reason)"
+                for c in sorted(missing)]
+    stale = exempt - interactive_commands()
+    problems += [f"#{EXEMPT_ID} lists {c}, which is not an interactive command"
+                 for c in sorted(stale)]
+    return problems
+
+
 def staged_files():
     out = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
@@ -260,6 +338,7 @@ CHECKS = {
     "keys": (check_keybinding_help, "keys the help text claims but nothing binds"),
     "changelog": (check_changelog, "modules staged without a CHANGELOG entry"),
     "coverage": (check_menu_coverage, "menu commands function_helper.org never mentions"),
+    "menus": (check_menu_reachability, "documented commands no menu or key reaches"),
 }
 
 # Checks that report but never block.  `private' is here because the

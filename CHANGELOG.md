@@ -21,6 +21,38 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-15c — Every documented command has a place in a menu
+
+### Why
+
+Asked 2026-10-15: a pre-commit check that every function in
+function_helper.org has its entry in the MyPKS menu, with a way to mark
+the ones that should not have one.
+
+### What
+
+- `hooks/lint.py`, check `menus` (blocking): an interactive `my/`
+  command that function_helper.org mentions must be reachable from a
+  transient menu or a key -- global keys, `define-key`, `keymap-set`,
+  use-package `:bind` pairs, keys from options (`my/settings-bind-key`)
+  -- or be listed in the first column of the table under *Commands
+  without a menu entry* (`CUSTOM_ID: commands-without-menu`), with its
+  reason.  An entry there that is no longer an interactive command
+  fails too, so the list cannot rot.
+- First run: 194 documented commands, 22 unreached by the first draft
+  of the check; 7 of those were theme keys in a `:bind` list, which the
+  check now reads.  Of the other 15, two joined the settings menu
+  (`C-c n , n` the notes folder and silos settings, `C-c n , o` folders
+  with notes that are not silos) and 13 are listed as M-x only:
+  migrations, diagnostics, repairs, re-apply commands, and
+  `my/notes-delete-old-root`, kept out of menus on purpose.
+- `hooks/HOOKS-README.md` lists the check and what it counts as
+  reachable.
+
+The other direction -- a command a menu runs that the manual never
+mentions -- remains the advisory `coverage` check.
+
+---
 ## Session 2026-10-15b — Favourite and recently changed settings
 
 ### Why

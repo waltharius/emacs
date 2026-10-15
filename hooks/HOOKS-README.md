@@ -48,6 +48,8 @@ rollback or a deliberately partial commit.
 | `functions` | Does every `Function: =my/x=` in the docs name a symbol that exists? | yes |
 | `keys` | Does every key the `08-keybindings.el` help text lists get bound somewhere? | yes |
 | `changelog` | Were modules staged without a `CHANGELOG.md` entry? | yes |
+| `menus` | Is every command `function_helper.org` mentions reachable from a menu or a key — or listed, with its reason, under *Commands without a menu entry*? | yes |
+| `coverage` | Is every command a menu runs mentioned in `function_helper.org`? | no — advisory |
 | `private` | Is a `--` symbol called from outside its module? | no — advisory |
 
 Run them by hand at any time:
@@ -58,6 +60,19 @@ python3 hooks/lint.py keys anchors # a subset
 python3 hooks/lint.py --list
 emacs -Q --batch -l hooks/parens.el
 ```
+
+### What `menus` counts as reachable
+
+A suffix of a transient menu (`("k" "Label" my/command)`), a key bound
+with `global-set-key`, `define-key`, `keymap-set`, `bind-key` or a
+use-package `:bind` pair (`("C-c u t" . my/theme-toggle)`), or a key
+taken from an option through `my/settings-bind-key`.  A command
+deliberately left to `M-x` goes into the first column of the table in
+the section with `CUSTOM_ID: commands-without-menu`; that table is the
+switch, and an entry there that is no longer an interactive command
+fails the check too, so the list cannot rot.  Only commands the manual
+mentions are checked: an undocumented command is the `coverage`
+check's business.
 
 ### Why `private` is advisory
 
