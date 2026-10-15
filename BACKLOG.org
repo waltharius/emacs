@@ -42,6 +42,17 @@ dependencies checked with =fboundp=.  The loader is the moment for the
 review's start-up findings, since it rewrites =init.el= anyway: see
 /Code review 2026-10-14/, items on start-up and on names.
 
+Asked again 2026-10-16, with the shape wanted: a menu entry to turn
+modules on and off -- at least the integrations not everyone uses
+(Obsidian import, Zotero/Citar, Readwise, Hugo blog, drill cards).
+Each module registers itself: name, one-line description, the modules
+it needs.  Turning off a module others need is refused, or offered
+together with them ("Readwise is needed by X; turn both off?"); turning
+one on turns on what it needs.  The registry also gives the
+=function_helper.org= sections and the menus check something to
+compare against.  Modules are meant to stand alone, so most entries
+should list no dependency; the ones that do are worth knowing about.
+
 ** TODO Welcome screen on first start
 A clean Emacs starting from this repository shows "Welcome to MyPKS":
 basic settings, then "Add your silos" with what a silo is in Denote

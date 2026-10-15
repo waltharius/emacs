@@ -21,6 +21,35 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-16a — Settings folder in the auto-commit documentation; module toggles specified
+
+### Why
+
+Asked: commit and push the settings folder automatically, every so
+often, with dated messages.  That already happens since 2026-10-15a --
+`00-core.el` adds the folder to `my/auto-commit-repository-sources`, so
+the idle timer (five minutes) and the exit commit cover it whenever it
+is the root of a git repository -- but the table in
+function_helper.org listed only notes, projects and the configuration.
+Checked in a batch test: a changed file in a settings folder with a
+remote is committed and pushed by `my/auto-commit-all`.
+
+Idleness rather than a fixed interval or a commit per Customize save:
+it never fires while typing, and a burst of changes in the settings
+menu becomes one commit instead of ten.
+
+### What
+
+- function_helper.org, Auto-commit: the planner and the settings folder
+  in the table of covered repositories, with when the settings folder
+  is included; the list of contributing modules names 00-core.el.
+- BACKLOG.org, module toggles: the request of 2026-10-16 -- a menu
+  entry, self-registering modules with their dependencies, refusal or
+  combined offer when a needed module is turned off.
+
+No code changed.
+
+---
 ## Session 2026-10-15g — Cleaning: personal strings out, personal defaults generic
 
 ### Why

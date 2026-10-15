@@ -3521,7 +3521,17 @@ Repositories that hold decisions are not.
 |-------------------+------------------+------------------------------|
 | =~/notes/=        | yes              | a working log                |
 | =~/projects/*/=   | yes              | a working log                |
+| the planner       | yes              | a working log                |
+| settings folder   | if a repository  | values, and Customize is the record |
 | =~/.emacs.d/=     | only if asked    | decisions, each with a reason |
+
+The settings folder (=~/.config/mypks/= by default) is committed when
+it is the root of a git repository of its own (=git init=, a remote
+added by hand).  Placed inside the notes repository (e.g.
+=~/notes/.mypks/=) it is committed with the notes instead.  A folder
+in no repository is skipped, and the first start says so.  Its
+commits carry the date and the changed files only: a value changed in
+Customize has no reason to write down that the diff does not show.
 
 Text accumulates, and "Auto-commit: 2026-08-30 22:23" is an accurate
 description of what happened to it — the value is being able to get
@@ -3597,7 +3607,8 @@ of directories, so that the set can be *computed*: the number of
 writing projects changes during a session, and
 =39-project-git.el= contributes them by calling
 =my/project-git-repositories= rather than by naming them;
-=37-tasks.el= adds the planner folder.  A variable for modules, not an
+=37-tasks.el= adds the planner folder, =00-core.el= the settings
+folder.  A variable for modules, not an
 option: as a =defcustom= holding a lambda it showed in Customize as an
 uneditable Lisp expression.
 
