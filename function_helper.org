@@ -8097,8 +8097,42 @@ on a button acts, /State/ → /Save for future sessions/ (or the
 | =C-c n , f= | open this machine's settings file                 |
 | =C-c n , c= | copy the settings of another machine over this one's |
 | =C-c n , u= | use another machine's settings here, from the next start |
+| =C-c n , *= | favourite settings, in one Customize buffer       |
+| =C-c n , += | add the setting at point (or one by name) to the favourites |
+| =C-c n , -= | remove a favourite                                |
+| =C-c n , r= | recently changed settings, newest first           |
+| =C-c n , z= | undo a recent change: the value before it         |
 
 Function: =my/settings-menu= | Module: =modules/12-transient.el=
+
+** Favourite and recently changed settings
+:PROPERTIES:
+:CUSTOM_ID: settings-favourites
+:END:
+
+Two ways back to a setting without searching the tree.
+
+*Favourites* (=C-c n , *=) are a Customize buffer of one's own: the
+settings listed in /Favourite settings/ (=my/settings-favourites=), in
+that order.  =C-c n , += adds the setting at point in any Customize
+buffer — or asks for one by name — and =C-c n , -= removes one.  The
+list is an option, saved with this machine's settings.
+
+*Recently changed* (=C-c n , r=) shows the last settings changed
+through Customize, newest first, each with its own /State/ menu to
+revert or save it.  Recorded with the time and the value before:
+Apply, Save, and =customize-set-variable= / =customize-save-variable=
+from code (moving the notes folder, the planner, a silo removal).  The
+newest =my/settings-recent-max= (20) are kept in the settings folder of
+this machine, =recent-settings.eld=, so they survive a restart, which
+Customize's own /Revert This Session's Customization/ does not.
+
+=C-c n , z= sets one of them back to its value before the change —
+saved again when it was saved.  A value that cannot be written and read
+back (a function object, a buffer) is recorded without its old value,
+and undo says so.
+
+Function: =my/settings-favourites-open=, =my/settings-favourite-add=, =my/settings-favourite-remove=, =my/settings-recent-open=, =my/settings-recent-undo= | Module: =modules/48-settings-tools.el=
 
 ** a — Open the settings
 :PROPERTIES:

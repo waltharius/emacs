@@ -21,6 +21,54 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-15b — Favourite and recently changed settings
+
+### Why
+
+Asked 2026-10-15: a way to collect the settings one uses into a menu of
+one's own instead of searching the tree each time, and a list of the
+last settings changed -- to undo a change whose setting is forgotten.
+
+### What
+
+New module `48-settings-tools.el`, entries appended to the settings
+menu (`C-c n ,`) through `my/transient-append`:
+
+- `*` `my/settings-favourites-open`: a Customize buffer of the
+  settings in `my/settings-favourites` (an option, saved per machine).
+  `+` adds the setting at point in any Customize buffer, or one chosen
+  by name; `-` removes one.  The entry at point is found from the
+  widgets' extents, since the tag and documentation of an entry are
+  plain text that `widget-at` does not see.
+- `r` `my/settings-recent-open`: the recently changed settings, newest
+  first, in a Customize buffer.  Recorded by advice around
+  `custom-variable-set`, `custom-variable-mark-to-save`,
+  `customize-set-variable` and `customize-save-variable`, with time and
+  old value, only when the value actually changed.  The newest 20
+  (`my/settings-recent-max`) in `recent-settings.eld` in this
+  machine's settings folder.
+- `z` `my/settings-recent-undo`: back to the value before a recorded
+  change, saved again when the setting is saved.  Values that cannot be
+  printed and read back are recorded without the old value.
+- `hooks/lint.py`: a valueless `(defvar NAME)` is a declaration, not a
+  definition, and no longer counts as a duplicate -- every file that sets
+  another module's variable needs one (here `custom-options`).
+
+### Rejected
+
+- *Customize's backup value* ("Revert This Session's Customization"):
+  lost at restart, and reachable only from the setting itself, which is
+  what has been forgotten.
+- *A variable watcher on every option*: also fires for `setq` and
+  `let`, which are not changes of a setting.
+
+Verified in batch: a set and a save are recorded with their old values
+and a repeated set of the same value is not; undo restores the old
+value; two favourites open in one Customize buffer; the setting at
+point is found on its tag in an option buffer and in a group buffer;
+the menu entries are appended.
+
+---
 ## Session 2026-10-15a — The settings folder, outside the repository
 
 ### Why

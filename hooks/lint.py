@@ -98,10 +98,18 @@ def code_of(text):
 
 
 def definitions():
-    """Map symbol -> [(file, line), ...] for every top-level definition."""
+    """Map symbol -> [(file, line), ...] for every top-level definition.
+
+    A valueless `(defvar NAME)' is a declaration, not a definition: it
+    marks NAME special in its own file, and every file binding or setting
+    another module's or package's variable needs one.  Skipped, rather
+    than listed one by one in DUPLICATE_DEF_OK.
+    """
     found = defaultdict(list)
     for name, text in modules():
         for m in DEF_RE.finditer(text):
+            if m.group(1) == "defvar" and text[m.end():].lstrip().startswith(")"):
+                continue
             found[m.group(2).strip("'")].append((name, text[: m.start()].count("\n") + 1))
     return found
 

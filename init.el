@@ -171,6 +171,11 @@
   ;; separate Hugo site.  Loaded after 12-transient.el, whose Export
   ;; menu it appends to; depends on no other module.
   (load (concat modules-dir "47-repo-docs.el") t) ; Repo docs (C-c n x r)
+  ;; Optional (NOERROR): favourite and recently changed settings.
+  ;; Loaded after 12-transient.el, whose settings menu it appends to,
+  ;; and after 00-core.el, whose settings folder keeps its record.
+  ;; Without this file Customize works as before.
+  (load (concat modules-dir "48-settings-tools.el") t) ; Settings tools (C-c n , * r z)
   )
 
 (add-hook 'emacs-startup-hook
