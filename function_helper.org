@@ -3533,6 +3533,13 @@ in no repository is skipped, and the first start says so.  Its
 commits carry the date and the changed files only: a value changed in
 Customize has no reason to write down that the diff does not show.
 
+It is pulled at start-up with the other repositories, after this
+machine's settings have been read.  Each machine writes only its own
+=hosts/<host>/=, so nothing it reads at start-up comes from the other
+machine; shared files such as =private-strings.txt= are read when they
+are used (the pre-commit check reads the list at every commit), so
+they are current from the first pull on.
+
 Text accumulates, and "Auto-commit: 2026-08-30 22:23" is an accurate
 description of what happened to it — the value is being able to get
 yesterday's paragraph back, not a readable history. A configuration

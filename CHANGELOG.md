@@ -21,6 +21,38 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-16b — Start-up pull of the settings folder documented; module contract in BACKLOG
+
+### Why
+
+Asked: the settings folder should be pulled when Emacs starts, mainly
+so that `private-strings.txt` is current.  It already is: the
+start-up pull (`after-init-hook`, 07-git.el) covers every directory of
+`my/auto-commit-repository-sources`, the settings folder included.
+Checked in a batch test: a list pushed from a second clone is in the
+folder after `after-init-hook` runs.
+
+The pull comes after this machine's `custom.el` has been read.  Not
+moved earlier: each machine writes only its own `hosts/<host>/`, and
+the list is read at every commit, not at start-up; pulling before the
+settings would put up to the SSH timeout in front of the first frame
+for nothing.
+
+Also asked: a standard for modules, so that others can write their own,
+as Obsidian has for plugins.
+
+### What
+
+- function_helper.org, Auto-commit: when the settings folder is pulled
+  and why that is early enough.
+- BACKLOG.org, module toggles: a module contract -- library headers as
+  the manifest (read with `lisp-mnt`), rules checked by a lint check,
+  a global minor mode per module for turning off without a restart,
+  own modules in the settings folder -- and the order of the work.
+
+No code changed.
+
+---
 ## Session 2026-10-16a — Settings folder in the auto-commit documentation; module toggles specified
 
 ### Why

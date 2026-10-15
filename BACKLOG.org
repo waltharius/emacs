@@ -53,6 +53,37 @@ one on turns on what it needs.  The registry also gives the
 compare against.  Modules are meant to stand alone, so most entries
 should list no dependency; the ones that do are worth knowing about.
 
+*A module contract first* (asked 2026-10-16: "like Obsidian plugins").
+The toggles need it, and so does anyone writing a module of their own.
+Models: Obsidian's =manifest.json= plus its submission requirements,
+Spacemacs layers (=layers.el= declares the layers a layer needs), Doom
+modules (=:depends=, =modulep!=).  Proposed shape, Emacs's own
+conventions rather than a new format:
+- *Manifest = library headers*, read without loading the file by
+  =lisp-mnt= (=lm-summary=, =lm-header=): the first line's summary is
+  the description; =;; MyPKS-Requires: 04-denote 05-notes= the modules
+  needed; =;; MyPKS-Optional: yes= marks a module that may be turned
+  off; =;; Package-Requires:= the external packages, as in any Emacs
+  package.  The menu can then list modules that are off.
+- *Rules*, each checked by a lint check =modules=: =provide= named
+  after the file; options in an own group under one of the =mypks-=
+  areas, applied with =my/settings-apply-on-set=; menu entries only
+  through =my/transient-append=; contributions to shared lists
+  (auto-commit sources, agenda files) through their hooks, never by
+  editing another module; a =function_helper.org= section with
+  =CUSTOM_ID=; nothing done at load beyond definitions.
+- *On and off*: what a module does when on (hooks, timers, keys, menu
+  entries) is started by a global minor mode, =my/<module>-mode=, and
+  undone when the mode is turned off -- Obsidian's =onload=/=onunload=.
+  Turning off then works without a restart; =unload-feature= is not
+  relied on.
+- *Own modules* in a =modules/= folder of the settings folder, loaded
+  after the configuration's own, so a module can be added without
+  touching this repository.
+
+Order: the contract and its check (documents what most modules already
+do), then the headers in every module, then the loader and the menu.
+
 ** TODO Welcome screen on first start
 A clean Emacs starting from this repository shows "Welcome to MyPKS":
 basic settings, then "Add your silos" with what a silo is in Denote
