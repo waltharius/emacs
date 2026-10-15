@@ -1,6 +1,6 @@
 ;;; 12-transient.el --- Transient menu for notes (hierarchical) -*- lexical-binding: t; -*-
 
-;; MyPKS-Requires: 03-spelling 05-notes 06-capture 10-visual-fill 11-org-appearance 13-centered-writing 15-workspace 16-org-export 23-fixed-tabs
+;; MyPKS-Requires: 05-notes 06-capture 15-workspace 16-org-export 23-fixed-tabs
 ;; MyPKS-Optional: no
 
 ;;; Commentary:
@@ -24,6 +24,7 @@
 ;;; Code:
 
 (require 'transient)
+(require 'seq)
 
 ;; ============================================================
 ;; SUB-MENU: Create / Capture  (C-c n c)
@@ -122,17 +123,18 @@
 ;; Docs: ~/.emacs.d/function_helper.org::#menu-notes-view
 ;; ============================================================
 
+;; The Toggle column is filled by the modules, each inserting its
+;; entries before "q" with `my/transient-insert': 10-visual-fill.el (c),
+;; 11-org-appearance.el (i e), 13-centered-writing.el (w),
+;; 30-link-tooltips.el (T), 34-appearance.el (t y p W S),
+;; 44-image-display.el (m).
 (transient-define-prefix my/notes-view-menu ()
   "Toggle visual appearance settings."
   [["Toggle"
-    ("c" "Center text"      my/toggle-visual-fill-column-center)
-    ("w" "Writing mode"     my/toggle-writeroom)
-    ("i" "Indent headings"  my/toggle-org-indent)
-    ("e" "Emphasis markers" my/toggle-emphasis-markers)]
+    ("q" "Quit" transient-quit-one)]
    ["Detach to own frame"
     ("f" "This buffer"      my/detach-buffer-to-frame)
-    ("F" "This whole tab"   my/detach-tab-to-frame)]
-   [("q" "Quit" transient-quit-one)]])
+    ("F" "This whole tab"   my/detach-tab-to-frame)]])
 
 ;; ============================================================
 ;; SUB-MENU: Tools  (C-c n t)
@@ -143,16 +145,11 @@
 ;; inserting its entry before "q" with `my/transient-insert':
 ;; 18-zotero-transient.el (z), 24-readwise.el (r), 25-inbox-review.el
 ;; (i), 40-markdown.el (m), 42-obsidian-import.el (o).  Quit is the
-;; anchor because it is the one entry no module owns.
+;; anchor because it is the one entry no module owns.  The Spelling
+;; column is inserted before it, as a group, by 03-spelling.el.
 (transient-define-prefix my/notes-tools-menu ()
   "External tools and integrations."
-  [["Spelling"
-    ("s" "Correct previous"  my/spell-correct-previous  :transient t)
-    ("a" "Add to dict"       my/spell-add-previous-to-dict :transient t)
-    ("S" "Check visible"     my/spell-check-visible)
-    ("b" "Check full buffer" my/spell-check-buffer-full)
-    ("T" "Toggle spellcheck" my/toggle-flyspell)]
-   ["Integrations"
+  [["Integrations"
     ("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================
@@ -191,10 +188,20 @@
 ;; entry out and says so, which is the correct outcome -- an entry
 ;; whose neighbour does not exist has nowhere meaningful to go.
 
+(defun my/transient--suffix-key (suffix)
+  "Return the key of SUFFIX, or of the first entry when SUFFIX is a group.
+A group is a vector such as [\"Spelling\" (\"s\" \"Correct\" cmd) ...]; its
+first entry stands for the whole group in the already-there test."
+  (if (vectorp suffix)
+      (car (seq-find #'consp (append suffix nil)))
+    (car suffix)))
+
 (defun my/transient--add (prefix anchor suffix before)
   "Add SUFFIX to PREFIX next to ANCHOR; before it when BEFORE is non-nil.
-The shared body of `my/transient-append' and `my/transient-insert'."
-  (let ((key (car suffix)))
+The shared body of `my/transient-append' and `my/transient-insert'.
+SUFFIX may be a group (a vector); ANCHOR is then a coordinate list such
+as \='(0 0), the first column."
+  (let ((key (my/transient--suffix-key suffix)))
     (cond
      ((not (fboundp prefix))
       (message "transient: no %s, skipping `%s'" prefix key))
@@ -226,10 +233,15 @@ during development harmless."
   "Add SUFFIX to PREFIX before ANCHOR, without ever signalling.
 
 As `my/transient-append', for a column whose only fixed entry is its
-last one.  The Integrations column of the Tools menu holds nothing but
-Quit (\"q\") until modules insert themselves before it: anchored on a
-key that belongs to this file, an entry does not disappear when the
-module that used to be its neighbour is turned off."
+last one.  The Integrations column of the Tools menu and the Toggle
+column of the View menu hold nothing but Quit (\"q\") until modules
+insert themselves before it: anchored on a key that belongs to this
+file, an entry does not disappear when the module that used to be its
+neighbour is turned off.
+
+A whole column is inserted the same way, as a group before a
+coordinate: 03-spelling.el puts its Spelling column first in the Tools
+menu with ANCHOR \='(0 0) and SUFFIX [\"Spelling\" (\"s\" ...) ...]."
   (my/transient--add prefix anchor suffix t))
 
 (defun my/transient-replace (prefix key suffix)
@@ -292,17 +304,10 @@ menu carries when the feature module is absent."
    ["Settings & Tools"
     ("v" "View → center/writing/indent/emphasis"         my/notes-view-menu)
     ("t" "Tools → spelling/integrations"  my/notes-tools-menu)
-    ("," "Settings →"  my/settings-menu)
-    ;; "l" is reserved: 19-philosophy-notes.el appends it dynamically
-    ;; Quick correct access as this is most used functions for me.
-    ;; Both also have direct global bindings in 08-keybindings.el
-    ;; (C-c s / C-c S) which skip this menu entirely. Kept here anyway:
-    ;; :transient t means the menu stays open, which is what you want
-    ;; when correcting several words in a row, whereas the direct
-    ;; bindings are for the single-fix case. Change one, check the other.
-    ("s" "Correct previous"  my/spell-correct-previous  :transient t)
-    ("a" "Add to dict"       my/spell-add-previous-to-dict :transient t)
-    ]
+    ;; After ",": "s" and "a" (spelling, 03-spelling.el), "!"
+    ;; (26-maintenance.el); after "t": "l" (19-philosophy-notes.el),
+    ;; "z" (22-zettelkasten.el).
+    ("," "Settings →"  my/settings-menu)]
    [("h" "Function Help"  my/open-function-helper)
     ("q" "Quit"            transient-quit-one)]])
 

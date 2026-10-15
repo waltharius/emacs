@@ -1,7 +1,7 @@
 ;;; 13-centered-writing.el --- Simple centered cursor for writing -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires:
-;; MyPKS-Optional: no
+;; MyPKS-Optional: yes
 ;; Docs: ~/.emacs.d/function_helper.org::#fn-my-toggle-writeroom
 
 ;;; Commentary:
@@ -425,6 +425,19 @@ This is buffer-local, so each note can have it on or off."
 ;;             (when (and buffer-file-name
 ;;                        (string-match-p "journal" buffer-file-name))
 ;;               (my/enable-centered-writing))))
+
+;; ============================================================
+;; KEY AND MENU
+;; ============================================================
+;; Moved here from 08-keybindings.el and 12-transient.el (2026-10-16e),
+;; so that the key and the menu entry go with the module.
+
+(global-set-key (kbd "C-c m w") 'my/toggle-writeroom)       ; Centred writing mode
+
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-view-menu "q"
+                         '("w" "Writing mode" my/toggle-writeroom))))
 
 (provide '13-centered-writing)
 ;;; 13-centered-writing.el ends here

@@ -102,7 +102,11 @@ two top-level shortcuts duplicated from Tools → Spelling for the two
 most-used spelling commands: =s= Correct previous, =a= Add to dict
 (both =:transient t=, so the menu stays open after use). Both also have
 direct global bindings that skip this menu entirely — =C-c s= and
-=C-c S=, see [[#global-keybindings][Global Keybindings]].
+=C-c S=, see [[#global-keybindings][Global Keybindings]].  Since
+2026-10-16 =s= and =a= are appended after =,= by =03-spelling.el=,
+and =!= Maintenance by =26-maintenance.el= -- also after =,=, which
+=12-transient.el= owns, so neither depends on the other.  Order in the
+column: =v t z l , ! s a=.
 
 =l=, =z= and =p= are not defined in =12-transient.el= itself: they are
 appended at load time by =19-philosophy-notes.el=,
@@ -1910,16 +1914,25 @@ Hugo site, laid out by the repository's folders. Present only when
 
 Toggle visual appearance settings for comfortable writing.
 
-Four entries are not defined in =12-transient.el=: they are appended at
-load time through =my/transient-append=, so removing the module that
-contributes one leaves the rest of the submenu intact.
+No entry of the Toggle column is defined in =12-transient.el= except
+=q= Quit, at its bottom.  The modules insert theirs before =q= at load
+time through =my/transient-insert=, so removing or turning off the
+module that contributes one leaves the rest of the submenu intact.
+Until 2026-10-16 the column held =c w i e= itself and the others were
+appended after =e=, which belongs to =11-org-appearance.el= since.
 
 | Key | Contributed by |
 |-----+----------------|
-| =m= Images in buffer | =44-image-display.el= |
+| =c= Center text | =10-visual-fill.el= |
+| =i= Indent headings, =e= Emphasis markers | =11-org-appearance.el= |
+| =w= Writing mode | =13-centered-writing.el= |
 | =T= Link tooltips | =30-link-tooltips.el= |
-| =t= Theme light/dark | =34-appearance.el= |
-| =p= Padding | =34-appearance.el= |
+| =t= Theme light/dark, =y= Pick a theme, =p= Padding, =W= Text width, =S= Font size | =34-appearance.el= |
+| =m= Images in buffer | =44-image-display.el= |
+
+Order, which is load order: =c i e w T t y p W S m q=.  The Detach
+column (=f=, =F=) is still declared here; it belongs to
+=23-fixed-tabs.el= and moves with the next part of the decoupling.
 
 =t= and =T= are different entries. =my/transient-append= skips an
 already-bound key *silently*, which is right for re-evaluating a module
@@ -2107,6 +2120,11 @@ Function: =my/inbox-menu= | Module: =modules/25-inbox-review.el=
 :PROPERTIES:
 :CUSTOM_ID: menu-spelling
 :END:
+
+The Spelling column is not declared in =12-transient.el=:
+=03-spelling.el= inserts it as a whole group before the first column
+(=my/transient-insert= with the coordinate =(0 0)=), so without the
+module the Tools menu has no Spelling column and nothing else changes.
 
 | Key | Function                        | Description                      |
 |-----+----------------------------------+-----------------------------------|
@@ -6321,24 +6339,29 @@ working.  When it is wrong all the same, the pair goes into
 :CUSTOM_ID: module-contract-core
 :END:
 
-Core, =MyPKS-Optional: no= (17): =00-core=, =01-ui=, =02-editing=, =03-spelling=, =04-denote=, =05-notes=, =06-capture=, =07-git=, =08-keybindings=, =10-visual-fill=, =11-org-appearance=, =12-transient=, =13-centered-writing=, =15-workspace=, =16-org-export=, =23-fixed-tabs=, =27-denote-identifiers=.
+Core, =MyPKS-Optional: no= (13): =00-core=, =01-ui=, =02-editing=, =04-denote=, =05-notes=, =06-capture=, =07-git=, =08-keybindings=, =12-transient=, =15-workspace=, =16-org-export=, =23-fixed-tabs=, =27-denote-identifiers=.
 
 These are the configuration itself (00-core, 01-ui, 02-editing,
 04-denote, 05-notes, 07-git, the key bindings and the main menu) and
 every module they need.  Several are core only because 12-transient.el
-or 08-keybindings.el name their commands: spelling, capture, centred
-writing, the dashboard, export, fixed tabs.  Moving those entries into
-the modules (rule 10) makes them optional; the bibliography and Zotero
-went first (2026-10-16d).
+or 08-keybindings.el name their commands: capture, export, the
+dashboard, fixed tabs.  Moving those entries into the modules (rule 10)
+makes them optional; the bibliography and Zotero went first
+(2026-10-16d), then spelling, centred text, Org appearance and the
+writing mode (2026-10-16e).
 
-Optional (35):
+Optional (39):
 
 | Module | What | Requires |
 |---+---+---|
 | =02b-bold-marker= | Obsidian-style inline markers for org-mode | -- |
+| =03-spelling= | Spell checking configuration | -- |
 | =03b-fonts= | Font configuration, per silo | -- |
 | =05b-journal-metrics= | Structured daily metrics for journal notes | =05-notes= |
 | =09-theme= | Theme configuration and light/dark switching | -- |
+| =10-visual-fill= | Visual fill column: single source of truth | -- |
+| =11-org-appearance= | Org-mode visual enhancements | -- |
+| =13-centered-writing= | Simple centered cursor for writing | -- |
 | =14-typing-analytics= | Track typing patterns for ergonomic analysis | -- |
 | =17-bibliography= | Zotero/Citar bibliography integration | -- |
 | =18-zotero-transient= | Transient menu for bibliography/Zotero | =17-bibliography= |
@@ -6459,7 +6482,7 @@ rather than defines, and repeating it is harmless.
 | =my/notes--completion-keys= | =05-notes.el= | 06-capture.el |
 | =my/fixed-tab-goto= | =01-ui.el= | 15-workspace.el, 21-dashboards.el |
 | =my/transient-append= | =12-transient.el= | every module adding a menu entry |
-| =my/transient-insert= | =12-transient.el= | the modules of Tools → Integrations |
+| =my/transient-insert= | =12-transient.el= | the modules of Tools → Integrations and View → Toggle; 03-spelling.el (a whole column) |
 | =my/transient-replace= | =12-transient.el= | 41-notes-search.el |
 
 Resolution is at call time, so load order does not constrain these —
@@ -6892,10 +6915,10 @@ hand-editing either from memory.
 | C-c e b   | =eval-buffer=                   | =08-keybindings.el=                        |
 | C-c e r   | =eval-region=                   | =08-keybindings.el=                        |
 | C-c h k   | =my/show-keybindings-help=      | =08-keybindings.el=                        |
-| C-c s     | =my/spell-correct-previous=     | =08-keybindings.el=                        |
-| C-c S     | =my/spell-add-previous-to-dict= | =08-keybindings.el=                        |
+| C-c s     | =my/spell-correct-previous=     | =03-spelling.el=                           |
+| C-c S     | =my/spell-add-previous-to-dict= | =03-spelling.el=                           |
 | C-c m c   | =my/notes-create-menu=          | =08-keybindings.el=                        |
-| C-c m w   | =my/toggle-writeroom=           | =08-keybindings.el=                        |
+| C-c m w   | =my/toggle-writeroom=           | =13-centered-writing.el=                   |
 | C-c m k   | =my/denote-keywords-edit=       | =08-keybindings.el= (duplicate of C-c d t) |
 | <f4>      | =my/theme-cycle-light=          | =09-theme.el=                              |
 | <f5>      | =my/theme-cycle-dark=           | =09-theme.el=                              |

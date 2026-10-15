@@ -1,6 +1,6 @@
 ;;; 08-keybindings.el --- Keybindings reference -*- lexical-binding: t; -*-
 
-;; MyPKS-Requires: 01-ui 03-spelling 05-notes 12-transient 13-centered-writing 16-org-export
+;; MyPKS-Requires: 01-ui 05-notes 12-transient 16-org-export
 ;; MyPKS-Optional: no
 ;; Docs: ~/.emacs.d/function_helper.org::#global-keybindings
 
@@ -425,9 +425,11 @@ Full descriptions of every command: C-c n h, or
 ;; Namespace: C-c s / C-c S are short because they are the most used.
 ;; C-c m is a small grab-bag prefix ("menus and modes") for the rest.
 
-(global-set-key (kbd "C-c s") 'my/spell-correct-previous)   ; Correct previous word
-(global-set-key (kbd "C-c S") 'my/spell-add-previous-to-dict) ; Add previous to dict
-(global-set-key (kbd "C-c m w") 'my/toggle-writeroom)       ; Centred writing mode
+;;
+;; C-c s, C-c S and C-c m w are bound in the modules they call
+;; (03-spelling.el, 13-centered-writing.el) since 2026-10-16e, so that
+;; a module turned off takes its keys with it.
+
 (global-set-key (kbd "C-c m c") 'my/notes-create-menu)      ; Create submenu directly
 
 ;; Deliberate duplicate of C-c d t above: same command, reachable under

@@ -21,6 +21,63 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-16e — Decoupling 2: spelling, centred text, Org appearance, writing mode optional
+
+### Why
+
+Second part of the decoupling (BACKLOG.org, module toggles).
+03-spelling, 10-visual-fill, 11-org-appearance and 13-centered-writing
+were core only because 12-transient.el and 08-keybindings.el named
+their commands.  The same anchoring fault as in part 1 sat in the View
+menu: 30-link-tooltips, 34-appearance and 44-image-display appended
+after `e`, which is 11-org-appearance's entry; and 26-maintenance
+appended after `a`, which is 03-spelling's.
+
+### What
+
+- 12-transient.el:
+  - View menu (`C-c n v`): the Toggle column holds only Quit; Detach
+    unchanged.  The Tools menu holds only Integrations.  The main menu
+    loses `s` and `a`.
+  - `my/transient-insert` takes a group as well: a vector inserted
+    before a coordinate such as `(0 0)`; the already-there test uses
+    the group's first key (`my/transient--suffix-key`).
+- 03-spelling.el: inserts the Spelling column into Tools as a group,
+  appends `s` and `a` after `,` in the main menu, binds `C-c s` and
+  `C-c S` (moved from 08-keybindings.el).
+- 10-visual-fill.el (`c`), 11-org-appearance.el (`i`, `e`),
+  13-centered-writing.el (`w`, and `C-c m w` from 08-keybindings.el)
+  insert before Quit in View.
+- 30-link-tooltips, 34-appearance, 44-image-display insert before `q`
+  instead of after `e`; 26-maintenance appends after `,` instead of
+  after `a`.
+- Headers: the four modules optional; 12-transient and 08-keybindings
+  no longer require them.  Core 13 modules, optional 39.
+- function_helper.org: who fills the Toggle and Spelling columns, the
+  order of the main menu's second column, the key table (`C-c s`,
+  `C-c S`, `C-c m w` now in their modules), core and optional
+  regenerated.  TESTPLAN.org: R15.
+- BACKLOG.org: decoupling part 2 done.  New entry *Files the modules
+  write: out of the code repository* (recentf, the keylog file and the
+  rest of the state in `~/.emacs.d`; no-littering pointed at the
+  settings folder; a `MyPKS-Writes` header).  The README step records
+  the idea behind the settings folder: one collection of notes,
+  several Emacs configurations for different roles.
+
+### Order changes, visible in the menus
+
+Entries now appear in load order: View → Toggle `c i e w T t y p W S m
+q` (was `c w i e m t y p W S T`); main menu second column `v t z l , !
+s a` (was `v t z l , s a !`).
+
+### Checked
+
+In batch, with the modules loaded and without 03, 10, 11 and 13: the
+three menus as listed above; without them, Tools has only Quit, View
+keeps `T t y p W S m`, the main menu keeps `!`.  Byte-compilation: no
+new warning.
+
+---
 ## Session 2026-10-16d — Decoupling 1: Zotero and the bibliography optional, Readwise without Zettelkasten
 
 ### Why

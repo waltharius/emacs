@@ -240,6 +240,19 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
       17-bibliography.el and 18-zotero-transient.el say
       =MyPKS-Optional: yes=.
 
+** R15. Decoupling 2: spelling, writing mode, centred text, Org appearance [0/6]
+- [ ] =C-c n v=: Toggle column =c i e w T t y p W S m q=, Detach =f F=;
+      each entry works.
+- [ ] =C-c n t=: Spelling column first (=s a S b T=), then Integrations.
+- [ ] =C-c n=: second column =v t z l , ! s a=; =s= and =a= keep the
+      menu open; =!= opens Maintenance.
+- [ ] =C-c s=, =C-c S=, =C-c m w= work as before.
+- [ ] Comment out the line loading =03-spelling.el= in =init.el= (do not
+      commit), restart: no Spelling column in Tools, no =s a= in the
+      main menu, =!= still there.  Restore the line.
+- [ ] Same with =11-org-appearance.el=: the View menu loses =i e=
+      only; =T t m= are still there.  Restore.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

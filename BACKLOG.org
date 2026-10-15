@@ -97,8 +97,11 @@ Next, in order:
    - Done 2026-10-16d, part 1: Zotero and the bibliography optional
      (the Tools menu's Integrations column filled by the modules, before
      Quit); Readwise without 22-zettelkasten.
-   - Part 2: spelling, writing mode, centred text, Org appearance (the
-     View menu and the Spelling column of Tools).
+   - Done 2026-10-16e, part 2: spelling, writing mode, centred text,
+     Org appearance optional.  The View menu's Toggle column ends in
+     Quit, before which the modules insert; the Spelling column is
+     inserted into Tools as a group; =C-c s=, =C-c S=, =C-c m w= bound
+     in their modules.
    - Part 3: capture, export, the dashboard, fixed tabs.
 2. *A minor mode per module* (rule 12), the integrations first:
    Obsidian import, Readwise, Zotero, blog, drill.
@@ -159,6 +162,12 @@ Steps, in order:
    check.)  This repository is archived, or kept as the private one.
 5. README for others: installation, the first start, where settings
    go.  With the clean-configuration test (above) as its check.
+   Also the idea behind it (2026-10-16): *one collection of notes,
+   several Emacs configurations for different roles* -- the opposite
+   of Obsidian's one vault carrying one configuration.  The notes
+   (=~/notes=) are the shared ground; each machine, or each role on
+   one machine, has its settings, modules and state in the settings
+   folder.
 
 Rejected for now: *one repository with a public and a private branch*
 (code on =main=, =hosts/= only on =private=, =main= merged into
@@ -190,6 +199,47 @@ In order of use for the effort:
 
 The guide (1) can start at any time; the catalogue (2) after the names
 are settled (code review item B1), or every string key is renamed twice.
+
+* Files the modules write: out of the code repository
+Asked 2026-10-16: =recentf= and the keylog file =keys= belong in the
+private settings folder, not in =~/.emacs.d= -- even ignored by git
+they are personal, and per machine.  In general, every module has to
+say what it writes besides code, so that it can live outside the
+repository, differ between machines, or exist in several variants
+(one per role).
+
+Today, written into =~/.emacs.d= and kept out of git only by
+=.gitignore=: =recentf=, =saveplace=, =bookmarks=, =savehist=/=history=,
+=desktop/=, =.org-id-locations=, =org-clock-save.el=, =keys= (keylog,
+14-typing-analytics.el), =.emacs.keyfreq=, =transient/= (menu
+history), =persist/= (org-drill's learning data), =undo-fu-session/=
+(text of edited buffers), =tramp=, =url/=, =eshell/=, =notes-root.eld=.
+
+Proposal:
+- *no-littering* (github.com/emacscollective/no-littering, on MELPA),
+  the established package for this: it moves the files of Emacs and of
+  many packages into two folders, =etc/= (configuration) and =var/=
+  (state).  =no-littering-var-directory= pointed at
+  =hosts/<host>/var/= of the settings folder, so that history,
+  sessions and positions stay per machine and per role.  Both
+  variables have to be set before the package loads, so early in
+  00-core.el; its own README adds both folders to =recentf-exclude=.
+- Three kinds of file, each with one helper in 00-core.el, used by
+  every module instead of =user-emacs-directory=:
+  - /settings/ (=custom.el=): already per machine;
+  - /state of this machine/ (keylog, recent settings, notes root):
+    =hosts/<host>/var/=;
+  - /data shared by all machines/ (favourite settings, drill learning
+    data?): the root of the settings folder.
+- Module contract, a rule and a check: no module writes under
+  =user-emacs-directory=; the header gains a line naming what the
+  module writes (=;; MyPKS-Writes: var/keys=), so that the toggles menu
+  and the README can list it.
+- Moving existing files once, at the first start, as the settings were
+  moved (2026-10-15a), with a report.
+
+Order: after the decoupling, before the loader -- the loader's list of
+modules turned off is itself a setting.
 
 * Agenda per notes folder
 Asked 2026-10-14 ("if it cannot be done, never mind").  Since

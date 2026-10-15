@@ -1,7 +1,7 @@
 ;;; 03-spelling.el --- Spell checking configuration -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires:
-;; MyPKS-Optional: no
+;; MyPKS-Optional: yes
 ;; Docs: ~/.emacs.d/function_helper.org::#menu-spelling
 
 ;;; Commentary:
@@ -417,6 +417,41 @@ every open text buffer."
 ;; ============================================================
 
 (global-set-key (kbd "C-c f b") 'my/spell-check-visible)
+
+;; The two most used commands of the whole configuration (keyfreq:
+;; correct previous second, add to dictionary fourth), each with a
+;; short binding of its own.  Moved here from 08-keybindings.el
+;; (2026-10-16e) so that the keys go with the module.
+(global-set-key (kbd "C-c s") 'my/spell-correct-previous)    ; Correct previous word
+(global-set-key (kbd "C-c S") 'my/spell-add-previous-to-dict) ; Add previous to dict
+
+;; ============================================================
+;; MENU
+;; ============================================================
+;; Inserted from here rather than declared in 12-transient.el, so that
+;; without this module the menus lose these entries and nothing else.
+;;
+;; Tools (C-c n t): the Spelling column, first, before Integrations.
+;; Main menu (C-c n): "s" and "a" again, after Settings.  :transient t
+;; keeps the menu open, for correcting several words in a row; the
+;; direct keys above are for the single fix.
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert
+     'my/notes-tools-menu '(0 0)
+     ["Spelling"
+      ("s" "Correct previous"  my/spell-correct-previous  :transient t)
+      ("a" "Add to dict"       my/spell-add-previous-to-dict :transient t)
+      ("S" "Check visible"     my/spell-check-visible)
+      ("b" "Check full buffer" my/spell-check-buffer-full)
+      ("T" "Toggle spellcheck" my/toggle-flyspell)]))
+  (when (fboundp 'my/transient-append)
+    (my/transient-append 'my/notes-menu ","
+                         '("s" "Correct previous" my/spell-correct-previous
+                           :transient t))
+    (my/transient-append 'my/notes-menu "s"
+                         '("a" "Add to dict" my/spell-add-previous-to-dict
+                           :transient t))))
 
 (provide '03-spelling)
 ;;; 03-spelling.el ends here

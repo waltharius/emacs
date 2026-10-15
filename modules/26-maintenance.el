@@ -776,11 +776,12 @@ leaving part-way through is safe and leaves no modified buffers."
     ("K" "Rename or remove a keyword"    my/maintenance-rename-keyword)]
    [("q" "Quit" transient-quit-one)]])
 
-;; Appended after "a" (Add to dict), the last entry of the second
-;; column, through the helper that degrades gracefully when
-;; 12-transient.el is absent.
+;; Appended after "," (Settings), which 12-transient.el owns, in the
+;; second column -- not after "a" (Add to dict), which belongs to
+;; 03-spelling.el and is absent without it.  Through the helper that
+;; degrades gracefully when 12-transient.el is absent.
 (with-eval-after-load '12-transient
-  (my/transient-append 'my/notes-menu "a"
+  (my/transient-append 'my/notes-menu ","
                        '("!" "Maintenance → integrity/keywords/repair"
                          my/notes-maintenance-menu)))
 

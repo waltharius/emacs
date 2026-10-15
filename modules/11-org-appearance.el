@@ -1,7 +1,7 @@
 ;;; 11-org-appearance.el --- Org-mode visual enhancements -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires:
-;; MyPKS-Optional: no
+;; MyPKS-Optional: yes
 ;; Docs: ~/.emacs.d/function_helper.org::#org-faces
 
 ;;; Commentary:
@@ -280,6 +280,15 @@ Toggle: C-c n E  (in notes transient menu)"
 ;; - Default: HIDDEN (org-hide-emphasis-markers = t)
 ;; - Toggle: C-c n E (available in transient menu)
 ;; - Use when: Debugging extra asterisks or markup errors
+
+;; View menu (C-c n v), Toggle column: inserted from here so that the
+;; entries go with the module.
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-view-menu "q"
+                         '("i" "Indent headings" my/toggle-org-indent))
+    (my/transient-insert 'my/notes-view-menu "q"
+                         '("e" "Emphasis markers" my/toggle-emphasis-markers))))
 
 (provide '11-org-appearance)
 ;;; 11-org-appearance.el ends here

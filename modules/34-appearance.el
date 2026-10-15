@@ -287,13 +287,14 @@ text column then has to give back."
 ;; ============================================================
 ;; TRANSIENT MENU: View  (C-c n v)
 ;; ============================================================
-;; Appended through `my/transient-append' (12-transient.el), which
-;; skips rather than signals when the menu or the anchor is missing.
-;; The anchor "e" is defined by 12-transient.el itself, not by another
-;; feature module, so this append does not couple two optional modules
-;; to each other.
+;; Added through `my/transient-insert' and `my/transient-append'
+;; (12-transient.el), which skip rather than signal when the menu or
+;; the anchor is missing.  The first anchor, "q", is defined by
+;; 12-transient.el itself, not by another feature module, so these
+;; entries do not couple two optional modules to each other.  (Until
+;; 2026-10-16e the anchor was "e", which moved to 11-org-appearance.el.)
 
-(when (fboundp 'my/transient-append)
+(when (and (fboundp 'my/transient-insert) (fboundp 'my/transient-append))
   ;; NOTE ON KEYS.  30-link-tooltips.el appends "T" to this same menu,
   ;; and `my/transient-append' skips an already-bound key silently -- so a collision here would produce a menu entry
   ;; that is simply absent, with nothing said about it.  "t" and "p"
@@ -304,7 +305,9 @@ text column then has to give back."
   ;; closes and reopens around each invocation, which is the wrong
   ;; shape for a command pressed repeatedly; `C-c u +' and `C-c u -'
   ;; repeat cleanly.
-  (my/transient-append 'my/notes-view-menu "e"
+  ;; The first one before Quit, which 12-transient.el owns; the rest
+  ;; after each other.
+  (my/transient-insert 'my/notes-view-menu "q"
                        '("t" "Theme light/dark" my/theme-toggle))
   ;; "y", not "T": 30-link-tooltips.el already owns "T" in this menu,
   ;; and an append onto a taken key is dropped without a word.

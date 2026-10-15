@@ -281,12 +281,14 @@ own tooltip text and this module's function while fontifying."
 ;; ============================================================
 ;; MENU
 ;; ============================================================
-;; Appended to the View submenu after "e" (Emphasis markers).  Skipped
-;; without complaint when 12-transient.el is not loaded.
+;; Inserted into the Toggle column of the View submenu, before Quit,
+;; the one entry 12-transient.el owns there.  Skipped without complaint
+;; when 12-transient.el is not loaded.
 
 (with-eval-after-load '12-transient
-  (my/transient-append 'my/notes-view-menu "e"
-                       '("T" "Link tooltips" my/link-tooltip-set-style)))
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-view-menu "q"
+                         '("T" "Link tooltips" my/link-tooltip-set-style))))
 
 (provide '30-link-tooltips)
 ;;; 30-link-tooltips.el ends here

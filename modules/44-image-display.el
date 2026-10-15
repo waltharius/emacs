@@ -201,13 +201,13 @@ Markdown buffers are always session-only -- see the header of
 
 (global-set-key (kbd "C-c u i") #'my/image-display-toggle)
 
-;; Appended after the Emphasis markers entry, in the Toggle column of
-;; the View menu.  Skipped with a message when 12-transient.el is
-;; absent, so deleting that module costs the menu entry and nothing
-;; else -- `C-c u i' keeps working.
+;; Inserted before Quit in the Toggle column of the View menu.  Skipped
+;; with a message when 12-transient.el is absent, so deleting that
+;; module costs the menu entry and nothing else -- `C-c u i' keeps
+;; working.
 (with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-append)
-    (my/transient-append 'my/notes-view-menu "e"
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-view-menu "q"
                          '("m" "Images in buffer" my/image-display-toggle))))
 
 (provide '44-image-display)

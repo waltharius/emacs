@@ -1,7 +1,7 @@
 ;;; 10-visual-fill.el --- Visual fill column: single source of truth -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires:
-;; MyPKS-Optional: no
+;; MyPKS-Optional: yes
 ;; Docs: ~/.emacs.d/function_helper.org::#per-note-appearance
 
 ;;; Commentary:
@@ -240,6 +240,13 @@ carrying their own `#+text_width:' are unaffected."
   (my/text-width--apply (or visual-fill-column-width my-fill-column)))
 
 (global-set-key (kbd "C-c u w") #'my/text-width-adjust)
+
+;; View menu (C-c n v), Toggle column: inserted from here so that the
+;; entry goes with the module.
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-view-menu "q"
+                         '("c" "Center text" my/toggle-visual-fill-column-center))))
 
 ;; Adopt a previously saved default.  Late in the file so that the
 ;; `setq-default' in the `use-package' form above has already run.
