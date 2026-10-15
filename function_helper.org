@@ -1185,6 +1185,12 @@ shrinks it, and links it at point. Two prompts: the file, then a name
 with the note's =#+title:= offered as the default (=RET= accepts it).
 Set =my/org-image-prompt-for-name= to nil to skip the second prompt.
 
+The file prompt starts in =my/org-image-source-directory= when set,
+else in the desktop's pictures folder, else its downloads folder — as
+=~/.config/user-dirs.dirs= names them (=xdg-user-dir=), so =~/Obrazy= on
+a Polish desktop and =~/Pictures= on an English one without either name
+written into the code — else in the home folder.
+
 With a prefix argument (=C-u C-c n i i=) the image is stored exactly as
 it is, at full resolution and without recompression.
 

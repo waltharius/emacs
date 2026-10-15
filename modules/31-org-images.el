@@ -460,14 +460,21 @@ symbol naming the last rung of the ladder that ran."
 ;; INSERTING
 ;; ============================================================
 
+(declare-function xdg-user-dir "xdg" (name))
+
 (defun my/org-image--default-directory ()
-  "Return the directory the file prompt should start in."
+  "Return the directory the file prompt should start in.
+The pictures folder, else the downloads folder, as the desktop names
+them in ~/.config/user-dirs.dirs (~/Obrazy and ~/Pobrane on a Polish
+desktop, ~/Pictures and ~/Downloads on an English one), else home."
   (or my/org-image-source-directory
-      (seq-find #'file-directory-p
-                (list (expand-file-name "~/Pictures/")
-                      (expand-file-name "~/Obrazy/")
-                      (expand-file-name "~/Downloads/")
-                      (expand-file-name "~/Pobrane/")))
+      (seq-find (lambda (dir) (and dir (file-directory-p dir)))
+                (mapcar (lambda (name)
+                          (ignore-errors
+                            (require 'xdg)
+                            (let ((dir (xdg-user-dir name)))
+                              (and dir (file-name-as-directory dir)))))
+                        '("PICTURES" "DOWNLOAD")))
       (expand-file-name "~/")))
 
 (defun my/org-image--selectable-p (file)

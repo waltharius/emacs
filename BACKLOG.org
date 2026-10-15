@@ -16,8 +16,13 @@ disabled) are done; so are the findings of the first test pass
 (2026-10-14a to f: tree by importance, changes without a restart,
 reports that wait for an answer, silo folders created with their first
 note, the planner in its own folder, bundled CSL), and step 3, one
-settings folder per machine (2026-10-14l).  Left from step 3: =git rm
-custom.el ui-state.el= once both machines have started once.
+settings folder per machine (2026-10-14l, outside the repository since
+2026-10-15a), and step 6, no machine-bound paths (2026-10-15d: every
+remaining path is an option; the image prompt finds the pictures folder
+through =xdg-user-dir=).  Left from step 3: =git rm -r hosts custom.el
+ui-state.el= once both machines have started once.  Defaults that are
+personal choices rather than paths (=~/syncthing/Obsidian/=, the blog
+sites) belong to the cleaning step of the public repository below.
 
 ** TODO 4. Core defaults as a custom theme (=mypks-defaults=)
 Package variables the core sets with =setq= move into a custom theme,
@@ -36,11 +41,6 @@ Toward a plugin contract: own group under an area, options applied with
 dependencies checked with =fboundp=.  The loader is the moment for the
 review's start-up findings, since it rewrites =init.el= anyway: see
 /Code review 2026-10-14/, items on start-up and on names.
-
-** TODO 6. No machine-bound paths (README: install on any Linux)
-Remaining absolute paths outside the notes root (=~/projects/=,
-=~/syncthing/Zotero=, =/home/marcin/= in the custom file).  Same work
-as the planned installation part of the README.
 
 ** TODO Welcome screen on first start
 A clean Emacs starting from this repository shows "Welcome to MyPKS":
@@ -109,6 +109,28 @@ the notes folder; the habit entry saved there by an older version is
 offered for removal.  What is left, if wanted: agenda files listed in
 the notes folder itself (a file =agenda-files= at the root, read when
 the folder is in use), so that each collection carries its own list.
+
+* Technical blog from this repository
+Asked 2026-10-15: the Markdown and Org files of this repository
+(README, CHANGELOG, BACKLOG, TESTPLAN, function_helper.org) readable as
+a site, like the NixOS documentation of 47-repo-docs.el -- in the same
+site if the two stay clearly apart, so that files with the same name
+(both have a README.md) never mix; otherwise a second site.
+
+*Proposed: one site, one section per repository.*  47-repo-docs.el
+already writes each file to a URL made from its repository path; with a
+list of repositories instead of one (=my/repo-docs-repositories=:
+name, folder, title), each goes under its own top-level section,
+/nixos/... and /emacs/..., with its own entry in Geekdoc's menu, so
+=README.md= becomes /nixos/ and /emacs/ respectively.  Saving a file of
+either regenerates the site.  New: Org files, which 47 does not read --
+exported to Markdown with ox-md (or ox-hugo, already used by 46-blog.el)
+before the same processing; =function_helper.org= is large, so one page
+per top-level heading.  Links between the two repositories are not
+rewritten.  *Why later*: a change of 47's data model (one repository
+→ several) and an Org path that does not exist yet; worth doing after
+the cleaning step of the public repository, so the site shows the clean
+text.
 
 * Fonts as configuration, per silo
 Proposed 2026-10-12, after the journal PDF export broke on font lookup.

@@ -21,6 +21,32 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-15d — Step 6 closed; the image prompt follows the desktop's folders
+
+### Why
+
+Step 6 of the settings plan: no path bound to one machine.  Checked
+again: every remaining path is an option -- notes folder, settings
+folder, bibliography and Zotero folder (2026-10-14i), planner, writing
+projects, Readwise, Obsidian vault, blog sites, NixOS docs.  One list
+was still written into the code: the image prompt tried `~/Pictures/`,
+`~/Obrazy/`, `~/Downloads/`, `~/Pobrane/` by name.
+
+### What
+
+- `my/org-image--default-directory` asks the desktop instead:
+  `xdg-user-dir` with PICTURES, then DOWNLOAD, as
+  `~/.config/user-dirs.dirs` names them, then the home folder;
+  `my/org-image-source-directory` still wins when set.
+- BACKLOG.org: step 6 done; defaults that are personal choices rather
+  than machine paths go to the cleaning step of the public repository.
+  New entry: a technical blog from this repository's Markdown and Org
+  files, as a second section of the NixOS docs site.
+
+Verified in batch with a `user-dirs.dirs` naming `~/Obrazy`: the prompt
+starts there; without one, in the home folder.
+
+---
 ## Session 2026-10-15c — Every documented command has a place in a menu
 
 ### Why
