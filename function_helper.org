@@ -8088,8 +8088,8 @@ Every option of this configuration in one Customize tree, the same
 interface as =M-x customize-face=: =TAB= moves between fields, =RET=
 on a button acts, /State/ → /Save for future sessions/ (or the
 /Apply and Save/ button at the top) writes the value to =custom-file=
-— this machine's =hosts/<host>/custom.el=, see
-[[#settings-host][Settings of this machine]].
+— this machine's =custom.el= in the settings folder, see
+[[#settings-host][The settings folder]].
 
 | Key         | Does                                              |
 |-------------+---------------------------------------------------|
@@ -8110,42 +8110,52 @@ PKS because =pks/= is already a silo.
 
 Function: =my/settings= | Module: =modules/00-core.el=
 
-** Settings of this machine
+** The settings folder, and the settings of this machine
 :PROPERTIES:
 :CUSTOM_ID: settings-host
 :END:
 
-Each machine keeps its settings in the repository, in a folder of its
-own:
+The settings live outside the configuration repository, in a folder of
+their own, so that the code holds nothing personal and can be public:
 
-| File                       | Holds                                                   |
-|----------------------------+---------------------------------------------------------|
-| =hosts/<host>/custom.el=   | what Customize saves (=C-c n , ,=)                      |
-| =hosts/<host>/ui-state.el= | choices made with keys: theme, font size, text width    |
+| File                                         | Holds                                                |
+|----------------------------------------------+------------------------------------------------------|
+| =<settings folder>/hosts/<host>/custom.el=   | what Customize saves (=C-c n , ,=)                   |
+| =<settings folder>/hosts/<host>/ui-state.el= | choices made with keys: theme, font size, text width |
 
-=<host>= is the machine's short host name, lower case (=azazel=,
+*The settings folder* is =~/.config/mypks/= by default — the usual place
+for a program's settings on Linux — and is itself a setting: /Folder of
+these settings/ (=my/settings-folder=), at the top of =C-c n , ,=.  It
+cannot be stored in =custom.el=, which lives inside it, so it is kept
+in =~/.emacs.d/mypks-local.eld=, a file of this installation and not in
+git.  A change takes effect at the next start, which copies the
+settings of every machine over from the old folder (left as it is) and
+reports it.  The environment variable =MYPKS_DIR= overrides the setting.
+
+*Backup.*  The default folder is in no git repository.  Set it to a
+folder in the notes repository (for example =~/notes/.mypks/=) and the
+automatic commits push the settings with the notes; or run =git init=
+in it, and =07-git.el= commits it like the notes
+(=my/settings--repository-directories=).  The start-up report says
+which applies.
+
+*<host>* is the machine's short host name, lower case (=azazel=,
 =baal=).  After a reinstall the same machine finds its settings again,
-and two machines never write into each other's file.  A value wanted on
-both is saved on both.  The folder is committed by hand like the rest
-of the configuration; =C-c v C= (=my/commit-config-now=) stages =hosts/=
-with the code.
+and two machines never write into each other's file; a value wanted on
+both is saved on both.  =MYPKS_HOST=, or =C-c n , u= (stored in
+=mypks-local.eld=), makes an Emacs use another machine's folder.
 
-*Which folder an Emacs uses*, first match wins: the environment
-variable =MYPKS_HOST=; the file =~/.emacs.d/host= (one line, not in
-git), written by =C-c n , u=; the host name.  =C-c n , u= with the
-machine's own name removes the file again.
-
-*First start on a machine.*  Its folder is created, then:
-
-| Situation                                  | What happens                                            |
-|--------------------------------------------+---------------------------------------------------------|
-| the old shared =custom.el= exists          | copied in (the move to per-machine files, once per machine); reported |
-| other machines have settings               | a question: copy one of them, or start with the defaults |
-| nothing to copy from                       | an empty settings file with a header; reported          |
-
-The old =ui-state.el= is copied in the same way.  Once every machine has
-started once, the old =custom.el= and =ui-state.el= at the top of the
-repository are read by nothing and can be removed with =git rm=.
+*First start with a folder.*  When this machine has no settings there,
+they are copied from, in this order: the previous settings folder
+(after a change of /Folder of these settings/); =hosts/= in
+=~/.emacs.d= (where they were for one day, 2026-10-14); the old shared
+=custom.el= and =ui-state.el= in =~/.emacs.d=.  Otherwise, when other
+machines have settings, a question: copy one of them, or start with
+the defaults; with no one to copy from, an empty settings file with a
+header.  Nothing is deleted anywhere; once every machine has started
+once, =git rm -r hosts custom.el ui-state.el= in =~/.emacs.d= removes
+the copies nothing reads any more (=.gitignore= then keeps =hosts/=
+out).
 
 *Copying another machine's settings* (=C-c n , c=) replaces this
 machine's file after a question and applies it at once; values the
@@ -8159,7 +8169,7 @@ finds the place.
 Loaded at the top of =00-core.el=, before any option is defined;
 =init.el= no longer loads a custom file itself.
 
-Function: =my/host-settings-open=, =my/host-settings-copy-from=, =my/host-settings-use= | Module: =modules/00-core.el=
+Function: =my/settings-folder=, =my/host-settings-open=, =my/host-settings-copy-from=, =my/host-settings-use= | Module: =modules/00-core.el=
 
 ** The tree
 :PROPERTIES:

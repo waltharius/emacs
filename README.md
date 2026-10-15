@@ -196,7 +196,9 @@ private silo.
 
 ~/projects/<slug>/          writing-project scaffolding (not notes)
 ~/projects/planner/         tasks.org, habits.org  (own git repository)
-~/.emacs.d/                 this repository
+~/.emacs.d/                 this repository: code and documentation only
+~/.config/mypks/            settings of each machine (hosts/<host>/), set
+                            in C-c n , , -- may be moved into the notes
 ```
 
 `denote-directory` is `~/notes/` rather than any single silo, which is

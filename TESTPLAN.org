@@ -153,23 +153,31 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
       in =~/.emacs.d/backups/= (names starting =!home!marcin!notes!=);
       move them to =~/notes/.backups/= if wanted.
 
-** R10. Settings of this machine [0/7]
-- [ ] First start after the patch on Azazel: DONE report "Settings of
-      azazel now in ~/.emacs.d/hosts/azazel/"; =hosts/azazel/custom.el=
-      and =ui-state.el= exist; every setting as before.
-- [ ] =C-c n , ,= opens Customize; save any value: it lands in
-      =hosts/azazel/custom.el= (=C-c n , f= opens it), =custom.el= at the
-      top is unchanged.
-- [ ] Theme or font size changed with keys (=C-c u f=): written to
-      =hosts/azazel/ui-state.el=.
-- [ ] Commit =hosts/= (=C-c v C= stages it), push, pull on baal, start:
-      the same DONE report for baal (its own copy of the old file).
-- [ ] On baal change a value and save; on Azazel after a pull the value
-      is unchanged (separate files).
-- [ ] =C-c n , u= → =azazel= on baal, restart: baal reads and saves
-      =hosts/azazel/custom.el=; =C-c n , u= → =baal= returns.
-- [ ] After both machines started once: =git rm custom.el ui-state.el=,
-      commit; both machines still start with their settings.
+** R10. The settings folder [0/7]
+- [ ] First start after the patch on Azazel: DONE report "Settings now
+      in ~/.config/mypks/", copied from =~/.emacs.d/hosts/=, with the
+      note that no git repository backs it up.  =ls ~/.config/mypks/hosts=
+      lists azazel; every setting as before.
+- [ ] Save any value in =C-c n , ,=: it lands in
+      =~/.config/mypks/hosts/azazel/custom.el= (=C-c n , f= opens it);
+      =git status= in =~/.emacs.d= shows nothing new.
+- [ ] /Folder of these settings/ (top of =C-c n , ,=) = =~/notes/.mypks/=,
+      Apply: report "from the next start ...".  Restart: DONE report,
+      settings copied, =~/.config/mypks/= left as it is.  After the next
+      idle auto-commit, =git -C ~/notes log -1 --stat= lists
+      =.mypks/hosts/azazel/custom.el=.
+- [ ] =C-c n f n= and the statistics do not show anything from
+      =.mypks/= (dot folder).
+- [ ] baal after a pull (before the =git rm= below, or it asks which
+      machine to copy from): DONE report, settings copied from the old
+      =custom.el= into its =~/.config/mypks/=.  The folder setting is
+      per installation: set /Folder of these settings/ to
+      =~/notes/.mypks/= on baal too, restart -- copied there next to
+      azazel's.
+- [ ] After baal has started once: in =~/.emacs.d= =git rm -r hosts
+      custom.el ui-state.el=, commit; both start with their settings.
+- [ ] =C-c n , u= → =azazel= on baal, restart: baal reads azazel's file;
+      =C-c n , u= → =baal= returns.
 
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]

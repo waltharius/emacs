@@ -21,6 +21,53 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-15a — The settings folder, outside the repository
+
+### Why
+
+Second thoughts on 2026-10-14l the next day.  Settings in `hosts/` of
+the code repository mix personal data with code that is meant to
+become public; a private repository nested in `hosts/` and ignored by
+the outer one depends on one `.gitignore` line, and `C-c v C` staged
+`hosts/` explicitly.  Decided: a settings folder outside the
+repository, `~/.config/mypks/` by default -- the usual place on Linux,
+as Doom Emacs uses `~/.config/doom/` -- and changeable in the settings.
+
+### What
+
+- `my/settings-directory`: env `MYPKS_DIR`, else `:directory` of
+  `~/.emacs.d/mypks-local.eld`, else `~/.config/mypks/`.  Holds
+  `hosts/<host>/custom.el` and `ui-state.el`, as before.
+- `my/settings-folder`, *Folder of these settings*, at the top of the
+  MyPKS tree: shows the folder in use; a change is stored in
+  `mypks-local.eld` (custom.el lives inside the folder, so it cannot
+  hold its own location) with the folder in use as `:previous`, and
+  takes effect at the next start, which copies the settings over and
+  reports it.  The old folder is left as it is.
+- First start: settings copied from the previous folder, else from
+  `~/.emacs.d/hosts/` (patch 2026-10-14l), else from the old shared
+  `custom.el` and `ui-state.el`; otherwise the question or an empty file
+  as before.  The report says whether a git repository backs the
+  folder up, and how to make one do so.
+- `mypks-local.eld` also holds `:host` (`C-c n , u`), replacing the
+  one-line file `host`, which is still read.
+- 07-git.el commits the settings folder when it is a repository of its
+  own (`my/settings--repository-directories`); inside the notes
+  repository it is committed with the notes.
+- `my/commit-config-now` no longer stages `hosts/`; `.gitignore` lists
+  `/hosts/` and `/mypks-local.eld`.
+- BACKLOG.org: the public-repository plan updated -- the settings folder
+  inside the notes repository here, no third repository.
+
+Verified in batch: after 2026-10-14l (settings in `~/.emacs.d/hosts/`
+for two machines) the first start copies both to `~/.config/mypks/`,
+keeps the values, reports, and says no repository backs it up; the
+second start reports nothing; setting the folder to `~/notes/.mypks/`
+in a running session stores it with `:previous`, the next start copies
+the settings there and clears `:previous`; Customize shows the folder
+in use.
+
+---
 ## Session 2026-10-14l — One settings folder per machine (step 3)
 
 ### Why
