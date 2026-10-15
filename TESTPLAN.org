@@ -153,64 +153,64 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
       in =~/.emacs.d/backups/= (names starting =!home!<user>!notes!=);
       move them to =~/notes/.backups/= if wanted.
 
-** R10. The settings folder [0/7]
-- [ ] First start after the patch on the first machine: DONE report "Settings now
+** R10. The settings folder [7/7]
+- [X] First start after the patch on the first machine: DONE report "Settings now
       in ~/.config/mypks/", copied from =~/.emacs.d/hosts/=, with the
       note that no git repository backs it up.  =ls ~/.config/mypks/hosts=
       lists its host name; every setting as before.
-- [ ] Save any value in =C-c n , ,=: it lands in
+- [X] Save any value in =C-c n , ,=: it lands in
       =~/.config/mypks/hosts/<host>/custom.el= (=C-c n , f= opens it);
       =git status= in =~/.emacs.d= shows nothing new.
-- [ ] /Folder of these settings/ (top of =C-c n , ,=) = =~/notes/.mypks/=,
+- [X] /Folder of these settings/ (top of =C-c n , ,=) = =~/notes/.mypks/=,
       Apply: report "from the next start ...".  Restart: DONE report,
       settings copied, =~/.config/mypks/= left as it is.  After the next
       idle auto-commit, =git -C ~/notes log -1 --stat= lists
       =.mypks/hosts/<host>/custom.el=.
-- [ ] =C-c n f n= and the statistics do not show anything from
+- [X] =C-c n f n= and the statistics do not show anything from
       =.mypks/= (dot folder).
-- [ ] The second machine after a pull (before the =git rm= below, or it asks which
+- [X] The second machine after a pull (before the =git rm= below, or it asks which
       machine to copy from): DONE report, settings copied from the old
       =custom.el= into its =~/.config/mypks/=.  The folder setting is
       per installation: set /Folder of these settings/ to
       =~/notes/.mypks/= there too, restart -- copied there next to
       the first machine's.
-- [ ] After the second machine has started once: in =~/.emacs.d= =git rm -r hosts
+- [X] After the second machine has started once: in =~/.emacs.d= =git rm -r hosts
       custom.el ui-state.el=, commit; both start with their settings.
-- [ ] =C-c n , u= → the first machine's name on the second, restart:
+- [X] =C-c n , u= → the first machine's name on the second, restart:
       it reads the first machine's file; =C-c n , u= → its own name returns.
 
-** R11. Favourites, recent changes, menus [0/7]
-- [ ] =C-c n , ,=, put point on /Ask before deleting notes/, =C-c n , +=:
+** R11. Favourites, recent changes, menus [7/7]
+- [X] =C-c n , ,=, put point on /Ask before deleting notes/, =C-c n , +=:
       added; =C-c n , *= shows it in its own buffer.  =C-c n , -= removes.
-- [ ] Change two settings in Customize (Apply), one with Save:
+- [X] Change two settings in Customize (Apply), one with Save:
       =C-c n , r= lists both, newest first.
-- [ ] =C-c n , z= on one: back to its old value; after a restart the
+- [X] =C-c n , z= on one: back to its old value; after a restart the
       list is still there (=recent-settings.eld= in the settings folder).
-- [ ] =C-c n , n= opens Notes folder and silos; =C-c n , o= says every
+- [X] =C-c n , n= opens Notes folder and silos; =C-c n , o= says every
       folder with notes is a silo (or asks about one).
-- [ ] =C-c n i i=: the file prompt starts in =~/Obrazy/=.
-- [ ] =python3 hooks/lint.py menus= passes; adding an interactive
+- [X] =C-c n i i=: the file prompt starts in =~/Obrazy/=.
+- [X] =python3 hooks/lint.py menus= passes; adding an interactive
       =my/test= command mentioned in function_helper.org without a menu
       entry makes it fail (then remove it).
-- [ ] =git commit= runs the =menus= check (pre-commit output).
+- [X] =git commit= runs the =menus= check (pre-commit output).
 
-** R12. Cleaning: personal check and generic defaults [0/7]
-- [ ] =private-strings.txt= in the settings folder (one entry per
+** R12. Cleaning: personal check and generic defaults [7/7]
+- [X] =private-strings.txt= in the settings folder (one entry per
       line, =re:= for a regular expression):
       =python3 hooks/lint.py personal= passes.
-- [ ] Add a line containing a listed string to any file,
+- [X] Add a line containing a listed string to any file,
       =git commit= is refused by the =personal= check; remove it.
-- [ ] Rename the settings folder's list away: the check passes with
+- [X] Rename the settings folder's list away: the check passes with
       "no list" and the commit goes through; rename it back.
-- [ ] =C-c n , ,=, Tools > Git: /Project git remote format/ is "No
+- [X] =C-c n , ,=, Tools > Git: /Project git remote format/ is "No
       server"; a new writing project (=C-c n p=) gets a local
       repository and the message that no server is configured.  Set the own server
       URL (with =%s=), Save: the next new project gets the remote.
-- [ ] Bibliography: the Zotero folder option holds the own path after
+- [X] Bibliography: the Zotero folder option holds the own path after
       it is set and saved; Citar opens an entry's attachment from it.
-- [ ] Obsidian import: the vault option holds the own path after it is
+- [X] Obsidian import: the vault option holds the own path after it is
       set; the import prompt starts there.
-- [ ] Notes: /Starting keywords/ shows the list; add one, Apply:
+- [X] Notes: /Starting keywords/ shows the list; add one, Apply:
       =C-c n c n= offers it at once without a restart.
 
 * Part A -- notes and their folders
@@ -381,45 +381,45 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 - [X] Positions: =M-x my/set-writing-position-upper= / =lower= /
       =center=.
 
-** B2. Theme, fonts, faces [0/7]
-- [ ] Current line pink (=#f1d5d0=) on modus-operandi-tinted;
+** B2. Theme, fonts, faces [7/7]
+- [X] Current line pink (=#f1d5d0=) on modus-operandi-tinted;
       =C-c u t= to dark and back: pink returns.
-- [ ] =F4= / =F5= / =S-F4= cycle themes; =C-c u T= select;
+- [X] =F4= / =F5= / =S-F4= cycle themes; =C-c u T= select;
       =C-c u m= / =C-c u M= favourites; =C-c u R= repair.
-- [ ] Fonts per silo: journal Playpen, pks Source Sans 3, docu
+- [X] Fonts per silo: journal Playpen, pks Source Sans 3, docu
       JetBrains Mono.
-- [ ] Headings sizes and colours, Org blocks wash, links not underlined.
-- [ ] =C-c n v p= padding; =C-c n v c= centred text; =C-c n v i= indent
+- [X] Headings sizes and colours, Org blocks wash, links not underlined.
+- [X] =C-c n v p= padding; =C-c n v c= centred text; =C-c n v i= indent
       headings; =C-c n v e= emphasis markers; =C-c n v m= images.
-- [ ] =C-c n v T= link tooltips on hover.
-- [ ] Line numbers relative; fill column 95 in notes.
+- [X] =C-c n v T= link tooltips on hover.
+- [X] Line numbers relative; fill column 95 in notes.
 
-** B3. Mode line and tabs [0/6]
-- [ ] Word count and standard pages in text buffers; region count with
+** B3. Mode line and tabs [6/6]
+- [X] Word count and standard pages in text buffers; region count with
       an active region.
-- [ ] =!DEL= only while deletion questions are off.
-- [ ] Pinned buffer (=C-c d k=) shows its pin.
-- [ ] Journal commands land in the Journal tab; new notes in new tabs;
+- [X] =!DEL= only while deletion questions are off.
+- [X] Pinned buffer (=C-c d k=) shows its pin.
+- [X] Journal commands land in the Journal tab; new notes in new tabs;
       =C-x t 0= returns.
-- [ ] Detach a buffer / tab to a separate frame.
-- [ ] Window splitting commands behave as documented.
+- [X] Detach a buffer / tab to a separate frame.
+- [X] Window splitting commands behave as documented.
 
-** B4. Session and settings [0/6]
-- [ ] =C-c d s= save session; restart restores buffers and tabs;
+** B4. Session and settings [6/6]
+- [X] =C-c d s= save session; restart restores buffers and tabs;
       =C-c d p= shows what the next save keeps.
-- [ ] A setting changed in =C-c n ,= and saved survives a restart.
-- [ ] Settings areas all open; options show their documentation.
-- [ ] Persisted UI state (theme, font height) survives a restart.
-- [ ] Startup time comparable to the one noted in Preparation.
-- [ ] =C-c n h= opens =function_helper.org= in a new tab.
+- [X] A setting changed in =C-c n ,= and saved survives a restart.
+- [X] Settings areas all open; options show their documentation.
+- [X] Persisted UI state (theme, font height) survives a restart.
+- [X] Startup time comparable to the one noted in Preparation.
+- [X] =C-c n h= opens =function_helper.org= in a new tab.
 
-** B5. Typing aids [0/4]
-- [ ] Spelling underlines as you type in Polish notes; =C-c s=
+** B5. Typing aids [4/4]
+- [X] Spelling underlines as you type in Polish notes; =C-c s=
       corrects the previous word; =C-c S= adds it to the dictionary.
-- [ ] Spelling toggle (=C-c n t T=) on and off.
-- [ ] Typing analytics (=C-c y=) record and report; see R7 for the
+- [X] Spelling toggle (=C-c n t T=) on and off.
+- [X] Typing analytics (=C-c y=) record and report; see R7 for the
       keystroke log, off by default since 2026-10-14.
-- [ ] Keybindings help and the NuPhy Caps Lock layer.
+- [X] Keybindings help and the NuPhy Caps Lock layer.
 
 * Part C -- a clean configuration (later)
 As in BACKLOG.org: =git worktree add ~/emacs-clean -b clean-config=,
