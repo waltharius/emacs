@@ -3554,8 +3554,8 @@ timeout and the symptom would be an editor that will not close.
 
 ** Several machines: pulling
 
-The notes are edited on more than one machine (azazel, baal) and travel
-only through the local GitLab, never through Syncthing: Syncthing would
+The notes are edited on more than one machine and travel only through
+the local GitLab, never through Syncthing: Syncthing would
 also copy =.git/= while git is writing to it, and leaves
 =*.sync-conflict-*= files where git can merge or at least point at the
 exact lines.
@@ -3787,13 +3787,14 @@ interface. See https://docs.gitlab.com/topics/git/project
 
 ** Credentials: SSH, and why not HTTP
 
-The default remote is
-=ssh://git@gitlab.home.lan:2424/heniekk/%s.git=, the form every
-existing repository on the instance already uses. The key exists and
-is already deployed: =modules/services/ssh.nix= in the NixOS
-configuration writes =~/.ssh/id_ed25519_gitlab= from sops and matches
-it to that host, which LAN DNS resolves to 192.168.50.46. Nothing new
-is stored anywhere.
+=my/project-git-remote-format= has no default: set it once in
+/Tools/ → /Git/ → /Project repositories/, to the form the existing
+repositories on the server already use, for example
+=ssh://git@git.example.lan:2222/<namespace>/%s.git=.  Until then a new
+project gets a local repository with its first commit, and nothing is
+pushed.  With SSH an existing key does the work — deployed, on NixOS,
+by the system configuration (from sops, say) and matched to the host in
+=~/.ssh/config= — and nothing new is stored anywhere.
 
 GitLab's web interface offers HTTP clone URLs, and those would ask for
 a password on every push. The usual answer cannot be given on this
@@ -3803,15 +3804,15 @@ system:
 : error: could not lock config file ~/.config/git/config: Read-only file system
 
 That is home-manager working as intended — the file is a symlink into
-the Nix store. Global git settings belong in
-=users/marcin/base/git.nix=, which also rewrites the instance's HTTP
+the Nix store. Global git settings belong in the user's =git.nix= of
+the NixOS configuration, which can also rewrite the instance's HTTP
 URLs to the SSH form, so a URL copied out of the clone box works
 without being edited by hand. Existing remotes are unaffected: the
 rewrite fires only on a URL beginning with one of the HTTP prefixes,
 and an =ssh://= URL does not.
 
-The port is part of the remote format because the instance does not
-listen on 22.
+A port belongs in the remote format when the instance does not listen
+on 22.
 
 Git is run with =GIT_TERMINAL_PROMPT=0=, so a missing credential fails
 immediately with a line in the log rather than leaving a background
@@ -4173,7 +4174,7 @@ two options say where Zotero's data is:
 | Option                         | Default                        | Meaning                                         |
 |--------------------------------+--------------------------------+-------------------------------------------------|
 | =my/bibliography-files=        | =("refs.bib")=                 | the .bib files Better BibTeX exports; several are read together |
-| =my/zotero-storage-directory=  | =~/syncthing/Zotero/storage/= | Zotero's attachments, where =C-c x f= finds the PDF; nil for none |
+| =my/zotero-storage-directory=  | =~/Zotero/storage/=           | Zotero's attachments, where =C-c x f= finds the PDF; nil for none |
 
 A *relative* bibliography name is relative to the notes folder and
 follows it, so =refs.bib= beside the notes moves with them; an
@@ -4718,8 +4719,8 @@ contain a space, which the old prompt could not express.
 
 Vertico preselects the first matching candidate, and =RET=
 (=vertico-exit=) submits the *selected candidate*, not what was typed.
-Typing =zuzi= where =zuzia= exists therefore filed the note under
-=zuzia=. Only the element at point is completed, which is why placing
+Typing =film= where =filmy= exists therefore filed the note under
+=filmy=. Only the element at point is completed, which is why placing
 the new keyword anywhere but last in the list used to be the way
 through.
 
@@ -4783,6 +4784,13 @@ against how often old ones are reused.
 ;; nil = leave Vertico's own TAB/arrow bindings alone in these prompts
 (setq my/notes-keyword-tab-navigates t)
 #+end_src
+
+The keywords offered before any note uses them are an option,
+/Starting keywords/ (=my-denote-keywords=, 00-core.el, group Notes),
+passed to =denote-known-keywords=.  Keywords found in existing note
+file names are offered as well (=denote-infer-keywords=), so the list
+matters mostly for a new notes folder.  An added keyword is offered at
+once; a removed one stays offered until the next start.
 
 Without Vertico the setting has no reader and the prompt is Denote's
 unmodified. Without Denote, =my/notes-read-keywords= falls back to the
@@ -7813,7 +7821,7 @@ Plain nginx:
 #+begin_src nginx
 server {
     listen 80;
-    server_name blog.home.lan;
+    server_name blog.example.lan;
     root /var/www/blog;
     index index.html;
     location / { try_files $uri $uri/ =404; }
@@ -7826,7 +7834,7 @@ NixOS equivalent (=USER= is the account rsync logs in as):
 #+begin_src nix
 services.nginx = {
   enable = true;
-  virtualHosts."blog.home.lan".root = "/var/www/blog";
+  virtualHosts."blog.example.lan".root = "/var/www/blog";
 };
 systemd.tmpfiles.rules = [ "d /var/www/blog 0755 USER nginx -" ];
 #+end_src
@@ -8181,8 +8189,8 @@ in it, and =07-git.el= commits it like the notes
 (=my/settings--repository-directories=).  The start-up report says
 which applies.
 
-*<host>* is the machine's short host name, lower case (=azazel=,
-=baal=).  After a reinstall the same machine finds its settings again,
+*<host>* is the machine's short host name, lower case (=laptop=,
+=desktop=).  After a reinstall the same machine finds its settings again,
 and two machines never write into each other's file; a value wanted on
 both is saved on both.  =MYPKS_HOST=, or =C-c n , u= (stored in
 =mypks-local.eld=), makes an Emacs use another machine's folder.

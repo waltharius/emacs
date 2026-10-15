@@ -21,6 +21,52 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-15g — Cleaning: personal strings out, personal defaults generic
+
+### Why
+
+Step 1 of the public repository (BACKLOG.org): the `personal` check of
+2026-10-15f found 72 lines in nine files.  Some were text -- names,
+host names, addresses in examples -- and some were defaults that only
+fit one person: a GitLab server, two folders under a Syncthing share.
+A default that points at someone else's server is worse than none.
+
+### What
+
+- Text: host names → "laptop"/"desktop" or `<host>`, home paths →
+  `~/` or `/home/<user>/`, the local GitLab address, port, namespace
+  and SSH key name → `git.example.lan:2222/<namespace>`, the blog
+  address → `blog.example.lan`, a machine model → "old thin client",
+  a personal keyword in an example → `filmy`.  CHANGELOG.md,
+  TESTPLAN.org, BACKLOG.org, function_helper.org, HOOKS-README.md,
+  07-git.el, 05-notes.el, both Python importers.
+- `my/project-git-remote-format` (39-project-git.el): default nil, "No
+  server".  `my/project-git-init` then keeps the project local and says
+  so; `my/project-git-set-remote` refuses with a pointer to the option.
+- `my/zotero-storage-directory` (17-bibliography.el): `~/Zotero/storage/`,
+  Zotero's own default.
+- `my/obsidian-vault-directory` (42-obsidian-import.el), and the two
+  Python importers: `~/Obsidian/`.
+- `my-denote-keywords` (00-core.el): from `defvar` to an option,
+  /Starting keywords/ in group Notes.  It was the one personal list
+  left in code; 04-denote.el passes it to `denote-known-keywords` as
+  before.  A keyword added in Customize is offered at once.
+- BACKLOG.org: public-repository steps 1 and 2 marked done; new entry
+  "Polish for non-technical users".  TESTPLAN.org: R12.
+
+### After applying
+
+Own values go back through `C-c n , ,` (saved in the settings folder,
+not the repository): the server URL, the Zotero and Obsidian folders.
+Without them project repositories stay local, and Citar and the
+Obsidian import look in the generic folders.
+
+### Not done
+
+The history still holds the old values (`custom.el`, documentation).
+Step 4 -- a public repository with a new history -- is what removes them.
+
+---
 ## Session 2026-10-15f — A check for personal strings before every commit
 
 ### Why
@@ -263,11 +309,11 @@ Also a way to use another machine's settings from the menu.
   files of one machine together and is copied as one.
 
 Verified in batch with fake machine names: the move from the old
-`custom.el` on "azazel" (values and UI state kept, report), a new
-"baal" copying azazel's settings after the question, a third machine
+`custom.el` on "laptop" (values and UI state kept, report), a new
+"desktop" copying laptop's settings after the question, a third machine
 starting with the defaults (header file, report), a broken settings
 file reported as FAILED with start-up continuing, and `my/host-settings-use`
-making the next start read azazel's folder.
+making the next start read laptop's folder.
 
 ---
 ## Session 2026-10-14k — Note backups in the notes folder again
@@ -278,7 +324,7 @@ Found while adding the bibliography option: `custom.el` now holds
 `my-notes-dir` as `"~/notes"`, as typed in Customize.  The backup and
 autosave lists take regexps matched against the absolute file name,
 and the notes folder was put there as written: `"~/notes"` never
-matches `/home/marcin/notes/...`.  Since the folder was first saved in
+matches `/home/<user>/notes/...`.  Since the folder was first saved in
 Customize, notes have been backed up and autosaved under
 `~/.emacs.d/backups/` and `autosaves/` instead of `<notes>/.backups/`.
 Nothing was lost -- the backups exist, in the other place.  With the
@@ -330,8 +376,8 @@ idle delay leaves one timer with the new delay.
 ### Why
 
 The Zotero export was written into the package settings as
-`<notes>/refs.bib`, and the attachments folder as
-`~/syncthing/Zotero/storage/`.  Some keep the .bib beside the notes, so
+`<notes>/refs.bib`, and the attachments folder as a fixed path in a
+Syncthing folder.  Some keep the .bib beside the notes, so
 that it travels with them; others keep it in Zotero's own folder.  It
 should be a choice in the settings, not an edit of the module.
 
@@ -340,7 +386,7 @@ should be a choice in the settings, not an edit of the module.
 - `my/bibliography-files` (default `("refs.bib")`): relative names are
   relative to the notes folder and follow it, absolute names stay;
   several files are read together.  `my/zotero-storage-directory`
-  (default `~/syncthing/Zotero/storage/`, or none).  Both in *Writing →
+  (a folder, or none; default `~/Zotero/storage/` since 2026-10-15g).  Both in *Writing →
   Bibliography and citations*, before the CSL options, applied at once.
 - `my/bibliography-apply` sets `citar-bibliography`,
   `citar-library-paths` and `org-cite-global-bibliography` from the
@@ -887,7 +933,8 @@ terminal frame the mode line shows `!DEL ` only while off.
 ### Why
 
 Turning writing mode on for the first time after a start took several
-seconds on Azazel and blocked Emacs for much longer on baal (Wyse 5470).
+seconds on the main laptop and blocked Emacs for much longer on the
+slower second machine (an old thin client).
 Later toggles were instant.
 
 ### Cause, most likely
@@ -898,7 +945,7 @@ Emacs displays a character the current font lacks, it asks fontconfig
 for every installed font covering it; with google-fonts installed that
 is thousands of files. The cost is paid once per session, which matches
 "slow the first time only", and scales with machine speed, which
-matches baal. Not measured on the affected machines; TESTPLAN.org B1
+matches the slower machine. Not measured on the affected machines; TESTPLAN.org B1
 has the one-line check (`benchmark-run` on inserting the character).
 `inhibit-compacting-font-caches` is already t (03b-fonts.el), so the
 remaining cost is the search itself.
@@ -994,7 +1041,7 @@ silo is in BACKLOG.org.
 Exporting a journal note with three photographs to PDF failed after
 LuaLaTeX had set all pages, while writing the file:
 
-    </home/marcin/nixos/fonts/PlaypenSansHebrew-Bold.ttf>
+    </home/<user>/nixos/fonts/PlaypenSansHebrew-Bold.ttf>
     ! error: (file ) (type 2): cannot find file ''
     ! ==> Fatal error occurred, no output PDF file produced!
 
@@ -1038,7 +1085,7 @@ per class.
 
 ### Rejected
 
-- **`Path=/home/marcin/nixos/fonts/` in the preamble**, as suggested in
+- **`Path=/home/<user>/nixos/fonts/` in the preamble**, as suggested in
   the external diagnosis. Works, but writes one machine's path into the
   configuration; the files are already in a scanned directory.
 - **The variable font by file name.** It is the build whose embedding is
@@ -1768,8 +1815,8 @@ isolation.
 
 ### Why
 
-The notes are now edited on two machines, azazel and baal (a laptop for
-writing). Auto-commit only committed and pushed. The second machine kept
+The notes are now edited on two machines, a main laptop and a second
+one for writing. Auto-commit only committed and pushed. The second machine kept
 writing on top of the state it had when Emacs started: its push was
 rejected, its automatic commits diverged from the server, and the only
 trace was the `*auto-commit*` buffer, which nobody reads in an idle
@@ -4415,13 +4462,13 @@ offers HTTP. On this system that is the wrong half of the answer:
 `git config --global credential.helper store` cannot be run at all,
 because home-manager writes `~/.config/git/config` as a read-only
 symlink into the Nix store. The setting would have to go into
-`users/marcin/base/git.nix`, and the password would then need a home
-of its own -- while `~/.ssh/id_ed25519_gitlab` already exists and is
-already deployed from sops.
+the user's `git.nix` in the NixOS configuration, and the password
+would then need a home of its own -- while an SSH key for the instance
+already exists and is already deployed from sops.
 
-The instance is reached at `ssh://git@gitlab.home.lan:2424/`, which is
-what its existing repositories already use, and `gitlab.home.lan`
-resolves on the LAN. `git.nix` also rewrites the HTTP forms the web
+The instance is reached over SSH on a non-standard port, which is what
+its existing repositories already use, and its host name resolves on
+the LAN. `git.nix` also rewrites the HTTP forms the web
 interface offers to that address, so a URL copied out of the clone box
 needs no editing. Existing remotes are untouched: an `insteadOf` rule
 fires only on a URL beginning with the string it names, and an
@@ -4429,13 +4476,13 @@ fires only on a URL beginning with the string it names, and an
 
 ### One change proposed and withdrawn
 
-An extra `ssh_config` match block for `192.168.50.46`, ordered ahead
-of the existing `192.168.50.*` wildcard so that the GitLab key would
-win over the tabby one.
+An extra `ssh_config` match block for the instance's IP address,
+ordered ahead of an existing wildcard for the local network so that the
+GitLab key would win over another one.
 
 Withdrawn. OpenSSH matches on the host as written on the command line,
-not on the address it resolves to, and every remote names
-`gitlab.home.lan` -- which has its own block already. The wildcard is
+not on the address it resolves to, and every remote names the host
+name -- which has its own block already. The wildcard is
 never consulted. The block would have guarded a case that does not
 arise, at the cost of a `lib` argument and an explicit DAG ordering in
 a file that works.
@@ -8063,8 +8110,8 @@ _Not compiled or run: written without an Emacs available._
 Two problems, one cause.
 
 A keyword that is a prefix of an existing keyword could not be created.
-Typing `zuzi` at the Denote keyword prompt preselected `zuzia`, and RET
-filed the note under `zuzia`. Vertico preselects the first matching
+Typing `film` at the Denote keyword prompt preselected `filmy`, and RET
+filed the note under `filmy`. Vertico preselects the first matching
 candidate and binds RET to `vertico-exit`, which submits the selected
 candidate rather than the input; only the element at point is completed,
 which is why placing the new keyword anywhere but last in the
@@ -10273,11 +10320,11 @@ concern handled in multiple files, causing load-order races and duplicated
 
 #### What changed
 
-1. **SEC-5: Removed hardcoded username `marcin`** from the hunspell
+1. **SEC-5: Removed hardcoded username** from the hunspell
    dictionary path. The path was previously:
 
    ```elisp
-   "/etc/profiles/per-user/marcin/share/hunspell"
+   "/etc/profiles/per-user/<user>/share/hunspell"
    ```
 
    Replaced with a runtime-computed path using `(user-login-name)`:

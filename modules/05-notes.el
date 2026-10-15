@@ -53,8 +53,8 @@
 ;; Vertico preselects the first matching candidate, and RET
 ;; (`vertico-exit') submits the SELECTED CANDIDATE rather than the
 ;; input.  A keyword that is a prefix of an existing one cannot then be
-;; created by typing it: "zuzi" preselects "zuzia" and RET files the
-;; note under "zuzia".  Only the element at point is completed, which
+;; created by typing it: "film" preselects "filmy" and RET files the
+;; note under "filmy".  Only the element at point is completed, which
 ;; is why putting the new keyword anywhere but last in the list used to
 ;; be the way through.
 ;;

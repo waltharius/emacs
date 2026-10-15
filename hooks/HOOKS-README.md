@@ -88,7 +88,7 @@ finds the settings: `MYPKS_DIR`, else `mypks-local.eld`, else
 # One entry per line, matched ignoring case.
 yourname
 your-laptop
-home.lan
+example.lan
 # re: starts a regular expression; a comment is a line of its own
 re:\bsecond-host\b
 ```

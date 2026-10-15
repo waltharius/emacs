@@ -1625,13 +1625,26 @@ so pks and docu at the same value do not produce the same column.
 Raised from 80 for that reason.")
 
 ;; DENOTE KEYWORDS: Base list (Denote will add more automatically)
-(defvar my-denote-keywords
+(defcustom my-denote-keywords
   '("journal" "docu" "wellbeing" "esej" "philosophy"
     "zettel" "osoba" "projekt" "lektura" "filozof"
     "skroty")
-  "Base keyword list for Denote.
-With denote-infer-keywords enabled, Denote will automatically
-add any new keywords found in existing notes.")
+  "Keywords Denote offers before any note uses them.
+Passed to `denote-known-keywords'.  With `denote-infer-keywords'
+enabled, Denote also offers every keyword found in the file names of
+existing notes, so the list matters mostly for a new notes folder.
+
+A keyword added here is offered at once; a removed one stays offered
+until the next start, and longer if a note still carries it."
+  :type '(repeat (string :tag "Keyword"))
+  :tag "Starting keywords"
+  :group 'mypks-notes
+  :set (lambda (symbol value)
+         (set-default symbol value)
+         (when (and (my/settings--live-p)
+                    (boundp 'denote-known-keywords))
+           (setq denote-known-keywords
+                 (delete-dups (append value denote-known-keywords))))))
 
 ;; FOLDERS ARE CREATED WHEN SOMETHING GOES INTO THEM
 ;; -------------------------------------------------

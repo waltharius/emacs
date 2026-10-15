@@ -108,7 +108,7 @@ against the disk, and the local GitLab exists for exactly that."
 (defcustom my/auto-commit-pull t
   "When non-nil, pull from the upstream at startup and before each push.
 
-The notes live on several machines (azazel, baal) and are synchronised
+The notes live on several machines and are synchronised
 through the local GitLab only.  Without pulling, the second machine
 keeps writing on top of an old state: its push is rejected and its
 automatic commits silently diverge from the server.  Pulling with

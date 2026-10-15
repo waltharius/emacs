@@ -17,7 +17,7 @@ root is =~/notes2= at that moment.
 - [X] A btrfs snapshot of the home subvolume taken today.
 - [X] All patches applied (=git log --oneline -15= in =~/.emacs.d=);
       restart; =*Messages*= has no error or backtrace.
-- [X] =M-x emacs-init-time= noted, on Azazel and on baal, for later
+- [X] =M-x emacs-init-time= noted, on both machines, for later
       comparison.
 - [X] =C-c n ,= opens the MyPKS tree with six areas (four since
       2026-10-14, see R1).
@@ -150,34 +150,34 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 - [ ] Edit and save a note twice in two sessions: =ls ~/notes/.backups/=
       has its backup; =~/.emacs.d/backups/= gets no new note backups.
 - [ ] Old note backups made since the folder was saved as =~/notes= are
-      in =~/.emacs.d/backups/= (names starting =!home!marcin!notes!=);
+      in =~/.emacs.d/backups/= (names starting =!home!<user>!notes!=);
       move them to =~/notes/.backups/= if wanted.
 
 ** R10. The settings folder [0/7]
-- [ ] First start after the patch on Azazel: DONE report "Settings now
+- [ ] First start after the patch on the first machine: DONE report "Settings now
       in ~/.config/mypks/", copied from =~/.emacs.d/hosts/=, with the
       note that no git repository backs it up.  =ls ~/.config/mypks/hosts=
-      lists azazel; every setting as before.
+      lists its host name; every setting as before.
 - [ ] Save any value in =C-c n , ,=: it lands in
-      =~/.config/mypks/hosts/azazel/custom.el= (=C-c n , f= opens it);
+      =~/.config/mypks/hosts/<host>/custom.el= (=C-c n , f= opens it);
       =git status= in =~/.emacs.d= shows nothing new.
 - [ ] /Folder of these settings/ (top of =C-c n , ,=) = =~/notes/.mypks/=,
       Apply: report "from the next start ...".  Restart: DONE report,
       settings copied, =~/.config/mypks/= left as it is.  After the next
       idle auto-commit, =git -C ~/notes log -1 --stat= lists
-      =.mypks/hosts/azazel/custom.el=.
+      =.mypks/hosts/<host>/custom.el=.
 - [ ] =C-c n f n= and the statistics do not show anything from
       =.mypks/= (dot folder).
-- [ ] baal after a pull (before the =git rm= below, or it asks which
+- [ ] The second machine after a pull (before the =git rm= below, or it asks which
       machine to copy from): DONE report, settings copied from the old
       =custom.el= into its =~/.config/mypks/=.  The folder setting is
       per installation: set /Folder of these settings/ to
-      =~/notes/.mypks/= on baal too, restart -- copied there next to
-      azazel's.
-- [ ] After baal has started once: in =~/.emacs.d= =git rm -r hosts
+      =~/notes/.mypks/= there too, restart -- copied there next to
+      the first machine's.
+- [ ] After the second machine has started once: in =~/.emacs.d= =git rm -r hosts
       custom.el ui-state.el=, commit; both start with their settings.
-- [ ] =C-c n , u= → =azazel= on baal, restart: baal reads azazel's file;
-      =C-c n , u= → =baal= returns.
+- [ ] =C-c n , u= → the first machine's name on the second, restart:
+      it reads the first machine's file; =C-c n , u= → its own name returns.
 
 ** R11. Favourites, recent changes, menus [0/7]
 - [ ] =C-c n , ,=, put point on /Ask before deleting notes/, =C-c n , +=:
@@ -193,6 +193,25 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
       =my/test= command mentioned in function_helper.org without a menu
       entry makes it fail (then remove it).
 - [ ] =git commit= runs the =menus= check (pre-commit output).
+
+** R12. Cleaning: personal check and generic defaults [0/7]
+- [ ] =private-strings.txt= in the settings folder (one entry per
+      line, =re:= for a regular expression):
+      =python3 hooks/lint.py personal= passes.
+- [ ] Add a line containing a listed string to any file,
+      =git commit= is refused by the =personal= check; remove it.
+- [ ] Rename the settings folder's list away: the check passes with
+      "no list" and the commit goes through; rename it back.
+- [ ] =C-c n , ,=, Tools > Git: /Project git remote format/ is "No
+      server"; a new writing project (=C-c n p=) gets a local
+      repository and the message that no server is configured.  Set the own server
+      URL (with =%s=), Save: the next new project gets the remote.
+- [ ] Bibliography: the Zotero folder option holds the own path after
+      it is set and saved; Citar opens an entry's attachment from it.
+- [ ] Obsidian import: the vault option holds the own path after it is
+      set; the import prompt starts there.
+- [ ] Notes: /Starting keywords/ shows the list; add one, Apply:
+      =C-c n c n= offers it at once without a restart.
 
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
@@ -347,14 +366,14 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 * Part B -- appearance and interface
 ** B1. Writing mode [6/6]
 - [X] =C-c n v w= first activation after a fresh start: time it on
-      Azazel and on baal.  Expected: immediate.
+      both machines.  Expected: immediate.
 - [X] Mode line: =W= right after the word and page count; gone after
       turning the mode off; messages without emoji.
 - [X] Typing keeps the line at the middle; scrolling and clicking are
       not disturbed.
 - [X] In a note with large images the line still holds its place;
       =C-c u i= hides the images.
-- [X] If the first activation is still slow on baal: in a fresh Emacs,
+- [X] If the first activation is still slow on the slower machine: in a fresh Emacs,
       =M-: (benchmark-run 1 (progn (insert "✍") (redisplay t)))= in
       =*scratch*=.  Seconds there mean font fallback for symbols is the
       cost; the emoji in other modules' messages are then worth
@@ -411,17 +430,17 @@ first note can be written.  This is the input for the welcome screen.
 
 * Findings
 # Date -- machine -- what was done -- what happened -- expected.
-2026-10-13 - azazel - init time - 2.671078 seconds (baal not available now)
-2026-10-14 - azazel - first pass, Part A - settings areas alphabetical,
+2026-10-13 - laptop - init time - 2.671078 seconds (second machine not available now)
+2026-10-14 - laptop - first pass, Part A - settings areas alphabetical,
   not by importance - fixed 2026-10-14a, retest R1.
-2026-10-14 - azazel - small settings needed a restart - fixed
+2026-10-14 - laptop - small settings needed a restart - fixed
   2026-10-14b (only the notes folder still does), retest R2.
-2026-10-14 - azazel - A1 refusal shown only as a buffer among others;
+2026-10-14 - laptop - A1 refusal shown only as a buffer among others;
   A2 orphan folder only in *Messages* - fixed 2026-10-14c, retest R3.
-2026-10-14 - azazel - skip to an empty root created journal/, pks/,
+2026-10-14 - laptop - skip to an empty root created journal/, pks/,
   docu/ - fixed 2026-10-14d, retest R4.
-2026-10-14 - azazel - planner followed the notes folder to ~/notes2;
+2026-10-14 - laptop - planner followed the notes folder to ~/notes2;
   agenda showed habits from both roots - fixed 2026-10-14e, retest R5.
-2026-10-14 - azazel - A8 export failed without csl/ - fixed
+2026-10-14 - laptop - A8 export failed without csl/ - fixed
   2026-10-14f, retest R6.
 

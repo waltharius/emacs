@@ -43,8 +43,9 @@ together.  Takes effect at once."
   :set (my/settings-apply-on-set #'my/bibliography-apply)
   :group 'my/bibliography)
 
-(defcustom my/zotero-storage-directory "~/syncthing/Zotero/storage/"
+(defcustom my/zotero-storage-directory "~/Zotero/storage/"
   "Folder holding the PDFs and other attachments Zotero stores.
+The default is where Zotero keeps them unless told otherwise.
 Where citar looks for the file of a reference (`C-c x f').  Nil for
 none.  Takes effect at once."
   :type '(choice (directory :tag "Folder") (const :tag "None" nil))

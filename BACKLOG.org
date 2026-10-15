@@ -20,9 +20,9 @@ settings folder per machine (2026-10-14l, outside the repository since
 2026-10-15a), and step 6, no machine-bound paths (2026-10-15d: every
 remaining path is an option; the image prompt finds the pictures folder
 through =xdg-user-dir=).  Left from step 3: =git rm -r hosts custom.el
-ui-state.el= once both machines have started once.  Defaults that are
-personal choices rather than paths (=~/syncthing/Obsidian/=, the blog
-sites) belong to the cleaning step of the public repository below.
+ui-state.el= once both machines have started once (done 2026-10-15e).
+Defaults that were personal choices rather than paths were made generic
+in the cleaning step below.
 
 ** TODO 4. Core defaults as a custom theme (=mypks-defaults=)
 Package variables the core sets with =setq= move into a custom theme,
@@ -77,15 +77,14 @@ ignored by it -- one wrong =.gitignore= line or a =git add hosts/= and
 the private files are in the public repository.
 
 Steps, in order:
-1. Cleaning: a pre-commit check refusing personal strings (names,
-   host names, the local GitLab address, note titles quoted in the
-   documentation), read from a list kept in the settings folder so the
-   list itself stays private.  Then fix what it finds: =/home/marcin/= → =~/=, the
-   GitLab address and SSH key names out of the documentation, quoted
-   note titles in CHANGELOG.md replaced by invented ones, Polish defaults
-   that are personal choices (journal title suffix, keyword list) moved
-   to options.
-2. Machine-bound paths as options (step 6 above) -- needed anyway.
+1. Done: cleaning (2026-10-15f, 2026-10-15g).  The pre-commit check
+   =personal= refuses the strings listed in =private-strings.txt= of
+   the settings folder; the list stays private.  Names, host names, the
+   home network's addresses, SSH key names and private paths are gone
+   from the files; the personal defaults (GitLab server, Zotero and
+   Obsidian folders, starting keywords) are options with generic
+   values.  Old versions in the history still hold them (step 4).
+2. Done: machine-bound paths as options (2026-10-15d).
 3. Done: settings outside the repository (2026-10-15a).
 4. The public repository created from a cleaned snapshot with a *new
    history*: the existing history holds personal data in old versions
@@ -100,6 +99,31 @@ Rejected for now: *one repository with a public and a private branch*
 =private=).  Workable, but every commit has to be made on the right
 branch, and one personal file committed on =main= is public at the next
 push.
+
+* Polish for non-technical users
+Asked 2026-10-15: someone weak in technical English may want to use
+this configuration.  Emacs has no localisation of documentation
+strings or Customize labels, so this is built, not switched on.
+
+In order of use for the effort:
+1. *A user guide in Polish* (=docs/pl/=, Org), task-oriented: how to
+   write a note, find one, link, capture, plan, export.  Separate from
+   function_helper.org, which explains the code; the guide explains the
+   work and names keys and menu entries only.  Most of the value, no
+   code.
+2. *A catalogue of interface strings*: menu labels, prompts, messages
+   and Customize tags/documentation read from one file per language,
+   chosen by an option (=my/interface-language=).  Format: gettext
+   =.po=, so the translation can be done in Poedit or a web tool
+   without touching Emacs Lisp.  Transient labels and prompts call a
+   lookup function; Customize documentation is replaced at load
+   (=variable-documentation= property), tags likewise.  Every module
+   touched, so in parts, starting with the main menu.
+3. *A plain English guide* derived from the Polish one, for users who
+   find function_helper.org too technical.
+
+The guide (1) can start at any time; the catalogue (2) after the names
+are settled (code review item B1), or every string key is renamed twice.
 
 * Agenda per notes folder
 Asked 2026-10-14 ("if it cannot be done, never mind").  Since

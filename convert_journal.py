@@ -3,13 +3,13 @@
 
 Usage:
     # Dry run (default): writes ONLY reports, no org files
-    python3 convert_journal.py "~/syncthing/Obsidian/00 Daily Notes/00 Finished" ~/notes/journal-migrated
+    python3 convert_journal.py "~/Obsidian/00 Daily Notes/00 Finished" ~/notes/journal-migrated
 
     # Convert a small sample for manual inspection
     python3 convert_journal.py SRC DST --write --limit 20
 
     # Full conversion
-    python3 convert_journal.py SRC DST --write --vault-root ~/syncthing/Obsidian
+    python3 convert_journal.py SRC DST --write --vault-root ~/Obsidian
 
 Requires pandoc on PATH. On NixOS:  nix-shell -p pandoc python3
 

@@ -60,31 +60,27 @@
   :tag "Project repositories"
   :group 'mypks-git)
 
-(defcustom my/project-git-remote-format
-  "ssh://git@gitlab.home.lan:2424/heniekk/%s.git"
-  "Remote URL of a project, with %s replaced by the project slug.
+(defcustom my/project-git-remote-format nil
+  "Remote URL of a project, with %s replaced by the project slug, or nil.
 
-The local GitLab instance, in the form its existing repositories
-already use.  Change the host here and every project created
+The form the server's existing repositories already use, for example
+ssh://git@git.example.lan:2222/<namespace>/%s.git -- any project's
+clone dropdown shows it.  Change it and every project created
 afterwards follows; projects that already exist keep the remote they
 were given, which is what `my/project-git-set-remote' is for.
 
-SSH rather than HTTP, because the key already exists and is already
-managed: modules/services/ssh.nix in the NixOS configuration deploys
-`~/.ssh/id_ed25519_gitlab' from sops and matches it to the
-`gitlab.home.lan' host, which DNS resolves on the LAN.
+Nil, the default: no server is configured.  A new project still gets
+a local repository with its first commit; nothing is pushed.
 
-HTTP would work as well, but every push would want credentials, and
-the usual answer -- `git config --global credential.helper store' --
-cannot be given on this system: `~/.config/git/config' is a read-only
-symlink into the Nix store, managed by home-manager.  It would have to
-go into users/marcin/base/git.nix, and the password would then need a
-home of its own.  A key that exists is simpler than a secret that does
-not.
-
-The port is explicit because the instance does not listen on 22.  Any
-project's clone dropdown shows the exact form."
-  :type 'string
+SSH rather than HTTP where a key exists: every HTTP push wants
+credentials, and on NixOS the usual answer -- `git config --global
+credential.helper store' -- cannot be given, because
+`~/.config/git/config' is a read-only symlink into the Nix store,
+managed by home-manager.  A key that exists is simpler than a secret
+that does not.  A port goes into the URL when the server does not
+listen on 22."
+  :type '(choice (string :tag "URL with %s for the slug")
+                 (const :tag "No server" nil))
   :group 'my/project-git)
 
 (defcustom my/project-git-remote-name "origin"
@@ -250,6 +246,8 @@ visible, and it names the thing that needs configuring."
 (defun my/project-git-set-remote (slug)
   "Give project SLUG its remote, replacing any existing one."
   (interactive (list (my/project-git--read-slug "Set remote of: ")))
+  (unless my/project-git-remote-format
+    (user-error "No server configured: set `my/project-git-remote-format' (C-c n , ,)"))
   (let ((dir (my/project-git--directory slug))
         (url (format my/project-git-remote-format slug)))
     (unless (and dir (my/project-git--repo-p dir))
@@ -268,7 +266,10 @@ the first commit if there is nothing committed yet, attaches the
 remote and pushes with upstream tracking.
 
 The push is what creates the GitLab project; nothing has to exist
-there first.  QUIET suppresses the report, for the creation hook."
+there first.  With `my/project-git-remote-format' nil there is no
+server: the repository and its first commit are made, nothing is
+attached or pushed.  QUIET suppresses the report, for the creation
+hook."
   (interactive (list (my/project-git--read-slug "Publish project: ")))
   (let ((dir (my/project-git--directory slug)))
     (unless (and dir (file-directory-p dir))
@@ -284,16 +285,20 @@ there first.  QUIET suppresses the report, for the creation hook."
       (my/project-git--run dir "add" "-A")
       (my/project-git--run dir "commit" "-m"
                            (format "Start project '%s'" slug)))
-    (my/project-git-set-remote slug)
-    (let ((result (my/project-git--run
-                   dir "push" "--set-upstream"
-                   my/project-git-remote-name my/project-git-branch)))
-      (cond
-       ((eq (car result) 0)
-        (unless quiet (message "%s pushed to %s" slug
-                               (format my/project-git-remote-format slug))))
-       (t
-        (message "%s: push failed, see %s" slug my/project-git-log-buffer))))))
+    (if (null my/project-git-remote-format)
+        (unless quiet
+          (message "%s: local repository only; no server configured (my/project-git-remote-format)"
+                   slug))
+      (my/project-git-set-remote slug)
+      (let ((result (my/project-git--run
+                     dir "push" "--set-upstream"
+                     my/project-git-remote-name my/project-git-branch)))
+        (cond
+         ((eq (car result) 0)
+          (unless quiet (message "%s pushed to %s" slug
+                                 (format my/project-git-remote-format slug))))
+         (t
+          (message "%s: push failed, see %s" slug my/project-git-log-buffer)))))))
 
 ;; The creation hook, so that nothing has to be remembered after
 ;; `my/writing-project-new'.  Adding to a hook rather than advising the

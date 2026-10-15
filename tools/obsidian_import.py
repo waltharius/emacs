@@ -16,7 +16,7 @@ Usage:
     python3 obsidian_import.py --write
 
     # Other vault or notes tree
-    python3 obsidian_import.py --vault ~/syncthing/Obsidian --notes ~/notes
+    python3 obsidian_import.py --vault ~/Obsidian --notes ~/notes
 
 Requires pandoc and PyYAML.  On NixOS:
     nix-shell -p pandoc python3Packages.pyyaml
@@ -50,7 +50,7 @@ except ImportError:                                     # pragma: no cover
 # CONFIG - decisions encoded here; change if needed
 # ----------------------------------------------------------------------
 
-VAULT_DEFAULT = "~/syncthing/Obsidian"
+VAULT_DEFAULT = "~/Obsidian"
 NOTES_DEFAULT = "~/notes"
 
 # Folder Obsidian's Daily notes plugin writes into, and the basket every

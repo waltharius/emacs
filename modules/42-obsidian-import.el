@@ -61,8 +61,9 @@
   :group 'mypks-notes)
 
 (defcustom my/obsidian-vault-directory
-  (expand-file-name "~/syncthing/Obsidian/")
-  "Obsidian vault shared with the phone by Syncthing."
+  (expand-file-name "~/Obsidian/")
+  "The Obsidian vault the import reads, for example one Syncthing shares
+with a phone."
   :type 'directory
   :group 'my/obsidian)
 
