@@ -1,4 +1,9 @@
 ;;; 19-philosophy-notes.el --- Philosophy note types (Denote) -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+;; Docs: ~/.emacs.d/function_helper.org::#menu-notes-philosophy
+
 ;;; Commentary:
 ;; Adds a dedicated submenu for creating philosophy notes, following the
 ;; note taxonomy from the study plan (Zettelkasten adapted to philosophy).

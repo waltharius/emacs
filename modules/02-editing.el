@@ -1,4 +1,9 @@
 ;;; 02-editing.el --- Modern editing conveniences -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#global-keybindings
+
 ;;; Commentary:
 ;; Modern editor features: line numbers, matching parens, smooth scrolling, etc.
 

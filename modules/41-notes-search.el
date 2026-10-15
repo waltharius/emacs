@@ -1,4 +1,8 @@
 ;;; 41-notes-search.el --- Advanced search across the notes -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Two commands, both thin layers over machinery that already exists:
 ;;

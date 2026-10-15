@@ -1,4 +1,9 @@
 ;;; 01-ui.el --- Interface settings and session management -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#session-management
+
 ;;; Commentary:
 ;; UI settings: menu bar, tabs, themes, desktop-save-mode
 ;; Session management: save/restore open files, window layouts, cursor positions

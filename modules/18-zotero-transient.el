@@ -1,4 +1,9 @@
 ;;; 18-zotero-transient.el --- Transient menu for bibliography/Zotero -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 17-bibliography
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#menu-zotero-detail
+
 ;;; Commentary:
 ;; Minimal transient menu for bibliographic note workflow.
 ;;

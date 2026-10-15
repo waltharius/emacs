@@ -1,4 +1,8 @@
 ;;; 44-image-display.el --- Hide inline images while writing -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; One command, `my/image-display-toggle', that shows or hides inline
 ;; images in the whole buffer and records the choice inside the note, so

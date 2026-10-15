@@ -1,4 +1,9 @@
 ;;; 13-centered-writing.el --- Simple centered cursor for writing -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#fn-my-toggle-writeroom
+
 ;;; Commentary:
 ;; Simple, reliable cursor centering that ONLY recenters when you type.
 ;; Mouse scrolling and all navigation work normally - no interference!

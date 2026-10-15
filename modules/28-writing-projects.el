@@ -1,4 +1,8 @@
 ;;; 28-writing-projects.el --- Writing projects: registry, membership, progress -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; A writing project is a directory under `my/writing-projects-directory'
 ;; containing one hub file named after the directory, plus subdirectories

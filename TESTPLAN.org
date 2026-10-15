@@ -213,6 +213,19 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 - [X] Notes: /Starting keywords/ shows the list; add one, Apply:
       =C-c n c n= offers it at once without a restart.
 
+** R13. Module contract [0/5]
+- [ ] =python3 hooks/lint.py modules= passes.
+- [ ] Remove =22-zettelkasten= from =MyPKS-Requires= in
+      =modules/24-readwise.el=: the check fails and names
+      =my/zettel-adopt=.  Undo.
+- [ ] Set =MyPKS-Optional: yes= in =modules/27-denote-identifiers.el=:
+      the check fails (15-workspace is core and needs it).  Undo.
+- [ ] In Emacs, =M-:= on
+      =(with-temp-buffer (insert-file-contents "~/.emacs.d/modules/24-readwise.el") (require 'lisp-mnt) (lm-header "MyPKS-Requires"))=
+      → ="01-ui 05-notes 22-zettelkasten"=.
+- [ ] Emacs starts as before (headers are comments; 47-repo-docs.el now
+      provides =47-repo-docs=): =C-c n x r= opens the repo-docs menu.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

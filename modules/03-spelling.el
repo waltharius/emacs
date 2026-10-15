@@ -1,4 +1,10 @@
 ;;; 03-spelling.el --- Spell checking configuration -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#menu-spelling
+
+;;; Commentary:
 ;;
 ;; Description: Hunspell (pl_PL + en_GB-large UTF-8) for spelling
 ;;              Flyspell for highlighting errors AS YOU TYPE

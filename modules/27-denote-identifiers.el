@@ -1,5 +1,9 @@
 ;;; 27-denote-identifiers.el --- Detect and repair duplicate Denote identifiers -*- lexical-binding: t; -*-
 
+;; MyPKS-Requires:
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#maintenance
+
 ;;; Commentary:
 ;; The Obsidian migration produced notes whose creation time was
 ;; unknown, so their identifier is the date plus T000000.  Journal notes

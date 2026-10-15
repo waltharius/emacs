@@ -1,4 +1,8 @@
 ;;; 45-standard-pages.el --- Standard pages of prose -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; How much text a note will amount to, measured in STANDARD PAGES.
 ;;

@@ -1,4 +1,8 @@
 ;;; 43-drill.el --- Spaced repetition with org-drill -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Flashcards kept in ordinary Denote notes, reviewed with org-drill.
 ;;

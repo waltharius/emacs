@@ -1,4 +1,9 @@
 ;;; 05b-journal-metrics.el --- Structured daily metrics for journal notes -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 05-notes
+;; MyPKS-Optional: yes
+;; Docs: ~/.emacs.d/function_helper.org::#fn-my-journal-set-metrics
+
 ;;; Commentary:
 ;; Daily metrics are stored as front-matter keywords at the top of the
 ;; journal file:

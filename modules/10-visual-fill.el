@@ -1,4 +1,9 @@
 ;;; 10-visual-fill.el --- Visual fill column: single source of truth -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#per-note-appearance
+
 ;;; Commentary:
 ;; ALL visual-fill-column and line-wrapping logic lives here.
 ;; No other module should set visual-fill-column-* variables.

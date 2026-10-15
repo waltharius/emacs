@@ -1,4 +1,8 @@
 ;;; 33-denote-hubs.el --- Collect notes under Denote hub notes -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; A HUB is an ordinary Denote note carrying the `hub' keyword in the
 ;; `__keyword' component of its file name.  Its body is a plain Org list

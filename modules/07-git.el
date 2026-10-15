@@ -1,4 +1,8 @@
 ;;; 07-git.el --- Git integration with auto-commit -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: no
+
 ;;; Commentary:
 ;; Magit, plus automatic commits and pushes for the repositories that
 ;; hold text rather than decisions.

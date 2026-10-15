@@ -1,4 +1,8 @@
 ;;; 22-zettelkasten.el --- Folgezettel sequences with denote-sequence -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Luhmann-style Zettelkasten layer on top of Denote, using the
 ;; official `denote-sequence' package (GNU ELPA, by Protesilaos).

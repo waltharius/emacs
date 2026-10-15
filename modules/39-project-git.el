@@ -1,4 +1,8 @@
 ;;; 39-project-git.el --- Project repositories: remote, fetch, staleness -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Every writing project is its own git repository.  28-writing-projects
 ;; creates it; this module gives it a remote, keeps an eye on whether it

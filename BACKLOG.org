@@ -81,8 +81,26 @@ conventions rather than a new format:
   after the configuration's own, so a module can be added without
   touching this repository.
 
-Order: the contract and its check (documents what most modules already
-do), then the headers in every module, then the loader and the menu.
+*Done 2026-10-16c*: the contract, the check =modules= and the headers
+in all modules (function_helper.org, /Module contract/).  19 modules
+are core, 33 optional.  =Package-Requires= left out: =use-package
+:ensure= installs the packages, and a second list would drift from it.
+
+Next, in order:
+1. *Decoupling* (contract rules 10 and 11): the entries of
+   12-transient.el and 08-keybindings.el that name other modules'
+   commands move into those modules, through =my/transient-append= and
+   their own keys.  Then spelling, capture, centred writing, the
+   dashboard, export, the bibliography with Zotero, and fixed tabs can
+   become optional.  Small ones along the way: the Readwise /zettel/
+   action guarded, so that Readwise does not need 22-zettelkasten.
+2. *A minor mode per module* (rule 12), the integrations first:
+   Obsidian import, Readwise, Zotero, blog, drill.
+3. *The loader*: =init.el= reads the headers, an option lists the
+   modules turned off, the order follows =MyPKS-Requires= (checked
+   against today's order first); the menu entry refuses or offers the
+   dependants.  With the start-up items of the code review.
+4. *Own modules* in =modules/= of the settings folder.
 
 ** TODO Welcome screen on first start
 A clean Emacs starting from this repository shows "Welcome to MyPKS":

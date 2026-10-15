@@ -1,4 +1,8 @@
 ;;; 32-web-links.el --- Insert web links with fetched titles -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Adds one command to fetch a page's <title> and insert it as an
 ;; Org-mode link: [[URL][Title]]. Uses org-web-tools (MELPA), so this

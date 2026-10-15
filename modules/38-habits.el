@@ -1,4 +1,8 @@
 ;;; 38-habits.el --- Habits: define, log without leaving the buffer, derive -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; A habit is ticked off without leaving whatever is being written.
 ;;

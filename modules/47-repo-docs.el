@@ -1,4 +1,8 @@
 ;;; 47-repo-docs.el --- Markdown docs of a git repository as a Hugo site -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; The Markdown files of one git repository -- by default the NixOS
 ;; configuration in ~/nixos -- served as a separate, read-only Hugo site
@@ -855,6 +859,6 @@ Only while the preview server runs: otherwise nobody is looking, and
   (my/transient-append 'my/notes-export-menu "Q"
                        '("r" "Repo docs (Hugo) →" my/repo-docs-menu)))
 
-(provide 'repo-docs)
+(provide '47-repo-docs)
 
 ;;; 47-repo-docs.el ends here

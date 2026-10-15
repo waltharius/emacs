@@ -1,4 +1,9 @@
 ;;; 23-fixed-tabs.el --- Route commands to their own named tab -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 01-ui 05-notes
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#fixed-tabs
+
 ;;; Commentary:
 ;; Some activities recur often enough to deserve a permanent home: the
 ;; dashboard, the journal, the history listings.  This module makes the

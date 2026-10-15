@@ -1,4 +1,9 @@
 ;;; 03b-fonts.el --- Font configuration, per silo -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+;; Docs: ~/.emacs.d/function_helper.org::#org-faces
+
 ;;; Commentary:
 ;; Three base faces, and a per-silo override of one of them.
 ;;

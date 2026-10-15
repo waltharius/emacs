@@ -1,4 +1,9 @@
 ;;; 05-notes.el --- Essential note creation functions -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#menu-notes-main
+
 ;;; Commentary:
 ;; Only the note functions you actually use:
 ;; - Journal (daily)

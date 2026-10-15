@@ -1,4 +1,9 @@
 ;;; 00-core.el --- Package system and core variables -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#settings
+
 ;;; Commentary:
 ;; Core configuration: package management and essential variables
 ;; This file MUST be loaded first!

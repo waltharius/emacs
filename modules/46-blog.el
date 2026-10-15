@@ -1,4 +1,8 @@
 ;;; 46-blog.el --- Publish selected notes as Hugo sites -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Selected Denote notes become pages of one or more static Hugo sites,
 ;; built locally and, for sites that have a server, copied there with

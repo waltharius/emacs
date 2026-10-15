@@ -1,4 +1,8 @@
 ;;; 21-dashboards.el --- Historical note dashboards -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 01-ui
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Adds "This Day in History" and "This Day, Every Month" dashboards.
 ;; These views scan Denote identifiers (date-based file names) and

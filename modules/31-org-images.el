@@ -1,5 +1,8 @@
 ;;; 31-org-images.el --- Image attachments for notes -*- lexical-binding: t; -*-
 
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Pick an image from disk, shrink it, park it in ~/notes/attachments/
 ;; under the identifier of the note it is inserted into, and link it at

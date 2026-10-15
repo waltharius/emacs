@@ -1,4 +1,9 @@
 ;;; 06-capture.el --- Org-capture for ideas -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 05-notes
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#capture-system
+
 ;;; Commentary:
 ;; Quick capture system for ideas and fleeting thoughts.
 ;;

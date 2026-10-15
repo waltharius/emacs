@@ -1,5 +1,9 @@
 ;;; 25-inbox-review.el --- Review migrated Obsidian notes -*- lexical-binding: t; -*-
 
+;; MyPKS-Requires: 27-denote-identifiers
+;; MyPKS-Optional: yes
+;; Docs: ~/.emacs.d/function_helper.org::#menu-inbox
+
 ;;; Commentary:
 ;; Review queue for notes migrated from Obsidian into ~/notes/inbox
 ;; (a staging folder, deliberately NOT a Denote silo).  Modeled on the

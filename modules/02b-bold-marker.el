@@ -1,5 +1,9 @@
 ;;; 02b-bold-marker.el --- Obsidian-style inline markers for org-mode -*- lexical-binding: t; -*-
 
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+;; Docs: ~/.emacs.d/function_helper.org::#inline-markers
+
 ;;; Commentary:
 ;; Replicates Obsidian's inline formatting behavior for org-mode.
 ;;

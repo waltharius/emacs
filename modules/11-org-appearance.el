@@ -1,4 +1,9 @@
 ;;; 11-org-appearance.el --- Org-mode visual enhancements -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#org-faces
+
 ;;; Commentary:
 ;; Makes org-mode more visually pleasant:
 ;; - Hides emphasis markers (*bold*, /italic/, _underline_)

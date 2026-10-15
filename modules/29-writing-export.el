@@ -1,4 +1,8 @@
 ;;; 29-writing-export.el --- ODT and DOCX export -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 28-writing-projects
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Office-format export for text that leaves Emacs: a chapter sent to a
 ;; supervisor, an article sent to an editor.

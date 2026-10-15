@@ -6133,6 +6133,216 @@ appears, nothing was lost.
 Heading text, when some was typed, is kept as the first paragraph of the
 appended fragment.
 
+* Module contract
+:PROPERTIES:
+:CUSTOM_ID: module-contract
+:END:
+
+Every file in =modules/= keeps one contract, so that a module can be
+read, written by someone new, and -- once the loader exists -- turned
+off, without reading the rest of the configuration.  Models: the
+manifest and submission requirements of Obsidian plugins, Spacemacs
+layers (=layers.el= declares the layers a layer needs), Doom modules.
+The format is Emacs's own: library headers, which =lisp-mnt= reads
+without loading the file.
+
+The check =modules= of =hooks/lint.py= enforces the rules marked
+/checked/ before every commit; the rules themselves are in
+=hooks/module_contract.py=.
+
+** The header
+:PROPERTIES:
+:CUSTOM_ID: module-contract-header
+:END:
+
+#+begin_src emacs-lisp
+;;; 24-readwise.el --- Import Readwise highlights -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 01-ui 05-notes 22-zettelkasten
+;; MyPKS-Optional: yes
+;; Docs: ~/.emacs.d/function_helper.org::#menu-readwise
+
+;;; Commentary:
+;; What the module is for, and why it is built the way it is.
+
+;;; Code:
+
+;; ...
+
+(provide '24-readwise)
+;;; 24-readwise.el ends here
+#+end_src
+
+| Line                 | Meaning                                                          |
+|----------------------+------------------------------------------------------------------|
+| first line           | file name, one-line description, lexical binding                 |
+| =MyPKS-Requires:=    | modules this one cannot work without, separated by spaces; empty when it needs only 00-core.el, which is never listed |
+| =MyPKS-Optional:=    | =yes=: may be turned off; =no=: part of the core                 |
+| =Docs:=              | the section of this file describing the module                  |
+
+Read from Emacs, without loading the module:
+
+#+begin_src emacs-lisp
+(require 'lisp-mnt)
+(with-temp-buffer
+  (insert-file-contents "~/.emacs.d/modules/24-readwise.el")
+  (list (lm-summary)
+        (lm-header "MyPKS-Requires")    ; nil when empty
+        (lm-header "MyPKS-Optional")))
+#+end_src
+
+=MyPKS-Requires= does not change the load order yet: =init.el= still
+decides it.  The loader (BACKLOG.org, /Module toggles/) will read these
+headers.
+
+** Rules
+:PROPERTIES:
+:CUSTOM_ID: module-contract-rules
+:END:
+
+Checked:
+
+1. The file is named =NN-name.el=: two digits, at most one letter,
+   lower-case words joined by hyphens.
+2. The first line is =;;; NN-name.el --- Description -*- lexical-binding: t; -*-=.
+3. =;;; Commentary:= and =;;; Code:= are there, the file ends with
+   =(provide 'NN-name)= and =;;; NN-name.el ends here=.
+4. Before =;;; Code:= stand =MyPKS-Requires:=, =MyPKS-Optional:= (=yes=
+   or =no=) and a =Docs:= line; the =anchors= check makes sure the
+   section it names exists.
+5. =MyPKS-Requires= names existing modules, never the module itself,
+   never 00-core.el.
+6. Every =defgroup= has a parent among the =mypks-= areas, so that its
+   options appear in the settings menu (=C-c n , ,=).
+7. Every use of another module's function or variable that is not
+   guarded (next section) is declared in =MyPKS-Requires=.
+8. A module with =MyPKS-Optional: no= never requires one with =yes=:
+   what must stay on cannot need what may be turned off.
+9. No circles among the =MyPKS-Requires= lists.
+
+Not checked yet -- the target, reached module by module (BACKLOG.org,
+/Module toggles/):
+
+10. Menu entries only through =my/transient-append= or
+    =my/transient-replace=, called from the module itself.
+    12-transient.el and 08-keybindings.el still name the commands of
+    other modules directly, which is most of why the core is as large
+    as it is (below).
+11. Key bindings in the module they call.
+12. Nothing done at load but definitions.  What a module does while on
+    -- hooks, timers, advice, keys, menu entries -- is started by a
+    global minor mode =my/<name>-mode= and undone when the mode is
+    turned off, as =onload= and =onunload= do for an Obsidian plugin.
+    =unload-feature= is not relied on.
+13. Contributions to lists other modules own go through the hooks those
+    modules offer (=my/auto-commit-repository-sources=,
+    =my/tasks-extra-agenda-files=), never by editing the other module.
+
+** Dependencies: hard and guarded
+:PROPERTIES:
+:CUSTOM_ID: module-contract-dependencies
+:END:
+
+The check reads the code; it does not run it.  It records which module
+defines each function, variable, face and group, then looks at every
+use of a name defined in another module.  A use is /guarded/ -- the
+module still loads and either works or says what is missing -- when it
+is:
+
+#+begin_src emacs-lisp
+;; tested first, also inside and/or, cond clauses, when-let* bindings
+(when (fboundp 'my/zettel-adopt)
+  (my/zettel-adopt))
+(when-let* ((file (buffer-file-name))
+            ((boundp 'my/font-silo-styles)))
+  ...)
+
+;; refused with a message for the rest of the body
+(unless (fboundp 'my/denote-silo-identifier-table)
+  (user-error "27-denote-identifiers.el is not loaded"))
+
+;; deferred until the other module is there
+(with-eval-after-load '12-transient
+  (my/transient-append 'my/notes-menu "x" '("H" "Habits" my/habits-menu)))
+
+;; a variable named, not read
+(add-hook 'my/theme-after-load-hook #'my/fonts-apply)
+#+end_src
+
+Faces and groups always count as guarded: a missing face is drawn with
+the default one, an option without its group is still an option.  The
+arguments of =my/transient-append= and =my/transient-replace=, which
+skip a menu they cannot find, and of =remq=, =memq= and similar, which
+compare a name without calling it, count as guarded too.
+
+Every other use is /hard/, and the check asks for one of two fixes:
+
+#+begin_example
+24-readwise.el: uses my/zettel-adopt (and 1 more) from 22-zettelkasten.el
+without a guard; add 22-zettelkasten to MyPKS-Requires, or test
+(fboundp 'my/zettel-adopt) first
+#+end_example
+
+Guarding is better where the module can do without: then it needs
+nothing, and it can stay on when the other one is off.
+
+The reader errs towards hard -- a declared dependency that is not
+strictly needed costs one toggle, a missed one costs an error while
+working.  When it is wrong all the same, the pair goes into
+=MODULE_DEPENDENCY_OK= in =hooks/lint.py=, with the reason.
+
+** Core and optional today
+:PROPERTIES:
+:CUSTOM_ID: module-contract-core
+:END:
+
+Core, =MyPKS-Optional: no= (19): =00-core=, =01-ui=, =02-editing=, =03-spelling=, =04-denote=, =05-notes=, =06-capture=, =07-git=, =08-keybindings=, =10-visual-fill=, =11-org-appearance=, =12-transient=, =13-centered-writing=, =15-workspace=, =16-org-export=, =17-bibliography=, =18-zotero-transient=, =23-fixed-tabs=, =27-denote-identifiers=.
+
+These are the configuration itself (00-core, 01-ui, 02-editing,
+04-denote, 05-notes, 07-git, the key bindings and the main menu) and
+every module they need.  Several are core only because 12-transient.el
+or 08-keybindings.el name their commands: spelling, capture, centred
+writing, the dashboard, export, the bibliography and Zotero, fixed tabs.
+Moving those entries into the modules (rule 10) makes them optional.
+
+Optional (33):
+
+| Module | What | Requires |
+|---+---+---|
+| =02b-bold-marker= | Obsidian-style inline markers for org-mode | -- |
+| =03b-fonts= | Font configuration, per silo | -- |
+| =05b-journal-metrics= | Structured daily metrics for journal notes | =05-notes= |
+| =09-theme= | Theme configuration and light/dark switching | -- |
+| =14-typing-analytics= | Track typing patterns for ergonomic analysis | -- |
+| =19-philosophy-notes= | Philosophy note types (Denote) | -- |
+| =20-transclusion= | Obsidian-style transclusion for Denote notes | -- |
+| =21-dashboards= | Historical note dashboards | =01-ui= |
+| =22-zettelkasten= | Folgezettel sequences with denote-sequence | -- |
+| =24-readwise= | Import Readwise highlights | =01-ui= =05-notes= =22-zettelkasten= |
+| =25-inbox-review= | Review migrated Obsidian notes | =27-denote-identifiers= |
+| =26-maintenance= | Integrity checks and collection-wide repairs | =27-denote-identifiers= |
+| =28-writing-projects= | Writing projects: registry, membership, progress | -- |
+| =29-writing-export= | ODT and DOCX export | =28-writing-projects= |
+| =30-link-tooltips= | Cheap mouse tooltips over denote: links | -- |
+| =31-org-images= | Image attachments for notes | -- |
+| =32-web-links= | Insert web links with fetched titles | -- |
+| =33-denote-hubs= | Collect notes under Denote hub notes | -- |
+| =34-appearance= | Visual layer: padding, faces, motion cues | =03b-fonts= =09-theme= =10-visual-fill= |
+| =35-journal-gaps= | Days without a journal entry, or without metrics | -- |
+| =36-notes-stats= | Summary statistics for the collection | =26-maintenance= =27-denote-identifiers= |
+| =37-tasks= | Tasks: background capture, project routing, agenda files | -- |
+| =38-habits= | Habits: define, log without leaving the buffer, derive | -- |
+| =39-project-git= | Project repositories: remote, fetch, staleness | -- |
+| =40-markdown= | Markdown notes alongside Org | -- |
+| =41-notes-search= | Advanced search across the notes | -- |
+| =42-obsidian-import= | Import notes written in Obsidian | -- |
+| =43-drill= | Spaced repetition with org-drill | -- |
+| =44-image-display= | Hide inline images while writing | -- |
+| =45-standard-pages= | Standard pages of prose | -- |
+| =46-blog= | Publish selected notes as Hugo sites | -- |
+| =47-repo-docs= | Markdown docs of a git repository as a Hugo site | -- |
+| =48-settings-tools= | Favourite and recently changed settings | -- |
+
 * One symbol, one owner
 :PROPERTIES:
 :CUSTOM_ID: symbol-collisions

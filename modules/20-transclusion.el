@@ -1,4 +1,8 @@
 ;;; 20-transclusion.el --- Obsidian-style transclusion for Denote notes -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Wizard-style transclusion: pick a note (Denote completion, or any file
 ;; on disk), pick whole note / heading / paragraph, generate a stable

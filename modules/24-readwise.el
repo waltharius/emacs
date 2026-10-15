@@ -1,4 +1,9 @@
 ;;; 24-readwise.el --- Import Readwise highlights -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 01-ui 05-notes 22-zettelkasten
+;; MyPKS-Optional: yes
+;; Docs: ~/.emacs.d/function_helper.org::#menu-readwise
+
 ;;; Commentary:
 ;; Pulls highlights from Readwise into one Org file per book, kept in
 ;; `my/readwise-directory' (~/Downloads/readwise by default).

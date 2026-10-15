@@ -1,5 +1,8 @@
 ;;; 26-maintenance.el --- Integrity checks and collection-wide repairs -*- lexical-binding: t; -*-
 
+;; MyPKS-Requires: 27-denote-identifiers
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; A place to look after the collection rather than write in it: find
 ;; what the Obsidian migration broke, and repair it.

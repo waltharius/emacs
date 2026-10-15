@@ -403,6 +403,20 @@ def check_personal_strings():
     return problems
 
 
+# Uses of another module's code that hooks/module_contract.py reads as
+# hard but that are not, as (module, other module) pairs.  Each needs a
+# reason, as above.
+MODULE_DEPENDENCY_OK = {
+}
+
+
+def check_module_contract():
+    """Every module keeps the contract of hooks/module_contract.py."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import module_contract
+    return module_contract.check(dict(modules()), MODULE_DEPENDENCY_OK)
+
+
 def staged_files():
     out = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
@@ -434,6 +448,7 @@ CHECKS = {
     "changelog": (check_changelog, "modules staged without a CHANGELOG entry"),
     "coverage": (check_menu_coverage, "menu commands function_helper.org never mentions"),
     "menus": (check_menu_reachability, "documented commands no menu or key reaches"),
+    "modules": (check_module_contract, "module contract: headers, provide, declared dependencies"),
     "personal": (check_personal_strings, "personal strings (private-strings.txt) in files git would commit"),
 }
 

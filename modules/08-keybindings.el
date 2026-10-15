@@ -1,4 +1,9 @@
 ;;; 08-keybindings.el --- Keybindings reference -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 01-ui 03-spelling 05-notes 12-transient 13-centered-writing 16-org-export
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#global-keybindings
+
 ;;; Commentary:
 ;; This file does NOT define most keybindings itself — they live next to
 ;; the commands they trigger, scattered across modules (that's normal

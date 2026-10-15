@@ -1,4 +1,8 @@
 ;;; 40-markdown.el --- Markdown notes alongside Org -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Markdown files get the same visual treatment as Org notes -- headings,
 ;; links, emphasis, code blocks, inline images, the centred column, the

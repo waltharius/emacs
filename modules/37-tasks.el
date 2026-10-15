@@ -1,4 +1,8 @@
 ;;; 37-tasks.el --- Tasks: background capture, project routing, agenda files -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; A task is written without leaving whatever is being written.  One key
 ;; asks three questions -- what, when, and why -- and puts the answer

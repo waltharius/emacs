@@ -1,4 +1,9 @@
 ;;; 04-denote.el --- Denote configuration with multi-silo support -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#notes-root-and-silos
+
 ;;; Commentary:
 ;; Denote note-taking system with 3 silos:
 ;; - ~/notes/journal/ - Private daily notes

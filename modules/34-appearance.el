@@ -1,4 +1,8 @@
 ;;; 34-appearance.el --- Visual layer: padding, faces, motion cues -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 03b-fonts 09-theme 10-visual-fill
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; The cosmetic layer that sits on top of the theme.  Nothing here
 ;; changes what any command does; deleting this file from init.el

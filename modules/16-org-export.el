@@ -1,4 +1,9 @@
 ;;; 16-org-export.el --- Org export and PDF settings -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#menu-notes-export
+
 ;;; Commentary:
 ;; Global settings for org-mode export, primarily LaTeX/PDF output.
 ;;

@@ -1,4 +1,8 @@
 ;;; 09-theme.el --- Theme configuration and light/dark switching -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Two themes, one switch: `modus-operandi-tinted' (light, ochre base)
 ;; and `modus-vivendi-tinted' (dark, night-sky base).  Toggle with

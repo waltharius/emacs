@@ -1,4 +1,8 @@
 ;;; 42-obsidian-import.el --- Import notes written in Obsidian -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; A front end for tools/obsidian_import.py, which pulls notes written in
 ;; Obsidian on the phone into the org/Denote silos: daily notes are merged

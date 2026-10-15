@@ -1,4 +1,8 @@
 ;;; 48-settings-tools.el --- Favourite and recently changed settings -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Two ways back to a setting without searching the tree for it:
 ;;

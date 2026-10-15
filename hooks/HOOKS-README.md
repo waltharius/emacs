@@ -49,6 +49,7 @@ rollback or a deliberately partial commit.
 | `keys` | Does every key the `08-keybindings.el` help text lists get bound somewhere? | yes |
 | `changelog` | Were modules staged without a `CHANGELOG.md` entry? | yes |
 | `menus` | Is every command `function_helper.org` mentions reachable from a menu or a key — or listed, with its reason, under *Commands without a menu entry*? | yes |
+| `modules` | Does every module keep the module contract -- headers, `provide`, every hard dependency declared, nothing core needing something optional, no circles? | yes |
 | `personal` | Does a file git would commit contain a string from the private list `private-strings.txt` in the settings folder? | yes (passes when the list does not exist) |
 | `coverage` | Is every command a menu runs mentioned in `function_helper.org`? | no — advisory |
 | `private` | Is a `--` symbol called from outside its module? | no — advisory |
@@ -74,6 +75,25 @@ switch, and an entry there that is no longer an interactive command
 fails the check too, so the list cannot rot.  Only commands the manual
 mentions are checked: an undocumented command is the `coverage`
 check's business.
+
+### `modules`: the module contract
+
+The rules are in `hooks/module_contract.py` and described in
+`function_helper.org`, section *Module contract*.  Most of the check is
+form: the first line, the `MyPKS-Requires` and `MyPKS-Optional`
+headers, a `Docs:` line, `provide`.  The rest reads the code without
+running it: which module defines each function and variable, and which
+uses of them in other modules are not guarded by `fboundp`, `boundp`,
+`featurep` or `with-eval-after-load`.  Those must be declared:
+
+```text
+24-readwise.el: uses my/zettel-adopt (and 1 more) from 22-zettelkasten.el
+without a guard; add 22-zettelkasten to MyPKS-Requires, or test
+(fboundp 'my/zettel-adopt) first
+```
+
+A pair the reader gets wrong goes into `MODULE_DEPENDENCY_OK` in
+`lint.py`, with its reason.
 
 ### `personal`: the list is private, the check is public
 

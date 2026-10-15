@@ -1,4 +1,8 @@
 ;;; 12-transient.el --- Transient menu for notes (hierarchical) -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 03-spelling 05-notes 06-capture 10-visual-fill 11-org-appearance 13-centered-writing 15-workspace 16-org-export 18-zotero-transient 23-fixed-tabs
+;; MyPKS-Optional: no
+
 ;;; Commentary:
 ;; Unified transient menu for all note-related operations.
 ;; Accessed with C-c n — hierarchical structure with sub-menus:

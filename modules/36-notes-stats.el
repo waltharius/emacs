@@ -1,4 +1,8 @@
 ;;; 36-notes-stats.el --- Summary statistics for the collection -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 26-maintenance 27-denote-identifiers
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; One screen answering "how big is this thing, and is it healthy",
 ;; with the interesting numbers clickable and the whole thing

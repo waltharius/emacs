@@ -1,4 +1,8 @@
 ;;; 35-journal-gaps.el --- Days without a journal entry, or without metrics -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; A report of what is MISSING from the journal series, as opposed to
 ;; the dashboards in 21-dashboards.el which show what is there.

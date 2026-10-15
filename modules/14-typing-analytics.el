@@ -1,4 +1,9 @@
 ;;; 14-typing-analytics.el --- Track typing patterns for ergonomic analysis -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+;; Docs: ~/.emacs.d/function_helper.org::#typing-analytics
+
 ;;; Commentary:
 ;; This module tracks:
 ;; 1. Command frequency (keyfreq) - which Emacs commands you use most

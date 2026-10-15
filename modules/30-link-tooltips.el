@@ -1,5 +1,8 @@
 ;;; 30-link-tooltips.el --- Cheap mouse tooltips over denote: links -*- lexical-binding: t; -*-
 
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
 ;;; Commentary:
 ;; Hovering the mouse over a `denote:' link in an Org buffer stalls
 ;; Emacs for as long as it takes to list the entire `denote-directory'.

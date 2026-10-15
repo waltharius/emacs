@@ -1,4 +1,9 @@
 ;;; 15-workspace.el --- Notes dashboard and workspace tools -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 01-ui 27-denote-identifiers
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#fn-my-open-notes-dashboard
+
 ;;; Commentary:
 ;;
 ;; Custom notes dashboard and workspace features for Denote.

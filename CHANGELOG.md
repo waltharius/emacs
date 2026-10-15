@@ -21,6 +21,65 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-16c — Module contract: headers in every module, the check 'modules'
+
+### Why
+
+Turning modules on and off needs to know what each module needs, and
+anyone writing a module of their own needs to know what a module must
+look like -- the role a manifest and submission rules play for
+Obsidian plugins, or `layers.el` for Spacemacs layers.  Until now the
+dependencies lived in comments of `init.el`, partly out of date, and
+nothing checked them.
+
+### What
+
+- Every module starts with a header block, read by `lisp-mnt` without
+  loading the file:
+
+      ;; MyPKS-Requires: 01-ui 05-notes 22-zettelkasten
+      ;; MyPKS-Optional: yes
+      ;; Docs: ~/.emacs.d/function_helper.org::#menu-readwise
+
+  `MyPKS-Requires` lists the modules a module cannot work without
+  (00-core.el implicit), `MyPKS-Optional` whether it may be turned off.
+  A `Docs:` line was added to the 25 modules without one before
+  `;;; Code:`.
+- `hooks/module_contract.py`: the rules, and a reader of Emacs Lisp
+  (forms, symbols, quoting; strings and comments skipped) that finds
+  every use of another module's function or variable and tells guarded
+  uses (`fboundp`, `boundp`, `featurep`, `with-eval-after-load`, an
+  early `user-error`, a quoted variable name, faces, groups,
+  `my/transient-append` arguments) from hard ones.
+- `hooks/lint.py`, check `modules` (blocking): form (name, first line,
+  headers, Commentary/Code, `provide`, closing line, `defgroup` parents)
+  and dependencies (every hard use declared, nothing core requiring
+  something optional, no circles).  `MODULE_DEPENDENCY_OK` for misreads,
+  empty.
+- The headers were written from the reader's result.  Core: the
+  configuration itself (00-core, 01-ui, 02-editing, 04-denote,
+  05-notes, 07-git, 08-keybindings, 12-transient) and what those need --
+  19 modules.  Optional: the other 33.
+- Fixed on the way: 47-repo-docs.el provided `repo-docs` instead of its
+  file name; 03-spelling.el had no `;;; Commentary:` line.
+- function_helper.org, new section *Module contract* (#module-contract):
+  header, rules (nine checked, four the target), hard and guarded uses
+  with examples, core and optional today.  HOOKS-README.md: the check.
+  BACKLOG.org, module toggles: what is done and the four next steps.
+  TESTPLAN.org: R13.
+
+### What the reader found
+
+Several modules are core only because 12-transient.el or
+08-keybindings.el name their commands: spelling, capture, centred
+writing, the dashboard, export, the bibliography and Zotero, fixed
+tabs.  Readwise needs 22-zettelkasten for one action.  Both are the
+next step (decoupling), not this one: here the headers say what is.
+
+`MyPKS-Requires` does not change the load order; `init.el` still
+decides it until the loader exists.
+
+---
 ## Session 2026-10-16b — Start-up pull of the settings folder documented; module contract in BACKLOG
 
 ### Why
