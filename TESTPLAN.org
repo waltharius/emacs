@@ -179,6 +179,21 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 - [ ] =C-c n , u= → =azazel= on baal, restart: baal reads azazel's file;
       =C-c n , u= → =baal= returns.
 
+** R11. Favourites, recent changes, menus [0/7]
+- [ ] =C-c n , ,=, put point on /Ask before deleting notes/, =C-c n , +=:
+      added; =C-c n , *= shows it in its own buffer.  =C-c n , -= removes.
+- [ ] Change two settings in Customize (Apply), one with Save:
+      =C-c n , r= lists both, newest first.
+- [ ] =C-c n , z= on one: back to its old value; after a restart the
+      list is still there (=recent-settings.eld= in the settings folder).
+- [ ] =C-c n , n= opens Notes folder and silos; =C-c n , o= says every
+      folder with notes is a silo (or asks about one).
+- [ ] =C-c n i i=: the file prompt starts in =~/Obrazy/=.
+- [ ] =python3 hooks/lint.py menus= passes; adding an interactive
+      =my/test= command mentioned in function_helper.org without a menu
+      entry makes it fail (then remove it).
+- [ ] =git commit= runs the =menus= check (pre-commit output).
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply
