@@ -153,11 +153,11 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
       in =~/.emacs.d/backups/= (names starting =!home!marcin!notes!=);
       move them to =~/notes/.backups/= if wanted.
 
-** R10. Settings of this machine [2/7]
-- [X] First start after the patch on Azazel: DONE report "Settings of
+** R10. Settings of this machine [0/7]
+- [ ] First start after the patch on Azazel: DONE report "Settings of
       azazel now in ~/.emacs.d/hosts/azazel/"; =hosts/azazel/custom.el=
       and =ui-state.el= exist; every setting as before.
-- [X] =C-c n , ,= opens Customize; save any value: it lands in
+- [ ] =C-c n , ,= opens Customize; save any value: it lands in
       =hosts/azazel/custom.el= (=C-c n , f= opens it), =custom.el= at the
       top is unchanged.
 - [ ] Theme or font size changed with keys (=C-c u f=): written to
