@@ -21,6 +21,51 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-16g — Pushing off for a test copy only; pushing turned off is reported
+
+### Why
+
+Reported after 2026-10-16f: no lock, no rebase anywhere, notes
+committed but not pushed (nor, it seemed, pulled).  The cause was a
+setting, not the code of the cycle: test A1 (moving the notes folder)
+asks, after copying to a new folder, whether the copy -- same remote as
+the original -- should push, and its answer *turn push off* saved
+`my/auto-commit-push` = nil.  Switching back to `~/notes` left it nil,
+so every repository went on committing and stopped pushing.  And
+2026-10-16f had made the status deliberately silent about unpushed
+commits while pushing was off, so even the new warning would not have
+shown it.
+
+### What
+
+- 07-git.el:
+  - `my/auto-commit-no-push-directories`: repositories committed but
+    never pushed.  `my/auto-commit--push-p` decides per repository.
+  - `my/auto-commit-pending` reports unpushed commits while pushing is
+    off, as "commits not pushed: pushing is turned off", with what to
+    turn back on.  Quitting asks about it when `my/auto-commit-push` is
+    off; not for a folder kept from pushing on purpose.
+- 00-core.el: the question after copying the notes folder offers
+  *don't push this copy*, which adds the copy to
+  `my/auto-commit-no-push-directories`; `my/auto-commit-push` is no
+  longer touched.
+- function_helper.org: Pushing, When it stops (new row), the notes
+  move description.  TESTPLAN.org: a note at A1, R17.
+
+### To do once
+
+A saved `my/auto-commit-push` = nil from test A1 stays until turned
+on: `M-x customize-option RET my/auto-commit-push`, Apply and Save,
+then `C-c v a`.  The first cycle after this patch warns about it.
+
+### Checked
+
+In batch: pushing off -- committed, one warning naming
+`my/auto-commit-push`, quitting asks; the folder in the list --
+committed, not pushed, one warning naming the list, quitting does not
+ask; on -- committed and pushed, nothing reported.
+
+---
 ## Session 2026-10-16f — Auto-commit: failures shown, quitting asks while work is only here
 
 ### Why

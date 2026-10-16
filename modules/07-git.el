@@ -105,9 +105,31 @@ commits by hand."
   "When non-nil, push after committing.
 
 A commit protects against an editing mistake.  Only a push protects
-against the disk, and the local GitLab exists for exactly that."
+against the disk, and the local GitLab exists for exactly that.
+
+Turned off, nothing reaches the other machines -- every cycle and
+`C-c v ?' say so.  To keep one folder from pushing (a test copy of the
+notes), list it in `my/auto-commit-no-push-directories' instead."
   :type 'boolean
   :group 'my/git)
+
+(defcustom my/auto-commit-no-push-directories nil
+  "Repositories committed automatically but never pushed.
+
+For a copy of the notes with the same remote as the original, made to
+test a new notes folder: its commits must not reach the server.  Added
+by the question after such a copy (00-core.el).  Every other repository
+keeps pushing; until 2026-10-16 that question turned pushing off for
+all of them, and switching back to the original folder left it off."
+  :type '(repeat directory)
+  :group 'my/git)
+
+(defun my/auto-commit--push-p (dir)
+  "Return non-nil when commits in DIR are to be pushed."
+  (and my/auto-commit-push
+       (not (member (file-name-as-directory (expand-file-name dir))
+                    (mapcar (lambda (d) (file-name-as-directory (expand-file-name d)))
+                            my/auto-commit-no-push-directories)))))
 
 (defcustom my/auto-commit-pull t
   "When non-nil, pull from the upstream at startup and before each push.
@@ -296,22 +318,28 @@ conflict the rebase is aborted, leaving DIR exactly as it was."
   "Return non-nil when DIR's index is locked by another git command."
   (file-exists-p (my/auto-commit--git-path dir "index.lock")))
 
+(defconst my/auto-commit--push-off-reason
+  "commits not pushed: pushing is turned off"
+  "The reason `my/auto-commit-pending' gives when pushing was turned off.")
+
 (defun my/auto-commit-pending (dir)
   "Return why DIR's work is not on its server, or nil when it is.
 
-Nil as well for a repository without an upstream branch -- a local
-one by choice -- and for unpushed commits while pushing is turned off
-(`my/auto-commit-push')."
+Nil for a repository without an upstream branch, a local one by
+choice.  Unpushed commits while pushing is turned off for DIR are
+reported too, with their own reason: a switch turned off and forgotten
+looks exactly like a push that silently stopped."
   (setq dir (expand-file-name dir))
   (when (file-directory-p (expand-file-name ".git" dir))
     (cond
      ((my/auto-commit--busy-p dir) "a rebase or merge is in progress")
      ((my/auto-commit--locked-p dir) "git is locked (.git/index.lock)")
      ((my/auto-commit--dirty-p dir) "changes not committed")
-     ((and my/auto-commit-push
-           (my/auto-commit--has-upstream-p dir)
-           (my/auto-commit--unpushed-p dir))
-      "commits not pushed"))))
+     ((not (and (my/auto-commit--has-upstream-p dir)
+                (my/auto-commit--unpushed-p dir)))
+      nil)
+     ((my/auto-commit--push-p dir) "commits not pushed")
+     (t my/auto-commit--push-off-reason))))
 
 (defun my/auto-commit--advice (dir reason)
   "Return what to do about REASON in DIR, as text."
@@ -325,6 +353,14 @@ one by choice -- and for unpushed commits while pushing is turned off
   `r r' (continue) / `r a' (abort).")
       ("changes not committed"
        "  The commit failed; the reason is in the log (C-c v l).")
+      ((pred (equal my/auto-commit--push-off-reason))
+       (if my/auto-commit-push
+           (format "  %s is in `my/auto-commit-no-push-directories' (C-c n , ,
+  -> Tools -> Git).  Remove it there to push again."
+                   (abbreviate-file-name dir))
+         "  `my/auto-commit-push' is off: M-x customize-option RET
+  my/auto-commit-push (or C-c n , , -> Tools -> Git).  Turn it on,
+  Apply and Save; C-c v a pushes at once."))
       (_
        "  The server was unreachable or refused the push; the log
   (C-c v l) says which.  Pushed by the next cycle once it is back."))))
@@ -416,7 +452,7 @@ Returns a short description of what happened, or nil when nothing did."
           (setq pulled (and (eq pull-result 'ok)
                             (not (equal before (my/auto-commit--head dir)))))))
       (let ((pushed
-             (when (and my/auto-commit-push
+             (when (and (my/auto-commit--push-p dir)
                         (memq pull-result '(nil ok no-upstream))
                         (my/auto-commit--unpushed-p dir))
                (eq 0 (my/auto-commit--git dir "push")))))
@@ -613,7 +649,12 @@ Named so that it can be removed with `advice-remove'."
            (delq nil (mapcar (lambda (dir)
                                (let ((reason (ignore-errors
                                                (my/auto-commit-pending dir))))
+                                 ;; A folder kept from pushing on
+                                 ;; purpose (a test copy) is not asked
+                                 ;; about at every exit.
                                  (and reason
+                                      (not (and (equal reason my/auto-commit--push-off-reason)
+                                                my/auto-commit-push))
                                       (format "%s (%s)"
                                               (abbreviate-file-name dir)
                                               reason))))

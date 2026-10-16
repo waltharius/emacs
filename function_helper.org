@@ -3624,9 +3624,13 @@ now asked what keeps its work off the server
 | a rebase or merge is in progress | a conflict being resolved, or a rebase left half-done | =M-x my/auto-commit-resolve=, or Magit =r r= / =r a= |
 | changes not committed | the commit itself failed | the reason is in =C-c v l= |
 | commits not pushed | server unreachable, or the push refused | pushed by the next cycle once the server answers; =C-c v l= |
+| commits not pushed: pushing is turned off | =my/auto-commit-push= is nil, or the folder is in =my/auto-commit-no-push-directories= | turn it on / remove the folder (=C-c n , ,= → Tools → Git), Apply and Save, =C-c v a= |
 
-A repository without an upstream branch (a local one by choice) and
-unpushed commits while =my/auto-commit-push= is nil are not reported.
+A repository without an upstream branch (a local one by choice) is
+not reported.  A folder kept from pushing on purpose
+(=my/auto-commit-no-push-directories=) is reported once per session
+but does not stop Emacs from quitting; pushing turned off for all
+repositories does.
 One repository failing no longer stops the cycle for the others.
 
 ** Pushing
@@ -3634,6 +3638,13 @@ One repository failing no longer stops the cycle for the others.
 =my/auto-commit-push= is =t=. A commit protects against an editing
 mistake; only a push protects against the disk, and that is what the
 local GitLab is for.
+
+=my/auto-commit-no-push-directories= lists repositories committed but
+never pushed: a test copy of the notes with the same remote as the
+original.  The question after copying the notes folder adds the copy
+there.  Until 2026-10-16 that question turned =my/auto-commit-push=
+off for everything, saved, and switching back to the original folder
+left it off: commits went on, pushes silently stopped.
 
 Git runs with =GIT_TERMINAL_PROMPT=0= and an SSH =ConnectTimeout= of
 five seconds. Both bound a hang: the exit-time push is synchronous, so
@@ -8797,9 +8808,10 @@ only a line in *Messages*: working on in the old folder while believing
 it is the new one is exactly what the report prevents.
 
 After a copy the report lists saved settings still naming the old
-root, and, when the copy has its own =.git=, a question offers to turn
-automatic push off (=my/auto-commit-push=), so that a test copy does
-not push to the same remote.
+root, and, when the copy has its own =.git=, a question offers to keep
+the copy from pushing (=my/auto-commit-no-push-directories=), so that a
+test copy does not push to the same remote.  Only the copy: the
+original folder keeps pushing when it is in use again.
 
 An unexpected error during the check keeps the old root for the
 session, shows a FAILED report and lets Emacs start normally

@@ -271,6 +271,23 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 - [ ] =C-c n , ,= → Tools → Git: /Auto commit confirm exit/ off: quitting
       no longer asks.  Back on.
 
+** R17. Pushing turned off is reported; off for a copy only [0/4]
+- [ ] First: =C-h v my/auto-commit-push=.  If nil (left by A1), the
+      first cycle warns "commits not pushed: pushing is turned off";
+      =C-c v ?= says the same; quitting asks.  Turn it on (=M-x
+      customize-option RET my/auto-commit-push=), Apply and Save,
+      =C-c v a=: pushed; =git -C ~/notes status= "up to date with
+      origin".  The same on the second machine.
+- [ ] =M-x customize-option RET my/auto-commit-no-push-directories=,
+      add =~/notes/=, Apply (not Save): a change is committed, not
+      pushed; one warning naming the list; quitting does not ask.
+      Remove it, Apply: =C-c v a= pushes.
+- [ ] Copy the notes folder as in A1 (to =~/notes3/=), answer /don't
+      push this copy/: =~/notes3/= in the list, =my/auto-commit-push=
+      still t.  Back to =~/notes=: pushes as before.  Delete
+      =~/notes3= and its list entry.
+- [ ] =C-c v ?= on both machines: everything "on the server".
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply
@@ -283,6 +300,10 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
       and bytes; "old root untouched".
 - [X] The question about the git history appears; answer /turn push
       off/.  =C-h v my/auto-commit-push= → nil, saved.
+      (Since 2026-10-16g the answer is /don't push this copy/:
+      =C-h v my/auto-commit-no-push-directories= → the copy's folder;
+      =my/auto-commit-push= stays t.  The old answer left pushing off
+      for every repository after switching back -- see R17.)
 - [X] Report lists saved settings still pointing at =~/notes= (habits
       file in =my/tasks-extra-agenda-files=).  Fix it in =C-c n ,=, then
       =C-c a= shows the habits again.

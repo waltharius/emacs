@@ -1469,14 +1469,22 @@ this session; never changes the saved option."
                   (my/notes--old-root-lines old)
                   (list "\nAlso check: Hugo sites (re-export), desktop session and recent files,"
                         "bookmarks, Syncthing folders, and anything outside Emacs using the old path.")))
+                ;; Off for the copy only: a global switch outlived the
+                ;; test and stopped every push once the original folder
+                ;; was back (2026-10-16).
                 (when (and (file-directory-p (expand-file-name ".git" new))
                            (eq (car (read-multiple-choice
                                      "The copy has its own git history with the same remote."
                                      '((?k "keep pushing" "Automatic commits keep pushing from the new root")
-                                       (?o "turn push off" "Save my/auto-commit-push = nil (07-git.el)"))))
+                                       (?o "don't push this copy" "Commit it, never push it (my/auto-commit-no-push-directories)"))))
                                ?o))
-                  (customize-save-variable 'my/auto-commit-push nil)
-                  (message "MyPKS: automatic push turned off (my/auto-commit-push)"))))))))))
+                  (customize-save-variable
+                   'my/auto-commit-no-push-directories
+                   (cons (abbreviate-file-name (file-name-as-directory new))
+                         (and (boundp 'my/auto-commit-no-push-directories)
+                              my/auto-commit-no-push-directories)))
+                  (message "MyPKS: %s is committed but never pushed (my/auto-commit-no-push-directories)"
+                           (abbreviate-file-name new)))))))))))
 
 (defun my/notes--check-root-move-safely ()
   "Run `my/notes-check-root-move'; on an unexpected error keep the old root.
