@@ -21,6 +21,62 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-16f — Auto-commit: failures shown, quitting asks while work is only here
+
+### Why
+
+Reported: notes stopped being committed and pushed after one commit;
+an idle period and a restart changed nothing, and 23 changes stayed on
+one machine without a word.  The commit cycle itself is unchanged
+since the settings folder (only its header moved), and on a clean
+repository it commits and pushes.  Reproduced in batch, two states in
+which it stops for good and says nothing, because the idle cycle runs
+with `inhibit-message` inside `ignore-errors`:
+
+- a `.git/index.lock` left by an interrupted git command -- Emacs
+  killed during the exit commit, a crash.  Every `git add` fails.
+- a rebase or merge left in progress.  The repository is skipped on
+  purpose (an automatic `git add -A` would commit conflict markers),
+  and the pull and the push with it.
+
+Which one it is here, the user's machine says (`ls ~/notes/.git/`);
+either way the danger is the same: quitting on one machine in the
+belief that the work went out.
+
+### What
+
+- 07-git.el:
+  - `my/auto-commit-pending`: why a repository's work is not on its
+    server -- rebase or merge in progress, `index.lock`, changes not
+    committed, commits not pushed -- or nil.  Nil for a repository
+    without an upstream, and for unpushed commits while
+    `my/auto-commit-push` is off.
+  - After every cycle `my/auto-commit--report` shows each new answer in
+    `*Warnings*`, with what to do (the `rm` of the lock, the resolve
+    command, the log); once per (repository, reason), again when it
+    changes or after it cleared.
+  - `my/auto-commit-all`: an error in one repository is reported for it
+    and no longer stops the others.
+  - `my/auto-commit-status` (`C-c v ?`): each repository, "on the
+    server" or the reason.
+  - `my/auto-commit--confirm-exit` in `kill-emacs-query-functions`: after
+    the buffers are saved, one more cycle; if work is still only here,
+    "Not on the server: ... Quit anyway?", and no keeps Emacs open.
+    Option `my/auto-commit-confirm-exit` (default on).
+- 08-keybindings.el: `C-c v ?` in the help text.
+- function_helper.org, Auto-commit: the exit question, section *When it
+  stops* (#auto-commit-stops) with the four reasons and their fixes,
+  the key.  TESTPLAN.org: R16.
+
+### Checked
+
+In batch, notes repository with a bare remote: clean -- committed,
+pushed, status "on the server", no warning, quitting allowed; lock,
+rebase, unreachable server -- one warning each with its fix, not
+repeated on the next cycle, the same reason from `C-c v ?`, and the
+quit question cancelling the exit.
+
+---
 ## Session 2026-10-16e — Decoupling 2: spelling, centred text, Org appearance, writing mode optional
 
 ### Why

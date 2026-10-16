@@ -253,6 +253,24 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 - [ ] Same with =11-org-appearance.el=: the View menu loses =i e=
       only; =T t m= are still there.  Restore.
 
+** R16. Auto-commit: failures shown, quitting asks [0/6]
+- [ ] =C-c v ?=: every repository (notes, settings folder if it is its
+      own repository, planner, projects) "on the server".
+- [ ] =touch ~/notes/.git/index.lock=, change a note, =C-c v a=: a
+      warning "git is locked (.git/index.lock)" with the =rm= command;
+      =C-c v ?= says the same.  Remove the lock, =C-c v a=: committed
+      and pushed, =C-c v ?= "on the server".
+- [ ] With the lock again, =C-x C-c=: "Not on the server: ~/notes/ (git
+      is locked ...).  Quit anyway?"; =no= keeps Emacs open.  Remove the
+      lock, =C-x C-c=: quits without a question.
+- [ ] Without network (Wi-Fi off), change a note, =C-c v a=: warning
+      "commits not pushed"; quitting asks.  Network back, =C-c v a=:
+      pushed.
+- [ ] The warning is not repeated every five minutes for the same
+      problem.
+- [ ] =C-c n , ,= → Tools → Git: /Auto commit confirm exit/ off: quitting
+      no longer asks.  Back on.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

@@ -3597,6 +3597,37 @@ and it costs nothing because nobody is typing.
 place it usually finds nothing left to do.
 
 =C-c v a= runs it immediately. =C-c v l= shows the git output.
+=C-c v ?= (=my/auto-commit-status=) says, for every repository, whether
+its work is on the server.
+
+*Before quitting* (=kill-emacs-query-functions=), after the buffers are
+saved: one more cycle, then, if any repository still has work only on
+this machine, the question "Not on the server: ... Quit anyway?".  No
+keeps Emacs open.  Off with =my/auto-commit-confirm-exit= = nil.
+Quitting by =kill-emacs= directly (shutdown, =emacsclient -e
+'(kill-emacs)'=) skips the question but still runs the commit.
+
+** When it stops
+:PROPERTIES:
+:CUSTOM_ID: auto-commit-stops
+:END:
+
+The idle cycle is silent, so a repository it can no longer commit
+used to stop without a word.  After every cycle each repository is
+now asked what keeps its work off the server
+(=my/auto-commit-pending=), and a new answer is shown as a warning
+(=*Warnings*=), once until it changes or clears:
+
+| Reason | Cause | What to do |
+|--------+-------+------------|
+| git is locked (.git/index.lock) | a git command was interrupted (Emacs killed during the exit commit, a crash) and left its lock; every =git add= fails | if no git is running: =rm ~/notes/.git/index.lock= |
+| a rebase or merge is in progress | a conflict being resolved, or a rebase left half-done | =M-x my/auto-commit-resolve=, or Magit =r r= / =r a= |
+| changes not committed | the commit itself failed | the reason is in =C-c v l= |
+| commits not pushed | server unreachable, or the push refused | pushed by the next cycle once the server answers; =C-c v l= |
+
+A repository without an upstream branch (a local one by choice) and
+unpushed commits while =my/auto-commit-push= is nil are not reported.
+One repository failing no longer stops the cycle for the others.
 
 ** Pushing
 
@@ -6901,6 +6932,7 @@ hand-editing either from memory.
 | C-c v C   | =my/commit-config-now=          | =07-git.el=                                |
 | C-c v d   | =magit-diff-buffer-file=        | =07-git.el=                                |
 | C-c v h   | =magit-log-buffer-file=         | =07-git.el=                                |
+| C-c v ?   | =my/auto-commit-status=         | =07-git.el=                                |
 | C-;       | =flyspell-correct-wrapper=      | =03-spelling.el= (flyspell-mode-map)       |
 | C-c f b   | =my/spell-check-visible=        | =03-spelling.el=                           |
 | C-a       | =mark-whole-buffer=             | =02-editing.el= (rebind)                   |

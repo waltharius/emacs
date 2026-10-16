@@ -131,6 +131,18 @@ enough that a coffee break is a backup.  Takes effect at once."
   :set (my/settings-apply-on-set #'my/auto-commit--arm-timer)
   :group 'my/git)
 
+(defcustom my/auto-commit-confirm-exit t
+  "When non-nil, quitting Emacs asks first if work is not on the server.
+
+Before Emacs exits, every repository is committed and pushed once more.
+If one still has uncommitted changes, commits its server does not have,
+a stopped rebase or a lock left by an interrupted git command, the
+question names it, and answering no keeps Emacs open.  Away from the
+server this asks every time, which is the point: the other machine
+will not see the work."
+  :type 'boolean
+  :group 'my/git)
+
 (defvar my/auto-commit-log-buffer "*auto-commit*"
   "Buffer collecting git output from automatic commits and pushes.")
 
@@ -264,6 +276,104 @@ conflict the rebase is aborted, leaving DIR exactly as it was."
     'conflict)
    (t 'offline)))
 
+;; ============================================================
+;; WHEN SOMETHING STOPS IT
+;; ============================================================
+;; The idle cycle is quiet by design, and that made two failures
+;; invisible: a `.git/index.lock' left by a git command that was
+;; interrupted (Emacs killed during the exit commit, a crash), on which
+;; every `git add' fails; and a rebase or merge left in progress, during
+;; which the repository is skipped on purpose.  Either stopped commits
+;; and pushes for good while the editor looked normal.  After every
+;; cycle each repository is now asked what, if anything, keeps its work
+;; off the server, and a new answer is shown as a warning -- once, until
+;; it changes or clears.
+
+(defvar my/auto-commit--reported nil
+  "Alist of (DIRECTORY . REASON) already shown as a warning.")
+
+(defun my/auto-commit--locked-p (dir)
+  "Return non-nil when DIR's index is locked by another git command."
+  (file-exists-p (my/auto-commit--git-path dir "index.lock")))
+
+(defun my/auto-commit-pending (dir)
+  "Return why DIR's work is not on its server, or nil when it is.
+
+Nil as well for a repository without an upstream branch -- a local
+one by choice -- and for unpushed commits while pushing is turned off
+(`my/auto-commit-push')."
+  (setq dir (expand-file-name dir))
+  (when (file-directory-p (expand-file-name ".git" dir))
+    (cond
+     ((my/auto-commit--busy-p dir) "a rebase or merge is in progress")
+     ((my/auto-commit--locked-p dir) "git is locked (.git/index.lock)")
+     ((my/auto-commit--dirty-p dir) "changes not committed")
+     ((and my/auto-commit-push
+           (my/auto-commit--has-upstream-p dir)
+           (my/auto-commit--unpushed-p dir))
+      "commits not pushed"))))
+
+(defun my/auto-commit--advice (dir reason)
+  "Return what to do about REASON in DIR, as text."
+  (let ((git (abbreviate-file-name (expand-file-name ".git" dir))))
+    (pcase reason
+      ("git is locked (.git/index.lock)"
+       (format "  A git command was interrupted and left its lock.  If no git
+  is running now, remove it:  rm %s/index.lock" git))
+      ("a rebase or merge is in progress"
+       "  Finish or abort it: M-x my/auto-commit-resolve, or in Magit
+  `r r' (continue) / `r a' (abort).")
+      ("changes not committed"
+       "  The commit failed; the reason is in the log (C-c v l).")
+      (_
+       "  The server was unreachable or refused the push; the log
+  (C-c v l) says which.  Pushed by the next cycle once it is back."))))
+
+(defun my/auto-commit--report (dirs)
+  "Warn about every repository in DIRS whose work is not on its server.
+Each (directory . reason) is shown once; it is forgotten when it clears,
+so that the next failure is shown again."
+  (let (new)
+    (dolist (dir dirs)
+      (let* ((dir (expand-file-name dir))
+             (reason (condition-case err (my/auto-commit-pending dir)
+                       (error (error-message-string err))))
+             (old (assoc dir my/auto-commit--reported)))
+        (cond
+         ((null reason)
+          (setq my/auto-commit--reported (delq old my/auto-commit--reported)))
+         ((equal reason (cdr old)) nil)
+         (t
+          (setq my/auto-commit--reported
+                (cons (cons dir reason) (delq old my/auto-commit--reported)))
+          (push (cons dir reason) new)))))
+    (when new
+      (display-warning
+       'auto-commit
+       (concat "Work that is NOT on the server:\n\n"
+               (mapconcat (lambda (entry)
+                            (format "%s: %s\n%s"
+                                    (abbreviate-file-name (car entry))
+                                    (cdr entry)
+                                    (my/auto-commit--advice (car entry) (cdr entry))))
+                          (nreverse new) "\n\n")
+               "\n\nCheck at any time: C-c v ?   Git output: C-c v l")
+       :warning))))
+
+;;;###autoload
+(defun my/auto-commit-status ()
+  "Say, for every auto-committed repository, whether its work is on the server."
+  (interactive)
+  (let ((lines (mapcar (lambda (dir)
+                         (format "%s: %s" (abbreviate-file-name dir)
+                                 (or (ignore-errors (my/auto-commit-pending dir))
+                                     "on the server")))
+                       (seq-filter (lambda (d) (file-directory-p
+                                                (expand-file-name ".git" d)))
+                                   (my/auto-commit-directories)))))
+    (message "%s" (string-join lines "\n"))
+    lines))
+
 (defun my/auto-commit-repository (dir)
   "Commit and push DIR when there is anything to commit or push.
 
@@ -359,10 +469,19 @@ wants preserved."
   "Commit and push every repository that needs it."
   (interactive)
   (my/auto-commit--save-buffers)
-  (let ((results (delq nil (mapcar #'my/auto-commit-repository
-                                   (my/auto-commit-directories)))))
+  (let* ((dirs (my/auto-commit-directories))
+         ;; One repository failing must not stop the others.
+         (results (delq nil (mapcar
+                             (lambda (dir)
+                               (condition-case err
+                                   (my/auto-commit-repository dir)
+                                 (error (format "%s: ERROR %s"
+                                                (abbreviate-file-name dir)
+                                                (error-message-string err)))))
+                             dirs))))
     (when results
       (message "%s" (string-join results "; ")))
+    (my/auto-commit--report dirs)
     results))
 
 ;;;###autoload
@@ -481,6 +600,30 @@ Named so that it can be removed with `advice-remove'."
 
 (advice-add 'save-buffers-kill-emacs :before #'my/auto-commit--before-kill)
 
+;; The last word before quitting.  `kill-emacs-query-functions' run
+;; after the buffers have been saved, so one more cycle commits what
+;; the save just wrote; a function returning nil cancels the quit.
+(defun my/auto-commit--confirm-exit ()
+  "Commit and push once more; ask before quitting if work is still only here."
+  (if (or noninteractive (not my/auto-commit-confirm-exit))
+      t
+    (ignore-errors (my/auto-commit-all))
+    (setq my/auto-commit-done t)
+    (let ((pending
+           (delq nil (mapcar (lambda (dir)
+                               (let ((reason (ignore-errors
+                                               (my/auto-commit-pending dir))))
+                                 (and reason
+                                      (format "%s (%s)"
+                                              (abbreviate-file-name dir)
+                                              reason))))
+                             (my/auto-commit-directories)))))
+      (or (null pending)
+          (yes-or-no-p (format "Not on the server: %s.  Quit anyway? "
+                               (string-join pending "; ")))))))
+
+(add-hook 'kill-emacs-query-functions #'my/auto-commit--confirm-exit)
+
 ;; ============================================================
 ;; MANUAL COMMIT FUNCTIONS
 ;; ============================================================
@@ -534,6 +677,7 @@ Named so that it can be removed with `advice-remove'."
 ;; Auto-commit
 (global-set-key (kbd "C-c v a") 'my/auto-commit-all)
 (global-set-key (kbd "C-c v l") 'my/auto-commit-show-log)
+(global-set-key (kbd "C-c v ?") 'my/auto-commit-status)
 
 (provide '07-git)
 ;;; 07-git.el ends here

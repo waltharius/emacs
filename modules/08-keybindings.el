@@ -88,6 +88,7 @@
 ;; C-c v C = commit config now (my/commit-config-now)
 ;; C-c v d = diff current file (magit-diff-buffer-file)
 ;; C-c v h = history current file (magit-log-buffer-file)
+;; C-c v ? = is everything on the server? (my/auto-commit-status, 07-git.el)
 
 ;; ============================================================
 ;; DESKTOP/SESSION (already defined in 01-ui.el)
@@ -226,6 +227,7 @@ Git / Magit:
   C-c v C - Commit config now
   C-c v d - Diff current file
   C-c v h - History of current file
+  C-c v ? - Is everything on the server? (auto-commit status)
 
 Tabs:
   C-c t n - New tab
