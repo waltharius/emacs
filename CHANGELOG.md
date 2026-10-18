@@ -21,6 +21,47 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-18c — Backlog: order of work after the second review
+
+### Why
+
+Two outside reviews (2026-10-14, 2026-10-16) and the backlog had
+drifted apart: several findings of the second review were nowhere in
+BACKLOG.org, and some done items were still listed.  The order of work
+was agreed on 2026-10-18.
+
+### What
+
+- BACKLOG.org:
+  - *Order of work* (new, at the top): hardening the core;
+    non-blocking git; decoupling, minor modes and the loader with the
+    start-up items; files the modules write; continuous integration; the
+    public repository.
+  - *Hardening the core* (new): host names checked before they become
+    paths, a damaged `mypks-local.eld` reported, Geekdoc pinned with a
+    checksum, the `private` check blocking, the `personal` check saying
+    when it did not run; SEC2 as a manual step.
+  - Decoupling: reporting skipped menu entries and registering
+    submenus, the two menu gaps the 2026-10-16 review predicted.
+  - *Continuous integration* (new): GitHub Actions with
+    purcell/setup-emacs, Emacs 29.1 and the current release; the next
+    tests for the core.
+  - Public repository: a step for portable defaults (automatic pushing
+    off unless turned on) and the README's privacy model.
+  - Removed as done: the `git rm` left from settings step 3, the
+    `private` check item under small items (moved to Hardening).
+
+### Not added, with reasons
+
+- A package lock (Nix closure or Elpaca/straight lockfile), from the
+  2026-10-16 review: packages come from package.el into `elpa/`, which
+  btrfs snapshots protect on both machines; a lock changes how every
+  package is installed, so it belongs with the start-up and loader work
+  (`use-package-always-ensure`, B3), where it is to be decided.
+- `my/doctor`, a safe-start mode, a privacy report: wanted later, once
+  the module registry exists to hang their checks on.
+
+---
 ## Session 2026-10-18b — Spelling: the flyspell hooks named
 
 ### Why

@@ -6,6 +6,77 @@ entry says why it exists and what is already settled, so that it can be
 picked up without the conversation that produced it.  Finished entries
 are removed; their record is CHANGELOG.md.
 
+* Order of work
+Agreed 2026-10-18, after the second outside review (2026-10-16) and the
+backlog of the first (2026-10-14).  Small steps; each section below
+says why and how.
+
+1. /Hardening the core/: host names, a damaged =mypks-local.eld=, the
+   Geekdoc download, the =private= check blocking, the =personal= check
+   saying when it did not run.  Small, independent of the rest.
+2. /Automatic git without blocking/ (review section): the largest gain
+   in responsiveness; brings the /pull done/ hook the personal
+   dictionary waits for.
+3. /Settings: core plus user layer/, step 5 -- decoupling part 3 with
+   the menu items (skipped entries reported, submenus registered), a
+   minor mode per module, then the loader together with /Start-up:
+   early-init.el, compilation, lazy loading/.
+4. /Files the modules write/ -- before the loader, whose list of
+   modules turned off is itself a setting.
+5. /Continuous integration/ -- can start at any time; most useful once
+   the core has tests of its own.
+6. /A public repository/: portable defaults and the privacy model in
+   the README, the welcome screen; then the Polish guide.
+
+* Hardening the core
+From the outside review of 2026-10-16.  Each item is small and touches
+one place.
+
+** TODO Host names checked before they become paths
+=MYPKS_HOST= and =:host= in =mypks-local.eld= are joined to =hosts/=
+as they are (=00-core.el=, =my/host-name=): =../x= or an absolute name
+leaves the settings folder and reads or writes a =custom.el= elsewhere.
+Accept one plain folder name only -- no separator, not =.= or =..=,
+no control characters, not empty; otherwise report and use the
+machine's own name.
+
+** TODO A damaged mypks-local.eld reported, not ignored
+=my/local--read= returns nil on a read error, so a truncated file
+silently selects the default settings folder -- and that folder's
+=custom.el=, possibly another set of settings.  Report it (FAILED) with
+the file's name; the defaults then apply for this session only, and
+nothing writes over the damaged file until it is fixed.
+
+** TODO Geekdoc: a pinned release with a checksum
+=47-repo-docs.el= downloads =releases/latest/= without checking what
+arrives: every update changes the site's templates unseen, and a
+replaced archive would go unnoticed.  A fixed release URL and its
+SHA-256 as options; the archive checked before it is unpacked, into a
+fresh folder that replaces the old one only when complete.  Updating
+the theme becomes a deliberate change of two values.
+
+** TODO The private check blocking
+=hooks/lint.py= keeps =private= advisory "until the known cross-module
+calls are gone"; it has passed clean since the decoupling.  Make it
+blocking, so a new call to another module's =--= function stops the
+commit.
+
+** TODO The personal check says when it did not run
+Without =private-strings.txt= in the settings folder the check has
+nothing to look for and reports =ok= -- on a new machine, or after the
+settings folder moved, that looks like a pass.  Report /skipped/ with
+the path it looked for instead; on someone else's machine that is the
+correct outcome, on this one a reminder.
+
+** Not code: SEC2
+=safe-local-variable-values= in =hosts/<host>/custom.el= still holds
+an =(eval progn ...)= entry (copied from the old shared =custom.el=).
+Harmless as written, but a whitelisted =eval= trains accepting them.
+Remove it in Customize on each machine (=M-x customize-option RET
+safe-local-variable-values=); the /Delete/ button of that entry, then
+Apply and Save.  SEC1 (=org-confirm-babel-evaluate=) was removed by hand
+earlier.
+
 * Settings: core plus user layer
 The plan behind Sessions 2026-10-12g and 2026-10-12h: a fixed core in
 the repository, a user layer on top, Customize as the menu (=C-c n ,=).
@@ -19,9 +90,7 @@ note, the planner in its own folder, bundled CSL), and step 3, one
 settings folder per machine (2026-10-14l, outside the repository since
 2026-10-15a), and step 6, no machine-bound paths (2026-10-15d: every
 remaining path is an option; the image prompt finds the pictures folder
-through =xdg-user-dir=).  Left from step 3: =git rm -r hosts custom.el
-ui-state.el= once both machines have started once (done 2026-10-15e).
-Defaults that were personal choices rather than paths were made generic
+through =xdg-user-dir=).  Defaults that were personal choices rather than paths were made generic
 in the cleaning step below.
 
 ** TODO 4. Core defaults as a custom theme (=mypks-defaults=)
@@ -103,6 +172,21 @@ Next, in order:
      inserted into Tools as a group; =C-c s=, =C-c S=, =C-c m w= bound
      in their modules.
    - Part 3: capture, export, the dashboard, fixed tabs.
+   - With it, the two menu gaps the 2026-10-16 review predicted:
+     - /Skipped entries reported./  =my/transient-append= and
+       =my/transient-insert= skip an entry whose key is taken and say so
+       only in =*Messages*=, so two modules wanting the same key lose
+       one entry silently and load order decides which.  Collect the
+       skipped entries in a list; a lint check (keys per menu, from the
+       modules' code) and a command listing them at run time.  Reserved
+       keys (=w=/=W= for the metrics) move from comments into that data.
+     - /Submenus registered./  =my/notes-menu= names its submenus
+       itself, which is why =12-transient.el= still requires five
+       modules: a module with a submenu of its own has to edit it.  A
+       registration function (=my/menu-register-submenu=: key, label,
+       prefix) and the main menu built from what is registered; the
+       hint texts (/Insert → transclusion/link/time/date/) from the
+       entries that actually loaded.
 2. *A minor mode per module* (rule 12), the integrations first:
    Obsidian import, Readwise, Zotero, blog, drill.
 3. *The loader*: =init.el= reads the headers, an option lists the
@@ -160,7 +244,15 @@ Steps, in order:
    of =custom.el= and the documentation.  (=git filter-repo= could
    rewrite it, but a fresh start is simpler and leaves nothing to
    check.)  This repository is archived, or kept as the private one.
-5. README for others: installation, the first start, where settings
+5. Portable defaults, before anyone else starts from it: automatic
+   pushing off by default (=my/auto-commit-push= nil, turned on in this
+   machine's settings), since the configuration cannot know whether
+   another user's remote is private; and a section /Privacy model and
+   limits/ early in the README -- what MyPKS keeps local, what needs a
+   deliberate setting (publishing, pushing), and what is the user's
+   (disk encryption, backups, the trust in a remote, other people's
+   modules, which run with full rights).
+6. README for others: installation, the first start, where settings
    go.  With the clean-configuration test (above) as its check.
    Also the idea behind it (2026-10-16): *one collection of notes,
    several Emacs configurations for different roles* -- the opposite
@@ -174,6 +266,30 @@ Rejected for now: *one repository with a public and a private branch*
 =private=).  Workable, but every commit has to be made on the right
 branch, and one personal file committed on =main= is public at the next
 push.
+
+* Continuous integration
+Asked 2026-10-18.  The pre-commit hook runs on this machine only and
+can be skipped (=--no-verify=); it checks the working tree, and runs
+neither the byte compiler nor the tests.  A GitHub Actions workflow on
+every push, with the Emacs versions from purcell/setup-emacs (the
+established action for this): the oldest supported (29.1) and the
+current release.
+
+Steps: =hooks/parens.el=, =hooks/lint.py= (all checks), byte
+compilation of every module with warnings shown (not failing at first:
+a list of the existing ones goes into the workflow, and only new ones
+fail), and the ERT files that run without packages
+(=tests/test-spelling-dictionary.el=).  =tests/test-notes-search.el=
+needs 00-core.el (=my/settings-apply-on-set=) since the settings work:
+stand-ins as in test-spelling-dictionary.el make it run alone again.
+=tests/test-journal-metrics.el= needs the full configuration and waits
+for a package cache in the workflow.
+
+Next tests, for the core: settings folder and host precedence
+(environment, =mypks-local.eld=, defaults), a damaged
+=mypks-local.eld=, rejected host names, the notes-root move refusing
+what it should.  Each with stand-ins for the core, as
+test-spelling-dictionary.el does, so that they need no packages.
 
 * Polish for non-technical users
 Asked 2026-10-15: someone weak in technical English may want to use
@@ -373,6 +489,9 @@ it compiles.  Lazy loading one module at a time, each measured with
 denote-explore, keyfreq.  =use-package-always-ensure= (B3): every
 built-in needs =:ensure nil=; a test on the clean-config branch catches
 a forgotten one.  =use-package-compute-statistics= off once done (P6).
+To decide here as well (2026-10-16 review): pinned package versions
+-- a lockfile (Elpaca, straight) or the packages from Nix -- since
+MELPA serves whatever is current at installation time.
 
 ** TODO Names: one prefix (B1)
 *Why*: variables are split between =my-= and =my/=.  *Why later*: a
@@ -418,5 +537,3 @@ so reloading a module does not stack it.
 - =~/projects/docs-site/=: =themes/hugo-book/= and
   =layouts/_partials/docs/= are left over from hugo-book and can be
   deleted.
-- The =private= check in =hooks/lint.py= is advisory until the known
-  cross-module calls are gone; then make it blocking.
