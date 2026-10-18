@@ -50,9 +50,9 @@ rollback or a deliberately partial commit.
 | `changelog` | Were modules staged without a `CHANGELOG.md` entry? | yes |
 | `menus` | Is every command `function_helper.org` mentions reachable from a menu or a key — or listed, with its reason, under *Commands without a menu entry*? | yes |
 | `modules` | Does every module keep the module contract -- headers, `provide`, every hard dependency declared, nothing core needing something optional, no circles? | yes |
-| `personal` | Does a file git would commit contain a string from the private list `private-strings.txt` in the settings folder? | yes (passes when the list does not exist) |
+| `private` | Is a `--` symbol called from outside its module? | yes (since 2026-10-18) |
+| `personal` | Does a file git would commit contain a string from the private list `private-strings.txt` in the settings folder? | yes; *skipped*, with the path, when the list does not exist |
 | `coverage` | Is every command a menu runs mentioned in `function_helper.org`? | no — advisory |
-| `private` | Is a `--` symbol called from outside its module? | no — advisory |
 
 Run them by hand at any time:
 
@@ -115,17 +115,24 @@ re:\bsecond-host\b
 
 Every text file git would commit is read, line by line — tracked files
 and untracked ones not ignored — except `csl/`, third-party files kept
-unchanged.  Without the list there is nothing to look for, and the
-check passes: on anyone else's machine it does not apply.
+unchanged.  Without the list there is nothing to look for: the check
+reports `skipped` with the path it looked for, and does not block.  On
+anyone else's machine that is the correct outcome; on the owner's — a
+new machine, a settings folder that moved — it is the reminder that
+nothing was checked, which an `ok` would hide.
 
-### Why `private` is advisory
+A check that cannot run raises `Skip` in `lint.py`; the runner prints
+`skipped`, never `ok`.
 
-Twenty-one existing violations, catalogued in the 2026-08-31 audit. A
-blocking check would fail every commit until the backlog is cleared,
+### Why `private` blocks only since 2026-10-18
+
+Twenty-one violations were catalogued in the 2026-08-31 audit. A
+blocking check would have failed every commit until they were cleared,
 and a hook that always fails is a hook that gets bypassed by reflex —
-at which point it stops catching the things it was written for. It
-reports, so new violations are visible against a known count. Move it
-to blocking when the count reaches zero.
+so it stayed advisory, reporting new violations against a known count.
+The decoupling of 2026-10-16 brought the count to zero; since then a
+new call to another module's `--` function stops the commit instead of
+starting a new backlog.
 
 ### What `keys` cannot see
 

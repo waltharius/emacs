@@ -21,6 +21,43 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-18e — Lint: 'private' blocks; 'personal' says when it was skipped
+
+### Why
+
+Two items of BACKLOG, *Hardening the core*, from the 2026-10-16
+review:
+
+- `private` (a `--` symbol called from another module) stayed advisory
+  "until the known backlog is cleared".  The decoupling cleared it; as
+  long as it stayed advisory a new violation would only print.
+- `personal` reported `ok` when `private-strings.txt` was missing --
+  on a new machine, or after the settings folder moved -- although it
+  had checked nothing.
+
+### What
+
+- hooks/lint.py:
+  - `ADVISORY` is `{"coverage"}`: `private` blocks.
+  - `Skip`, an exception a check raises when it cannot run; the runner
+    prints `skipped <check>: <reason>`, does not block, and never prints
+    `ok` for it.  `check_personal_strings` raises it with the path it
+    looked for.
+- hooks/HOOKS-README.md: the table (`private` blocks, `personal`
+  skipped), the paragraph on the missing list, *Why `private` blocks
+  only since 2026-10-18*.
+- README.md: the paragraph on the checks no longer calls `private`
+  advisory, and points to `hooks/HOOKS-README.md` (it named
+  `hooks/README.md`, which does not exist).
+- BACKLOG.org: both items removed.
+
+### Decisions
+
+- **Skipped does not block.**  On a machine without the list the
+  check cannot apply, and a hook failing there would be bypassed by
+  reflex.  The point is only that the output no longer claims a pass.
+
+---
 ## Session 2026-10-18d — Host names checked; a damaged mypks-local.eld reported
 
 ### Why

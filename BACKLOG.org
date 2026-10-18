@@ -40,19 +40,6 @@ SHA-256 as options; the archive checked before it is unpacked, into a
 fresh folder that replaces the old one only when complete.  Updating
 the theme becomes a deliberate change of two values.
 
-** TODO The private check blocking
-=hooks/lint.py= keeps =private= advisory "until the known cross-module
-calls are gone"; it has passed clean since the decoupling.  Make it
-blocking, so a new call to another module's =--= function stops the
-commit.
-
-** TODO The personal check says when it did not run
-Without =private-strings.txt= in the settings folder the check has
-nothing to look for and reports =ok= -- on a new machine, or after the
-settings folder moved, that looks like a pass.  Report /skipped/ with
-the path it looked for instead; on someone else's machine that is the
-correct outcome, on this one a reminder.
-
 ** Not code: SEC2
 =safe-local-variable-values= in =hosts/<host>/custom.el= still holds
 an =(eval progn ...)= entry (copied from the old shared =custom.el=).

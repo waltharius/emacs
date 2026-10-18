@@ -316,6 +316,15 @@ def check_menu_reachability():
 
 PERSONAL_LIST = "private-strings.txt"
 
+
+class Skip(Exception):
+    """Raised by a check that could not run; the message says why.
+
+    Reported as `skipped', never as `ok': a check with nothing to look
+    at has not passed.  It does not block either -- on a machine
+    without the check's input, skipping is the correct outcome.
+    """
+
 # Third-party files, copied unchanged and not ours to edit.
 PERSONAL_SKIP = ("csl/",)
 
@@ -389,11 +398,13 @@ def check_personal_strings():
     The strings come from private-strings.txt in the settings folder,
     which is outside the repository, so the list itself is never
     committed.  Without that file the check has nothing to look for and
-    passes: on someone else's machine it simply does not apply.
+    is skipped, with the path it looked for: on someone else's machine
+    that is the correct outcome, on the owner's (a new machine, a moved
+    settings folder) a reminder that nothing was checked.
     """
     patterns = personal_patterns()
     if patterns is None:
-        return []
+        raise Skip(f"no {PERSONAL_LIST} in {settings_directory()}")
     problems = []
     for path, text in repository_files():
         for number, line in enumerate(text.split("\n"), 1):
@@ -452,12 +463,12 @@ CHECKS = {
     "personal": (check_personal_strings, "personal strings (private-strings.txt) in files git would commit"),
 }
 
-# Checks that report but never block.  `private' is here because the
-# twenty-one existing violations are a known backlog: blocking on them
-# would make every commit fail until the backlog is cleared, and a hook
-# that always fails is a hook that gets bypassed by reflex.  Move it to
-# blocking once the count reaches zero.
-ADVISORY = {"private", "coverage"}
+# Checks that report but never block.  `private' was here while its
+# twenty-one violations were a known backlog; the decoupling cleared
+# them, and since 2026-10-18e it blocks, so that a new call to another
+# module's `--' function stops the commit instead of starting a new
+# backlog.
+ADVISORY = {"coverage"}
 
 
 def main(argv):
@@ -473,7 +484,11 @@ def main(argv):
             print(f"lint: no such check: {key}", file=sys.stderr)
             return 2
         fn, desc = CHECKS[key]
-        problems = fn()
+        try:
+            problems = fn()
+        except Skip as reason:
+            print(f"  skipped  {key}: {reason}")
+            continue
         if not problems:
             print(f"  ok       {key}")
             continue
