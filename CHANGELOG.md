@@ -21,6 +21,53 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-18f — Geekdoc pinned to one release, checked against its SHA-256
+
+### Why
+
+BACKLOG, *Hardening the core* (2026-10-16 review): both
+`47-repo-docs.el` and the docs site of `46-blog.el` downloaded Geekdoc
+from `releases/latest/` and unpacked whatever arrived.  Every new
+release changed the sites' templates without anything here changing,
+and a replaced archive would have gone unnoticed -- HTTPS proves the
+server, not the file.
+
+### What
+
+- 00-core.el, *Downloads checked against a known digest*:
+  `my/file-sha256` and `my/check-sha256` (signals when the digest
+  differs; nil means not recorded, returns nil).  In the core because
+  two modules use it and modules do not depend on each other.
+- 47-repo-docs.el: `my/repo-docs-theme-url` names v4.1.4;
+  `my/repo-docs-theme-sha256` (new) holds its digest.  The bundle is
+  checked, unpacked into `themes/.installing-…` and renamed into place
+  only when tar succeeded (it was unpacked straight into the theme
+  folder, which a failed tar left half-filled until deleted).
+- 46-blog.el: `:theme` takes an optional third element, the SHA-256 of
+  an archive, checked before tar; the default docs site pins v4.1.4.
+  An archive without one is installed as before, with a message that
+  it was not checked.
+- function_helper.org: the blog's theme paragraph, the default site
+  list, the repo-docs setup and options.  TESTPLAN.org: R20.
+  BACKLOG.org: the item replaced by *Git themes pinned to a commit*.
+
+### Decisions
+
+- **The digest was taken from a download made on 2026-10-18**, not
+  from a published checksum: the release (v4.1.4, latest tag that day,
+  `git ls-remote`) ships no checksum file or signature.  So it proves
+  that later downloads are the same file, not that the first one was
+  genuine.  Comparing it once with `sha256sum` on a copy downloaded on
+  another machine gives a second, independent look.
+- **No digest, no refusal**: an archive entry without a digest still
+  installs, with a message.  A site list saved in Customize keeps the
+  old `latest` URL until edited; refusing those would break the docs
+  site on the next new machine instead of improving it.
+- Verified in batch on Emacs 29.3 with the real bundle: a wrong digest
+  leaves nothing under `themes/` in both modules; the right one
+  installs, with no staging folder left.
+
+---
 ## Session 2026-10-18e — Lint: 'private' blocks; 'personal' says when it was skipped
 
 ### Why

@@ -11,9 +11,9 @@ Agreed 2026-10-18, after the second outside review (2026-10-16) and the
 backlog of the first (2026-10-14).  Small steps; each section below
 says why and how.
 
-1. /Hardening the core/: host names, a damaged =mypks-local.eld=, the
-   Geekdoc download, the =private= check blocking, the =personal= check
-   saying when it did not run.  Small, independent of the rest.
+1. /Hardening the core/: what is left -- git themes pinned to a commit,
+   SEC2 by hand.  (Host names, a damaged =mypks-local.eld=, Geekdoc
+   pinned, the =private= and =personal= checks: done 2026-10-18d-f.)
 2. /Automatic git without blocking/ (review section): the largest gain
    in responsiveness; brings the /pull done/ hook the personal
    dictionary waits for.
@@ -32,13 +32,13 @@ says why and how.
 From the outside review of 2026-10-16.  Each item is small and touches
 one place.
 
-** TODO Geekdoc: a pinned release with a checksum
-=47-repo-docs.el= downloads =releases/latest/= without checking what
-arrives: every update changes the site's templates unseen, and a
-replaced archive would go unnoticed.  A fixed release URL and its
-SHA-256 as options; the archive checked before it is unpacked, into a
-fresh folder that replaces the old one only when complete.  Updating
-the theme becomes a deliberate change of two values.
+** TODO Git themes pinned to a commit
+Geekdoc archives are pinned with a SHA-256 since 2026-10-18f; themes
+cloned with git (PaperMod, =46-blog.el=) still take whatever the default
+branch holds on the day of the clone.  A commit as the third element of
+=:theme= for a git URL: =git init=, =git fetch --depth 1 URL COMMIT=,
+=git checkout FETCH_HEAD= (GitHub serves single commits that way), in
+the same staging-and-rename flow as the archives.
 
 ** Not code: SEC2
 =safe-local-variable-values= in =hosts/<host>/custom.el= still holds

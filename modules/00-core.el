@@ -1982,5 +1982,33 @@ keyword.  Does not save the buffer."
         (goto-char insert-at)
         (insert (format "#+%s: %s\n" name value))))))
 
+;; ============================================================
+;; DOWNLOADS CHECKED AGAINST A KNOWN DIGEST
+;; ============================================================
+;; A theme or tool downloaded by a module is checked against the
+;; SHA-256 recorded with its URL before anything is unpacked.  HTTPS
+;; only says the file came from that server; the digest says it is the
+;; file that was looked at when the URL was pinned -- a changed release
+;; or a replaced archive stops the install instead of changing the
+;; site unseen.  Used by 46-blog.el and 47-repo-docs.el.
+
+(defun my/file-sha256 (file)
+  "Return the SHA-256 of the bytes of FILE, in lower-case hex."
+  (with-temp-buffer
+    (set-buffer-multibyte nil)
+    (insert-file-contents-literally file)
+    (secure-hash 'sha256 (current-buffer))))
+
+(defun my/check-sha256 (file expected what)
+  "Signal an error unless the SHA-256 of FILE is EXPECTED.
+WHAT names the download in the message.  EXPECTED nil means no digest
+is recorded: nothing is checked and nil is returned; otherwise t."
+  (when expected
+    (let ((actual (my/file-sha256 file)))
+      (unless (string= (downcase expected) actual)
+        (error "%s: SHA-256 is %s, expected %s -- not unpacked"
+               what actual (downcase expected))))
+    t))
+
 (provide '00-core)
 ;;; 00-core.el ends here

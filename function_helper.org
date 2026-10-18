@@ -7686,6 +7686,19 @@ A =:theme= URL ending in =.tar.gz= is a release archive, downloaded with
 git. Geekdoc needs the archive: its repository holds sources that need
 an npm build, the release bundle holds the built theme.
 
+*Pinned, with a digest.*  A third element of =:theme= is the SHA-256 of
+the archive: the download is checked with =my/check-sha256= (00-core.el)
+before =tar= sees it, and another digest stops the install with a
+message naming both values.  The default Geekdoc entry names one
+release (=v4.1.4=), not =releases/latest/=, so the theme changes only
+when the entry does.  To update: the new release's URL and its digest
+(=sha256sum= on a copy downloaded by hand), then delete
+=themes/hugo-geekdoc= in the site.  An archive without a digest is
+installed as before, with a message that it was not checked; a site
+list saved in Customize before 2026-10-18 still has the =latest= URL
+and no digest until its =:theme= is edited.  Git themes (PaperMod) are
+not pinned yet (BACKLOG).
+
 An install runs once per theme directory: a second request while one
 runs (the autostart of a site and =t= pressed during the download)
 waits for the first instead of starting another. An archive is unpacked
@@ -7804,7 +7817,9 @@ blog theme.
   :remote nil
   :url "http://localhost:1315/"
   :port 1315
-  :theme ("hugo-geekdoc" "https://github.com/thegeeklab/hugo-geekdoc/releases/latest/download/hugo-geekdoc.tar.gz")
+  :theme ("hugo-geekdoc"
+          "https://github.com/thegeeklab/hugo-geekdoc/releases/download/v4.1.4/hugo-geekdoc.tar.gz"
+          "384675981b41bf70fbc2943d05fadb20ac6090f52c08550fd139842bdb8cb260")
   :autostart t
   :sections (("docs" :keyword "pubdoc" :silos ("pks" "docu"))))
  ("blog"                               ; PaperMod, to be published
@@ -8309,6 +8324,13 @@ Geekdoc's release bundle into =themes/hugo-geekdoc= of the site, with
 not a clone, because the repository holds sources that need an npm
 build; the bundle holds the built assets.
 
+The bundle is one release (=v4.1.4=) checked against
+=my/repo-docs-theme-sha256= before it is unpacked; another digest stops
+the install.  It is unpacked into =themes/.installing-…= and renamed
+into place only when =tar= succeeded.  Updating the theme: the new
+URL, its digest (=sha256sum= on a copy downloaded by hand), then delete
+=themes/hugo-geekdoc= in the site.
+
 | Option | Default | Meaning |
 |--------+---------+---------|
 | =my/repo-docs-repository= | =~/nixos/= | repository read |
@@ -8317,7 +8339,8 @@ build; the bundle holds the built assets.
 | =my/repo-docs-port= | 1316 | port of =hugo server= (1313–1315 belong to the blog sites) |
 | =my/repo-docs-regenerate-on-save= | =t= | regenerate on saving a repository =.md= while the server runs |
 | =my/repo-docs-toc= | =t= | table of contents above the text of pages with headings |
-| =my/repo-docs-theme-url= | Geekdoc =latest= bundle | where the theme comes from |
+| =my/repo-docs-theme-url= | Geekdoc =v4.1.4= bundle | where the theme comes from |
+| =my/repo-docs-theme-sha256= | its SHA-256 | digest checked before unpacking; nil does not check |
 
 ** Not a Denote silo
 :PROPERTIES:

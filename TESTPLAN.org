@@ -329,6 +329,22 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
       /Folder of these settings/ is refused while the file is damaged.
 - [ ] Put the copy back, restart: no report, the usual settings folder.
 
+** R20. Themes pinned with a digest [0/4]
+- [ ] Docs site of the NixOS repository (=C-c n x r v=) with
+      =themes/hugo-geekdoc= deleted: downloaded, no message about a
+      missing digest, theme present, no =themes/.installing-*= left.
+- [ ] =M-x customize-option RET my/repo-docs-theme-sha256=, change one
+      character, Apply (not Save), delete =themes/hugo-geekdoc=, preview:
+      error "SHA-256 is …, expected … -- not unpacked"; nothing under
+      =themes/=.  Undo the change, preview again: installed.
+- [ ] =C-c n , ,= → Hugo sites → =my/blog-sites=: the docs site's
+      =:theme= has the =v4.1.4= URL and the digest.  If it still has
+      =releases/latest/= (saved before), copy the entry from
+      function_helper.org /Sites/ and Apply and Save.
+- [ ] Blog docs site with =themes/hugo-geekdoc= deleted, =t= in the blog
+      menu: "theme hugo-geekdoc installed"; with a wrong digest in
+      =:theme=: "download FAILED: … not unpacked".
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

@@ -74,9 +74,13 @@
 ;; Geekdoc is installed from its release bundle, not cloned: the
 ;; repository holds sources that need an npm build, the bundle holds the
 ;; built assets (Geekdoc's own "Getting started").  The bundle is fetched
-;; with `url-copy-file' and unpacked with tar into themes/hugo-geekdoc
-;; when that directory is missing.  Geekdoc 4.x needs Hugo 0.160 or
-;; newer.
+;; with `url-copy-file' when themes/hugo-geekdoc is missing, checked
+;; against `my/repo-docs-theme-sha256' (`my/check-sha256', 00-core.el),
+;; unpacked with tar into a fresh folder beside the theme's, and renamed
+;; into place only when tar succeeded.  The URL names one release, not
+;; latest/: updating the theme is a deliberate change of the URL and its
+;; digest, never something a download does by itself.  Geekdoc 4.x needs
+;; Hugo 0.160 or newer.
 ;;
 ;; MENU (C-c n x r)
 ;; ----------------
@@ -132,9 +136,20 @@ it is kept outside the notes tree and outside any repository."
   :group 'my/repo-docs)
 
 (defcustom my/repo-docs-theme-url
-  "https://github.com/thegeeklab/hugo-geekdoc/releases/latest/download/hugo-geekdoc.tar.gz"
-  "Release bundle of the Geekdoc theme, unpacked into themes/hugo-geekdoc."
+  "https://github.com/thegeeklab/hugo-geekdoc/releases/download/v4.1.4/hugo-geekdoc.tar.gz"
+  "Release bundle of the Geekdoc theme, unpacked into themes/hugo-geekdoc.
+One release, so that the theme changes only when this value does.  To
+update: the new release's URL here and its digest in
+`my/repo-docs-theme-sha256', then delete themes/hugo-geekdoc in the site."
   :type 'string
+  :group 'my/repo-docs)
+
+(defcustom my/repo-docs-theme-sha256
+  "384675981b41bf70fbc2943d05fadb20ac6090f52c08550fd139842bdb8cb260"
+  "SHA-256 of the bundle at `my/repo-docs-theme-url', or nil not to check.
+A download with another digest is not unpacked.  `sha256sum' on a copy
+downloaded by hand gives the value for a new release."
+  :type '(choice (const :tag "Do not check" nil) string)
   :group 'my/repo-docs)
 
 (defcustom my/repo-docs-toc t
@@ -664,23 +679,40 @@ produce the same page."
 
 (defun my/repo-docs--ensure-theme ()
   "Install Geekdoc from its release bundle when the site lacks it.
-Blocks while downloading (about 6 MB, once per machine)."
-  (let ((dir (my/repo-docs--theme-dir)))
+Blocks while downloading (about 6 MB, once per machine).  The bundle
+is checked against `my/repo-docs-theme-sha256' and unpacked into a
+fresh folder beside the theme's, renamed into place only when tar
+succeeded, so a failure never leaves a half-filled theme behind."
+  (let ((dir (directory-file-name (my/repo-docs--theme-dir))))
     (unless (file-exists-p (expand-file-name "theme.toml" dir))
       (unless (executable-find "tar")
         (user-error "tar not found; needed to unpack the Geekdoc theme"))
-      (let ((archive (make-temp-file "hugo-geekdoc" nil ".tar.gz")))
+      (let ((archive (make-temp-file "hugo-geekdoc" nil ".tar.gz"))
+            (staging nil))
         (unwind-protect
             (progn
               (message "Downloading the Geekdoc theme...")
               (url-copy-file my/repo-docs-theme-url archive t)
-              (make-directory dir t)
+              (unless (my/check-sha256 archive my/repo-docs-theme-sha256
+                                       "Geekdoc theme")
+                (message "Geekdoc theme: no SHA-256 recorded, not checked"))
+              (make-directory (file-name-directory dir) t)
+              ;; Beside the target, so that the rename stays on one file system.
+              (setq staging (make-temp-file
+                             (expand-file-name ".installing-" (file-name-directory dir))
+                             t))
               (unless (eq 0 (call-process "tar" nil nil nil
-                                          "-xzf" archive "-C" dir))
-                (delete-directory dir t)
+                                          "-xzf" archive "-C" staging))
                 (user-error "Could not unpack %s" my/repo-docs-theme-url))
+              (when (file-exists-p dir)
+                ;; A theme folder without theme.toml: an earlier, broken install.
+                (delete-directory dir t))
+              (rename-file staging dir)
+              (setq staging nil)
               (message "Geekdoc installed in %s" dir))
-          (delete-file archive))))))
+          (delete-file archive)
+          (when (and staging (file-directory-p staging))
+            (delete-directory staging t)))))))
 
 (defun my/repo-docs--serving-p ()
   "Non-nil when the preview server runs."

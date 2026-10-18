@@ -174,7 +174,11 @@
 ;; site's `:theme' when themes/<name> is missing -- a git clone, or for
 ;; a URL ending in .tar.gz a release archive unpacked with tar, since
 ;; some themes (Geekdoc) publish built assets only in a release bundle
-;; and their repository needs an npm build.  So a new machine gets
+;; and their repository needs an npm build.  An archive with a SHA-256
+;; as the third element of `:theme' is checked before it is unpacked
+;; (`my/check-sha256', 00-core.el); the default Geekdoc entry names one
+;; release and its digest, so the theme changes only when that entry
+;; does.  So a new machine gets
 ;; a working site from the repository alone.
 ;; Sync runs before an autostart site is exported and served, before a
 ;; preview starts and before publishing; `t' in the menu runs it by hand.
@@ -265,7 +269,9 @@
      :remote nil
      :url "http://localhost:1315/"
      :port 1315
-     :theme ("hugo-geekdoc" "https://github.com/thegeeklab/hugo-geekdoc/releases/latest/download/hugo-geekdoc.tar.gz")
+     :theme ("hugo-geekdoc"
+             "https://github.com/thegeeklab/hugo-geekdoc/releases/download/v4.1.4/hugo-geekdoc.tar.gz"
+             "384675981b41bf70fbc2943d05fadb20ac6090f52c08550fd139842bdb8cb260")
      :autostart t
      :sections (("docs" :keyword "pubdoc" :silos ("pks" "docu"))))
     ("blog"
@@ -286,9 +292,10 @@ Each entry is (NAME . PLIST):
   :url           address the site is read at; needed for other sites
                  to link to its pages (see `my/blog--link-sites')
   :port          port of `hugo server', default 1313
-  :theme         (NAME URL): installed in themes/NAME when missing;
-                 URL is a git repository (cloned) or a .tar.gz release
-                 archive (downloaded and unpacked)
+  :theme         (NAME URL [SHA256]): installed in themes/NAME when
+                 missing; URL is a git repository (cloned) or a .tar.gz
+                 release archive (downloaded and unpacked).  SHA256, for
+                 an archive: its digest; another digest stops the install
   :autostart     non-nil: export and serve after start-up, re-export
                  when a note of the site is saved
   :broken-links  value of `org-export-with-broken-links' for this site:
@@ -1600,6 +1607,10 @@ blocks (a theme is a few MB, once per machine)."
     (condition-case err
         (progn
           (url-copy-file (cadr theme) archive t)
+          (unless (my/check-sha256 archive (nth 2 theme)
+                                   (format "%s: theme %s" name (car theme)))
+            (message "%s: theme %s has no SHA-256 in `:theme'; not checked"
+                     name (car theme)))
           (make-directory (file-name-directory (directory-file-name target)) t)
           (setq staging (make-temp-file
                          (expand-file-name ".installing-"
