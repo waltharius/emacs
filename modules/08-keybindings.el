@@ -349,6 +349,7 @@ C-c n -- NOTES TRANSIENT MENU TREE
        s  Correct previous (transient: stays open)
        a  Add to dict       (transient: stays open)
        S  Check visible     b  Check full buffer   T  Toggle spellcheck
+       e  Edit personal dictionary (shared, in the settings folder)
   l  Philosophy ->
        l  Literature        p  Concept            m  Thinker
        b  Problem           i  Map / MOC

@@ -288,6 +288,35 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
       =~/notes3= and its list entry.
 - [ ] =C-c v ?= on both machines: everything "on the server".
 
+** R18. Personal dictionary in the settings folder [0/8]
+Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
+- [ ] First machine, restart.  Report "Personal dictionary now in
+      =<settings folder>/dictionaries/hunspell_personal=": N word(s)
+      added from =~/.hunspell_personal=, and whether git carries it.
+      =~/.hunspell_personal= unchanged; the new file has the same words,
+      without the line =personal_ws-1.1 ...=.  =.gitattributes= beside
+      it holds =hunspell_personal merge=union=.
+- [ ] =C-h v ispell-personal-dictionary= names the new file.  =C-c S= on
+      a misspelled word: the word is appended to the new file, not to
+      =~/.hunspell_personal=.
+- [ ] =C-c v a= (or wait for a cycle): the folder =dictionaries/= is
+      committed and pushed with the settings.
+- [ ] Second machine, restart (the start-up pull brings the file
+      first).  Report: its own words added; the file now holds both
+      machines' words, each once.  =git -C <settings folder> status=:
+      the change is committed by the next cycle, no conflict.
+- [ ] Restart again on either machine: no report.
+- [ ] While Emacs runs on machine B, add a word on machine A and let
+      both cycles run (A pushes, B pulls).  On B, without a restart, the
+      word is no longer underlined after it is next checked (=S=).
+- [ ] =C-c n t e=: the dictionary opens.  Delete a word, =C-x C-s=:
+      echo area "Hunspell restarts at the next check"; =S= underlines the
+      word again.  With an unsaved change, =C-x C-c= asks about the
+      buffer.
+- [ ] Both machines add a different word between two cycles: after
+      both have pushed and pulled, the file holds both words; =git log=
+      shows no conflict (merge=union).
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

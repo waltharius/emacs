@@ -21,6 +21,115 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-18a — Personal dictionary in the settings folder, shared by every machine
+
+### Why
+
+Words added to the dictionary (`C-c S`, the fourth most used command
+by keyfreq) stayed on the machine where they were added:
+`~/.hunspell_personal` is outside both the configuration repository
+and the settings folder.  Each machine therefore kept underlining the
+words the other one had already accepted.  Asked for: the personal
+dictionary in the settings folder (`~/.config/mypks` by default), so
+that it travels between machines with the settings.
+
+### What
+
+- 03-spelling.el, section *Personal dictionary*:
+  - `my/spell-personal-dictionary` (Writing → Spelling, new group
+    `my/spelling`): `<settings folder>/dictionaries/hunspell_personal` by
+    default.  At the root of the settings folder, not under
+    `hosts/<host>/`: shared data, one file for all machines.  A change
+    applies at once (`my/spell--dictionary-apply`).
+  - Old words brought over (`my/spell--dictionary-prepare`): entries the
+    new file lacks are appended, in order, from the file this machine
+    used last (recorded in `hosts/<host>/spelling.eld`, so a change of
+    the settings folder or of the option is followed) and from
+    `~/.hunspell_personal`, once per machine.  Old files are only read.
+    A report says how many words came from where and whether git carries
+    the file.
+  - `.gitattributes` beside the file: `hunspell_personal merge=union`.
+  - A file watch on the dictionary's folder (`filenotify`): a word
+    pulled from the other machine reaches the running Hunspell as `@word`
+    (accepted for the session); a removed, forbidden (`*word`) or
+    flagged (`word/FLAGS`) entry stops Hunspell, which rereads the file
+    at the next check.
+  - `my/spell-edit-personal-dictionary`, `e` in the Spelling column of
+    `C-c n t`: opens the file to remove a word added by mistake; saving
+    applies it.  The quit-time suppression of the dictionary buffer
+    (`my/spell--personal-dict-buffer-p`) no longer applies to a buffer
+    opened this way, so unsaved edits are asked about.
+  - The file is no longer created at load with an aspell header
+    (`personal_ws-1.1 pl_PL 0 utf-8`): Hunspell's personal dictionary has
+    no header and read that line as a word.  The header is dropped when
+    words are brought over.
+  - `WORDLIST` replaces `HUNSPELL_PERSONAL`: Hunspell reads `WORDLIST`
+    in place of `-p`; nothing reads `HUNSPELL_PERSONAL`.
+- tests/test-spelling-dictionary.el (new, 15 ERT tests): format,
+  merge, the attribute, once-per-machine import, a move, and what a
+  changed file sends to a running Hunspell.  Runs without the rest of
+  the configuration and without packages.
+- function_helper.org: *Personal dictionary in the settings folder*
+  (`#fn-spell-personal-dictionary`), `e` in the Spelling table, the
+  settings folder table, Spelling in the settings tree.
+  08-keybindings.el: `e` in the menu tree of the help text.
+  TESTPLAN.org: R18.  BACKLOG.org: the files-the-modules-write entry
+  (first shared file done), and the ordering constraint in the
+  asynchronous-git entry.
+
+### Decisions
+
+- **Why two machines do not lose each other's words.**  Checked in
+  Hunspell's source (`src/tools/hunspell.cxx`, `save_privdic`): the
+  words added during a session are *appended* to the personal
+  dictionary (`fopen(..., "a")`), and the list is cleared after the
+  save.  A Hunspell running for days never writes back the words it
+  read at start, so words pulled in meanwhile survive its next save.
+  Appends from two machines between two cycles conflict at the end of
+  the file; git's built-in `union` merge driver keeps both sides'
+  lines.  Verified with git 2.43 on two clones: both an append/append
+  conflict and an add/add conflict (both machines creating the file)
+  resolve during `pull --rebase` without stopping.
+- **When the old words are brought in: after the start-up pull.**  At
+  module load the file is only *named*.  Creating it then would, on the
+  second machine, leave an untracked file at the path the first
+  machine pushed, and the start-up pull refuses to overwrite untracked
+  files.  `my/desktop-after-startup-hook` runs after `after-init-hook`
+  (where 07-git.el pulls synchronously), and depth -95 keeps it ahead of
+  the release of Hunspell at -90.  Depends on the pull staying
+  synchronous; noted in BACKLOG for the asynchronous-git work.
+- **Once per machine for `~/.hunspell_personal`**, recorded in
+  `spelling.eld`: merging it at every start would bring back a word
+  removed from the shared file on purpose.
+- **`@word` rather than a restart for new words.**  `@` is the ispell
+  pipe command ispell.el itself uses to accept a word for the session;
+  it has no output, so it does not disturb flyspell's reading of
+  Hunspell's answers.  A restart costs the time to load pl_PL and
+  en_GB-large again, at the moment typing resumes.  Removals cannot be
+  undone with `@`, so they restart.
+- **The folder is watched, not the file**: git replaces a file by
+  renaming a new one over it, and a watch on the old file would stop
+  seeing changes.
+- **Rejected: a symlink `~/.hunspell_personal` → the new file.**  Works
+  for Hunspell, but a symlink into the settings folder has to be made on
+  every machine by hand or by NixOS, and replacing a regular file with a
+  symlink is the kind of change to a user's home this configuration does
+  not make on its own.
+- **Rejected: no-littering for this file.**  no-littering moves state
+  into `var/`, per machine; this file is shared data.  no-littering
+  does not set `ispell-personal-dictionary` at all (checked in
+  no-littering.el, main branch).
+
+### Known limits
+
+- The settings folder carries the file to another machine only when it
+  is a git repository, or lies in the notes repository; the report
+  says which applies.  Syncthing or another file synchroniser would
+  also carry it, without the merge attribute.
+- A file name containing whitespace gets no `.gitattributes` line
+  (the pattern would need quoting); the default has none.
+
+---
 ## Session 2026-10-16g — Pushing off for a test copy only; pushing turned off is reported
 
 ### Why

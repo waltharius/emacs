@@ -2133,8 +2133,86 @@ module the Tools menu has no Spelling column and nothing else changes.
 | S   | =my/spell-check-visible=        | Check visible portion of buffer  |
 | b   | =my/spell-check-buffer-full=    | Check entire buffer              |
 | T   | =my/toggle-flyspell=            | Toggle flyspell mode             |
+| e   | =my/spell-edit-personal-dictionary= | Open the personal dictionary, to remove a word |
 
 Module: =modules/03-spelling.el=
+
+**** Personal dictionary in the settings folder
+:PROPERTIES:
+:CUSTOM_ID: fn-spell-personal-dictionary
+:END:
+
+Words added with =a= (=C-c S=) go to one file shared by every machine,
+in the settings folder, instead of =~/.hunspell_personal=:
+
+| File                                                 | Holds                                         |
+|------------------------------------------------------+-----------------------------------------------|
+| =<settings folder>/dictionaries/hunspell_personal=   | the words, Hunspell's format                  |
+| =<settings folder>/dictionaries/.gitattributes=      | =hunspell_personal merge=union=               |
+| =<settings folder>/hosts/<host>/spelling.eld=        | the file used last, old files already read    |
+
+The place is an option, /Personal dictionary/
+(=my/spell-personal-dictionary=, Writing → Spelling in =C-c n , ,=).
+Data shared by all machines sits at the root of the settings folder,
+not under =hosts/<host>/=.  The settings folder travels between
+machines only when it is a git repository or lies in the notes
+repository (see [[#settings-host][The settings folder]]); the report
+says which applies.
+
+*Format.*  One entry per line: =word= accepts it, =*word= forbids it,
+=word/FLAGS= adds it with the affix flags of the main dictionary.
+Hunspell reads the file when it starts.  The aspell header
+(=personal_ws-1.1 pl_PL 0 utf-8=) that earlier versions wrote into
+=~/.hunspell_personal= is not part of Hunspell's format — Hunspell reads
+it as one more word — and is dropped when the words are brought over.
+
+*Two machines.*  Hunspell appends the words added during a session to
+the file (=save_privdic= in =hunspell.cxx= opens it in append mode) and
+never rewrites it from memory, so words pulled from another machine in
+the meantime stay.  Two machines appending between the same two
+cycles give a git conflict at the end of the file; the attribute
+=merge=union= (gitattributes(5), built into git) keeps the lines of both
+sides instead, also during =pull --rebase= and when both machines
+created the file.  A word added on both appears twice; Hunspell does
+not mind.
+
+*Bringing the old words in.*  The entries an old file holds and the new
+one lacks are appended to it, in their order; the old file is only
+read.  Sources: the file this machine used last (after a change of the
+settings folder or of the option), then =~/.hunspell_personal=, once
+per machine — a word removed from the shared file later does not come
+back from there.  Done by =my/spell--dictionary-startup= from
+[[#fn-desktop-after-startup-hook][my/desktop-after-startup-hook]] at depth -95: after the start-up pull of
+=07-git.el=, so that the second machine extends the file the first one
+pushed rather than creating an untracked file of the same name (the
+pull would refuse to overwrite it), and before the release of the
+start-up guard at -90, so before Hunspell starts.  Until then the file
+is only named, not created.  A change of the option applies at once
+(=my/spell--dictionary-apply=).
+
+*A file changed on disk* — by a pull, or by editing it with =e= — is
+noticed by a file watch on its folder (=filenotify=; the folder, since
+git replaces files by renaming).  New words are passed to the running
+Hunspell as =@word=, the ispell pipe command that accepts a word for the
+session; a removed word, a =*word= or a =word/FLAGS= cannot be passed
+that way, so Hunspell is stopped and starts again, with the file as it
+is, at the next check.  The words a session adds itself come back
+through the watch as already known.
+
+*Editing it.*  =e= opens the file; saving applies it.  Unsaved changes
+in that buffer are asked about on quit, unlike the dictionary buffer
+ispell itself may leave behind (=my/spell--personal-dict-buffer-p=).
+
+=WORDLIST= is set to the same file: it is the variable Hunspell reads in
+place of =-p= (=HUNSPELL_PERSONAL=, set before, is read by nothing), so a
+=hunspell= started from a shell inside Emacs uses the same words.
+
+Tests: =tests/test-spelling-dictionary.el=, without the rest of the
+configuration (=emacs -Q --batch -l tests/test-spelling-dictionary.el -f
+ert-run-tests-batch-and-exit=).  By hand: TESTPLAN R18.
+
+Function: =my/spell-edit-personal-dictionary=, =my/spell--dictionary-prepare=, =my/spell--dictionary-merge=, =my/spell--dictionary-sync=, =my/spell--dictionary-startup= |
+Variable: =my/spell-personal-dictionary= | Module: =modules/03-spelling.el=
 
 **** Live checking and the startup guard
 :PROPERTIES:
@@ -8495,6 +8573,7 @@ their own, so that the code holds nothing personal and can be public:
 |----------------------------------------------+------------------------------------------------------|
 | =<settings folder>/hosts/<host>/custom.el=   | what Customize saves (=C-c n , ,=)                   |
 | =<settings folder>/hosts/<host>/ui-state.el= | choices made with keys: theme, font size, text width |
+| =<settings folder>/dictionaries/=            | the personal dictionary, shared by every machine ([[#fn-spell-personal-dictionary][Personal dictionary]]) |
 
 *The settings folder* is =~/.config/mypks/= by default — the usual place
 for a program's settings on Linux — and is itself a setting: /Folder of
@@ -8556,7 +8635,7 @@ renamed:
 | Area (group)                                 | Sub-areas, in display order                                                                                                                                                                 |
 |----------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 1. Notes and silos (=mypks-notes=)           | Notes folder and silos (=mypks-silos=), Tasks and habits (=mypks-tasks=: =my/tasks=, =my/habits=), then Notes, Dashboard, Journal dashboards, Readwise import, Inbox review, Note identifiers, Link tooltips, Images and attachments, Hubs, Journal gaps, Statistics, Markdown notes, Search, Obsidian import, Review cards |
-| 2. Writing (=mypks-writing=)                 | Capture (=my/capture=), Export: PDF and documents (=my/org-export=), Writing projects, Export: writing projects, Standard pages                                                             |
+| 2. Writing (=mypks-writing=)                 | Capture (=my/capture=), Spelling (=my/spelling=), Export: PDF and documents (=my/org-export=), Writing projects, Export: writing projects, Standard pages                                                            |
 | 3. Interface and appearance (=mypks-interface=) | Session, Interface, Fonts, Theme, Text width, Appearance, Image display, and the mode-line faces                                                                                         |
 | 4. Tools (=mypks-tools=)                     | Git (=mypks-git=: =my/git=, =my/project-git=), Hugo sites (=mypks-publishing=: =my/blog=, =my/repo-docs=)                                                                                    |
 

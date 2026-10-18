@@ -24,7 +24,21 @@
 ;; If that state outlives startup, `my/toggle-flyspell' (C-c n t T)
 ;; releases the guard by hand.
 ;;
+;; PERSONAL DICTIONARY
+;; -------------------
+;; Kept in the settings folder, shared by every machine; see the section
+;; "Personal dictionary" below.
+;;
 ;;; Code:
+
+(require 'filenotify)
+
+;; Declared for the byte compiler: ispell.el loads on demand, after
+;; this file sets some of its variables.
+(defvar ispell-personal-dictionary)
+(defvar ispell-process)
+(declare-function ispell-kill-ispell "ispell" (&optional no-error clear))
+(declare-function ispell-send-string "ispell" (string))
 
 ;; ============================================================
 ;; ISPELL CORE VARIABLES  (set immediately — flyspell reads these
@@ -33,11 +47,377 @@
 
 (setq ispell-program-name "hunspell")
 (setq ispell-dictionary "pl_PL,en_GB-large")
-(setq ispell-personal-dictionary (expand-file-name "~/.hunspell_personal"))
-(setenv  "HUNSPELL_PERSONAL" ispell-personal-dictionary)
 (setenv  "LANG"   "pl_PL.UTF-8")
 (setenv  "LC_ALL" "pl_PL.UTF-8")
 (setq ispell-silently-savep t)
+
+;; ============================================================
+;; PERSONAL DICTIONARY: one file for every machine
+;; ============================================================
+;; The words added with `a' (C-c S) are kept in the settings folder
+;; rather than in ~/.hunspell_personal, so that they travel with the
+;; settings from machine to machine:
+;;
+;;   <settings folder>/dictionaries/hunspell_personal  the words
+;;   <settings folder>/dictionaries/.gitattributes     merge=union
+;;   <settings folder>/hosts/<host>/spelling.eld       which old files this
+;;                                                     machine brought in
+;;
+;; Data shared by all machines, so at the root of the settings folder
+;; and not under hosts/<host>/.  07-git.el commits and pushes the
+;; settings folder when it is a repository, or lies in the notes
+;; repository; otherwise nothing carries the file to another machine,
+;; and the report says so.
+;;
+;; WHY TWO MACHINES DO NOT LOSE EACH OTHER'S WORDS.  Hunspell appends
+;; the words added during a session to the file (`save_privdic' in
+;; hunspell.cxx opens it with "a"); it never rewrites the file from
+;; memory, so words pulled from another machine in the meantime stay.
+;; Two machines appending at once give a git conflict at the end of the
+;; file; the attribute `merge=union' (gitattributes(5), built into git)
+;; keeps the lines of both sides instead, also during `pull --rebase'.
+;; A word added on both machines then appears twice, which Hunspell
+;; ignores.
+;;
+;; BRINGING THE OLD WORDS IN.  The lines an old file holds and the new
+;; one lacks are added to the new one, in their order.  Sources: the
+;; file this machine used last (after a change of the settings folder
+;; or of `my/spell-personal-dictionary'), then ~/.hunspell_personal,
+;; once per machine.  Nothing is deleted; the old files stay as they
+;; are and are no longer read.
+;;
+;; WHEN.  From `my/desktop-after-startup-hook' at depth -95: after
+;; 07-git.el's start-up pull, so that the second machine adds its words
+;; to the file the first one pushed instead of creating an untracked
+;; file of the same name, which would make the pull refuse to update
+;; the folder; and before the release of the start-up guard at -90, so
+;; before Hunspell starts.  This relies on the start-up pull being
+;; synchronous; making it asynchronous (BACKLOG) has to keep that order.
+;;
+;; A FILE CHANGED ON DISK -- by a pull, or by editing it (`e' in the
+;; Spelling column) -- is noticed by a file watch on its folder.  New
+;; words are passed to the running Hunspell as "@word", the ispell pipe
+;; command that accepts a word for the session: the file already holds
+;; them, and Hunspell reads it at its next start.  A removed word, a
+;; forbidden one (*word) or one with affix flags (word/FLAGS) cannot be
+;; passed that way; Hunspell is stopped instead and starts again, with
+;; the file as it is, at the next check.
+
+(defgroup my/spelling nil
+  "Spell checking: Hunspell, live underlining, the personal dictionary."
+  :tag "Spelling"
+  :group 'mypks-writing)
+
+(defconst my/spell--legacy-dictionary (expand-file-name "~/.hunspell_personal")
+  "Personal dictionary used before it moved to the settings folder.")
+
+(defvar my/spell--reports nil
+  "Reports about the personal dictionary, waiting to be shown.
+Each is (KIND TITLE LINES), the arguments of `my/notes-report'.")
+
+(defcustom my/spell-personal-dictionary
+  (expand-file-name "dictionaries/hunspell_personal" my/settings-directory)
+  "File holding the words added to the dictionary, shared by every machine.
+In the settings folder by default, so that it is committed and pushed
+with the settings.  Hunspell's format: one word per line; *word forbids
+a word; word/FLAGS adds it with affix flags.
+
+A change applies at once: the words of the file used until now are
+added to the new one, and the old file stays as it is."
+  :type 'file
+  :tag "Personal dictionary"
+  :set (my/settings-apply-on-set #'my/spell--dictionary-apply)
+  :group 'my/spelling)
+
+;; --- what this machine already brought in ---------------------------
+
+(defun my/spell--state-file ()
+  "Return the file recording which dictionaries this machine brought in."
+  (expand-file-name "spelling.eld" my/host-directory))
+
+(defun my/spell--state-read ()
+  "Return the plist in `my/spell--state-file', or nil.
+Keys: :dictionary, the file used last; :imported, old files whose
+words were added once."
+  (let ((file (my/spell--state-file)))
+    (when (file-readable-p file)
+      (condition-case nil
+          (with-temp-buffer
+            (insert-file-contents file)
+            (let ((data (read (current-buffer))))
+              (and (listp data) data)))
+        (error nil)))))
+
+(defun my/spell--state-write (data)
+  "Store the plist DATA in `my/spell--state-file'."
+  (let ((file (my/spell--state-file)))
+    (make-directory (file-name-directory file) t)
+    (with-temp-file file
+      (insert ";; Written by 03-spelling.el: personal dictionary of this machine.\n")
+      (prin1 data (current-buffer))
+      (insert "\n"))))
+
+;; --- reading, writing and merging dictionary files ------------------
+
+(defun my/spell--dictionary-lines (file)
+  "Return the entries of the personal dictionary FILE, in order.
+Trailing whitespace is dropped; empty lines are left out, and so is an
+aspell header (personal_ws-1.1 ...), which earlier versions of this
+module wrote and Hunspell reads as one more word."
+  (when (file-readable-p file)
+    (with-temp-buffer
+      (let ((coding-system-for-read 'utf-8))
+        (insert-file-contents file))
+      (seq-remove (lambda (line)
+                    (or (string-empty-p line)
+                        (string-prefix-p "personal_ws-" line)))
+                  (mapcar #'string-trim-right
+                          (split-string (buffer-string) "\n"))))))
+
+(defun my/spell--dictionary-table (file)
+  "Return a hash table of the entries of the dictionary FILE."
+  (let ((table (make-hash-table :test #'equal)))
+    (dolist (line (my/spell--dictionary-lines file) table)
+      (puthash line t table))))
+
+(defun my/spell--dictionary-write (file lines)
+  "Write LINES to FILE, one per line, through a temporary file and a rename.
+An interrupted write leaves the old FILE whole."
+  (make-directory (file-name-directory file) t)
+  (let ((temp (concat file ".tmp"))
+        (coding-system-for-write 'utf-8-unix))
+    (with-temp-file temp
+      (dolist (line lines)
+        (insert line "\n")))
+    (rename-file temp file t)))
+
+(defun my/spell--dictionary-merge (from to)
+  "Add to the dictionary TO the entries of FROM it lacks; return how many.
+TO is created when missing.  The entries of TO stay first, in their
+order, followed by the new ones in the order of FROM.  FROM is only read."
+  (let ((have (my/spell--dictionary-lines to))
+        (seen (make-hash-table :test #'equal))
+        (added '()))
+    (dolist (line have)
+      (puthash line t seen))
+    (dolist (line (my/spell--dictionary-lines from))
+      (unless (gethash line seen)
+        (puthash line t seen)
+        (push line added)))
+    (setq added (nreverse added))
+    (when (or added (not (file-exists-p to)))
+      (my/spell--dictionary-write to (append have added)))
+    (length added)))
+
+(defun my/spell--dictionary-gitattributes (file)
+  "Make git merge FILE by keeping the lines of both sides (merge=union).
+Creates or extends .gitattributes in the folder of FILE.  A file name
+with whitespace would need quoting there and is left alone."
+  (let* ((name (file-name-nondirectory file))
+         (attributes (expand-file-name ".gitattributes" (file-name-directory file)))
+         (line (format "%s merge=union" name)))
+    (unless (or (string-match-p "[ \t]" name)
+                (and (file-readable-p attributes)
+                     (with-temp-buffer
+                       (insert-file-contents attributes)
+                       (re-search-forward
+                        (concat "^" (regexp-quote line) "[ \t]*$") nil t))))
+      (with-temp-buffer
+        (if (file-readable-p attributes)
+            (progn
+              (insert-file-contents attributes)
+              (goto-char (point-max))
+              (unless (bolp) (insert "\n")))
+          (insert "# Written by 03-spelling.el: words added on two machines are both kept.\n"))
+        (insert line "\n")
+        (write-region nil nil attributes nil 'silent)))))
+
+;; --- bringing the old words in --------------------------------------
+
+(defun my/spell--dictionary-prepare ()
+  "Bring the words of earlier dictionaries into `my/spell-personal-dictionary'.
+Return report lines when an old file was read, else nil.  See
+\"BRINGING THE OLD WORDS IN\" in the commentary of this section."
+  (let* ((target (expand-file-name my/spell-personal-dictionary))
+         (state (my/spell--state-read))
+         (previous (plist-get state :dictionary))
+         (imported (plist-get state :imported))
+         (lines '()))
+    ;; The file this machine used last, when the dictionary has moved.
+    (when (and previous
+               (not (equal (expand-file-name previous) target))
+               (file-readable-p previous))
+      (push (format "%d word(s) added from %s, used until now; that file stays as it is."
+                    (my/spell--dictionary-merge previous target)
+                    (abbreviate-file-name previous))
+            lines))
+    ;; ~/.hunspell_personal, once per machine.
+    (when (and (not (member my/spell--legacy-dictionary imported))
+               (not (equal my/spell--legacy-dictionary target))
+               (file-readable-p my/spell--legacy-dictionary))
+      (push (format "%d word(s) added from %s, which stays as it is and is no longer read."
+                    (my/spell--dictionary-merge my/spell--legacy-dictionary target)
+                    (abbreviate-file-name my/spell--legacy-dictionary))
+            lines)
+      (push my/spell--legacy-dictionary imported))
+    (unless (file-exists-p target)
+      (my/spell--dictionary-write target nil))
+    (my/spell--dictionary-gitattributes target)
+    (unless (and (equal previous target)
+                 (equal imported (plist-get state :imported)))
+      (my/spell--state-write (list :dictionary target :imported imported)))
+    (nreverse lines)))
+
+(defun my/spell--dictionary-backup-line (file)
+  "Return a report line saying whether git carries FILE to other machines."
+  (if (locate-dominating-file file ".git")
+      (concat "It is in a git repository, committed and pushed with it; words added "
+              "on two machines at once are both kept (merge=union in .gitattributes).")
+    (concat "It is in no git repository: nothing carries it to another machine yet.  "
+            "The settings folder inside a repository takes it along; see "
+            "\"The settings folder\" in function_helper.org.")))
+
+;; --- watching the file ----------------------------------------------
+
+(defvar my/spell--dictionary-descriptor nil
+  "Descriptor of the file watch on the folder of the personal dictionary.")
+
+(defvar my/spell--dictionary-known nil
+  "Hash table of the dictionary entries the running Hunspell knows.")
+
+(defvar my/spell--dictionary-timer nil
+  "Idle timer of a pending `my/spell--dictionary-sync'.")
+
+(defun my/spell--dictionary-watch (file)
+  "Watch the folder of FILE, so that changes made on disk reach Hunspell.
+The folder rather than the file: git replaces a file by renaming a new
+one over it, which a watch on the file itself would not follow."
+  (when my/spell--dictionary-descriptor
+    (file-notify-rm-watch my/spell--dictionary-descriptor)
+    (setq my/spell--dictionary-descriptor nil))
+  (setq my/spell--dictionary-known (my/spell--dictionary-table file))
+  (let ((dir (file-name-directory file)))
+    (when (file-directory-p dir)
+      (condition-case err
+          (setq my/spell--dictionary-descriptor
+                (file-notify-add-watch dir '(change) #'my/spell--dictionary-event))
+        (error
+         (message "03-spelling: no file watch on %s (%s); changes on disk reach Hunspell at its next start"
+                  (abbreviate-file-name dir) (error-message-string err)))))))
+
+(defun my/spell--dictionary-event (event)
+  "Schedule `my/spell--dictionary-sync' when EVENT concerns the dictionary.
+Waits for one second of idleness, so that a pull writing several times
+causes one sync."
+  (let ((target (expand-file-name ispell-personal-dictionary))
+        (file (nth 2 event))
+        (file1 (nth 3 event)))
+    (when (or (and (stringp file) (equal (expand-file-name file) target))
+              (and (stringp file1) (equal (expand-file-name file1) target)))
+      (when (timerp my/spell--dictionary-timer)
+        (cancel-timer my/spell--dictionary-timer))
+      (setq my/spell--dictionary-timer
+            (run-with-idle-timer 1 nil #'my/spell--dictionary-sync)))))
+
+(defun my/spell--dictionary-sync ()
+  "Tell the running Hunspell about entries changed in the personal dictionary.
+New plain words are accepted for the session (\"@word\"); anything else
+stops Hunspell, which reads the file again at its next start.  The
+words this session added itself come back here too, as already known."
+  (setq my/spell--dictionary-timer nil)
+  (let ((now (my/spell--dictionary-table ispell-personal-dictionary))
+        (known (or my/spell--dictionary-known (make-hash-table :test #'equal)))
+        (added '())
+        (removed nil))
+    (maphash (lambda (entry _) (unless (gethash entry known) (push entry added))) now)
+    (maphash (lambda (entry _) (unless (gethash entry now) (setq removed t))) known)
+    (setq my/spell--dictionary-known now)
+    (when (and (or added removed)
+               (boundp 'ispell-process)
+               (process-live-p ispell-process))
+      (if (or removed
+              (seq-some (lambda (entry) (string-match-p "\\`\\*\\|/" entry)) added))
+          (progn
+            (ispell-kill-ispell t)
+            (message "Personal dictionary changed: Hunspell restarts at the next check"))
+        (dolist (word added)
+          (ispell-send-string (concat "@" word "\n")))))))
+
+;; --- putting it together --------------------------------------------
+
+(defun my/spell--dictionary-use (file)
+  "Point Hunspell at the personal dictionary FILE and watch it."
+  (setq ispell-personal-dictionary file)
+  ;; WORDLIST is the variable Hunspell itself reads in place of -p
+  ;; (hunspell.cxx); ispell.el passes -p anyway, so this only gives a
+  ;; hunspell started from a shell inside Emacs the same words.
+  (setenv "WORDLIST" file)
+  (my/spell--dictionary-watch file))
+
+(defun my/spell--dictionary-setup ()
+  "Bring the old words in, point Hunspell at the dictionary, report.
+Never signals: a failure is reported, and Hunspell keeps
+~/.hunspell_personal when the new file cannot be written."
+  (let ((target (expand-file-name my/spell-personal-dictionary)))
+    ;; A Hunspell started before this point read another file.
+    (when (and (boundp 'ispell-process) (process-live-p ispell-process))
+      (ispell-kill-ispell t))
+    (condition-case err
+        (let ((lines (my/spell--dictionary-prepare)))
+          (when lines
+            (push (list 'done
+                        (format "Personal dictionary now in %s" (abbreviate-file-name target))
+                        (append lines (list "" (my/spell--dictionary-backup-line target))))
+                  my/spell--reports)))
+      (error
+       (push (list 'failed "Preparing the personal dictionary failed"
+                   (list (error-message-string err)
+                         (format "Wanted: %s" (abbreviate-file-name target))))
+             my/spell--reports)))
+    (my/spell--dictionary-use (if (file-writable-p target)
+                                  target
+                                my/spell--legacy-dictionary))))
+
+(defun my/spell--show-reports ()
+  "Show the reports collected by `my/spell--dictionary-setup'."
+  (dolist (report (reverse my/spell--reports))
+    (apply #'my/notes-report report))
+  (setq my/spell--reports nil))
+
+(defun my/spell--dictionary-startup ()
+  "Prepare and watch the personal dictionary once the session is up.
+From `my/desktop-after-startup-hook' at depth -95: after the start-up
+pull of 07-git.el, before Hunspell may start (-90)."
+  (my/spell--dictionary-setup)
+  (my/spell--show-reports))
+
+(defun my/spell--dictionary-apply ()
+  "Use a changed `my/spell-personal-dictionary' at once."
+  (my/spell--dictionary-setup)
+  (my/spell--show-reports))
+
+;; Until the session is up, the file is only named: creating it before
+;; the start-up pull would make that pull refuse to run (see WHEN).
+(my/spell--dictionary-use (expand-file-name my/spell-personal-dictionary))
+
+(if (boundp 'my/desktop-after-startup-hook)
+    (add-hook 'my/desktop-after-startup-hook #'my/spell--dictionary-startup -95)
+  (add-hook 'after-init-hook #'my/spell--dictionary-startup 90))
+
+(defvar-local my/spell--editing-dictionary nil
+  "Non-nil in a buffer opened by `my/spell-edit-personal-dictionary'.
+Changes typed there are asked about on quit like any other buffer's.")
+
+(defun my/spell-edit-personal-dictionary ()
+  "Open the personal dictionary, to remove a word added by mistake.
+One word per line; *word forbids a word.  Saving is picked up at once:
+Hunspell restarts with the file as saved."
+  (interactive)
+  (find-file ispell-personal-dictionary)
+  (setq my/spell--editing-dictionary t)
+  ;; The file watch catches the save as well; this covers a system
+  ;; without file notifications.  A second sync finds nothing new.
+  (add-hook 'after-save-hook #'my/spell--dictionary-sync nil t))
 
 (setq ispell-hunspell-dictionary-alist
       '(("pl_PL" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
@@ -46,12 +426,6 @@
          ("-d" "en_GB-large" "-i" "utf-8") nil utf-8)
         ("pl_PL,en_GB-large" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
          ("-d" "pl_PL,en_GB-large" "-i" "utf-8") nil utf-8)))
-
-;; Ensure personal dictionary exists with correct UTF-8 header
-(unless (file-exists-p ispell-personal-dictionary)
-  (with-temp-buffer
-    (insert "personal_ws-1.1 pl_PL 0 utf-8\n")
-    (write-file ispell-personal-dictionary)))
 
 ;; ============================================================
 ;; HUNSPELL DICT PATH REGISTRATION
@@ -100,12 +474,14 @@
   (ispell-hunspell-add-multi-dic "pl_PL,en_GB-large"))
 
 ;; ============================================================
-;; E6 — SUPPRESS "Save .hunspell_personal?" ON QUIT
+;; E6 — SUPPRESS "Save <personal dictionary>?" ON QUIT
 ;; ============================================================
 
 (defun my/spell--personal-dict-buffer-p ()
-  "Return t if current buffer is the hunspell personal dictionary."
-  (when (buffer-file-name)
+  "Return t if current buffer is the hunspell personal dictionary.
+Not for a buffer opened to edit it on purpose: its unsaved changes are
+the user's, and quitting asks about them."
+  (when (and (buffer-file-name) (not my/spell--editing-dictionary))
     (string= (file-truename (buffer-file-name))
              (file-truename ispell-personal-dictionary))))
 
@@ -444,7 +820,8 @@ every open text buffer."
       ("a" "Add to dict"       my/spell-add-previous-to-dict :transient t)
       ("S" "Check visible"     my/spell-check-visible)
       ("b" "Check full buffer" my/spell-check-buffer-full)
-      ("T" "Toggle spellcheck" my/toggle-flyspell)]))
+      ("T" "Toggle spellcheck" my/toggle-flyspell)
+      ("e" "Edit personal dict" my/spell-edit-personal-dictionary)]))
   (when (fboundp 'my/transient-append)
     (my/transient-append 'my/notes-menu ","
                          '("s" "Correct previous" my/spell-correct-previous

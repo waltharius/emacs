@@ -241,6 +241,14 @@ Proposal:
 Order: after the decoupling, before the loader -- the loader's list of
 modules turned off is itself a setting.
 
+*Done 2026-10-18a*, the first file of the third kind: the personal
+dictionary, in =dictionaries/= at the root of the settings folder
+(=03-spelling.el=, =my/spell-personal-dictionary=), with
+=merge=union= for git and a record of what each machine brought in in
+=hosts/<host>/spelling.eld=.  The pattern -- shared data at the root,
+the per-machine record of a migration under =hosts/<host>/= -- is the
+one the remaining files can follow.
+
 * Agenda per notes folder
 Asked 2026-10-14 ("if it cannot be done, never mind").  Since
 2026-10-14e the agenda reads the planner (shared on purpose), project
@@ -343,6 +351,11 @@ instead of =ignore-errors= around commit, save and push, and one exit
 path instead of three (=kill-emacs-hook=, =delete-frame-functions=, the
 =save-buffers-kill-emacs= advice -- the advice runs before the "save
 buffers?" question, which is why it exists; check before removing).
+Keep one ordering when the start-up pull becomes asynchronous:
+=03-spelling.el= brings old dictionary words into the shared file from
+=my/desktop-after-startup-hook= on the assumption that the pull has
+landed by then (2026-10-18a); an asynchronous pull needs a hook of its
+own (/pull done/) for that step to wait on.
 
 ** TODO Start-up: early-init.el, compilation, lazy loading (S1-S3, B3, B4, P3, P4, P6, P7)
 *Why*: about 30 000 lines read as source on every start, every theme
