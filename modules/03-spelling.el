@@ -759,11 +759,16 @@ every open text buffer."
 ;; ENSURE FLYSPELL STAYS ON (priority 100 — runs last)
 ;; ============================================================
 
-(add-hook 'org-mode-hook
-          (lambda () (unless flyspell-mode (flyspell-mode 1))) 100)
+;; Named rather than a lambda (review B2), so that
+;; (remove-hook 'org-mode-hook #'my/spell--ensure-on) can undo it and
+;; `describe-variable' shows what runs.
+(defun my/spell--ensure-on ()
+  "Turn flyspell on in this buffer if something earlier turned it off."
+  (unless flyspell-mode
+    (flyspell-mode 1)))
 
-(add-hook 'text-mode-hook
-          (lambda () (unless flyspell-mode (flyspell-mode 1))) 100)
+(add-hook 'org-mode-hook #'my/spell--ensure-on 100)
+(add-hook 'text-mode-hook #'my/spell--ensure-on 100)
 
 ;; ============================================================
 ;; PREVENT OVERLAY DELETION

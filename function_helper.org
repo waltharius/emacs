@@ -2240,6 +2240,11 @@ If flyspell cannot be enabled in some restored buffers, a single
 warning (type =my/spelling=) in =*Warnings*= names them; Hunspell's own
 output is in =*Messages*= after "Error enabling Flyspell mode".
 
+=my/spell--ensure-on=, on =org-mode-hook= and =text-mode-hook= at depth
+100 (after every other function there), turns flyspell back on in a
+buffer where something earlier turned it off.  A named function since
+2026-10-18b, so =remove-hook= can take it out.
+
 **** Dictionaries must be UTF-8
 :PROPERTIES:
 :CUSTOM_ID: fn-spell-dictionaries

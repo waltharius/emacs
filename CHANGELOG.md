@@ -21,6 +21,27 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-18b — Spelling: the flyspell hooks named
+
+### Why
+
+BACKLOG, *Hooks and advice with names* (review B2): a module's
+anonymous hook functions are named when the module is next touched.
+03-spelling.el was touched in 2026-10-18a and added two lambdas to
+`org-mode-hook` and `text-mode-hook` (depth 100, turning flyspell back
+on).  An anonymous function cannot be removed with `remove-hook` and
+shows as a closure in `describe-variable`.
+
+### What
+
+- 03-spelling.el: `my/spell--ensure-on` replaces both lambdas; same
+  body, same depth.  The `(lambda (_buf) (ignore))` in
+  `save-some-buffers-action-alist` stays: it is an action in a list,
+  not a hook, and is never removed.
+- function_helper.org: one paragraph under *Live checking and the
+  startup guard*.
+
+---
 ## Session 2026-10-18a — Personal dictionary in the settings folder, shared by every machine
 
 ### Why
