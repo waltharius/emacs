@@ -3680,7 +3680,31 @@ and it costs nothing because nobody is typing.
 *On exit*, once per session. The safety net. With the idle timer in
 place it usually finds nothing left to do.
 
-=C-c v a= runs it immediately. =C-c v l= shows the git output.
+=C-c v a= (=my/auto-commit-now=) runs it immediately. =C-c v l= shows the git output.
+
+*In the background* (since 2026-10-19).  The idle cycle and =C-c v a=
+run git as background processes, so Emacs stays usable while git talks
+to the server; before, coming back to the keyboard during a push meant
+typing into a frozen editor.  Each repository is a chain: =add -A= →
+=commit= → =pull --rebase= → =push=, every step started by the end of
+the one before (=my/auto-commit-repository-async=), the repositories
+one after another.  Buffers are saved before the first step.  One cycle
+at a time: the idle timer skips while a cycle or the start-up pull
+runs, and =C-c v a= says so.  The summary (/notes: committed, pushed/)
+arrives when git is done.  An error in any step ends that repository's
+chain with /ERROR …/ in the summary instead of stopping silently, and a
+buffer that cannot be saved before the commit is shown as a warning.
+
+The way out waits: =my/auto-commit-all= runs the same chain and waits
+for it (=my/auto-commit--await=, at most 120 s), after waiting for any
+background git.  Local questions to git (status, upstream, unpushed
+commits) use =my/auto-commit--query=: no shell, standard error
+discarded, so a file name is never interpreted and a failure never
+passes for an answer.  File names in commit messages keep their Polish
+letters (=core.quotePath=false=).
+
+Function: =my/auto-commit-now=, =my/auto-commit-repository-async=, =my/auto-commit-all= | Module: =modules/07-git.el=
+
 =C-c v ?= (=my/auto-commit-status=) says, for every repository, whether
 its work is on the server.
 
@@ -3761,8 +3785,8 @@ Emacs is usable at once.  The last session's files may open on the
 previous version for a moment; =global-auto-revert-mode= reloads them
 when the pull lands.  A buffer edited meanwhile is not reloaded, and
 Emacs asks before the first change to a buffer whose file changed on
-disk, as always.  While the pull runs, the idle cycle skips, and a
-commit (=C-c v a=, the exit commit) waits for it, at most
+disk, as always.  While the pull runs, the idle cycle and =C-c v a=
+skip, and the exit commit waits for it, at most
 =my/auto-commit-startup-pull-wait= (30) seconds — which is also when a
 pull that never returns counts as finished, so nothing waits forever.
 

@@ -376,6 +376,21 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
       yet (delete =hosts/<host>/spelling.eld=): its report appears after
       the pull message, not before.
 
+** R23. Commit cycle in the background [0/5]
+- [ ] Change a note, =C-c v a=: echo area "Committing and pushing in the
+      background...", then "notes: committed, pushed".  Type during it:
+      no stutter.
+- [ ] Network off, change a note, =C-c v a=: "committed, server
+      unreachable" without the editor freezing for 5 s; then the
+      warning "commits not pushed".  Network on, =C-c v a=: pushed.
+- [ ] A note titled with Polish letters, an apostrophe and a semicolon:
+      committed; =git log -1= on the server lists the name readably.
+- [ ] Wait five idle minutes after a change: the log (=C-c v l=) shows
+      add, commit, pull, push, all with exit 0; nothing in the echo area
+      but *Messages* has the summary.
+- [ ] Change a note and quit at once (=C-x C-c=): Emacs waits for the
+      push, then quits; =git status= on the server side up to date.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

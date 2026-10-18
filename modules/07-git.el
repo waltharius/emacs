@@ -15,14 +15,15 @@
 ;; Before every push, and once when Emacs starts, each repository is
 ;; brought up to date with its upstream (`git pull --rebase'), so that
 ;; two machines editing the same notes one after the other stay in
-;; step.  The start-up pull runs in the background (see "WHEN IT
-;; RUNS"); the idle cycle and the exit commit still block.  A conflict is never resolved automatically: the pull is
+;; step.  The start-up pull and the idle cycle run git in the background
+;; (see "IN THE BACKGROUND"); only the exit commit waits for git.  A conflict is never resolved automatically: the pull is
 ;; undone, nothing is pushed, and a warning says how to resolve it.
 ;;
 ;; Docs: ~/.emacs.d/function_helper.org::#auto-commit
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'seq)
 (require 'subr-x)
 
@@ -229,20 +230,27 @@ credential prompt either."
            (my/auto-commit--log dir args output status)
            (funcall callback status)))))))
 
+(defun my/auto-commit--query (dir &rest args)
+  "Run git ARGS in DIR for a local answer: its output lines, or nil on failure.
+No shell, so nothing in a file name is ever interpreted; standard error
+is discarded, so a failure never passes for an answer.  For questions
+that read the repository only (status, rev-parse, rev-list) and take
+milliseconds; anything that may reach the network goes through
+`my/auto-commit--git-async'."
+  (let ((default-directory (file-name-as-directory dir))
+        (process-environment (my/auto-commit--env)))
+    (with-temp-buffer
+      (when (eq 0 (apply #'call-process "git" nil '(t nil) nil args))
+        (split-string (buffer-string) "\n" t)))))
+
 (defun my/auto-commit--dirty-p (dir)
   "Return non-nil when DIR has uncommitted changes."
-  (let ((default-directory (file-name-as-directory dir)))
-    (not (string-empty-p
-          (string-trim
-           (shell-command-to-string "git status --porcelain"))))))
+  (and (my/auto-commit--query dir "status" "--porcelain") t))
 
 (defun my/auto-commit--unpushed-p (dir)
   "Return non-nil when DIR has commits its upstream does not."
-  (let ((default-directory (file-name-as-directory dir)))
-    (not (string-empty-p
-          (string-trim
-           (shell-command-to-string
-            "git rev-list --count @{u}..HEAD 2>/dev/null | grep -v '^0$'"))))))
+  (let ((count (car (my/auto-commit--query dir "rev-list" "--count" "@{u}..HEAD"))))
+    (and count (not (equal count "0")))))
 
 ;; ============================================================
 ;; PULL: KEEPING SEVERAL MACHINES IN STEP
@@ -271,11 +279,9 @@ credential prompt either."
 
 (defun my/auto-commit--git-path (dir path)
   "Return the absolute path of PATH inside DIR's git directory."
-  (let ((default-directory (file-name-as-directory dir)))
-    (expand-file-name
-     (string-trim
-      (shell-command-to-string
-       (format "git rev-parse --git-path %s" (shell-quote-argument path)))))))
+  (expand-file-name (or (car (my/auto-commit--query dir "rev-parse" "--git-path" path))
+                        (concat ".git/" path))
+                    (file-name-as-directory dir)))
 
 (defun my/auto-commit--busy-p (dir)
   "Return non-nil when a rebase or merge is in progress in DIR."
@@ -285,14 +291,13 @@ credential prompt either."
 
 (defun my/auto-commit--has-upstream-p (dir)
   "Return non-nil when DIR's current branch tracks an upstream branch."
-  (let ((default-directory (file-name-as-directory dir)))
-    (eq 0 (call-process "git" nil nil nil
-                        "rev-parse" "--abbrev-ref" "--symbolic-full-name" "@{u}"))))
+  (and (my/auto-commit--query dir "rev-parse" "--abbrev-ref"
+                              "--symbolic-full-name" "@{u}")
+       t))
 
 (defun my/auto-commit--head (dir)
-  "Return the commit DIR's HEAD points to."
-  (let ((default-directory (file-name-as-directory dir)))
-    (string-trim (shell-command-to-string "git rev-parse HEAD"))))
+  "Return the commit DIR's HEAD points to, or nil before the first commit."
+  (car (my/auto-commit--query dir "rev-parse" "HEAD")))
 
 (defun my/auto-commit--warn-conflict (dir)
   "Warn once that pulling DIR stopped on a conflict."
@@ -476,61 +481,124 @@ so that the next failure is shown again."
     (message "%s" (string-join lines "\n"))
     lines))
 
-(defun my/auto-commit-repository (dir)
-  "Commit and push DIR when there is anything to commit or push.
+(defun my/auto-commit--message (dir)
+  "Return the commit message for what is staged in DIR."
+  ;; core.quotePath=false: without it git writes a Polish title as
+  ;; "za\305\274..." in quotes, and the message is unreadable.
+  (let ((files (my/auto-commit--query dir "-c" "core.quotePath=false"
+                                      "diff" "--cached" "--name-only")))
+    (format "Auto-commit: %s\n\nChanged (%d):\n%s%s"
+            (format-time-string "%Y-%m-%d %H:%M")
+            (length files)
+            (mapconcat #'file-name-nondirectory (seq-take files 5) "\n")
+            (if (> (length files) 5)
+                (format "\n... and %d more" (- (length files) 5))
+              ""))))
 
-Returns a short description of what happened, or nil when nothing did."
+(defun my/auto-commit-repository-async (dir callback)
+  "Commit, pull and push DIR in the background; then call CALLBACK.
+CALLBACK receives a short description of what happened, or nil when
+nothing did.  Each step starts from the end of the one before:
+
+  add -A -> commit -> pull --rebase -> push
+
+Every step is skipped when there is nothing for it; a pull that did not
+end `ok' (offline, conflict) keeps the push from running.  An error in
+any step ends the chain with \"ERROR ...\" as the description, so
+CALLBACK is always called, exactly once."
   (setq dir (expand-file-name dir))
-  (when (and (file-directory-p dir)
-             (file-directory-p (expand-file-name ".git" dir))
-             (not (my/auto-commit--busy-p dir)))
+  (if (not (and (file-directory-p dir)
+                (file-directory-p (expand-file-name ".git" dir))
+                (not (my/auto-commit--busy-p dir))))
+      (funcall callback nil)
     (let ((name (file-name-nondirectory (directory-file-name dir)))
+          (called nil)
           (committed nil)
           (pulled nil)
           (pull-result nil))
-      (when (my/auto-commit--dirty-p dir)
-        ;; call-process rather than a shell: safe against file names
-        ;; with apostrophes, semicolons or spaces, of which a Denote
-        ;; collection with Polish titles has plenty.
-        (my/auto-commit--git dir "add" "-A")
-        ;; Listed AFTER staging, from the index.  `git diff --name-only
-        ;; HEAD' before staging left out new files -- new notes, the most
-        ;; common change of all -- and failed in a repository without a
-        ;; first commit.
-        (let* ((default-directory (file-name-as-directory dir))
-               (files (ignore-errors
-                        (process-lines "git" "diff" "--cached" "--name-only")))
-               (message-text
-                (format "Auto-commit: %s\n\nChanged (%d):\n%s%s"
-                        (format-time-string "%Y-%m-%d %H:%M")
-                        (length files)
-                        (mapconcat #'file-name-nondirectory (seq-take files 5) "\n")
-                        (if (> (length files) 5)
-                            (format "\n... and %d more" (- (length files) 5))
-                          ""))))
-          (setq committed (eq 0 (my/auto-commit--git
-                                 dir "commit" "-m" message-text)))))
-      ;; Pull before pushing: a push on top of an old state is rejected,
-      ;; and a rejected push is easy to miss in an idle cycle.
-      (when my/auto-commit-pull
-        (let ((before (my/auto-commit--head dir)))
-          (setq pull-result (my/auto-commit--pull dir))
-          (setq pulled (and (eq pull-result 'ok)
-                            (not (equal before (my/auto-commit--head dir)))))))
-      (let ((pushed
-             (when (and (my/auto-commit--push-p dir)
-                        (memq pull-result '(nil ok no-upstream))
-                        (my/auto-commit--unpushed-p dir))
-               (eq 0 (my/auto-commit--git dir "push")))))
-        (let ((parts (delq nil (list (and committed "committed")
-                                     (and pulled "pulled")
-                                     (and pushed "pushed")
-                                     (and (eq pull-result 'offline)
-                                          "server unreachable")
-                                     (and (eq pull-result 'conflict)
-                                          "CONFLICT, not pushed")))))
-          (when parts
-            (format "%s: %s" name (string-join parts ", "))))))))
+      (cl-labels
+          ((done (text)
+             (unless called
+               (setq called t)
+               (funcall callback text)))
+           (safely (fn &rest args)
+             (condition-case err
+                 (apply fn args)
+               (error (done (format "%s: ERROR %s" name (error-message-string err))))))
+           (finish (pushed)
+             (let ((parts (delq nil (list (and committed "committed")
+                                          (and pulled "pulled")
+                                          (and pushed "pushed")
+                                          (and (eq pull-result 'offline)
+                                               "server unreachable")
+                                          (and (eq pull-result 'conflict)
+                                               "CONFLICT, not pushed")))))
+               (done (and parts (format "%s: %s" name (string-join parts ", "))))))
+           (push-step ()
+             (if (and (my/auto-commit--push-p dir)
+                      (memq pull-result '(nil ok no-upstream))
+                      (my/auto-commit--unpushed-p dir))
+                 (my/auto-commit--git-async
+                  dir '("push")
+                  (lambda (status) (safely #'finish (eq status 0))))
+               (finish nil)))
+           (pull-step ()
+             ;; Pull before pushing: a push on top of an old state is
+             ;; rejected, and a rejected push is easy to miss.
+             (if (not my/auto-commit-pull)
+                 (push-step)
+               (let ((before (my/auto-commit--head dir)))
+                 (my/auto-commit--pull-async
+                  dir
+                  (lambda (result)
+                    (safely
+                     (lambda ()
+                       (setq pull-result result
+                             pulled (and (eq result 'ok)
+                                         (not (equal before (my/auto-commit--head dir)))))
+                       (push-step))))))))
+           (commit-step ()
+             (if (not (my/auto-commit--dirty-p dir))
+                 (pull-step)
+               ;; Arguments, not a shell: file names with apostrophes,
+               ;; semicolons or spaces -- a Denote collection with Polish
+               ;; titles has plenty -- are never interpreted.
+               (my/auto-commit--git-async
+                dir '("add" "-A")
+                (lambda (_status)
+                  (safely
+                   (lambda ()
+                     ;; Listed AFTER staging, from the index: new files
+                     ;; included, and no HEAD needed.
+                     (my/auto-commit--git-async
+                      dir (list "commit" "-m" (my/auto-commit--message dir))
+                      (lambda (status)
+                        (safely
+                         (lambda ()
+                           (setq committed (eq status 0))
+                           (pull-step))))))))))))
+        (safely #'commit-step)))))
+
+(defun my/auto-commit--await (start &optional limit)
+  "Call START with a callback and wait until it is called; return its value.
+Waits at most LIMIT seconds (default 120): the blocking path of the
+exit commit, built on the same chain as the background cycle so that
+there is one implementation of what a cycle does.  Timers and process
+output are served while waiting."
+  (let ((done nil)
+        (value nil)
+        (deadline (+ (float-time) (or limit 120))))
+    (funcall start (lambda (v) (setq value v done t)))
+    (while (and (not done) (< (float-time) deadline))
+      (accept-process-output nil 0.05))
+    value))
+
+(defun my/auto-commit-repository (dir)
+  "Commit and push DIR when there is anything to commit or push; wait for it.
+Returns a short description of what happened, or nil when nothing did.
+The blocking form of `my/auto-commit-repository-async'."
+  (my/auto-commit--await
+   (lambda (callback) (my/auto-commit-repository-async dir callback))))
 
 (defun my/auto-commit-directories ()
   "Return every directory that should be committed automatically."
@@ -564,31 +632,116 @@ wants preserved."
                                                 (expand-file-name file)))
                              dirs))
           (with-current-buffer buffer
-            (ignore-errors (save-buffer))))))))
+            (condition-case err
+                (save-buffer)
+              ;; Shown, not swallowed: an unsaved buffer means the
+              ;; commit that follows does not hold that work.
+              (error
+               (display-warning
+                'auto-commit
+                (format "%s could not be saved before the automatic commit: %s"
+                        (buffer-name buffer) (error-message-string err))
+                :warning)))))))))
+
+;; ============================================================
+;; IN THE BACKGROUND
+;; ============================================================
+;; The idle cycle used to run git with `call-process': add, commit,
+;; pull and push one after another, Emacs frozen for the whole network
+;; round trip -- coming back to the keyboard during it meant typing
+;; into a frozen editor.  Now each repository is a chain of background
+;; processes (`my/auto-commit-repository-async'), the repositories one
+;; after another (`my/auto-commit--cycle-next'), and Emacs stays usable.
+;;
+;; One cycle at a time: `my/auto-commit--cycle-running' is set while one
+;; runs, the idle timer skips then, and the start-up pull counts as
+;; running too.  Saving buffers happens before the first process starts,
+;; so the commit holds what was typed.
+;;
+;; The exit commit still waits (`my/auto-commit-all'): Emacs must not
+;; quit before git is done.  It waits through `my/auto-commit--await'
+;; on the same chain, so there is one definition of a cycle.
+
+(defvar my/auto-commit--cycle-running nil
+  "Non-nil while a commit cycle runs in the background: when it started.")
+
+(defun my/auto-commit--busy-in-background-p ()
+  "Non-nil while the start-up pull or a background cycle runs."
+  (or my/auto-commit--startup-pull-running my/auto-commit--cycle-running))
+
+(defun my/auto-commit--wait-for-background ()
+  "Wait, at most `my/auto-commit-startup-pull-wait' seconds, for background git.
+Two git commands in one repository at once end with one of them
+refused on the index lock."
+  (let ((deadline (+ (float-time) my/auto-commit-startup-pull-wait)))
+    (while (and (my/auto-commit--busy-in-background-p)
+                (< (float-time) deadline))
+      (accept-process-output nil 0.1))))
+
+(defun my/auto-commit--cycle-next (dirs results callback)
+  "Commit the first of DIRS in the background, then the rest.
+RESULTS are the descriptions so far; CALLBACK receives all of them."
+  (if (null dirs)
+      (funcall callback (nreverse results))
+    (my/auto-commit-repository-async
+     (car dirs)
+     (lambda (text)
+       (my/auto-commit--cycle-next (cdr dirs)
+                                   (if text (cons text results) results)
+                                   callback)))))
+
+(defun my/auto-commit--cycle (callback &optional quiet)
+  "Save, then commit and push every repository in the background.
+CALLBACK receives the list of descriptions.  The summary goes to the
+echo area, or with QUIET only to *Messages*; what is still not on the
+server is reported as a warning (`my/auto-commit--report')."
+  (setq my/auto-commit--cycle-running (current-time))
+  (condition-case err
+      (progn
+        (my/auto-commit--save-buffers)
+        (let ((dirs (my/auto-commit-directories)))
+          (my/auto-commit--cycle-next
+           dirs nil
+           (lambda (results)
+             (setq my/auto-commit--cycle-running nil)
+             (condition-case err
+                 (progn
+                   (when results
+                     (let ((inhibit-message quiet))
+                       (message "%s" (string-join results "; "))))
+                   (my/auto-commit--report dirs))
+               (error (display-warning
+                       'auto-commit
+                       (format "Reporting the automatic commit failed: %s"
+                               (error-message-string err))
+                       :warning)))
+             (funcall callback results)))))
+    (error
+     (setq my/auto-commit--cycle-running nil)
+     (display-warning 'auto-commit
+                      (format "The automatic commit failed: %s"
+                              (error-message-string err))
+                      :warning)
+     (funcall callback nil))))
 
 ;;;###autoload
-(defun my/auto-commit-all ()
-  "Commit and push every repository that needs it.
-Waits first, at most `my/auto-commit-startup-pull-wait' seconds, for a
-start-up pull still running: two git commands in one repository at once
-end with one of them refused on the index lock."
+(defun my/auto-commit-now ()
+  "Commit and push every repository now, in the background (C-c v a).
+The echo area says what happened when git is done; Emacs stays usable
+meanwhile."
   (interactive)
-  (my/auto-commit--wait-for-startup-pull)
-  (my/auto-commit--save-buffers)
-  (let* ((dirs (my/auto-commit-directories))
-         ;; One repository failing must not stop the others.
-         (results (delq nil (mapcar
-                             (lambda (dir)
-                               (condition-case err
-                                   (my/auto-commit-repository dir)
-                                 (error (format "%s: ERROR %s"
-                                                (abbreviate-file-name dir)
-                                                (error-message-string err)))))
-                             dirs))))
-    (when results
-      (message "%s" (string-join results "; ")))
-    (my/auto-commit--report dirs)
-    results))
+  (if (my/auto-commit--busy-in-background-p)
+      (message "A commit or pull is already running; its result follows")
+    (message "Committing and pushing in the background...")
+    (my/auto-commit--cycle #'ignore)))
+
+(defun my/auto-commit-all ()
+  "Commit and push every repository that needs it, and wait until git is done.
+For the way out of Emacs, which must not end before the push.  Waits
+first for background git (`my/auto-commit--wait-for-background').
+Returns the list of descriptions."
+  (my/auto-commit--wait-for-background)
+  (my/auto-commit--await #'my/auto-commit--cycle))
 
 ;;;###autoload
 (defun my/auto-commit-show-log ()
@@ -600,7 +753,7 @@ end with one of them refused on the index lock."
 (defun my/auto-commit-pull-all ()
   "Bring every auto-committed repository up to date with its upstream."
   (interactive)
-  (my/auto-commit--wait-for-startup-pull)
+  (my/auto-commit--wait-for-background)
   (let ((results
          (delq nil
                (mapcar
@@ -655,8 +808,8 @@ rebase.  The next automatic cycle pushes the result."
 ;; file changed on disk, as always.
 ;;
 ;; Nothing else runs git in these repositories meanwhile: the idle cycle
-;; skips while the pull runs, and `my/auto-commit-all' (the exit commit,
-;; C-c v a) waits for it, at most `my/auto-commit-startup-pull-wait'.
+;; and C-c v a skip while the pull runs, and `my/auto-commit-all' (the
+;; exit commit) waits for it, at most `my/auto-commit-startup-pull-wait'.
 ;;
 ;; Work that must see the pulled files -- the personal dictionary of
 ;; 03-spelling.el, which adds this machine's words to the file the other
@@ -754,24 +907,17 @@ From `after-init-hook', when every module has added its repositories."
     (my/auto-commit--startup-pull-next
      (mapcar #'expand-file-name (my/auto-commit-directories)) nil)))
 
-(defun my/auto-commit--wait-for-startup-pull ()
-  "Wait, at most `my/auto-commit-startup-pull-wait' seconds, for the start-up pull."
-  (let ((deadline (+ (float-time) my/auto-commit-startup-pull-wait)))
-    (while (and my/auto-commit--startup-pull-running
-                (< (float-time) deadline))
-      (accept-process-output nil 0.1))))
-
 (add-hook 'after-init-hook #'my/auto-commit--startup-pull -90)
 
 (defvar my/auto-commit--idle-timer nil
   "Repeating idle timer running `my/auto-commit-all'.")
 
 (defun my/auto-commit--on-idle ()
-  "Commit and push, quietly, after a period of idleness.
-Skipped while the start-up pull runs; the next idle period catches up."
-  (unless my/auto-commit--startup-pull-running
-    (let ((inhibit-message t))
-      (ignore-errors (my/auto-commit-all)))))
+  "Commit and push in the background, quietly, after a period of idleness.
+Skipped while the start-up pull or another cycle runs; the next idle
+period catches up.  Failures are shown as warnings, not swallowed."
+  (unless (my/auto-commit--busy-in-background-p)
+    (my/auto-commit--cycle #'ignore t)))
 
 (defun my/auto-commit--arm-timer ()
   "Start the idle timer, replacing a running one.
@@ -893,7 +1039,7 @@ Named so that it can be removed with `advice-remove'."
 (global-set-key (kbd "C-c v h") 'magit-log-buffer-file)
 
 ;; Auto-commit
-(global-set-key (kbd "C-c v a") 'my/auto-commit-all)
+(global-set-key (kbd "C-c v a") 'my/auto-commit-now)
 (global-set-key (kbd "C-c v l") 'my/auto-commit-show-log)
 (global-set-key (kbd "C-c v ?") 'my/auto-commit-status)
 

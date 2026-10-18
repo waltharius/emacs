@@ -15,8 +15,8 @@ says why and how.
    SEC2 by hand.  (Host names, a damaged =mypks-local.eld=, Geekdoc
    pinned, the =private= and =personal= checks: done 2026-10-18d-f.)
 2. /Automatic git without blocking/ (review section): the largest gain
-   in responsiveness.  Part 1, the start-up pull with its /pull done/
-   hook, done 2026-10-19b; the idle cycle and the exit path left.
+   in responsiveness.  Parts 1 and 2 (the start-up pull, the idle
+   cycle) done 2026-10-19b-c; one exit path left.
 3. /Settings: core plus user layer/, step 5 -- decoupling part 3 with
    the menu items (skipped entries reported, submenus registered), a
    minor mode per module, then the loader together with /Start-up:
@@ -445,10 +445,13 @@ buffers?" question, which is why it exists; check before removing).
 =my/auto-commit-after-startup-pull= and =my/auto-commit-pull-done-hook=
 for code that needs the pulled files (the personal dictionary); the
 idle cycle skips and a commit waits while it runs; its lambda on
-=after-init-hook= is named.  Left: part 2, the idle cycle as a sentinel
-chain (=git status=/=rev-list | grep=/=rev-parse= through
-=process-lines=, =display-warning= instead of =ignore-errors=); part 3,
-one exit path.
+=after-init-hook= is named.
+*Done 2026-10-19c, part 2*: the idle cycle and =C-c v a= as a chain
+of background processes, the exit commit waiting on the same chain;
+local questions without a shell (=my/auto-commit--query=); errors in
+the chain and failed saves shown instead of swallowed.  Left: part 3,
+one exit path instead of three, and the =ignore-errors= that remain
+there.
 
 ** TODO Start-up: early-init.el, compilation, lazy loading (S1-S3, B3, B4, P3, P4, P6, P7)
 *Why*: about 30 000 lines read as source on every start, every theme

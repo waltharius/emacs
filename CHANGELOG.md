@@ -21,6 +21,80 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19c — Commit cycle in the background; local git questions without a shell
+
+### Why
+
+Review findings P2, X6 and X10 (2026-10-14), part 2 of *Automatic git
+without blocking*.  Every five idle minutes `my/auto-commit-all` ran
+`add`, `commit`, `pull --rebase` and `push` with `call-process` for
+each repository, so Emacs froze for every network round trip; coming
+back to the keyboard during it meant typing into a frozen editor, and
+away from home each push waited out the SSH timeout.  Local questions
+went through a shell (`git status --porcelain`, `git rev-list ... |
+grep -v '^0$'`, `git rev-parse ...`), and a failing save before the
+commit was swallowed by `ignore-errors`.
+
+### What
+
+- 07-git.el:
+  - `my/auto-commit-repository-async`: one repository as a chain of
+    background processes, add → commit → pull → push, each step started
+    by the end of the one before.  Same rules as before: no push after
+    a pull that did not end `ok`, nothing done in a repository with a
+    rebase in progress.  An error in any step ends the chain with
+    `ERROR ...` as its description; the callback runs exactly once.
+  - `my/auto-commit--cycle` / `my/auto-commit--cycle-next`: every
+    repository, one after another; summary in the echo area (or only
+    in *Messages* for the idle cycle); `my/auto-commit--report`
+    afterwards, as before.  `my/auto-commit--cycle-running` lets one
+    cycle run at a time.
+  - `my/auto-commit-now` (new, `C-c v a`): starts a cycle in the
+    background and returns.
+  - `my/auto-commit-all` (no longer interactive): the blocking form for
+    the way out, built on the same chain through `my/auto-commit--await`
+    (at most 120 s), after waiting for background git
+    (`my/auto-commit--wait-for-background`, which replaces
+    `my/auto-commit--wait-for-startup-pull`).  `my/auto-commit-repository`
+    likewise waits on the async chain, so there is one definition of
+    what a cycle does.
+  - `my/auto-commit--query`: local git questions with `call-process`,
+    no shell, standard error discarded; `--dirty-p`, `--unpushed-p`,
+    `--git-path`, `--has-upstream-p`, `--head` use it.
+  - `my/auto-commit--message`: the commit message, file names with
+    `core.quotePath=false`.  Polish titles appeared as
+    `"za\305\274\303\263..."` in the commit messages until now.
+  - A buffer that cannot be saved before the commit is shown as a
+    warning; the idle cycle's errors too (`ignore-errors` removed there).
+  - `(require 'cl-lib)` for `cl-labels`.
+- tests/test-auto-commit.el (new, 11 ERT tests): a bare server and two
+  clones in a temporary folder; the start-up pull (background, waiters,
+  conflict), the cycle (Polish file name with an apostrophe and a
+  semicolon, pull before push, offline, nothing to do), the blocking
+  form, a commit waiting for the start-up pull, one cycle at a time, an
+  error ending the chain once.  No network, no Magit.
+- function_helper.org: *When it runs* gains *In the background*.
+  TESTPLAN.org: R23.  BACKLOG.org: part 2 done.
+
+### Decisions
+
+- **The exit path waits on the same chain** instead of keeping a second,
+  synchronous implementation: two implementations of one cycle drift
+  apart.  `accept-process-output` serves the processes while waiting;
+  checked in batch that a commit and push started from
+  `kill-emacs-hook` completes before Emacs exits.
+- **`C-c v a` became a new command** (`my/auto-commit-now`) rather than
+  `my/auto-commit-all` behaving differently when called interactively:
+  the exit path depends on `my/auto-commit-all` returning only after
+  git is done.
+- **Local questions stay synchronous**: `status`, `rev-parse`,
+  `rev-list` read the repository only and take milliseconds; making
+  them asynchronous would multiply the chain for nothing.
+- **The idle timer skips rather than queues** while a cycle runs: the
+  next idle period comes in five minutes, and a queue of cycles would
+  only repeat the same work.
+
+---
 ## Session 2026-10-19b — Start-up pull in the background; a hook for what needs the pulled files
 
 ### Why
