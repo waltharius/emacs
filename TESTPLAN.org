@@ -359,6 +359,23 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
       restart.  =M-x customize-option RET my/blog-autostart= → /As each
       site's :autostart says/, Apply and Save: back to the old behaviour.
 
+** R22. Start-up pull in the background [0/5]
+- [ ] Away from the GitLab (network off), start Emacs: the frame is
+      usable at once; after about 5 s per repository the echo area says
+      "server unreachable, working offline".  Before, the start waited.
+- [ ] At home, add a note on machine 2 and let it push; start Emacs on
+      machine 1 with that folder's buffer in the last session: it opens,
+      then reloads with the new note within seconds; echo area "notes:
+      updated from the server".
+- [ ] =C-c v l= (log): one =pull --rebase --autostash= per repository,
+      with its exit status, as before.
+- [ ] Press =C-c v a= right after start: it waits for the pull to finish
+      (a second or two at home), then commits; the log shows no
+      index.lock error.
+- [ ] Personal dictionary on a machine that has not brought its words in
+      yet (delete =hosts/<host>/spelling.eld=): its report appears after
+      the pull message, not before.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

@@ -2181,13 +2181,14 @@ one lacks are appended to it, in their order; the old file is only
 read.  Sources: the file this machine used last (after a change of the
 settings folder or of the option), then =~/.hunspell_personal=, once
 per machine — a word removed from the shared file later does not come
-back from there.  Done by =my/spell--dictionary-startup= from
-[[#fn-desktop-after-startup-hook][my/desktop-after-startup-hook]] at depth -95: after the start-up pull of
-=07-git.el=, so that the second machine extends the file the first one
-pushed rather than creating an untracked file of the same name (the
-pull would refuse to overwrite it), and before the release of the
-start-up guard at -90, so before Hunspell starts.  Until then the file
-is only named, not created.  A change of the option applies at once
+back from there.  Started by =my/spell--dictionary-startup= from
+[[#fn-desktop-after-startup-hook][my/desktop-after-startup-hook]], and run once the start-up pull of
+=07-git.el= is done (=my/auto-commit-after-startup-pull=; at once
+without =07-git.el= or with pulling off), so that the second machine
+extends the file the first one pushed rather than creating an untracked
+file of the same name (the pull would refuse to overwrite it).  If
+Hunspell started meanwhile, it is stopped and starts again with the
+dictionary in place.  Until then the file is only named, not created.  A change of the option applies at once
 (=my/spell--dictionary-apply=).
 
 *A file changed on disk* — by a pull, or by editing it with =e= — is
@@ -3745,12 +3746,33 @@ exact lines.
 =my/auto-commit-pull= is =t=. Each repository is brought up to date
 with =git pull --rebase --autostash=:
 
-- *when Emacs starts*, before the last session's files are reopened, so
-  buffers open on the newest version;
+- *when Emacs starts*, in the background (since 2026-10-19), one
+  repository after another;
 - *before every push* in the idle and exit cycles, so a push never
   lands on an old state.
 
 Files that change on disk are reloaded by =global-auto-revert-mode=.
+
+*The start-up pull does not block.*  It used to keep Emacs blank until
+every repository was pulled — up to 5 s (the SSH connect timeout) per
+repository away from home.  Now =git pull= runs as a background
+process (=my/auto-commit--startup-pull=, from =after-init-hook=) and
+Emacs is usable at once.  The last session's files may open on the
+previous version for a moment; =global-auto-revert-mode= reloads them
+when the pull lands.  A buffer edited meanwhile is not reloaded, and
+Emacs asks before the first change to a buffer whose file changed on
+disk, as always.  While the pull runs, the idle cycle skips, and a
+commit (=C-c v a=, the exit commit) waits for it, at most
+=my/auto-commit-startup-pull-wait= (30) seconds — which is also when a
+pull that never returns counts as finished, so nothing waits forever.
+
+Code that has to see the pulled files calls
+=my/auto-commit-after-startup-pull= with a function: run when the pull
+is done, or at once when none runs.  =my/auto-commit-pull-done-hook=
+runs at the same moment, with the echo-area lines of the pull.  The
+personal dictionary (=03-spelling.el=) is the first user.
+
+Function: =my/auto-commit-after-startup-pull= | Variable: =my/auto-commit-pull-done-hook=, =my/auto-commit-startup-pull-wait= | Module: =modules/07-git.el=
 
 | Result in the echo area   | Meaning                                              |
 |---------------------------+------------------------------------------------------|

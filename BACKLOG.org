@@ -15,8 +15,8 @@ says why and how.
    SEC2 by hand.  (Host names, a damaged =mypks-local.eld=, Geekdoc
    pinned, the =private= and =personal= checks: done 2026-10-18d-f.)
 2. /Automatic git without blocking/ (review section): the largest gain
-   in responsiveness; brings the /pull done/ hook the personal
-   dictionary waits for.
+   in responsiveness.  Part 1, the start-up pull with its /pull done/
+   hook, done 2026-10-19b; the idle cycle and the exit path left.
 3. /Settings: core plus user layer/, step 5 -- decoupling part 3 with
    the menu items (skipped entries reported, submenus registered), a
    minor mode per module, then the loader together with /Start-up:
@@ -439,11 +439,16 @@ instead of =ignore-errors= around commit, save and push, and one exit
 path instead of three (=kill-emacs-hook=, =delete-frame-functions=, the
 =save-buffers-kill-emacs= advice -- the advice runs before the "save
 buffers?" question, which is why it exists; check before removing).
-Keep one ordering when the start-up pull becomes asynchronous:
-=03-spelling.el= brings old dictionary words into the shared file from
-=my/desktop-after-startup-hook= on the assumption that the pull has
-landed by then (2026-10-18a); an asynchronous pull needs a hook of its
-own (/pull done/) for that step to wait on.
+
+*Done 2026-10-19b, part 1*: the start-up pull runs in the background
+(=my/auto-commit--git-async=, =my/auto-commit--pull-async=), with
+=my/auto-commit-after-startup-pull= and =my/auto-commit-pull-done-hook=
+for code that needs the pulled files (the personal dictionary); the
+idle cycle skips and a commit waits while it runs; its lambda on
+=after-init-hook= is named.  Left: part 2, the idle cycle as a sentinel
+chain (=git status=/=rev-list | grep=/=rev-parse= through
+=process-lines=, =display-warning= instead of =ignore-errors=); part 3,
+one exit path.
 
 ** TODO Start-up: early-init.el, compilation, lazy loading (S1-S3, B3, B4, P3, P4, P6, P7)
 *Why*: about 30 000 lines read as source on every start, every theme

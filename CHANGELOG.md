@@ -21,6 +21,78 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19b — Start-up pull in the background; a hook for what needs the pulled files
+
+### Why
+
+Review findings P1 and B2 (2026-10-14), first part of *Automatic git
+without blocking* (BACKLOG, step 2 of the order of work).  The
+start-up pull ran `git pull` with `call-process` from `after-init-hook`
+for every repository -- notes, settings folder, planner, each writing
+project -- and Emacs stayed blank until all had answered: up to the
+SSH connect timeout (5 s) per repository away from home.  The personal
+dictionary (2026-10-18a) also depended on that blocking: it assumed the
+pull had landed by the time `my/desktop-after-startup-hook` ran.
+
+### What
+
+- 07-git.el:
+  - `my/auto-commit--git-async`: git without blocking, same environment
+    (no credential prompt, SSH timeout), logged like the blocking
+    `my/auto-commit--git`; both log through `my/auto-commit--log`.
+  - `my/auto-commit--pull-async`: the pull of one repository in the
+    background, with the same results (`ok`, `offline`, `conflict`,
+    `busy`, `no-upstream`) and the same abort of a conflicting rebase.
+  - `my/auto-commit--startup-pull` (named; replaces the lambda on
+    `after-init-hook`, depth -90): pulls the repositories one after
+    another through `my/auto-commit--startup-pull-next`; an error in one
+    is logged and the next pulled, so the chain always ends.
+  - `my/auto-commit-after-startup-pull`: runs a function once the
+    start-up pull is done, or at once when none runs.
+    `my/auto-commit-pull-done-hook` runs at the same moment with the
+    message lines.
+  - While the pull runs, the idle cycle skips, and `my/auto-commit-all`
+    (the exit commit, `C-c v a`) and `my/auto-commit-pull-all` wait for
+    it, at most `my/auto-commit-startup-pull-wait` (30 s, new option).
+    After that time a pull that never returned counts as finished, so
+    what waits for it runs and the idle cycle resumes.
+  - `my/auto-commit--pull-line` shared by the background and the
+    interactive pull.
+- 03-spelling.el: `my/spell--dictionary-startup` hands the import of
+  old words to `my/auto-commit-after-startup-pull` when 07-git.el is
+  loaded (guarded with `fboundp`), otherwise runs it at once
+  (`my/spell--dictionary-startup-now`).
+- function_helper.org: *Several machines: pulling* (the background
+  pull, the waiting rules, the new function and hook); the dictionary's
+  timing paragraph.  TESTPLAN.org: R22.  BACKLOG.org: part 1 done,
+  parts 2 and 3 named.
+
+### Decisions
+
+- **Buffers may open on the previous version for a moment.**  The old
+  order (pull before the session is restored) is what blocked.
+  `global-auto-revert-mode` reloads an unmodified buffer when the pull
+  changes its file, and Emacs's own supersession check asks before an
+  edit to a buffer whose file changed on disk; nothing is overwritten
+  silently.
+- **One repository after another, not all at once**: parallel pulls
+  would finish sooner at home, but away from home all would wait out
+  the same timeout anyway, and sequential output in `*auto-commit*` is
+  readable.
+- **Waiting, not refusing**: a commit during the pull waits instead of
+  failing on `.git/index.lock`; 30 s bounds the wait, the same bound
+  as the watchdog.
+- **Only `git pull` runs in the background.**  The checks before it
+  (`busy`, upstream) and `rebase --abort` after a conflict are local and
+  take milliseconds; they stay synchronous until part 2 rewrites them.
+- Verified in batch (Emacs 29.3) against real repositories (a bare
+  remote, two clones): the call returns at once; the pulled file
+  arrives; waiting functions and the hook run after it, a later
+  request runs at once; a conflict is reported, aborted, local file
+  intact; a missing remote gives `offline`; `my/auto-commit-all` waits
+  for a running pull; the idle cycle skips while it runs.
+
+---
 ## Session 2026-10-19a — Blog autostart chosen per machine, toggled from the blog menu
 
 ### Why

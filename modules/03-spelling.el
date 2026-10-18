@@ -86,13 +86,16 @@
 ;; once per machine.  Nothing is deleted; the old files stay as they
 ;; are and are no longer read.
 ;;
-;; WHEN.  From `my/desktop-after-startup-hook' at depth -95: after
-;; 07-git.el's start-up pull, so that the second machine adds its words
-;; to the file the first one pushed instead of creating an untracked
-;; file of the same name, which would make the pull refuse to update
-;; the folder; and before the release of the start-up guard at -90, so
-;; before Hunspell starts.  This relies on the start-up pull being
-;; synchronous; making it asynchronous (BACKLOG) has to keep that order.
+;; WHEN.  After 07-git.el's start-up pull, so that the second machine
+;; adds its words to the file the first one pushed instead of creating
+;; an untracked file of the same name, which would make the pull refuse
+;; to update the folder.  The pull runs in the background, so
+;; `my/spell--dictionary-startup' (from `my/desktop-after-startup-hook')
+;; hands the work to `my/auto-commit-after-startup-pull', which runs it
+;; when the pull is done -- or at once, without 07-git.el or with
+;; pulling turned off.  Hunspell may have started by then (the start-up
+;; guard is released at -90): `my/spell--dictionary-setup' stops it, and
+;; it starts again with the dictionary in place.
 ;;
 ;; A FILE CHANGED ON DISK -- by a pull, or by editing it (`e' in the
 ;; Spelling column) -- is noticed by a file watch on its folder.  New
@@ -384,12 +387,18 @@ Never signals: a failure is reported, and Hunspell keeps
     (apply #'my/notes-report report))
   (setq my/spell--reports nil))
 
-(defun my/spell--dictionary-startup ()
-  "Prepare and watch the personal dictionary once the session is up.
-From `my/desktop-after-startup-hook' at depth -95: after the start-up
-pull of 07-git.el, before Hunspell may start (-90)."
+(defun my/spell--dictionary-startup-now ()
+  "Prepare and watch the personal dictionary, and report."
   (my/spell--dictionary-setup)
   (my/spell--show-reports))
+
+(defun my/spell--dictionary-startup ()
+  "Prepare the personal dictionary once the session is up and pulled.
+From `my/desktop-after-startup-hook'; the work waits for the start-up
+pull of 07-git.el when one runs (see WHEN in the commentary)."
+  (if (fboundp 'my/auto-commit-after-startup-pull)
+      (my/auto-commit-after-startup-pull #'my/spell--dictionary-startup-now)
+    (my/spell--dictionary-startup-now)))
 
 (defun my/spell--dictionary-apply ()
   "Use a changed `my/spell-personal-dictionary' at once."
