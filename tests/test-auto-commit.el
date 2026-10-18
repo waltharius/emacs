@@ -257,5 +257,45 @@
       (should (= (length results) 1))
       (should (string-match-p "ERROR boom" (car results))))))
 
+;; ============================================================
+;; THE WAY OUT
+;; ============================================================
+
+(ert-deftest my/ac-test-exit-commit-once ()
+  "The exit commit pushes, waiting for git, and runs once per session."
+  (my/ac-test--with-repos
+    (let ((my/auto-commit-done nil))
+      (my/ac-test--write (expand-file-name "h.org" here) "h\n")
+      (should (equal (my/auto-commit-exit-commit) '("here: committed, pushed")))
+      (my/ac-test--write (expand-file-name "i.org" here) "i\n")
+      (should (null (my/auto-commit-exit-commit)))
+      (should (my/auto-commit--dirty-p here)))))
+
+(ert-deftest my/ac-test-staying-commits-again ()
+  "Answering no to the question keeps Emacs open, and the next quit commits again."
+  (my/ac-test--with-repos
+    (my/ac-test--git here "remote" "set-url" "origin"
+                     (expand-file-name "missing.git" (file-name-directory
+                                                      (directory-file-name here))))
+    (let ((my/auto-commit-done nil)
+          (my/auto-commit-confirm-exit t)
+          (noninteractive nil))
+      (my/ac-test--write (expand-file-name "j.org" here) "j\n")
+      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) nil)))
+        (should-not (my/auto-commit--confirm-exit)))
+      (should-not my/auto-commit-done)
+      (my/ac-test--write (expand-file-name "k.org" here) "k\n")
+      (should (equal (my/auto-commit-exit-commit)
+                     '("here: committed, server unreachable"))))))
+
+(ert-deftest my/ac-test-last-client-frame-only-in-daemon ()
+  "Outside a daemon, deleting a frame starts no cycle."
+  (let ((started nil))
+    (cl-letf (((symbol-function 'my/auto-commit--cycle)
+               (lambda (&rest _) (setq started t)))
+              ((symbol-function 'daemonp) (lambda () nil)))
+      (my/auto-commit--on-last-client-frame (selected-frame)))
+    (should-not started)))
+
 (provide 'test-auto-commit)
 ;;; test-auto-commit.el ends here

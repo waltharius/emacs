@@ -391,6 +391,19 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
 - [ ] Change a note and quit at once (=C-x C-c=): Emacs waits for the
       push, then quits; =git status= on the server side up to date.
 
+** R24. One exit commit [0/4]
+- [ ] Change a note, leave it unsaved, =C-x C-c=: no "Save file ...?"
+      for the note; Emacs quits after the push; the server has it.
+- [ ] Network off, change a note, =C-x C-c=: "Not on the server: ...
+      Quit anyway?" -- answer no.  Network on, change another note,
+      =C-x C-c=: both are pushed (before, the second quit committed
+      nothing).
+- [ ] =emacsclient -e '(kill-emacs)'= with an unsaved note: committed and
+      pushed without a question.
+- [ ] Daemon only (if used): close the last client frame after a change;
+      =C-c v l= on the next frame shows a cycle; quitting later commits
+      again.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

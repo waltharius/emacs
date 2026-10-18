@@ -665,6 +665,10 @@ wants preserved."
 (defvar my/auto-commit--cycle-running nil
   "Non-nil while a commit cycle runs in the background: when it started.")
 
+;; Defined below, under WHEN IT RUNS, with the start-up pull.
+(defvar my/auto-commit--startup-pull-running)
+(defvar my/auto-commit-startup-pull-wait)
+
 (defun my/auto-commit--busy-in-background-p ()
   "Non-nil while the start-up pull or a background cycle runs."
   (or my/auto-commit--startup-pull-running my/auto-commit--cycle-running))
@@ -930,61 +934,105 @@ Called at load and whenever `my/auto-commit-idle-seconds' changes."
 
 (my/auto-commit--arm-timer)
 
-;; The exit path still runs once per session.  With the idle timer in
-;; place it usually finds nothing to do, which is the point: the work
-;; has already happened, on a machine that was on and a network that was
-;; up.
+;; THE WAY OUT: ONE COMMIT, TWO ENTRANCES.  Until 2026-10-19 the exit
+;; commit was wired three ways -- `kill-emacs-hook', the last frame in
+;; `delete-frame-functions', and an advice before
+;; `save-buffers-kill-emacs' -- with a flag against running twice.  Now:
+;;
+;;   C-x C-c and the like   `kill-emacs-query-functions': after the
+;;                          buffers are saved, one cycle, then the
+;;                          question when work is still only here
+;;                          (`my/auto-commit--confirm-exit')
+;;   anything else          `kill-emacs-hook' (shutdown, emacsclient -e
+;;                          '(kill-emacs)'): the same cycle, no question
+;;
+;; Both go through `my/auto-commit-exit-commit', which runs once per
+;; session.  The advice before `save-buffers-kill-emacs' existed so that
+;; the notes were saved before "Save file ...?" could ask about them; it
+;; now only saves (`my/auto-commit--save-before-quit'), no git.  The
+;; frame handler could not fire outside a daemon (the sole frame cannot
+;; be deleted), and in a daemon it set the once-only flag, so the real
+;; exit later committed nothing.  In a daemon, closing the last client
+;; frame now starts an ordinary background cycle instead.
+
 (defvar my/auto-commit-done nil
-  "Set once the exit-time commit has run, to prevent it running twice.")
+  "Set once the exit commit has run, to prevent it running twice.")
 
-(defun my/auto-commit-all-once ()
-  "Commit and push once per session, on the way out."
+(defun my/auto-commit-exit-commit ()
+  "Commit and push once per session, on the way out, waiting for git.
+Errors are logged in *Messages* and never stop Emacs from quitting.
+Returns the descriptions of `my/auto-commit-all'."
   (unless my/auto-commit-done
-    (ignore-errors (my/auto-commit-all))
-    (setq my/auto-commit-done t)))
+    (setq my/auto-commit-done t)
+    (condition-case err
+        (my/auto-commit-all)
+      (error (message "Exit commit failed: %s" (error-message-string err))
+             nil))))
 
-(add-hook 'kill-emacs-hook 'my/auto-commit-all-once)
+(define-obsolete-function-alias 'my/auto-commit-all-once
+  #'my/auto-commit-exit-commit "2026-10-19")
 
-(defun my/auto-commit-on-frame-delete (frame)
-  "Commit when closing the last Emacs window."
-  (when (= (length (frame-list)) 1)
-    (my/auto-commit-all-once)))
+(add-hook 'kill-emacs-hook #'my/auto-commit-exit-commit)
 
-(add-hook 'delete-frame-functions 'my/auto-commit-on-frame-delete)
+(defun my/auto-commit--save-before-quit (&rest _)
+  "Save the buffers of auto-committed repositories before quitting asks.
+So \"Save file ...?\" never asks about a note: its repository commits
+it anyway.  No git here; the commit follows in
+`my/auto-commit--confirm-exit' or `kill-emacs-hook'."
+  (condition-case err
+      (my/auto-commit--save-buffers)
+    (error (message "Saving before quitting: %s" (error-message-string err)))))
 
-(defun my/auto-commit--before-kill (&rest _)
-  "Commit before `save-buffers-kill-emacs' asks about anything.
-Named so that it can be removed with `advice-remove'."
-  (my/auto-commit-all-once))
+(advice-add 'save-buffers-kill-emacs :before #'my/auto-commit--save-before-quit)
 
-(advice-add 'save-buffers-kill-emacs :before #'my/auto-commit--before-kill)
+(defun my/auto-commit--on-last-client-frame (frame)
+  "In a daemon, start a background cycle when FRAME is the last client frame.
+Emacs keeps running, so this is not the exit commit: the real exit
+later commits again."
+  (when (and (daemonp)
+             (frame-parameter frame 'client)
+             (not (seq-some (lambda (other)
+                              (and (not (eq other frame))
+                                   (frame-parameter other 'client)))
+                            (frame-list)))
+             (not (my/auto-commit--busy-in-background-p)))
+    (my/auto-commit--cycle #'ignore t)))
+
+(add-hook 'delete-frame-functions #'my/auto-commit--on-last-client-frame)
 
 ;; The last word before quitting.  `kill-emacs-query-functions' run
-;; after the buffers have been saved, so one more cycle commits what
-;; the save just wrote; a function returning nil cancels the quit.
+;; after the buffers have been saved, so the cycle commits what the save
+;; just wrote; a function returning nil cancels the quit.
 (defun my/auto-commit--confirm-exit ()
-  "Commit and push once more; ask before quitting if work is still only here."
-  (if (or noninteractive (not my/auto-commit-confirm-exit))
+  "Commit and push once more; ask before quitting if work is still only here.
+The exit commit runs here for interactive quits, whether or not the
+question is turned on (`my/auto-commit-confirm-exit')."
+  (if noninteractive
       t
-    (ignore-errors (my/auto-commit-all))
-    (setq my/auto-commit-done t)
-    (let ((pending
-           (delq nil (mapcar (lambda (dir)
-                               (let ((reason (ignore-errors
-                                               (my/auto-commit-pending dir))))
-                                 ;; A folder kept from pushing on
-                                 ;; purpose (a test copy) is not asked
-                                 ;; about at every exit.
-                                 (and reason
-                                      (not (and (equal reason my/auto-commit--push-off-reason)
-                                                my/auto-commit-push))
-                                      (format "%s (%s)"
-                                              (abbreviate-file-name dir)
-                                              reason))))
-                             (my/auto-commit-directories)))))
-      (or (null pending)
-          (yes-or-no-p (format "Not on the server: %s.  Quit anyway? "
-                               (string-join pending "; ")))))))
+    (my/auto-commit-exit-commit)
+    (if (not my/auto-commit-confirm-exit)
+        t
+      (let ((pending
+             (delq nil (mapcar (lambda (dir)
+                                 (let ((reason (condition-case nil
+                                                   (my/auto-commit-pending dir)
+                                                 (error nil))))
+                                   ;; A folder kept from pushing on
+                                   ;; purpose (a test copy) is not asked
+                                   ;; about at every exit.
+                                   (and reason
+                                        (not (and (equal reason my/auto-commit--push-off-reason)
+                                                  my/auto-commit-push))
+                                        (format "%s (%s)"
+                                                (abbreviate-file-name dir)
+                                                reason))))
+                               (my/auto-commit-directories)))))
+        (or (null pending)
+            (yes-or-no-p (format "Not on the server: %s.  Quit anyway? "
+                                 (string-join pending "; ")))
+            ;; Staying: the next quit commits again.  (Until 2026-10-19
+            ;; the flag stayed set, and that later quit committed nothing.)
+            (progn (setq my/auto-commit-done nil) nil))))))
 
 (add-hook 'kill-emacs-query-functions #'my/auto-commit--confirm-exit)
 

@@ -21,6 +21,63 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19d — One exit commit instead of three paths
+
+### Why
+
+Review finding X5 (2026-10-14), part 3 of *Automatic git without
+blocking*.  The exit commit was wired three ways -- `kill-emacs-hook`,
+the last frame in `delete-frame-functions`, and an advice before
+`save-buffers-kill-emacs` -- held apart by a once-only flag.  Checking
+each before removing it (BACKLOG asked for that) showed:
+
+- The advice's commit was redundant: `kill-emacs-query-functions` runs
+  a cycle after the buffers are saved, and `kill-emacs-hook` covers
+  the case with the question turned off.  What the advice did that
+  nothing else did was *saving* the notes before "Save file ...?"
+  could ask about them.
+- The frame handler could not fire outside a daemon (Emacs refuses to
+  delete the sole frame), and in a daemon it set the once-only flag, so
+  the real exit later committed nothing.
+- Answering no to "Not on the server ... Quit anyway?" also left the
+  flag set: the next quit committed nothing.
+
+### What
+
+- 07-git.el:
+  - `my/auto-commit-exit-commit` (replaces `my/auto-commit-all-once`,
+    kept as an obsolete alias): once per session, waits for git, logs an
+    error instead of swallowing it, never stops the quit.
+    `kill-emacs-hook` and `my/auto-commit--confirm-exit` both call it.
+  - `my/auto-commit--confirm-exit` runs the exit commit for interactive
+    quits whether or not the question is on, and resets the flag when
+    the quit is cancelled.
+  - `my/auto-commit--save-before-quit` replaces
+    `my/auto-commit--before-kill`: the advice saves the repositories'
+    buffers only, no git.
+  - `my/auto-commit--on-last-client-frame` replaces
+    `my/auto-commit-on-frame-delete`: in a daemon, closing the last
+    client frame starts a background cycle without touching the flag;
+    outside a daemon nothing.
+  - The `ignore-errors` of the exit path replaced by `condition-case`.
+- tests/test-auto-commit.el: three more tests (exit commit once,
+  staying after "no" commits again, no cycle outside a daemon); 14 in
+  all.
+- function_helper.org: *One exit commit* under *When it runs*.
+  TESTPLAN.org: R24.  BACKLOG.org: *Automatic git without blocking*
+  removed (all three parts done); 07-git.el struck from the lambda list.
+
+### Decisions
+
+- **The save advice stays**, without git: `save-some-buffers` runs
+  before `kill-emacs-query-functions`, so nothing later can keep it
+  from asking about note buffers; changing
+  `save-some-buffers-default-predicate` instead would affect every
+  other caller of `save-some-buffers` too.
+- Verified in batch: a note changed before `kill-emacs` is committed
+  and pushed before Emacs exits.
+
+---
 ## Session 2026-10-19c — Commit cycle in the background; local git questions without a shell
 
 ### Why

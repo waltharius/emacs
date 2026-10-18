@@ -14,9 +14,8 @@ says why and how.
 1. /Hardening the core/: what is left -- git themes pinned to a commit,
    SEC2 by hand.  (Host names, a damaged =mypks-local.eld=, Geekdoc
    pinned, the =private= and =personal= checks: done 2026-10-18d-f.)
-2. /Automatic git without blocking/ (review section): the largest gain
-   in responsiveness.  Parts 1 and 2 (the start-up pull, the idle
-   cycle) done 2026-10-19b-c; one exit path left.
+2. Done 2026-10-19b-d: automatic git without blocking (start-up
+   pull, idle cycle, one exit path).
 3. /Settings: core plus user layer/, step 5 -- decoupling part 3 with
    the menu items (skipped entries reported, submenus registered), a
    minor mode per module, then the loader together with /Start-up:
@@ -422,37 +421,6 @@ and =CHANGELOG.md= (the manual and the design record), B8 (=mypks-*=
 names areas and =my/...= names module groups -- two levels, on
 purpose).  The rest, in the order worth doing:
 
-** TODO Automatic git without blocking (P1, P2, X5, X6, X10)
-*Why*: the pull at start-up and every idle cycle run =git= with
-=call-process=: Emacs freezes for the network round trip, up to the
-5 s SSH timeout per repository when offline -- with writing projects and
-the planner, several of them.  *Why later*: the largest change of the
-review, and it touches the exit path, where losing a commit is worse
-than waiting.  *How*: =make-process= with a sentinel chain (add →
-commit → pull --rebase → push), one repository after another, as
-=39-project-git.el= and =46-blog.el= already do; the synchronous path
-kept for =kill-emacs-hook= only; the start-up pull asynchronous, buffers
-reverted by =global-auto-revert-mode= when it lands.  At the same time:
-=process-lines= instead of the remaining shell strings (=git status=,
-=rev-list | grep=, =rev-parse=), =condition-case= with =display-warning=
-instead of =ignore-errors= around commit, save and push, and one exit
-path instead of three (=kill-emacs-hook=, =delete-frame-functions=, the
-=save-buffers-kill-emacs= advice -- the advice runs before the "save
-buffers?" question, which is why it exists; check before removing).
-
-*Done 2026-10-19b, part 1*: the start-up pull runs in the background
-(=my/auto-commit--git-async=, =my/auto-commit--pull-async=), with
-=my/auto-commit-after-startup-pull= and =my/auto-commit-pull-done-hook=
-for code that needs the pulled files (the personal dictionary); the
-idle cycle skips and a commit waits while it runs; its lambda on
-=after-init-hook= is named.
-*Done 2026-10-19c, part 2*: the idle cycle and =C-c v a= as a chain
-of background processes, the exit commit waiting on the same chain;
-local questions without a shell (=my/auto-commit--query=); errors in
-the chain and failed saves shown instead of swallowed.  Left: part 3,
-one exit path instead of three, and the =ignore-errors= that remain
-there.
-
 ** TODO Start-up: early-init.el, compilation, lazy loading (S1-S3, B3, B4, P3, P4, P6, P7)
 *Why*: about 30 000 lines read as source on every start, every theme
 pack loaded to be available, 12 =:demand= and 109 top-level
@@ -485,8 +453,8 @@ done (2026-10-14g); =insert-current-time=, =insert-current-date=,
 *Why*: an anonymous function cannot be removed with =remove-hook= and
 shows as a closure in =describe-variable=.  *How*: when a module is
 next touched, name its lambdas; left: =init.el= (the after-init GC
-reset), =00-core.el= (the mode-line seam on =after-init-hook=),
-=07-git.el= (the start-up pull).  Advice inside loops
+reset), =00-core.el= (the mode-line seam on =after-init-hook=).
+=07-git.el= and =03-spelling.el= done (2026-10-19b, 2026-10-18b).  Advice inside loops
 (=23-fixed-tabs.el=, =31-org-images.el=): guard with =advice-member-p=
 so reloading a module does not stack it.
 
