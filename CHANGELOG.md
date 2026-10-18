@@ -21,6 +21,55 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-18d — Host names checked; a damaged mypks-local.eld reported
+
+### Why
+
+Two findings of the 2026-10-16 review (BACKLOG, *Hardening the core*):
+
+- The host name becomes a path, `hosts/<host>/`, and was used as it
+  came.  `MYPKS_HOST=../x`, an absolute `:host` or `~x` pointed outside
+  the settings folder, and that Emacs read and saved a `custom.el`
+  there.
+- `my/local--read` swallowed read errors.  A `mypks-local.eld` cut
+  short by a crash passed for an empty one, so the session silently
+  took the default settings folder -- possibly another set of settings
+  -- and the next write to the file (a change of the settings folder)
+  replaced what it still held.
+
+### What
+
+- 00-core.el:
+  - `my/host--valid-name-p`: one plain folder name -- not empty, not
+    `.` or `..`, no slash or backslash, no control character, not
+    starting with `~` (which `expand-file-name` reads as a home folder).
+  - `my/host--checked`: a rejected `MYPKS_HOST` or `:host` is reported
+    (REFUSED, naming where it came from) and the next source used; the
+    machine's own name last, `default` if even that is no plain name.
+    `my/host-settings-use` (`C-c n , u`) refuses such a name.
+  - `my/local--read` records the error in `my/local--damaged` (also for
+    a file holding something other than a list); a FAILED report says
+    the session runs on the defaults and how to put the file right.
+    `my/local--put` refuses to write while the file is damaged.
+  - `my/host--reports` moved above its first use.
+- tests/test-core-settings.el (new, 9 ERT tests): precedence of the
+  environment over `mypks-local.eld` over the defaults, host names,
+  traversal and absolute names refused with a report, a damaged file
+  reported and not overwritten.  Each case loads 00-core.el in a fresh
+  `emacs -Q --batch` with its own HOME, since the choice is fixed at
+  load; checked to fail against the previous 00-core.el (5 of 9).
+- function_helper.org: two paragraphs in *The settings folder*.
+  TESTPLAN.org: R19.  BACKLOG.org: both items removed.
+
+### Decisions
+
+- **Refuse and fall back rather than sanitise** (e.g. stripping `../`):
+  a cleaned-up name would silently select a folder nobody named.
+- **The defaults still apply when the file is damaged.**  Stopping
+  start-up would leave no Emacs to repair the file with; the report
+  and the refusal to overwrite keep the damage visible and recoverable.
+
+---
 ## Session 2026-10-18c — Backlog: order of work after the second review
 
 ### Why

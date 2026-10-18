@@ -8623,6 +8623,27 @@ hand edit) is reported as FAILED, and Emacs starts with the defaults
 instead of stopping in the debugger.  =M-x check-parens= in the file
 finds the place.
 
+*Host names are checked* (=my/host--valid-name-p=): the name becomes the
+folder =hosts/<host>/=, so =MYPKS_HOST= or =:host= set to =../x=, an
+absolute path or =~x= would point outside the settings folder.  Only
+one plain folder name is accepted -- not empty, not =.= or =..=, no
+slash or backslash, no control character, not starting with =~=.  A
+rejected name is reported (REFUSED, with where it came from) and the
+next source is used, in the end the machine's own name.  =C-c n , u=
+refuses such a name at once.
+
+*A damaged =mypks-local.eld=* -- cut short, or holding something other
+than a plist -- is reported as FAILED instead of passing for an empty
+one: an empty one means "defaults", and the default settings folder may
+hold a different set of settings.  The defaults apply for that
+session; nothing writes over the file (=my/local--put= refuses) until
+it reads again, so the folder and host it named can still be put right
+by hand.  Deleting it returns to the defaults for good.
+
+Tests: =tests/test-core-settings.el= (precedence, host names, a damaged
+file), each case in a fresh =emacs -Q --batch=:
+=emacs -Q --batch -l tests/test-core-settings.el -f ert-run-tests-batch-and-exit=.
+
 Loaded at the top of =00-core.el=, before any option is defined;
 =init.el= no longer loads a custom file itself.
 

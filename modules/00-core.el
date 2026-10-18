@@ -62,6 +62,10 @@
 ;;   settings folder  env MYPKS_DIR, `my/local-file' :directory, ~/.config/mypks/
 ;;   host             env MYPKS_HOST, `my/local-file' :host, the host name
 ;;
+;; A host name that is not one plain folder name is refused and
+;; reported (`my/host--valid-name-p'); a `my/local-file' that cannot be
+;; read is reported, not taken for an empty one (`my/local--damaged').
+;;
 ;; FIRST START WITH A FOLDER.  When this machine has no settings there
 ;; yet, they are copied, in this order of preference, from: the previous
 ;; settings folder (after a change of `my/settings-folder'); the folder
@@ -83,18 +87,45 @@ A plist: :directory (the settings folder), :previous (the one before a
 change, until its settings are copied), :host (another machine's
 settings to use).  Not in git.")
 
+(defvar my/host--reports nil
+  "Reports about the settings folder, shown once reports can be shown.
+Each is (KIND TITLE LINES).")
+
+;; A DAMAGED mypks-local.eld (cut short by a crash, a bad hand edit)
+;; must not pass for an empty one: an empty one means "defaults", and
+;; the default settings folder may hold another set of settings.  The
+;; defaults still apply for this session -- Emacs has to start -- but the
+;; damage is reported, and nothing writes over the file until it reads
+;; again, so the value it held can still be recovered by hand.
+
+(defvar my/local--damaged nil
+  "The read error of `my/local-file', or nil when it read cleanly.")
+
 (defun my/local--read ()
-  "Return the plist in `my/local-file', or nil."
+  "Return the plist in `my/local-file', or nil.
+A file that exists but cannot be read as a plist sets `my/local--damaged'
+and also returns nil; see the commentary above."
   (when (file-readable-p my/local-file)
-    (ignore-errors
-      (with-temp-buffer
-        (insert-file-contents my/local-file)
-        (let ((data (read (current-buffer))))
-          (and (listp data) data))))))
+    (condition-case err
+        (with-temp-buffer
+          (insert-file-contents my/local-file)
+          (let ((data (read (current-buffer))))
+            (unless (listp data)
+              (error "Not a list: %S" data))
+            (setq my/local--damaged nil)
+            data))
+      (error
+       (setq my/local--damaged (error-message-string err))
+       nil))))
 
 (defun my/local--put (key value)
-  "Store VALUE under KEY in `my/local-file'; nil removes KEY."
+  "Store VALUE under KEY in `my/local-file'; nil removes KEY.
+Refused while the file cannot be read: writing would replace what it
+still holds."
   (let ((data (my/local--read)))
+    (when my/local--damaged
+      (user-error "%s cannot be read (%s); fix or delete it first"
+                  (abbreviate-file-name my/local-file) my/local--damaged))
     (setq data (if value
                    (plist-put data key value)
                  (cl-loop for (k v) on data by #'cddr
@@ -133,19 +164,60 @@ settings to use).  Not in git.")
             (let ((name (string-trim (buffer-string))))
               (unless (string-empty-p name) name)))))))
 
+;; A HOST NAME BECOMES A PATH: hosts/<host>/.  Taken as it is, MYPKS_HOST
+;; or :host set to "../x", "/etc" or "~x" would point outside the
+;; settings folder, and this Emacs would read and save a custom.el
+;; there.  Only one plain folder name is accepted; anything else is
+;; reported and the machine's own name used instead.
+
+(defun my/host--valid-name-p (name)
+  "Non-nil when NAME can be a folder in `my/hosts-directory'.
+One plain folder name: not empty, not \".\" or \"..\", no slash or
+backslash, no control character, not starting with \"~\" (which
+`expand-file-name' reads as a home folder)."
+  (and (stringp name)
+       (not (member name '("" "." "..")))
+       (not (string-prefix-p "~" name))
+       (not (string-match-p "[/\\\\[:cntrl:]]" name))))
+
+(defun my/host--checked (name source)
+  "Return NAME when it is a valid host name, else nil.
+A rejected NAME is reported, naming SOURCE, where it came from."
+  (cond
+   ((null name) nil)
+   ((my/host--valid-name-p name) name)
+   (t (push (list 'refused (format "Host name %S not used" name)
+                  (list (format "It comes from %s." source)
+                        "A host name must be one plain folder name: no / or \\, not . or ..,"
+                        "not starting with ~ -- otherwise it would point outside hosts/."
+                        (format "This Emacs uses the machine's own name, %s, instead."
+                                (my/host--system-name))))
+            my/host--reports)
+      nil)))
+
 (defconst my/host-name
-  (or (my/local--env "MYPKS_HOST")
-      (my/host--read-choice)
-      (my/host--system-name))
+  (or (my/host--checked (my/local--env "MYPKS_HOST") "the environment variable MYPKS_HOST")
+      (my/host--checked (my/host--read-choice)
+                        (format ":host in %s" (abbreviate-file-name my/local-file)))
+      (let ((own (my/host--system-name)))
+        (if (my/host--valid-name-p own) own "default")))
   "Name of the folder in `my/hosts-directory' this Emacs uses.")
 
 (defconst my/host-directory
   (file-name-as-directory (expand-file-name my/host-name my/hosts-directory))
   "This Emacs's settings: <settings folder>/hosts/<host>/.")
 
-(defvar my/host--reports nil
-  "Reports about the settings folder, shown once reports can be shown.
-Each is (KIND TITLE LINES).")
+(when my/local--damaged
+  (push (list 'failed (format "%s cannot be read" (abbreviate-file-name my/local-file))
+              (list my/local--damaged
+                    ""
+                    "This session uses the defaults: the settings folder from MYPKS_DIR or"
+                    (format "%s, and the machine's own name.  Nothing writes over the file"
+                            my/settings-default-folder)
+                    "until it reads again, so what it holds can still be put right by hand:"
+                    "a plist such as (:directory \"~/notes/.mypks/\" :host \"laptop\")."
+                    "Deleting it returns to the defaults for good."))
+        my/host--reports))
 
 (defconst my/host--custom-header
   ";;; custom.el --- Settings of this machine, saved by Customize -*- lexical-binding: t; -*-
@@ -518,6 +590,9 @@ The environment variable MYPKS_HOST overrides both."
                           (delete-dups (cons (my/host--system-name)
                                              (my/host--other-hosts)))
                           nil nil nil nil (my/host--system-name))))
+  (unless (my/host--valid-name-p host)
+    (user-error "%S cannot be a host name: one plain folder name, no / or \\, not . or .., not ~..."
+                host))
   (my/local--put :host (unless (equal host (my/host--system-name)) host))
   (let ((old (locate-user-emacs-file "host")))
     (when (file-exists-p old) (delete-file old)))

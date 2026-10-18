@@ -32,21 +32,6 @@ says why and how.
 From the outside review of 2026-10-16.  Each item is small and touches
 one place.
 
-** TODO Host names checked before they become paths
-=MYPKS_HOST= and =:host= in =mypks-local.eld= are joined to =hosts/=
-as they are (=00-core.el=, =my/host-name=): =../x= or an absolute name
-leaves the settings folder and reads or writes a =custom.el= elsewhere.
-Accept one plain folder name only -- no separator, not =.= or =..=,
-no control characters, not empty; otherwise report and use the
-machine's own name.
-
-** TODO A damaged mypks-local.eld reported, not ignored
-=my/local--read= returns nil on a read error, so a truncated file
-silently selects the default settings folder -- and that folder's
-=custom.el=, possibly another set of settings.  Report it (FAILED) with
-the file's name; the defaults then apply for this session only, and
-nothing writes over the damaged file until it is fixed.
-
 ** TODO Geekdoc: a pinned release with a checksum
 =47-repo-docs.el= downloads =releases/latest/= without checking what
 arrives: every update changes the site's templates unseen, and a

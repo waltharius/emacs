@@ -317,6 +317,18 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
       both have pushed and pulled, the file holds both words; =git log=
       shows no conflict (merge=union).
 
+** R19. Host names and a damaged mypks-local.eld [0/4]
+- [ ] =MYPKS_HOST=../x emacs=: REFUSED report "Host name \"../x\" not
+      used"; =C-h v my/host-name= is the machine's own name; nothing
+      created outside =<settings folder>/hosts/=.
+- [ ] =C-c n , u=, type =../x=: refused in the echo area, nothing
+      stored.
+- [ ] Copy =~/.emacs.d/mypks-local.eld= aside, cut off its last
+      characters, start Emacs: FAILED report naming the file; the
+      session runs on =~/.config/mypks/=.  =C-c n , u= or a change of
+      /Folder of these settings/ is refused while the file is damaged.
+- [ ] Put the copy back, restart: no report, the usual settings folder.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply
