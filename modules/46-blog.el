@@ -155,6 +155,14 @@
 ;; of the site's silos schedules another incremental export.  A missing
 ;; site directory or Hugo only leaves a line in *Messages*.
 ;;
+;; WHICH SITES, ON WHICH MACHINE.  `my/blog-autostart' decides per
+;; machine, since Customize saves it in this machine's custom.el
+;; (<settings folder>/hosts/<host>/): `default' follows each site's
+;; `:autostart', a list of site names starts exactly those.  So one
+;; laptop can serve the journal and the docs while another serves
+;; nothing, with the same `my/blog-sites'.  `S' in the menu turns one
+;; site on or off here, saves, and starts or stops it at once.
+;;
 ;; SITE FILES FROM THE EMACS REPOSITORY
 ;; ------------------------------------
 ;; Hugo configuration, layouts, section title pages and favicons are
@@ -355,6 +363,20 @@ common/ is copied into every site, sites/<name>/ into site <name>."
 Each entry is (FILE (SITE . SECTION) ...).  Written by `f' and `F' in
 the menu; may be edited by hand."
   :type 'file
+  :group 'my/blog)
+
+(defcustom my/blog-autostart 'default
+  "Sites kept up to date and served on THIS machine.
+`default': each site whose `:autostart' in `my/blog-sites' is non-nil.
+A list of site names: exactly those, whatever their `:autostart' says.
+Saved in this machine's settings file, so every machine chooses for
+itself.  `S' in the blog menu (C-c n x b) turns one site on or off.
+A change starts the sites turned on at once; a site turned off is no
+longer exported on save, and its running server is left to `s'."
+  :type '(choice (const :tag "As each site's :autostart says" default)
+                 (repeat :tag "Only these sites on this machine" string))
+  :tag "Autostart on this machine"
+  :set (my/settings-apply-on-set #'my/blog--autostart-apply)
   :group 'my/blog)
 
 (defcustom my/blog-autostart-delay 5
@@ -733,7 +755,7 @@ exports at once."
   (dolist (name site-names)
     (let ((site (assoc name my/blog-sites)))
       (when (and site
-                 (my/blog--prop site :autostart)
+                 (my/blog--autostart-p site)
                  (file-directory-p (my/blog--directory site)))
         (condition-case err
             (my/blog--start name (list :write t :quiet t))
@@ -1904,6 +1926,73 @@ a `:remote' is laptop-only and cannot be published."
 ;; AUTOSTART
 ;; ============================================================
 
+(defun my/blog--autostart-p (site)
+  "Non-nil when SITE is kept up to date and served on this machine.
+See `my/blog-autostart'."
+  (if (listp my/blog-autostart)
+      (member (car site) my/blog-autostart)
+    (my/blog--prop site :autostart)))
+
+(defun my/blog--autostart-names ()
+  "Return the names of the sites autostarted on this machine."
+  (mapcar #'car (seq-filter #'my/blog--autostart-p my/blog-sites)))
+
+(defvar my/blog--autostart-quiet nil
+  "Non-nil while `my/blog-toggle-autostart' saves the option.
+The toggle starts or stops its one site itself; the setter's start of
+every site turned on would also restart servers stopped with `s'.")
+
+(defun my/blog--autostart-apply ()
+  "Bring up the sites `my/blog-autostart' turns on, after a change in Customize.
+Exports and serves each such site whose server is not running.  Sites
+turned off are left running until stopped with `s': stopping a server
+is not this option's call."
+  (unless my/blog--autostart-quiet
+    (dolist (site my/blog-sites)
+      (when (and (my/blog--autostart-p site)
+                 (not (my/blog--serving-p (car site))))
+        (my/blog--autostart-site site)))))
+
+;;;###autoload
+(defun my/blog-toggle-autostart (site-name)
+  "Turn the autostart of SITE-NAME on or off on this machine, and save it.
+Saved in `my/blog-autostart' of this machine's settings file; the
+first change turns the `:autostart' values of `my/blog-sites' into an
+explicit list for this machine.  Turned on, the site is exported and
+served now; turned off, its server is stopped after a question."
+  (interactive
+   (list (progn
+           (my/blog--check-config)
+           (let* ((on (my/blog--autostart-names))
+                  (table (mapcar (lambda (site)
+                                   (cons (format "%-12s %s" (car site)
+                                                 (if (member (car site) on)
+                                                     "on here -> turn off"
+                                                   "off here -> turn on"))
+                                         (car site)))
+                                 my/blog-sites)))
+             (cdr (assoc (completing-read "Autostart on this machine: " table nil t)
+                         table))))))
+  (let* ((site (my/blog--site site-name))
+         (on (my/blog--autostart-names))
+         (turn-on (not (member site-name on)))
+         (new (if turn-on
+                  (append on (list site-name))
+                (delete site-name (copy-sequence on)))))
+    ;; Saved without the setter's start-up of every site: only this one
+    ;; changes, and it is handled below.
+    (let ((my/blog--autostart-quiet t))
+      (customize-save-variable 'my/blog-autostart new))
+    (if turn-on
+        (progn
+          (message "%s: autostart on for this machine; exporting and serving" site-name)
+          (my/blog--autostart-site site))
+      (message "%s: autostart off for this machine" site-name)
+      (when (and (my/blog--serving-p site-name)
+                 (y-or-n-p (format "Stop the server of %s now? " site-name)))
+        (delete-process (get-buffer-process (my/blog--preview-buffer site-name)))
+        (message "Hugo server for %s stopped" site-name)))))
+
 (defun my/blog--autostart-site (site)
   "Export what changed in SITE, then serve it.  Never signal.
 Problems -- no site directory, no Hugo -- go to *Messages* only: a
@@ -1937,7 +2026,7 @@ machine without the site should start as quietly as one with it."
       (progn
         (my/blog--check-config)
         (dolist (site my/blog-sites)
-          (when (my/blog--prop site :autostart)
+          (when (my/blog--autostart-p site)
             (my/blog--autostart-site site))))
     (error (message "Blog autostart: %s" (error-message-string err)))))
 
@@ -1951,7 +2040,7 @@ be taken off the site, too."
       (dolist (site my/blog-sites)
         ;; A machine without the site directory stays silent: the
         ;; autostart left one line in *Messages*, that is enough.
-        (when (and (my/blog--prop site :autostart)
+        (when (and (my/blog--autostart-p site)
                    (or (member (my/blog--silo-of file) (my/blog--site-silos site))
                        (my/blog--extra-sections site file))
                    (file-directory-p (my/blog--directory site)))
@@ -1993,7 +2082,8 @@ be taken off the site, too."
     ("v" "Preview (hugo server)"   my/blog-preview)
     ("s" "Stop preview"            my/blog-preview-stop)
     ("p" "Publish to server"       my/blog-publish)
-    ("t" "Sync site files"         my/blog-sync-site)]
+    ("t" "Sync site files"         my/blog-sync-site)
+    ("S" "Autostart here on/off"   my/blog-toggle-autostart)]
    ["Look"
     ("o" "Site folder"             my/blog-open-site)
     ("l" "Last report"             my/blog-show-report)]
@@ -2007,7 +2097,12 @@ be taken off the site, too."
 (with-eval-after-load '12-transient
   (when (fboundp 'my/transient-append)
     (my/transient-append 'my/notes-export-menu "Q"
-                         '("b" "Blog (Hugo) →" my/blog-menu))))
+                         '("b" "Blog (Hugo) →" my/blog-menu))
+    ;; Also in the settings menu (C-c n , b), Machines column: which
+    ;; sites start is a setting of this machine.  Anchored on "u",
+    ;; 12-transient's own last key there.
+    (my/transient-append 'my/settings-menu "u"
+                         '("b" "Blog autostart on this machine" my/blog-toggle-autostart))))
 
 (provide '46-blog)
 ;;; 46-blog.el ends here

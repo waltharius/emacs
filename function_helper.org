@@ -8039,6 +8039,31 @@ laptop only, and it rebuilds on every change. A missing site directory
 or a missing Hugo leaves one line in =*Messages*= and nothing else. The
 server ends with Emacs.
 
+*Per machine.*  Which sites start is decided by =my/blog-autostart=
+(/Autostart on this machine/, Tools → Hugo sites), which Customize
+saves in this machine's settings file
+(=<settings folder>/hosts/<host>/custom.el=), so each machine chooses
+for itself while =my/blog-sites= stays the same everywhere:
+
+| Value       | Sites started on this machine                    |
+|-------------+--------------------------------------------------|
+| =default=   | each site whose =:autostart= is non-nil (as before) |
+| a list      | exactly the sites named, whatever =:autostart= says |
+
+=S= in the blog menu (=C-c n x b S=), also =b= in the settings menu
+(=C-c n , b=), shows every site with its state
+here, and turns the chosen one on or off: the option is saved at once
+(the first change turns the =:autostart= values into an explicit list
+for this machine).  Turned on, the site is exported and served now;
+turned off, it is no longer exported on save, and its running server
+is stopped after a question.  A change made in Customize instead
+starts every site turned on whose server is not running, and leaves
+servers of sites turned off to =s=.  A site added to =my/blog-sites=
+later is not in an explicit list: it starts on a machine only once
+turned on there.
+
+Function: =my/blog-toggle-autostart= | Variable: =my/blog-autostart= | Module: =modules/46-blog.el=
+
 ** Reports
 :PROPERTIES:
 :CUSTOM_ID: blog-report
@@ -8225,6 +8250,7 @@ Function: =my/blog-place-file=, =my/blog-unplace-file= | Module: =modules/46-blo
 | =s= | Stop preview          |
 | =p= | Publish to server     |
 | =t= | Sync site files       |
+| =S= | Autostart here on/off (=my/blog-toggle-autostart=, see [[#blog-autostart][Autostart]]) |
 | =o= | Site folder           |
 | =l= | Last report           |
 
@@ -8287,6 +8313,7 @@ under =<user>.github.io/<repo>/=.
 | =my/blog-private-silos=   | =("journal" "inbox")=       | silos only laptop-only sites may use     |
 | =my/blog-url-source=      | =title=                     | =title= or =identifier=                  |
 | =my/blog-link-style=      | =path=                      | =path= or =relref=                       |
+| =my/blog-autostart=       | =default=                   | sites started on this machine; see [[#blog-autostart][Autostart]] |
 | =my/blog-autostart-delay= | =5=                         | idle seconds after start-up              |
 | =my/blog-template-directory= | =~/.emacs.d/hugo/=       | site files declared in the repository    |
 | =my/blog-extra-files-file= | =hugo/extra-files.eld=     | files placed on sites by hand            |
@@ -8547,6 +8574,7 @@ on a button acts, /State/ → /Save for future sessions/ (or the
 | =C-c n , -= | remove a favourite                                |
 | =C-c n , r= | recently changed settings, newest first           |
 | =C-c n , z= | undo a recent change: the value before it         |
+| =C-c n , b= | blog sites started on this machine (=46-blog.el=, [[#blog-autostart][Autostart]]) |
 
 Function: =my/settings-menu= | Module: =modules/12-transient.el=
 

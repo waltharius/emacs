@@ -21,6 +21,60 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19a — Blog autostart chosen per machine, toggled from the blog menu
+
+### Why
+
+Asked for: which Hugo sites start with Emacs should differ between the
+laptops, be stored with each laptop's settings and be changeable from
+the menu.  `:autostart` sat inside `my/blog-sites`, a single option
+holding every site, its sections and silos; making one laptop differ
+meant saving that whole structure in its custom.el and editing it by
+hand, after which the two machines' site lists could drift apart.
+
+### What
+
+- 46-blog.el:
+  - `my/blog-autostart` (new, *Autostart on this machine*, Tools →
+    Hugo sites): `default` follows each site's `:autostart` (the
+    behaviour so far); a list of site names starts exactly those.
+    Customize saves it in this machine's `hosts/<host>/custom.el`, so
+    the choice is per machine while `my/blog-sites` stays shared.
+  - `my/blog--autostart-p` decides for a site; start-up, export on save
+    and the export of linking sites ask it instead of reading
+    `:autostart` directly.
+  - `my/blog-toggle-autostart`, `S` in the blog menu (`C-c n x b S`)
+    and `b` in the settings menu (`C-c n , b`, Machines column):
+    lists every site with its state on this machine, turns the chosen
+    one on or off, saves at once.  On: exported and served now.  Off: no
+    more exports on save; the server is stopped after a question.
+  - A change in Customize applies without a restart
+    (`my/blog--autostart-apply`): sites turned on whose server is not
+    running are exported and served.  `my/blog--autostart-quiet` keeps
+    the toggle's own save from starting the other sites too.
+- function_helper.org: *Autostart* gains *Per machine*; `S` in the menu
+  table; the option in the options table.  TESTPLAN.org: R21.
+
+### Decisions
+
+- **A separate option rather than `:autostart` per host inside
+  `my/blog-sites`**: a site list saved per machine would copy every
+  section and silo into each custom.el, and a section added on one
+  machine would be missing on the other.  The new option holds names
+  only.
+- **`default` as the default**, so that nothing changes on a machine
+  until it chooses; the first `S` writes the current state as an
+  explicit list.
+- **Turning a site off stops its server only after a question**, and a
+  change in Customize never stops one: a preview opened by hand with
+  `v` may be in use.
+- Verified in batch (Emacs 29.3, stand-ins for export and server):
+  default follows `:autostart`; `S` on adds the site, starts only it,
+  and the value lands in the host's custom.el; `S` off removes it;
+  Customize starts what is on and not running; `default` restores the
+  old behaviour.
+
+---
 ## Session 2026-10-18f — Geekdoc pinned to one release, checked against its SHA-256
 
 ### Why

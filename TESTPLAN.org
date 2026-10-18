@@ -345,6 +345,20 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
       menu: "theme hugo-geekdoc installed"; with a wrong digest in
       =:theme=: "download FAILED: … not unpacked".
 
+** R21. Blog autostart per machine [0/5]
+- [ ] Laptop 1, =C-c n x b S=: every site listed with "on here" /
+      "off here", matching the =:autostart= of =my/blog-sites=.
+- [ ] Turn the docs site off: question "Stop the server of docs now?",
+      answer yes; =http://localhost:1315/= no longer answers.  Its
+      =custom.el= (=C-c n , f=) holds =my/blog-autostart= without "docs".
+- [ ] Restart laptop 1: the docs site neither exports nor serves; the
+      journal does.
+- [ ] Laptop 2, restart after pulling the settings: still serves docs
+      (its own =custom.el= is unchanged).
+- [ ] Laptop 1, =S= docs again: exported and served at once, without a
+      restart.  =M-x customize-option RET my/blog-autostart= → /As each
+      site's :autostart says/, Apply and Save: back to the old behaviour.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply
