@@ -6570,6 +6570,12 @@ hooks, timers; off, it takes them away.  Its commands stay defined
 either way and work from =M-x=: Emacs cannot unload code reliably, and
 what matters is that nothing happens without being asked.
 
+*Names.*  =my/<module>-mode=; =my/<module>-module-mode= where the first
+already names something else in that module -- in 35 and 36 the mode
+of the report buffer (=my/journal-gaps-mode=, =my/notes-stats-mode=).
+Each switch is in its module's settings group, so =C-c n , ,= shows it
+next to the module's other options.
+
 The switch is an option.  =M-x customize-option RET my/readwise-mode=,
 /Toggle/, /Apply and Save/ writes its position into this machine's
 =custom.el=, so a module turned off stays off at the next start of
@@ -6587,6 +6593,14 @@ loader (BACKLOG, step 5).
 | =my/project-git-mode=     | =39-project-git.el=     | publishing new projects, the staleness check on opening a project file, =C-c n p G= |
 | =my/tasks-mode=           | =37-tasks.el=           | the task template, =<f8>=, =C-c a=, the agenda files, =A= in the main menu; off empties =org-agenda-files= |
 | =my/habits-mode=          | =38-habits.el=          | the habit template, =<f9>=, the habit file in the agenda, =H= and tasks → =h= |
+| =my/journal-metrics-mode= | =05b-journal-metrics.el= | Create → =w=, =W= |
+| =my/dashboards-mode=      | =21-dashboards.el=      | Find → =h= (History) |
+| =my/zettelkasten-mode=    | =22-zettelkasten.el=    | =C-c n z= |
+| =my/maintenance-mode=     | =26-maintenance.el=     | =C-c n != |
+| =my/web-links-mode=       | =32-web-links.el=       | Insert → =u= |
+| =my/journal-gaps-module-mode= | =35-journal-gaps.el= | Find → =j= |
+| =my/notes-stats-module-mode= | =36-notes-stats.el=  | Find → =s=, =C-c w s= |
+| =my/image-display-mode=   | =44-image-display.el=   | View → =m=, =C-c u i= |
 | =my/blog-mode=            | =46-blog.el=            | export on save, the autostart sites (after start-up, or at once when turned on later), Export → =b=, Settings → =b=; off also cancels pending exports and stops its Hugo servers |
 
 How a module writes one, with two helpers:

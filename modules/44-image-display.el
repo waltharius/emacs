@@ -196,19 +196,37 @@ Markdown buffers are always session-only -- see the header of
                    (t "")))))
 
 ;; ============================================================
-;; KEYS AND MENU
+;; KEYS AND MENU: ON AND OFF
 ;; ============================================================
+;; The entry goes before Quit in the Toggle column of the View menu.
+;; `my/image-display-mode' is this module's switch (module contract,
+;; rule 12): on, Images in View → Toggle (C-c n v m) and C-c u i; off,
+;; gone.  The commands stay defined for M-x.  Customize saves the
+;; position in this machine's settings (M-x customize-option RET
+;; my/image-display-mode).
 
-(global-set-key (kbd "C-c u i") #'my/image-display-toggle)
+(defconst my/image-display--menu-entries
+  '((insert my/notes-view-menu "q" ("m" "Images in buffer" my/image-display-toggle)))
+  "Menu entries of this module, for `my/transient-entries'.")
 
-;; Inserted before Quit in the Toggle column of the View menu.  Skipped
-;; with a message when 12-transient.el is absent, so deleting that
-;; module costs the menu entry and nothing else -- `C-c u i' keeps
-;; working.
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-insert)
-    (my/transient-insert 'my/notes-view-menu "q"
-                         '("m" "Images in buffer" my/image-display-toggle))))
+(defconst my/image-display--keys
+  '(("C-c u i" . my/image-display-toggle))
+  "Global keys of this module, for `my/module-keys'.")
+
+(define-minor-mode my/image-display-mode
+  "Image display as a module, switched on and off.
+On: Images in View → Toggle (C-c n v m) and C-c u i.  Off: they are
+gone, and the commands remain for M-x.  Customize saves the position
+in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my-image-display
+  (my/module-keys my/image-display-mode my/image-display--keys)
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/image-display-mode my/image-display--menu-entries))))
+
+(my/image-display-mode (if my/image-display-mode 1 -1))
 
 (provide '44-image-display)
 ;;; 44-image-display.el ends here

@@ -478,6 +478,17 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
 - [ ] Customize =my/tasks-mode= off, Apply and Save, restart: no
       planner move question, no =<f8>=.  Back on and save.
 
+** R31. Switches of the menu-only modules [0/3]
+- [ ] =C-c n , ,= → Notes and silos: new groups Journal metrics,
+      Zettelkasten, Maintenance; Writing: Web links.  Each module's group
+      shows its switch at the top (/... Mode/, on).
+- [ ] For each of =my/journal-metrics-mode=, =my/dashboards-mode=,
+      =my/zettelkasten-mode=, =my/maintenance-mode=, =my/web-links-mode=,
+      =my/journal-gaps-module-mode=, =my/notes-stats-module-mode=,
+      =my/image-display-mode=: =M-x= it off -- its entry gone from the
+      menu (and =C-c w s= / =C-c u i= for the last two); on -- back.
+- [ ] No warning of type =menus= afterwards.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

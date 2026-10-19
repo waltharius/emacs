@@ -21,6 +21,49 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19m — Switches for the eight modules that only add menu entries and keys
+
+### Why
+
+BACKLOG step 2.  Eight modules do nothing by themselves at load except
+add menu entries and keys: 05b-journal-metrics, 21-dashboards,
+22-zettelkasten, 26-maintenance, 32-web-links, 35-journal-gaps,
+36-notes-stats, 44-image-display.  Their switches follow the pattern of
+2026-10-19h with nothing to decide case by case, so they are done
+together.
+
+### What
+
+- Each module: a `defconst` with its menu entries (and keys, for 36
+  and 44: C-c w s, C-c u i), a global minor mode on by default, the
+  last line applying the saved position.  The `with-eval-after-load`
+  forms and `global-set-key` lines they replace are gone.
+- Switches: `my/journal-metrics-mode`, `my/dashboards-mode`,
+  `my/zettelkasten-mode`, `my/maintenance-mode`, `my/web-links-mode`,
+  `my/journal-gaps-module-mode`, `my/notes-stats-module-mode`,
+  `my/image-display-mode`.
+- New settings groups for the four modules that had none:
+  `my/journal-metrics`, `my/zettelkasten`, `my/maintenance` (Notes and
+  silos), `my/web-links` (Writing).
+- function_helper.org: the table of switches; naming.  TESTPLAN.org:
+  R31.  BACKLOG.org: progress, and the list of modules left with what
+  they need.
+
+### Decisions
+
+- **`-module-mode` where the plain name is taken**: 35 and 36 already
+  define `my/journal-gaps-mode` and `my/notes-stats-mode`, the modes of
+  their report buffers.  Renaming those would change what a buffer
+  shows in its mode line and anything that refers to the mode; the
+  switch takes the longer name instead.
+- **The remaining modules are not mechanical**: each also sets things
+  up at load (hooks on Org or on files, advice, package settings), and
+  what "off" means has to be decided per module -- listed in BACKLOG.
+- Verified in batch (Emacs 29.3): for each of the eight, its entries
+  present at load, gone when off, back when on; the two keys likewise;
+  nothing recorded as skipped.
+
+---
 ## Session 2026-10-19l — Switches for tasks and habits
 
 ### Why

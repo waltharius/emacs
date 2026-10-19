@@ -1199,12 +1199,38 @@ with working `denote:' links."
 
 ;; Before Quit in the Overview column, which 12-transient.el owns;
 ;; anchored on "t" (Tag stats, 15-workspace.el) until 2026-10-19.
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-insert)
-    (my/transient-insert 'my/notes-find-menu "q"
-                         '("s" "Statistics" my/notes-stats))))
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/notes-stats-module-mode' is this module's switch (module
+;; contract, rule 12): on, Statistics in Find → Overview (C-c n f s) and
+;; C-c w s; off, gone.  The commands stay defined for M-x.  Customize
+;; saves the position in this machine's settings (M-x customize-option
+;; RET my/notes-stats-module-mode).
 
-(global-set-key (kbd "C-c w s") #'my/notes-stats)
+(defconst my/notes-stats-module--menu-entries
+  '((insert my/notes-find-menu "q" ("s" "Statistics" my/notes-stats)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
+(defconst my/notes-stats-module--keys
+  '(("C-c w s" . my/notes-stats))
+  "Global keys of this module, for `my/module-keys'.")
+
+(define-minor-mode my/notes-stats-module-mode
+  "Statistics as a module, switched on and off.
+On: Statistics in Find → Overview (C-c n f s) and C-c w s.  Off: they
+are gone, and the commands remain for M-x.  Customize saves the
+position in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my-notes-stats
+  (my/module-keys my/notes-stats-module-mode my/notes-stats-module--keys)
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/notes-stats-module-mode my/notes-stats-module--menu-entries))))
+
+(my/notes-stats-module-mode (if my/notes-stats-module-mode 1 -1))
+
 
 (provide '36-notes-stats)
 ;;; 36-notes-stats.el ends here

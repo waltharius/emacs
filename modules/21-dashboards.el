@@ -421,10 +421,31 @@ the month."
 ;; without that module.
 ;; ============================================================
 
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-insert)
-    (my/transient-insert 'my/notes-find-menu "q"
-                         '("h" "History →" my/dashboards-history-menu))))
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/dashboards-mode' is this module's switch (module contract, rule
+;; 12): on, History in Find → Overview (C-c n f h); off, gone.  The
+;; commands stay defined for M-x.  Customize saves the position in this
+;; machine's settings (M-x customize-option RET my/dashboards-mode).
+
+(defconst my/dashboards--menu-entries
+  '((insert my/notes-find-menu "q" ("h" "History →" my/dashboards-history-menu)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
+(define-minor-mode my/dashboards-mode
+  "History dashboards as a module, switched on and off.
+On: History in Find → Overview (C-c n f h).  Off: they are gone, and
+the commands remain for M-x.  Customize saves the position in this
+machine's settings."
+  :global t
+  :init-value t
+  :group 'my-dashboards
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/dashboards-mode my/dashboards--menu-entries))))
+
+(my/dashboards-mode (if my/dashboards-mode 1 -1))
 
 (provide '21-dashboards)
 ;;; 21-dashboards.el ends here

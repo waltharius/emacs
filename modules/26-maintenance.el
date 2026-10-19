@@ -780,10 +780,37 @@ leaving part-way through is safe and leaves no modified buffers."
 ;; second column -- not after "a" (Add to dict), which belongs to
 ;; 03-spelling.el and is absent without it.  Through the helper that
 ;; degrades gracefully when 12-transient.el is absent.
-(with-eval-after-load '12-transient
-  (my/transient-append 'my/notes-menu ","
-                       '("!" "Maintenance → integrity/keywords/repair"
-                         my/notes-maintenance-menu)))
+(defgroup my/maintenance nil
+  "Integrity checks and repairs (26-maintenance.el)."
+  :tag "Maintenance"
+  :group 'mypks-notes)
+
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/maintenance-mode' is this module's switch (module contract, rule
+;; 12): on, the Maintenance entry of the main menu (C-c n !); off, gone.
+;; The commands stay defined for M-x.  Customize saves the position in
+;; this machine's settings (M-x customize-option RET my/maintenance-
+;; mode).
+
+(defconst my/maintenance--menu-entries
+  '((append my/notes-menu "," ("!" "Maintenance → integrity/keywords/repair" my/notes-maintenance-menu)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
+(define-minor-mode my/maintenance-mode
+  "Maintenance as a module, switched on and off.
+On: the Maintenance entry of the main menu (C-c n !).  Off: they are
+gone, and the commands remain for M-x.  Customize saves the position
+in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/maintenance
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/maintenance-mode my/maintenance--menu-entries))))
+
+(my/maintenance-mode (if my/maintenance-mode 1 -1))
 
 (provide '26-maintenance)
 ;;; 26-maintenance.el ends here

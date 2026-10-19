@@ -77,8 +77,8 @@ settles; a line is a reminder, not the text to paste.
   Insert =u= in the Link column (2026-10-19e).
 - /Global/: =C-c v a= commits in the background and returns at once
   (2026-10-19c); =C-c n , b=; the Readwise, Zotero, =C-c y=, =C-c a=,
-  =<f8>= and =<f9>= keys exist only while their modules are on
-  (2026-10-19h, k, l).
+  =<f8>=, =<f9>=, =C-c w s= and =C-c u i= keys exist only while their
+  modules are on (2026-10-19h, k, l, m).
 - /What happens without being asked/: auto-commit covers the notes,
   the settings folder, the planner and writing projects -- *not* this
   repository, which is opt-in (the README says the opposite); it and
@@ -250,10 +250,13 @@ Next, in order:
    - Done 2026-10-19h: the helpers (=my/module-keys=,
      =my/transient-entries=) and Obsidian import, Readwise, Zotero,
      drill; 2026-10-19i the blog; 2026-10-19k typing analytics and
-     project git; 2026-10-19l tasks and habits.  Next: the modules
-     without hooks or timers, which only add keys and menu entries,
-     then those whose load-time work needs a look of its own
-     (17-bibliography, 03-spelling).
+     project git; 2026-10-19l tasks and habits; 2026-10-19m the eight
+     that only add menu entries and keys (05b, 21, 22, 26, 32, 35, 36,
+     44).  Left: the modules that also set things up at load -- hooks
+     on Org or on files, advice, packages configured -- each needing a
+     look at what "off" should mean: 02b, 03b, 06, 09, 10, 11, 13, 15,
+     16, 19, 20, 23, 25, 28, 29, 30, 31, 33, 34, 40, 41, 45, 47, 48;
+     and separately 17-bibliography and 03-spelling.
      17-bibliography needs its own look: other modules' exports use
      the citation machinery it sets up.
 3. *The loader*: =init.el= reads the headers, an option lists the

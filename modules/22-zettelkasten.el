@@ -260,10 +260,37 @@ follow with my/zettel-reparent to place it under an existing thread."
 ;; 12-transient.el to have been loaded first -- removing that module
 ;; would abort init here with a void-function error naming this file
 ;; rather than the missing one.
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-append)
-    (my/transient-append 'my/notes-menu "t"
-                         '("z" "Zettelkasten →" my/zettelkasten-menu))))
+(defgroup my/zettelkasten nil
+  "Folgezettel sequences (22-zettelkasten.el)."
+  :tag "Zettelkasten"
+  :group 'mypks-notes)
+
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/zettelkasten-mode' is this module's switch (module contract, rule
+;; 12): on, the Zettelkasten entry of the main menu (C-c n z); off,
+;; gone.  The commands stay defined for M-x.  Customize saves the
+;; position in this machine's settings (M-x customize-option RET
+;; my/zettelkasten-mode).
+
+(defconst my/zettelkasten--menu-entries
+  '((append my/notes-menu "t" ("z" "Zettelkasten →" my/zettelkasten-menu)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
+(define-minor-mode my/zettelkasten-mode
+  "Zettelkasten as a module, switched on and off.
+On: the Zettelkasten entry of the main menu (C-c n z).  Off: they are
+gone, and the commands remain for M-x.  Customize saves the position
+in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/zettelkasten
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/zettelkasten-mode my/zettelkasten--menu-entries))))
+
+(my/zettelkasten-mode (if my/zettelkasten-mode 1 -1))
 
 (provide '22-zettelkasten)
 ;;; 22-zettelkasten.el ends here

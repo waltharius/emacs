@@ -646,12 +646,38 @@ first."
 ;; 12-transient.el loads after this module, so the entries are added when
 ;; (and if) it provides itself.
 
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-append)
-    (my/transient-append 'my/notes-create-menu "J"
-                         '("w" "Metrics today" my/journal-set-metrics))
-    (my/transient-append 'my/notes-create-menu "w"
-                         '("W" "Metrics for date" my/journal-set-metrics-for-date))))
+(defgroup my/journal-metrics nil
+  "Daily metrics of journal notes (05b-journal-metrics.el)."
+  :tag "Journal metrics"
+  :group 'mypks-notes)
+
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/journal-metrics-mode' is this module's switch (module contract,
+;; rule 12): on, the two metrics entries of the Create menu (C-c n c w,
+;; W); off, gone.  The commands stay defined for M-x.  Customize saves
+;; the position in this machine's settings (M-x customize-option RET
+;; my/journal-metrics-mode).
+
+(defconst my/journal-metrics--menu-entries
+  '((append my/notes-create-menu "J" ("w" "Metrics today" my/journal-set-metrics))
+    (append my/notes-create-menu "w" ("W" "Metrics for date" my/journal-set-metrics-for-date)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
+(define-minor-mode my/journal-metrics-mode
+  "Journal metrics as a module, switched on and off.
+On: the two metrics entries of the Create menu (C-c n c w, W).  Off:
+they are gone, and the commands remain for M-x.  Customize saves the
+position in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/journal-metrics
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/journal-metrics-mode my/journal-metrics--menu-entries))))
+
+(my/journal-metrics-mode (if my/journal-metrics-mode 1 -1))
 
 (provide '05b-journal-metrics)
 ;;; 05b-journal-metrics.el ends here

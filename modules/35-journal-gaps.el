@@ -395,10 +395,32 @@ Useful from a hook or when the answer is `none, carry on'."
 ;; when it is off, Journal gaps stays in the menu.  (Until 2026-10-19 it
 ;; was anchored on "h" and disappeared without 21-dashboards.el.)
 
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-insert)
-    (my/transient-insert 'my/notes-find-menu "q"
-                         '("j" "Journal gaps" my/journal-gaps))))
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/journal-gaps-module-mode' is this module's switch (module
+;; contract, rule 12): on, Journal gaps in Find → Overview (C-c n f j);
+;; off, gone.  The commands stay defined for M-x.  Customize saves the
+;; position in this machine's settings (M-x customize-option RET
+;; my/journal-gaps-module-mode).
+
+(defconst my/journal-gaps-module--menu-entries
+  '((insert my/notes-find-menu "q" ("j" "Journal gaps" my/journal-gaps)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
+(define-minor-mode my/journal-gaps-module-mode
+  "Journal gaps as a module, switched on and off.
+On: Journal gaps in Find → Overview (C-c n f j).  Off: they are gone,
+and the commands remain for M-x.  Customize saves the position in this
+machine's settings."
+  :global t
+  :init-value t
+  :group 'my-journal-gaps
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/journal-gaps-module-mode my/journal-gaps-module--menu-entries))))
+
+(my/journal-gaps-module-mode (if my/journal-gaps-module-mode 1 -1))
 
 (provide '35-journal-gaps)
 ;;; 35-journal-gaps.el ends here
