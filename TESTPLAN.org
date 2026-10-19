@@ -425,6 +425,20 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
 - [ ] The same change saved in the repository: =git commit= is refused
       by =menukeys= naming both modules.  =git checkout= the file.
 
+** R27. A module's switch: Readwise, Zotero, Obsidian import, drill [0/5]
+- [ ] Start as usual: =C-c n t= shows =z r o=; =C-c x=, =C-c r s=,
+      =C-c n r= work; the deck keyword is offered when adding keywords.
+- [ ] =M-x my/readwise-mode=: echo area "...disabled"; =C-c n t= without
+      =r=; =C-c r s= is "undefined".  =M-x my/readwise-sync= still runs.
+      =M-x my/readwise-mode= again: entry and keys back (=r= now last in
+      its column).
+- [ ] =M-x customize-option RET my/drill-mode=, Toggle, Apply and Save.
+      Restart: no =C-c n r=, no deck keyword in the keyword prompt.  The
+      other machine still has both.  Turn it back on and save.
+- [ ] =M-x my/zotero-mode= off, then =C-c x=: undefined; the citation
+      commands of 17-bibliography (=C-c b c=) still work.  On again.
+- [ ] No warning of type =menus= after any of this.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

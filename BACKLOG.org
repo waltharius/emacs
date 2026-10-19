@@ -240,6 +240,13 @@ Next, in order:
      with =my/transient-append= (19, 22, 26, 28, 37, 38).
 2. *A minor mode per module* (rule 12), the integrations first:
    Obsidian import, Readwise, Zotero, blog, drill.
+   - Done 2026-10-19h: the helpers (=my/module-keys=,
+     =my/transient-entries=) and Obsidian import, Readwise, Zotero,
+     drill.  Next: the blog (hooks, a start-up timer, servers), then
+     the other modules one at a time, those that add hooks or timers
+     first (14-typing-analytics, 37-tasks, 38-habits, 39-project-git).
+     17-bibliography needs its own look: other modules' exports use
+     the citation machinery it sets up.
 3. *The loader*: =init.el= reads the headers, an option lists the
    modules turned off, the order follows =MyPKS-Requires= (checked
    against today's order first); the menu entry refuses or offers the

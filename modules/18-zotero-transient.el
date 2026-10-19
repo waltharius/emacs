@@ -56,15 +56,42 @@
 
   [("q" "Quit" transient-quit-one)])
 
-(global-set-key (kbd "C-c x") 'my/zotero-menu)
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/zotero-mode' is this module's switch (module contract, rule 12):
+;; on, the Tools menu has its entry (C-c n t z) and
+;; C-c x opens the menu; off, neither; the citation commands of
+;; 17-bibliography.el are not affected.  The commands stay
+;; defined either way and work from M-x.  The switch is an option, so
+;; Customize saves its position in this machine's settings
+;; (M-x customize-option RET my/zotero-mode); turned off there, the module
+;; stays off at the next start.
 
-;; Inserted into the Integrations column of the Tools menu (C-c n t z)
-;; rather than declared in 12-transient.el, so that turning this module
-;; off takes the entry with it and leaves the menu whole.
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-insert)
-    (my/transient-insert 'my/notes-tools-menu "q"
-                         '("z" "Zotero / Bib →" my/zotero-menu))))
+;; The entry goes into the Integrations column of the Tools menu rather
+;; than being declared in 12-transient.el, so that turning this module
+;; off takes it out and leaves the menu whole.
+(defconst my/zotero--menu-entries
+  '((insert my/notes-tools-menu "q" ("z" "Zotero / Bib →" my/zotero-menu)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
+(defconst my/zotero--keys
+  '(("C-c x" . my/zotero-menu))
+  "Global keys of this module, for `my/module-keys'.")
+
+(define-minor-mode my/zotero-mode
+  "The Zotero menu as a module: C-c x and its entry in Tools (C-c n t z).
+Turned off, both are gone and the menu remains for M-x my/zotero-menu.
+Customize saves the position in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/bibliography
+  (my/module-keys my/zotero-mode my/zotero--keys)
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/zotero-mode my/zotero--menu-entries))))
+
+(my/zotero-mode (if my/zotero-mode 1 -1))
 
 (provide '18-zotero-transient)
 ;;; 18-zotero-transient.el ends here

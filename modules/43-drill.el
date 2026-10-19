@@ -167,12 +167,27 @@ The name only has to be recognisable when a deck is read as a note."
 
 ;; Register the keyword so it completes in `denote-rename-file-keywords'
 ;; before the first deck exists, as 33-denote-hubs.el does for hubs.
-(defun my/drill--register-keyword ()
-  "Offer `my/drill-keyword' among Denote's known keywords."
-  (with-eval-after-load 'denote
-    (add-to-list 'denote-known-keywords my/drill-keyword)))
+(defvar my/drill--registered-keyword nil
+  "The keyword this module added to `denote-known-keywords', or nil.
+Only a keyword it added is taken out again: one listed in the Denote
+settings by hand stays.")
 
-(my/drill--register-keyword)
+(defvar my/drill-mode)
+
+(defun my/drill--register-keyword ()
+  "Offer `my/drill-keyword' among Denote's known keywords while the module is on.
+The keyword added before -- after a change of `my/drill-keyword', or
+when `my/drill-mode' goes off -- is taken out again, if this module
+added it.  Waits for Denote when it is not loaded yet."
+  (with-eval-after-load 'denote
+    (when my/drill--registered-keyword
+      (setq denote-known-keywords
+            (delete my/drill--registered-keyword denote-known-keywords))
+      (setq my/drill--registered-keyword nil))
+    (when (and (bound-and-true-p my/drill-mode)
+               (not (member my/drill-keyword denote-known-keywords)))
+      (add-to-list 'denote-known-keywords my/drill-keyword)
+      (setq my/drill--registered-keyword my/drill-keyword))))
 
 ;; ============================================================
 ;; FINDING DECKS
@@ -371,12 +386,37 @@ Placement follows `my/drill--insertion-point'."
     ("n" "New card here"      my/drill-insert-card)]
    [("q" "Quit" transient-quit-one)]])
 
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-append)
-    ;; Anchored on "x", which belongs to 12-transient itself, like the
-    ;; writing-projects, tasks and habits entries.
-    (my/transient-append 'my/notes-menu "x"
-                         '("r" "Review cards (drill) →" my/drill-menu))))
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/drill-mode' is this module's switch (module contract, rule 12):
+;; on, the main menu has its entry (C-c n r) and the
+;; deck keyword is offered in keyword prompts; off, neither.  The commands stay
+;; defined either way and work from M-x.  The switch is an option, so
+;; Customize saves its position in this machine's settings
+;; (M-x customize-option RET my/drill-mode); turned off there, the module
+;; stays off at the next start.
+
+;; Anchored on "x", which belongs to 12-transient itself, like the
+;; writing-projects, tasks and habits entries.
+(defconst my/drill--menu-entries
+  '((append my/notes-menu "x" ("r" "Review cards (drill) →" my/drill-menu)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
+(define-minor-mode my/drill-mode
+  "Review cards as a module: the menu entry (C-c n r) and the deck keyword.
+Turned off, the entry is gone, `my/drill-keyword' is no longer offered
+in keyword prompts (unless listed there by hand), and the commands
+remain for M-x.  Customize saves the position in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/drill
+  (my/drill--register-keyword)
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/drill-mode my/drill--menu-entries))))
+
+(my/drill-mode (if my/drill-mode 1 -1))
 
 (provide '43-drill)
 ;;; 43-drill.el ends here

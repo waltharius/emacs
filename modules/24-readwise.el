@@ -40,7 +40,6 @@
 (require 'auth-source)
 (require 'json)
 (require 'seq)
-(require 'seq)
 (require 'transient)
 
 (defgroup my/readwise nil
@@ -1038,19 +1037,41 @@ use it up."
 ;; calling it unguarded still needs 12-transient.el to have been loaded:
 ;; without it init aborts here with a void-function error naming this
 ;; file rather than the missing one.
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-insert)
-    (my/transient-insert 'my/notes-tools-menu "q"
-                         '("r" "Readwise →" my/readwise-menu))))
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/readwise-mode' is this module's switch (module contract, rule 12):
+;; on, the Tools menu has its entry (C-c n t r) and
+;; the keys C-c r s, C-c r o, C-c r r work; off, neither.  The commands stay
+;; defined either way and work from M-x.  The switch is an option, so
+;; Customize saves its position in this machine's settings
+;; (M-x customize-option RET my/readwise-mode); turned off there, the module
+;; stays off at the next start.
 
-;; ============================================================
-;; KEYBINDINGS
-;; ============================================================
+(defconst my/readwise--menu-entries
+  '((insert my/notes-tools-menu "q" ("r" "Readwise →" my/readwise-menu)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
 ;; C-c r is otherwise unused in this configuration.
+(defconst my/readwise--keys
+  '(("C-c r s" . my/readwise-sync)
+    ("C-c r o" . my/readwise-open-directory)
+    ("C-c r r" . my/readwise-review))
+  "Global keys of this module, for `my/module-keys'.")
 
-(global-set-key (kbd "C-c r s") #'my/readwise-sync)
-(global-set-key (kbd "C-c r o") #'my/readwise-open-directory)
-(global-set-key (kbd "C-c r r") #'my/readwise-review)
+(define-minor-mode my/readwise-mode
+  "Readwise import as a module: its menu entry (C-c n t r) and keys (C-c r).
+Turned off, both are gone and the commands remain for M-x.  Customize
+saves the position in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/readwise
+  (my/module-keys my/readwise-mode my/readwise--keys)
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/readwise-mode my/readwise--menu-entries))))
+
+(my/readwise-mode (if my/readwise-mode 1 -1))
 
 (provide '24-readwise)
 ;;; 24-readwise.el ends here

@@ -21,6 +21,74 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19h — A switch per module: Readwise, Zotero, Obsidian import, drill
+
+### Why
+
+BACKLOG, *Module toggles*, step 2 (contract rule 12): what a module
+does by itself -- keys, menu entries, hooks, timers -- should be
+started by a switch and undone when the switch goes off, so that a
+module can be turned off without a restart, per machine, and so that
+the loader (step 3) has something to turn.  Until now a module added
+its keys and menu entries while loading, and nothing could take them
+back.  The integrations first, as planned: they are the modules least
+used on every machine.
+
+### What
+
+- 00-core.el: `my/module-keys` -- binds a module's keys when its
+  switch is on, releases them when off, but only a key that still runs
+  the module's command.
+- 12-transient.el: `my/transient-entries` -- adds a module's menu
+  entries when on, removes them when off; `my/transient-remove`, which
+  removes an entry only while it runs the given command.
+- A global minor mode per module, on by default, applied at the end of
+  the file with the position Customize has read from custom.el:
+  - 18-zotero-transient.el: `my/zotero-mode` (C-c x, Tools → z).
+  - 24-readwise.el: `my/readwise-mode` (C-c r s/o/r, Tools → r); a
+    duplicated `(require 'seq)` removed.
+  - 42-obsidian-import.el: `my/obsidian-import-mode` (Tools → o).
+  - 43-drill.el: `my/drill-mode` (C-c n r, and the deck keyword in
+    Denote's keyword prompts).  `my/drill--register-keyword` removes the
+    keyword it added before -- after a change of `my/drill-keyword` too,
+    which used to leave the old keyword offered -- and never one listed
+    by hand (`my/drill--registered-keyword`).
+- hooks/module_contract.py: the menu in a quoted entry specification,
+  `(insert MENU ANCHOR SUFFIX)`, is data handed to a degrading
+  function, not a hard dependency.  hooks/lint.py: `menukeys` reads
+  those specifications too (checked by planting a clash).
+- function_helper.org: *A module's switch* (what a switch is, the four
+  modules, how a module writes one); rule 12; the shared helpers.
+  TESTPLAN.org: R27.  BACKLOG.org: step 2 progress.
+
+### Decisions
+
+- **A global minor mode per module**, Emacs's own on/off mechanism, as
+  BACKLOG proposed: Customize already offers it as an option, so its
+  position is saved per machine with nothing new; `M-x` toggles it for
+  the session.  Checked in batch that a position saved in custom.el
+  before the module loads is the one applied.
+- **Commands stay defined when off.**  Unloading code (`unload-feature`)
+  is unreliable for code that other packages may have hooked into; what
+  "off" must guarantee is that the module does nothing by itself and
+  offers nothing in menus or keys.
+- **Keys and entries are taken back only while they are still the
+  module's own**: a key rebound by hand since, or a menu key another
+  module holds, is left alone.
+- **On again, an entry goes to the end of its column** (before Quit)
+  until the next start; restoring its exact old position would need the
+  position of every other entry, which modules do not know of each
+  other.
+- **17-bibliography.el has no switch yet**: it sets citation and export
+  machinery (org-cite processors, CSL, hooks on export) that other
+  modules' exports use; turning it off safely needs its own look.
+- Verified in batch (Emacs 29.3, built-in transient): on at load; off
+  removes exactly the module's keys and entries and leaves the others';
+  on again restores them; on twice records nothing as skipped; a key
+  rebound by hand survives turning the module off; the drill keyword
+  added by the module goes, one listed by hand stays.
+
+---
 ## Session 2026-10-19g — Backlog: a running list of documentation to bring up to date
 
 ### Why

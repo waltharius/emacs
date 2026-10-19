@@ -1983,6 +1983,34 @@ keyword.  Does not save the buffer."
         (insert (format "#+%s: %s\n" name value))))))
 
 ;; ============================================================
+;; A MODULE'S OWN SWITCH: ITS KEYS
+;; ============================================================
+;; A module that can be turned on and off while Emacs runs has a global
+;; minor mode, `my/<name>-mode' -- a switch with a function that runs at
+;; every change of position.  Everything the module does by itself
+;; (keys, menu entries, hooks, timers) is started when the switch goes
+;; on and undone when it goes off; its commands stay defined either way,
+;; since Emacs cannot unload code reliably.  The switch is an option, so
+;; Customize saves its position in this machine's custom.el.  Rule 12 of
+;; the module contract (function_helper.org, #module-contract-rules).
+;;
+;; Keys are the one part every such module shares, so the helper is
+;; here; menu entries go through `my/transient-entries' (12-transient.el).
+
+(defun my/module-keys (on bindings)
+  "Bind BINDINGS globally when ON is non-nil, release them otherwise.
+BINDINGS is a list of (KEY . COMMAND), KEY a string for `kbd'.  A key
+is released only while it still runs COMMAND: if something else has
+been bound there since, that binding is left alone."
+  (dolist (binding bindings)
+    (let ((key (kbd (car binding)))
+          (command (cdr binding)))
+      (if on
+          (global-set-key key command)
+        (when (eq (global-key-binding key) command)
+          (global-unset-key key))))))
+
+;; ============================================================
 ;; DOWNLOADS CHECKED AGAINST A KNOWN DIGEST
 ;; ============================================================
 ;; A theme or tool downloaded by a module is checked against the

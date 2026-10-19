@@ -6526,10 +6526,80 @@ Not checked yet -- the target, reached module by module (BACKLOG.org,
     -- hooks, timers, advice, keys, menu entries -- is started by a
     global minor mode =my/<name>-mode= and undone when the mode is
     turned off, as =onload= and =onunload= do for an Obsidian plugin.
-    =unload-feature= is not relied on.
+    =unload-feature= is not relied on.  Reached for the first modules
+    on 2026-10-19h: [[#module-switch][A module's switch]].
 13. Contributions to lists other modules own go through the hooks those
     modules offer (=my/auto-commit-repository-sources=,
     =my/tasks-extra-agenda-files=), never by editing the other module.
+
+** A module's switch
+:PROPERTIES:
+:CUSTOM_ID: module-switch
+:END:
+
+A module that can be turned off while Emacs runs has a switch: a
+global minor mode named after it.  In Emacs terms a /minor mode/ is an
+on/off state with a function that runs at every change of position;
+/global/ means one state for the whole of Emacs, not one per buffer.
+On, the module adds what it does by itself -- keys, menu entries,
+hooks, timers; off, it takes them away.  Its commands stay defined
+either way and work from =M-x=: Emacs cannot unload code reliably, and
+what matters is that nothing happens without being asked.
+
+The switch is an option.  =M-x customize-option RET my/readwise-mode=,
+/Toggle/, /Apply and Save/ writes its position into this machine's
+=custom.el=, so a module turned off stays off at the next start of
+that machine only.  =M-x my/readwise-mode= turns it on or off for this
+session.  A menu for switching modules on and off comes with the
+loader (BACKLOG, step 5).
+
+| Switch                    | Module                  | On: adds                                       |
+|---------------------------+-------------------------+------------------------------------------------|
+| =my/zotero-mode=          | =18-zotero-transient.el= | =C-c x=, Tools → =z=                          |
+| =my/readwise-mode=        | =24-readwise.el=        | =C-c r s=, =C-c r o=, =C-c r r=, Tools → =r=   |
+| =my/obsidian-import-mode= | =42-obsidian-import.el= | Tools → =o=                                    |
+| =my/drill-mode=           | =43-drill.el=           | =C-c n r=, the deck keyword in keyword prompts |
+
+How a module writes one, with two helpers:
+
+#+begin_src emacs-lisp
+(defconst my/readwise--menu-entries
+  '((insert my/notes-tools-menu "q" ("r" "Readwise →" my/readwise-menu))))
+(defconst my/readwise--keys
+  '(("C-c r s" . my/readwise-sync)))
+
+(define-minor-mode my/readwise-mode
+  "Readwise import as a module ..."
+  :global t :init-value t :group 'my/readwise
+  (my/module-keys my/readwise-mode my/readwise--keys)
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/readwise-mode my/readwise--menu-entries))))
+
+(my/readwise-mode (if my/readwise-mode 1 -1))
+#+end_src
+
+- =my/module-keys= (00-core.el) binds the keys when on and releases
+  them when off -- only a key that still runs the module's command: one
+  rebound to something else since is left alone.
+- =my/transient-entries= (12-transient.el) adds the entries when on and
+  removes them when off, again only those that still run the module's
+  own command (=my/transient-remove=).  A column left without entries
+  is not drawn.  An entry turned on again goes to the end of its
+  column (before Quit) until the next start.
+- The last line applies the saved position once the module has
+  loaded: Customize has already set the variable from =custom.el=, and
+  the call runs the switch's body accordingly.
+- Hooks and timers are added and removed in the same body with
+  =add-hook=/=remove-hook=, a named function each (rule 12 needs that:
+  a nameless function cannot be removed).
+
+The entry lists are quoted data; the contract check reads the menu in
+=(insert MENU ...)= as data handed to a degrading function, not as a
+hard dependency, and =menukeys= checks their keys like any other
+menu entry.
+
+Function: =my/module-keys=, =my/transient-entries=, =my/transient-remove= | Module: =modules/00-core.el=, =modules/12-transient.el=
 
 ** Dependencies: hard and guarded
 :PROPERTIES:
@@ -6739,6 +6809,8 @@ rather than defines, and repeating it is harmless.
 | =my/transient-append= | =12-transient.el= | every module adding a menu entry |
 | =my/transient-insert= | =12-transient.el= | the modules filling Create → Capture, Find → Overview, Export, Tools → Integrations and View → Toggle; 03-spelling.el and 06-capture.el (a whole column) |
 | =my/transient-replace= | =12-transient.el= | 41-notes-search.el |
+| =my/transient-entries= | =12-transient.el= | the modules with a switch ([[#module-switch][A module's switch]]) |
+| =my/module-keys= | =00-core.el= | the modules with a switch |
 
 Resolution is at call time, so load order does not constrain these —
 only whether the owning module is loaded at all. Callers that would

@@ -329,6 +329,53 @@ menu carries when the feature module is absent."
          (message "transient: could not replace `%s' in %s: %s"
                   key prefix (error-message-string err))))))))
 
+;; ADDING AND REMOVING WITH A MODULE'S SWITCH.  A module that can be
+;; turned on and off while Emacs runs (its `my/<name>-mode') adds its
+;; entries when turned on and removes them when turned off, from one
+;; list:
+;;
+;;   (defconst my/x--menu-entries
+;;     '((insert my/notes-tools-menu "q" ("x" "Thing →" my/x-menu))))
+;;   ... in the mode's body:
+;;   (with-eval-after-load '12-transient
+;;     (my/transient-entries my/x-mode my/x--menu-entries))
+;;
+;; `with-eval-after-load' because a module may be switched before this
+;; file has loaded; the body then runs once it has, with the switch's
+;; value at that moment.
+
+(defun my/transient-remove (prefix key command)
+  "Remove the entry on KEY from PREFIX if it runs COMMAND; never signal.
+An entry another module put on KEY is left alone: removing it would
+take that module's entry away when this one is turned off.  A column
+left without entries is not drawn."
+  (let ((existing (and (fboundp prefix)
+                       (ignore-errors (transient-get-suffix prefix key)))))
+    (when (and existing (eq (my/transient--layout-command existing) command))
+      (condition-case err
+          (transient-remove-suffix prefix key)
+        (error (message "transient: could not remove `%s' from %s: %s"
+                        key prefix (error-message-string err)))))))
+
+(defun my/transient-entries (on entries)
+  "Add ENTRIES to their menus when ON is non-nil, remove them otherwise.
+Each entry is (HOW PREFIX ANCHOR SUFFIX): HOW is `insert' (before
+ANCHOR, `my/transient-insert') or `append' (after it,
+`my/transient-append'); SUFFIX an entry or a column as those take.
+Removing takes out every entry of SUFFIX that still runs its own
+command.  Adding an entry already there does nothing, so calling this
+twice with the same ON is harmless."
+  (dolist (entry (if on entries (reverse entries)))
+    (pcase-let ((`(,how ,prefix ,anchor ,suffix) entry))
+      (if on
+          (if (eq how 'insert)
+              (my/transient-insert prefix anchor suffix)
+            (my/transient-append prefix anchor suffix))
+        (dolist (one (if (vectorp suffix)
+                         (seq-filter #'consp (append suffix nil))
+                       (list suffix)))
+          (my/transient-remove prefix (car one) (my/transient--command-of one)))))))
+
 ;; Reporting skipped entries: one warning after start-up, a command for
 ;; the full list.
 

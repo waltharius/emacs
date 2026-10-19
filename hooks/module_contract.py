@@ -32,7 +32,10 @@ the other one -- when it is:
   default face, a missing group leaves an option ungrouped;
 - an argument of `my/transient-append', `my/transient-insert' or
   `my/transient-replace', which skip a menu they cannot find, or of
-  `remq', `memq' and the like, which compare a name without calling it.
+  `remq', `memq' and the like, which compare a name without calling it;
+- the menu named in a quoted entry specification for
+  `my/transient-entries', '((insert MENU ANCHOR SUFFIX) ...) or
+  (append ...): data handed to the same degrading functions.
 
 Everything else is hard.  The reader errs towards hard: a dependency
 declared that is not strictly needed costs a toggle; one missed costs
@@ -69,6 +72,9 @@ CLIMB_HEADS = {"and", "or", "not", "null"}
 DATA_HEADS = {"remq", "remove", "delq", "delete", "memq", "member", "eq",
               "equal", "assq", "my/transient-append", "my/transient-insert",
               "my/transient-replace"}
+# Heads of the quoted entry specifications `my/transient-entries' reads:
+# '((insert my/notes-tools-menu "q" ("o" "Label" my/cmd)) ...).
+MENU_SPEC_HEADS = {"insert", "append"}
 DELIMITERS = set("()[]\"; \t\n\r'`,")
 
 
@@ -222,6 +228,7 @@ def dependencies(files):
             safe = (kind[sym] == "soft"
                     or (kind[sym] == "variable" and quoted)
                     or (quoted and form.head() in DATA_HEADS)
+                    or (quoted and form.head() in MENU_SPEC_HEADS)
                     or any(a <= pos <= b and m == module for a, b, m in spans))
             (guarded if safe else hard)[name][module].add(sym)
     return hard, guarded

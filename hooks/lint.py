@@ -319,6 +319,11 @@ def check_menu_reachability():
 MENU_ENTRY_RE = re.compile(r'\(\s*"([^"\s]{1,4})"\s+"(?:[^"\\]|\\.)*"\s+#?\'?([^\s()\[\]]+)')
 MENU_DEF_RE = re.compile(r"\(transient-define-prefix\s+([^\s()]+)")
 MENU_ADD_RE = re.compile(r"\(my/transient-(append|insert|replace)\s+'([^\s()]+)\s+(\"[^\"]*\")?")
+# An entry specification for `my/transient-entries' inside quoted data:
+# (insert my/notes-tools-menu "q" ("o" "Label" my/cmd)).  The menu must
+# end in -menu, so that (insert my/some-variable ...) in code is not
+# read as one.
+MENU_SPEC_RE = re.compile(r"\((insert|append)\s+(my/[^\s()]*-menu)\s")
 
 
 def form_end(text, start):
@@ -354,7 +359,9 @@ def menu_entries():
     """Return [(menu, key, command, file)] for every menu entry in modules/.
 
     From the menus' own definitions (`transient-define-prefix') and from
-    the additions (`my/transient-append', `my/transient-insert').  An
+    the additions (`my/transient-append', `my/transient-insert', and the
+    entry specifications a module's switch hands to
+    `my/transient-entries').  An
     entry replaced with `my/transient-replace' is replaced, not added:
     the pair (menu, key) is returned with the new command only.
     """
@@ -365,6 +372,10 @@ def menu_entries():
             body = code[m.start(): form_end(code, m.start())]
             for e in MENU_ENTRY_RE.finditer(body):
                 entries.append((m.group(1), e.group(1), e.group(2), name))
+        for m in MENU_SPEC_RE.finditer(code):
+            body = code[m.end(): form_end(code, m.start())]
+            for e in MENU_ENTRY_RE.finditer(body):
+                entries.append((m.group(2), e.group(1), e.group(2), name))
         for m in MENU_ADD_RE.finditer(code):
             kind, menu = m.group(1), m.group(2)
             body = code[m.end(): form_end(code, m.start())]

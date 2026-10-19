@@ -282,10 +282,32 @@ reported instead."
 
 ;; Appended rather than declared in 12-transient.el, so that deleting
 ;; this file removes the entry with it -- same pattern as 40-markdown.el.
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-insert)
-    (my/transient-insert 'my/notes-tools-menu "q"
-                         '("o" "Obsidian import →" my/obsidian-import-menu))))
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/obsidian-import-mode' is this module's switch (module contract, rule 12):
+;; on, the Tools menu has its entry (C-c n t o); off, the entry is gone.  The commands stay
+;; defined either way and work from M-x.  The switch is an option, so
+;; Customize saves its position in this machine's settings
+;; (M-x customize-option RET my/obsidian-import-mode); turned off there, the module
+;; stays off at the next start.
+
+(defconst my/obsidian--menu-entries
+  '((insert my/notes-tools-menu "q" ("o" "Obsidian import →" my/obsidian-import-menu)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
+(define-minor-mode my/obsidian-import-mode
+  "Obsidian import as a module: its entry in the Tools menu (C-c n t o).
+Turned off, the entry is gone and the commands remain for M-x.
+Customize saves the position in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/obsidian
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/obsidian-import-mode my/obsidian--menu-entries))))
+
+(my/obsidian-import-mode (if my/obsidian-import-mode 1 -1))
 
 (provide '42-obsidian-import)
 ;;; 42-obsidian-import.el ends here
