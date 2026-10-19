@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Every check of this configuration: what a commit checks (hooks/pre-commit:
+# parens and lint) and every test in tests/.  For after `git am', which
+# runs no pre-commit hook, and for continuous integration.
+#
+#     bash hooks/check-all            # everything
+#     bash hooks/check-all loader     # only tests/test-loader.el (any part of a name)
+#
+# Each test file runs in its own `emacs -Q --batch', with the packages
+# installed for this user (~/.emacs.d/elpa/) and nothing installed.
+# Tests that load modules do so in a sandbox (tests/helper.el): the real
+# notes, settings and ~/.emacs.d are neither read nor written.
+#
+# A file that fails prints ERT's report of what went wrong.  The exit
+# status is 0 only when everything passed.
+
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel 2>/dev/null || dirname "$(dirname "$(readlink -f "$0")")")"
+cd "$root" || exit 1
+
+only="${1:-}"
+status=0
+
+if [ -z "$only" ]; then
+  echo "checks:"
+  if command -v emacs >/dev/null 2>&1; then
+    emacs -Q --batch -l hooks/parens.el 2>&1 || status=1
+  else
+    echo "  FAILED   parens (no emacs on PATH)"
+    status=1
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -B hooks/lint.py || status=1
+  else
+    echo "  FAILED   lint (no python3 on PATH)"
+    status=1
+  fi
+  echo
+fi
+
+echo "tests:"
+for file in tests/test-*.el; do
+  name="$(basename "$file" .el)"
+  case "$name" in *"$only"*) ;; *) continue ;; esac
+  output="$(emacs -Q --batch --eval '(package-initialize)' -l ert -l "$file" \
+              -f ert-run-tests-batch-and-exit 2>&1)"
+  code=$?
+  summary="$(grep -E '^Ran ' <<<"$output" | sed -E 's/ \(20[0-9-]+ .*\)$//')"
+  if [ "$code" -eq 0 ]; then
+    printf '  ok       %-28s %s\n' "$name" "$summary"
+  else
+    status=1
+    printf '  FAILED   %-28s %s\n' "$name" "${summary:-did not run to the end}"
+    # The reasons: ERT's condition blocks; when the file did not even
+    # load, the error lines it printed (a missing package says "Cannot
+    # load <package>"), else its last lines.
+    if grep -qE '^Test .* condition:' <<<"$output"; then
+      grep -E -A8 '^Test .* condition:' <<<"$output" | sed 's/^/           /'
+    elif grep -qE '^Error|Cannot load|^Symbol.s|^Wrong|^Opening|^Searching' <<<"$output"; then
+      grep -E '^Error|Cannot load|^Symbol.s|^Wrong|^Opening|^Searching' <<<"$output" \
+        | head -n 8 | sed 's/^/           /'
+    else
+      tail -n 15 <<<"$output" | sed 's/^/           /'
+    fi
+  fi
+done
+
+exit "$status"

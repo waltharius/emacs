@@ -52,6 +52,9 @@ of EXTRA, a form given as a string, evaluated after loading."
           (call-process
            (expand-file-name invocation-name invocation-directory) nil nil nil
            "-Q" "--batch"
+           ;; A test installs nothing (no-littering, 00-core.el): without
+           ;; this each start tried the network, seconds per case.
+           "--eval" "(setq use-package-ensure-function 'ignore)"
            "--eval" (format "(setq user-emacs-directory %S)" emacs-dir)
            ;; Reports are collected, not shown: in batch they would only print.
            "--eval" "(setq my/test-reports nil)"
@@ -101,7 +104,7 @@ of EXTRA, a form given as a string, evaluated after loading."
 
 (ert-deftest my/core-test-host-name-validity ()
   "Only one plain folder name is a host name."
-  (let* ((good '("laptop" "baal" "my-pc_2" "pc.local"))
+  (let* ((good '("laptop" "desk" "my-pc_2" "pc.local"))
          (bad '("" "." ".." "../x" "/etc" "a/b" "a\\b" "~x" "~" "a\nb"))
          (r (my/core-test--run
              nil nil

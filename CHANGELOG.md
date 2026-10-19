@@ -21,6 +21,75 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19q — hooks/check-all: every check and test in one command; tests in a sandbox
+
+### Why
+
+Asked 2026-10-19: patches applied with `git am` run no pre-commit hook,
+so the checks and tests ran only before delivery, never on the user's
+machine.  Run by hand there, with the loop given in the conversation:
+the `personal` check FAILED on a host name in a test, and four test
+files failed.  Two of them because the loop was wrong for them:
+test-notes-search and test-journal-metrics expect their modules loaded
+first (their headers said how, and both instructions were out of date
+since the settings work).  Running them properly here showed three
+more things: two stale assertions in test-journal-metrics, the
+settings test trying the network at each of its nine starts (77 s on
+the user's machine), and a bug in 2026-10-19o.
+
+### What
+
+- hooks/check-all (new): parens, lint, then every `tests/test-*.el`,
+  each in its own `emacs -Q --batch --eval '(package-initialize)'`; a
+  file that fails prints ERT's condition or its load errors; an
+  argument runs only the test files whose name contains it.
+- tests/helper.el (new): `my/test-load-modules` loads 00-core.el and
+  the modules named from this repository in a sandbox -- temporary
+  HOME, `MYPKS_DIR`, `MYPKS_HOST`, `user-emacs-directory` -- with the
+  user's installed packages, installing nothing.
+- tests/test-notes-search.el: loads 41-notes-search through the helper
+  (30 tests: 29 pass, the menu test skips without the menus).
+- tests/test-journal-metrics.el: loads 04-denote, 05-notes,
+  05b-journal-metrics, 07-git, 12-transient, 21-dashboards through the
+  helper.  `my/denote-journal--create-backdated` is public since the
+  decoupling (`my/denote-journal-create-backdated`);
+  `my/journal-metrics-reminder` is called by code, so `fboundp`, not
+  `commandp`; the menu test checks this module's two keys only -- the
+  Insert entries it also checked belong to other modules, covered by
+  the lint checks `menus` and `menukeys`.  56 of 56 pass with Denote.
+- tests/test-core-settings.el: the child Emacs installs nothing
+  (`use-package-ensure-function` set to `ignore`) -- each of its nine
+  starts tried to fetch no-littering; a neutral host name in place of
+  one in the user's `private-strings.txt`.
+- 00-core.el, `my/var--setup`: makes `var/` itself.  Without
+  no-littering (which made it) the first write of a file named with
+  `my/var-file` failed -- at a first start, the notes root: "Opening
+  output file: No such file or directory .../var/notes-root.eld".
+  Found by the sandbox, which has no no-littering here.
+- hooks/HOOKS-README.md: *Everything at once: check-all*.  TESTPLAN.org:
+  Preparation names it.  BACKLOG.org: CI step done in part; new section
+  *Checks by tools made by others*; the docs list.
+
+### Checked by tools made by others (by hand, not yet in a workflow)
+
+- Gitleaks 8.21.2, history (877 commits, all refs) and working tree:
+  no leaks found.
+- ShellCheck 0.10.0, `hooks/pre-commit` and `hooks/check-all`: nothing
+  found.
+
+### Decisions
+
+- **The sandbox replaces HOME for the test's Emacs**: 00-core.el moves
+  old files and writes reports while it loads; a test must not do that
+  to the real settings.  `expand-file-name` reads HOME from the
+  environment Emacs keeps, so `setenv` is enough.
+- **Packages from the user's elpa, none installed**: a test run must
+  not depend on the network or change what is installed.  A missing
+  package shows as "Cannot load <package>" in the report.
+- **Stale assertions corrected, not deleted wholesale**: each one was
+  checked against the code and its CHANGELOG entry.
+
+---
 ## Session 2026-10-19p — The keylog in var/; MyPKS-Writes; lint check codefolder
 
 ### Why

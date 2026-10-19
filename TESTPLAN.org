@@ -22,7 +22,8 @@ root is =~/notes2= at that moment.
 - [X] =C-c n ,= opens the MyPKS tree with six areas (four since
       2026-10-14, see R1).
 - [X] =hooks/lint.py= and =hooks/parens.el= pass (=git commit= of a
-      trivial change, or run them by hand).
+      trivial change, or run them by hand).  Since 2026-10-19q:
+      =bash hooks/check-all= -- these two and every test.
 
 * Part R -- retest after the 2026-10-14 changes
 Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions

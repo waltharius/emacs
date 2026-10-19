@@ -38,6 +38,27 @@ in `git.nix`.
 Bypass with `git commit --no-verify`, which is the right answer for a
 rollback or a deliberately partial commit.
 
+## Everything at once: check-all
+
+`git am` runs no pre-commit hook, and the hook runs neither the tests
+nor anything else that takes time.  After applying patches, or before
+pushing:
+
+```sh
+bash hooks/check-all            # parens, lint, every tests/test-*.el
+bash hooks/check-all loader     # only the test files whose name has "loader"
+```
+
+Each test file runs in its own `emacs -Q --batch` with the packages
+installed for this user (`~/.emacs.d/elpa/`); nothing is installed.
+Tests that load modules go through `tests/helper.el`, which loads
+`00-core.el` and the modules named in a sandbox -- a temporary HOME,
+settings folder and `~/.emacs.d` -- so a run neither reads nor writes
+the real notes and settings.  A file that fails prints why: ERT's
+condition, or, when it did not load, its error lines (a missing package
+reads "Cannot load <package>").  Exit status 0 only when everything
+passed; continuous integration runs the same script.
+
 ## The checks
 
 | Check | Question | Blocks |

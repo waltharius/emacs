@@ -5,18 +5,23 @@
 ;; older formats and their conversion, prose counting, and the end-to-end
 ;; paths through `my/journal-set-metrics' with the prompts stubbed.
 ;;
-;;   emacs -Q --batch -l ~/.emacs.d/init.el \
-;;     -l ~/.emacs.d/tests/test-journal-metrics.el \
-;;     -f ert-run-tests-batch-and-exit
+;;   emacs -Q --batch --eval '(package-initialize)' -l ert \
+;;     -l tests/test-journal-metrics.el -f ert-run-tests-batch-and-exit
 ;;
-;; Nothing here touches ~/notes: every test builds a temp file and deletes
-;; it afterwards.
+;; or all tests at once: hooks/check-all.  The modules are loaded by
+;; tests/helper.el, in a sandbox: nothing here touches ~/notes or the
+;; settings, and every test builds a temp file and deletes it afterwards.
 
 ;;; Code:
 
 (require 'ert)
 (require 'org)
 (require 'cl-lib)
+
+(load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
+      nil t)
+(my/test-load-modules "04-denote" "05-notes" "05b-journal-metrics" "07-git" "12-transient"
+                      "21-dashboards")
 
 ;; ============================================================
 ;; FIXTURES
@@ -636,8 +641,9 @@ ask why there is no entry: there is one, and it is being written."
   (should (commandp 'my/journal-set-metrics-for-date))
   (should (commandp 'my/journal-migrate-metrics-format))
   (should (commandp 'my/notes-normalize-front-matter-gap))
-  (should (commandp 'my/journal-metrics-reminder))
-  (should (fboundp 'my/denote-journal--create-backdated))
+  ;; Called by the journal code, not by a key: a function, not a command.
+  (should (fboundp 'my/journal-metrics-reminder))
+  (should (fboundp 'my/denote-journal-create-backdated))
   (should (fboundp 'my/note-add-front-matter-extras)))
 
 (ert-deftest my/jm-test-obsolete-command-gone ()
@@ -649,17 +655,12 @@ ask why there is no entry: there is one, and it is being written."
   (should (null my/auto-commit-config-enabled)))
 
 (ert-deftest my/jm-test-transient-entries-present ()
-  "Both metrics keys reached the Create menu, and the Insert chain that
-used to hang off the removed \"w\" entry is intact."
+  "Both metrics keys reached the Create menu.
+The entries other modules add to the Insert menu were checked here too;
+they are theirs, and the lint checks `menus' and `menukeys' cover them."
   (skip-unless (fboundp 'my/notes-create-menu))
   (should (transient-get-suffix 'my/notes-create-menu "w"))
-  (should (transient-get-suffix 'my/notes-create-menu "W"))
-  (should (transient-get-suffix 'my/notes-create-menu "m"))
-  (should (transient-get-suffix 'my/notes-insert-menu "d"))
-  (should (transient-get-suffix 'my/notes-insert-menu "i"))
-  (should (transient-get-suffix 'my/notes-insert-menu "I"))
-  (should (transient-get-suffix 'my/notes-insert-menu "t"))
-  (should (transient-get-suffix 'my/notes-insert-menu "u")))
+  (should (transient-get-suffix 'my/notes-create-menu "W")))
 
 (provide 'test-journal-metrics)
 ;;; test-journal-metrics.el ends here

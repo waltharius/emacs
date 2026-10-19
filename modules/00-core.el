@@ -506,6 +506,10 @@ Returns non-nil when the line was added now."
 
 (defun my/var--setup ()
   "Load no-littering, move the old files, keep var/ out of git; report."
+  ;; Made here, not only by no-littering: without it (not installed, no
+  ;; network) the files named with `my/var-file' still go there, and the
+  ;; first write of one -- the notes root, at the first start -- failed.
+  (ignore-errors (make-directory my/var-directory t))
   (let* ((loaded (condition-case err
                      (my/var--load-no-littering)
                    (error (display-warning 'no-littering (error-message-string err))

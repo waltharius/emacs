@@ -25,8 +25,10 @@ says why and how.
    packages in =hosts/<host>/var/=, the old files moved -- done
    2026-10-19o; the keylog, =MyPKS-Writes:= and the check =codefolder=:
    2026-10-19p.  Left: =MyPKS-Writes:= in the other modules that write.
-5. /Continuous integration/ -- can start at any time; most useful once
-   the core has tests of its own.
+5. /Continuous integration/: =hooks/check-all= (every check and every
+   test, in a sandbox) done 2026-10-19q -- the workflow runs it.  With
+   it the tools of /Checks by tools made by others/ (Gitleaks,
+   ShellCheck), then the safety specification and its tests.
 6. /A public repository/: portable defaults and the privacy model in
    the README, the welcome screen; then the installation guide for
    beginners, the tutorial with exercises and the Polish guide.
@@ -63,6 +65,9 @@ settles; a line is a reminder, not the text to paste.
   =.gitignore=; Syncthing users add it to =.stignore= (2026-10-19o).
 - /Requirements/: no-littering is one more package from MELPA
   (2026-10-19o).
+- /Repository layout/: =tests/= lists "run with emacs -Q --batch"; now
+  =bash hooks/check-all= runs every check and test, =tests/helper.el=
+  is the sandbox (2026-10-19q).
 - /Requirements/: Geekdoc pinned to one release with a SHA-256
   (2026-10-18f); "no lockfile" still true.  Hunspell's personal
   dictionary path.
@@ -441,6 +446,57 @@ needs 00-core.el (=my/settings-apply-on-set=) since the settings work:
 stand-ins as in test-spelling-dictionary.el make it run alone again.
 =tests/test-journal-metrics.el= needs the full configuration and waits
 for a package cache in the workflow.
+
+*Done 2026-10-19q*: =hooks/check-all= runs parens, lint and every
+=tests/test-*.el=, each in its own =emacs -Q --batch= with the user's
+installed packages; =tests/helper.el= loads 00-core.el and the modules
+a test names in a sandbox (temporary HOME, settings folder and
+=~/.emacs.d=), so notes-search and journal-metrics run again without
+touching real data.  The workflow's job is now =bash hooks/check-all=
+after installing the packages the tests load (Denote, no-littering,
+compat; MELPA in the workflow, cached).
+
+* Checks by tools made by others
+Asked 2026-10-19, after an outside answer on checking code one does not
+read: the existing tools written by people find known kinds of mistake;
+a green result means "none found", not "safe".  Tests written by the
+same model that wrote the code are not independent evidence.  So: the
+tools, a plain-language specification the user can judge, tests that
+are shown to fail when the bad thing is put in, and an independent
+review of the risky modules.
+
+Run by hand 2026-10-19q, from their GitHub releases:
+- *Gitleaks* 8.21.2 (=gitleaks git --log-opts=--all --redact=, and
+  =gitleaks dir=): 877 commits and the working tree, no leaks found.
+  To run again before the repository goes public, and in the workflow.
+- *ShellCheck* 0.10.0 on =hooks/pre-commit= and =hooks/check-all=, the
+  only shell scripts: nothing found.  In the workflow.
+
+Next, in order:
+1. *The workflow* (above) with Gitleaks and ShellCheck as steps.
+2. *A safety specification* (=SAFETY.org=), short, in plain language,
+   for the user to accept: what may be published (the blog), deleted
+   or moved (notes root, old files, backups), sent over the network
+   (git push, Readwise, Zotero, downloads), and which programs run with
+   what arguments.  For each: the test that covers it, or "not
+   covered".
+3. *Tests against the specification*, each shown to fail when the
+   unsafe change is made (the check is kept in the CHANGELOG):
+   - the blog never publishes a note not marked for it, nor one under
+     a private folder;
+   - a file name with spaces, quotes, =;= or =$(...)= passed to an
+     outside program is an argument, never shell syntax (12 modules
+     run programs; 46-blog.el calls =shell-command= once);
+   - moving and deleting stay inside their folder (notes root move,
+     =my/var--move-old-files=, backups);
+   - a failed git command is reported as failed.
+4. *An independent review* of 46-blog, 07-git, 39-project-git and the
+   moves in 00-core: an agent that did not write them, given only the
+   specification and the code, or a person who knows Emacs.
+Not for this repository: vulnix and NixOS VM tests (the NixOS
+configuration), elisp-lint/package-lint (for packages published to
+MELPA; the byte compiler and checkdoc cover what applies here).
+
 
 Next tests, for the core: settings folder and host precedence
 (environment, =mypks-local.eld=, defaults), a damaged

@@ -5,9 +5,11 @@
 ;; translation of a query into consult input, and the regexps the
 ;; file-name selectors build.
 ;;
-;;   emacs -Q --batch -l ~/.emacs.d/modules/41-notes-search.el \
-;;     -l ~/.emacs.d/tests/test-notes-search.el \
-;;     -f ert-run-tests-batch-and-exit
+;;   emacs -Q --batch --eval '(package-initialize)' -l ert \
+;;     -l tests/test-notes-search.el -f ert-run-tests-batch-and-exit
+;;
+;; or all tests at once: hooks/check-all.  The module is loaded by
+;; tests/helper.el, in a sandbox.
 ;;
 ;; No notes, no processes, no minibuffer: the two commands themselves
 ;; are covered only by the menu test at the end, which needs the full
@@ -16,6 +18,10 @@
 ;;; Code:
 
 (require 'ert)
+
+(load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
+      nil t)
+(my/test-load-modules "41-notes-search")
 
 ;; ============================================================
 ;; TOKENISER
