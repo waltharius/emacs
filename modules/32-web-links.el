@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/web-links-mode
 
 ;;; Commentary:
 ;; Adds one command to fetch a page's <title> and insert it as an

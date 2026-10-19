@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires: 05-notes
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/journal-metrics-mode
 ;; Docs: ~/.emacs.d/function_helper.org::#fn-my-journal-set-metrics
 
 ;;; Commentary:

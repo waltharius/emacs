@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires: 01-ui
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/dashboards-mode
 
 ;;; Commentary:
 ;; Adds "This Day in History" and "This Day, Every Month" dashboards.

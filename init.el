@@ -46,137 +46,147 @@
 ;; ============================================================
 ;; LOAD MODULES (in correct order)
 ;; ============================================================
+;; 00-core.el first, by path: it reads this machine's settings and
+;; defines the loader.  Every other module is named once below, in load
+;; order, and `my/modules-load' (00-core.el) loads it -- or leaves it
+;; out when its header says it is optional and this machine has it in
+;; `my/modules-off' (C-c n , m), or when a module it needs was not
+;; loaded.  An error inside an optional module is reported after
+;; start-up instead of stopping it; a core module still stops it.
+;; Which modules are optional, and what each needs, is in each file's
+;; header (MyPKS-Optional, MyPKS-Requires), not here.
 
-(let ((modules-dir (expand-file-name "modules/" user-emacs-directory)))
-  (load (concat modules-dir "00-core.el"))          ; Package system + variables
-  (load (concat modules-dir "01-ui.el"))            ; Interface + sessions
-  (load (concat modules-dir "02-editing.el"))       ; Modern conveniences
-  (load (concat modules-dir "02b-bold-marker.el"))  ; Obsidian-style bold (word*)
-  (load (concat modules-dir "03-spelling.el"))      ; Spellcheck (WORKING!)
-  (load (concat modules-dir "03b-fonts.el"))        ; Fonts (PlaypenSans for journals)
-  (load (concat modules-dir "04-denote.el"))        ; Denote multi-silo
-  (load (concat modules-dir "05-notes.el"))         ; Note functions
-  ;; Optional module: the second argument to `load' is NOERROR, so
-  ;; deleting this file degrades to "no metrics commands, no menu
-  ;; entries" instead of aborting init.el partway through.
-  (load (concat modules-dir "05b-journal-metrics.el") t) ; Journal metrics (C-c n c w / W)
-  (load (concat modules-dir "06-capture.el"))       ; Org-capture (SMART DATE!)
-  (load (concat modules-dir "07-git.el"))           ; Git auto-commit
-  (load (concat modules-dir "08-keybindings.el"))   ; Keybindings
-  (load (concat modules-dir "09-theme.el"))         ; Theme (light)
-  (load (concat modules-dir "10-visual-fill.el"))   ; Centered text
-  (load (concat modules-dir "11-org-appearance.el")) ; Org visual enhancements
-  (load (concat modules-dir "12-transient.el"))     ; Transient menu (C-c n)
-  (load (concat modules-dir "13-centered-writing.el")) ; Writeroom mode (C-c n W)
-  (load (concat modules-dir "14-typing-analytics.el")) ; Typing statistics (keyfreq + keylog)
-  (load (concat modules-dir "15-workspace.el"))     ; Obsidian-like panels (EXPERIMENTAL)
-  (load (concat modules-dir "16-org-export.el"))
-  (load (concat modules-dir "17-bibliography.el"))  ; Citar + org-noter + pdf-tools
-  (load (concat modules-dir "18-zotero-transient.el")) ; Zotero transient menu
-  (load (concat modules-dir "19-philosophy-notes.el")) ; Philosophy note types (C-c n l)
-  (load (concat modules-dir "20-transclusion.el")) ;; transclusion for note linking inside other notes
-  (load (concat modules-dir "21-dashboards.el"))   ; Historical dashboards (C-c n f h)
-  (load (concat modules-dir "22-zettelkasten.el")) ; Folgezettel sequences (C-c n z)
-  (load (concat modules-dir "23-fixed-tabs.el"))   ; Route commands to named tabs
-  (load (concat modules-dir "24-readwise.el"))     ; Readwise import (C-c r s)
-  ;; This block is in dependency order rather than numeric order.
-  ;; 27-denote-identifiers.el owns the identifier helpers; 25 loads them
-  ;; by path when they are missing, which used to make this file load 27
-  ;; a second time, and 26 calls them too.  Loading 27 first makes that
-  ;; fallback dormant, which is what it is for.
-  (load (concat modules-dir "27-denote-identifiers.el")) ; Identifier integrity after md files moved to org format
-  (load (concat modules-dir "25-inbox-review.el")) ; Inbox review for old notes from Obsidian
-  (load (concat modules-dir "26-maintenance.el")) ; Integrity checks and repairs (C-c n !)
-  (load (concat modules-dir "28-writing-projects.el")) ; Writing projects (C-c n p)
-  (load (concat modules-dir "29-writing-export.el")) ; ODT/DOCX export via ox-odt + LibreOffice
-  (load (concat modules-dir "30-link-tooltips.el")) ; Cheap mouse tooltips over denote: links
-  (load (concat modules-dir "31-org-images.el")) ; Image attachments (C-c n i i)
-  (load (concat modules-dir "32-web-links.el")) ; insert web link (C-c n i u)
-  (load (concat modules-dir "33-denote-hubs.el")) ; Hub notes (C-c n i H)
-  ;; Loaded last, and optional (NOERROR).  It appends to the View menu
-  ;; from 12-transient.el and defines the faces that 15-workspace.el
-  ;; references, both of which degrade rather than fail when absent:
-  ;; a missing face renders as `default', and `my/transient-append'
-  ;; skips a menu whose anchor it cannot find.
-  (load (concat modules-dir "34-appearance.el") t) ; Padding, faces, pulse (C-c u)
-  ;; Optional (NOERROR): reports days missing from the journal series.
-  ;; Degrades on its own if 05b-journal-metrics.el or 21-dashboards.el
-  ;; are absent -- see the header of the module.
-  (load (concat modules-dir "35-journal-gaps.el") t) ; Journal gaps (C-c n f j)
-  ;; Optional (NOERROR): summary statistics for the collection.  Reads
-  ;; helpers from 26 and 27 and signals a readable error if either is
-  ;; missing, rather than measuring nothing and reporting zero.
-  (load (concat modules-dir "36-notes-stats.el") t) ; Statistics (C-c n f s)
-  ;; Optional (NOERROR): task capture, project routing, agenda files.
-  ;; Loaded after 28-writing-projects.el on purpose: it takes over
-  ;; `org-agenda-files' from that module, and taking over requires
-  ;; having the last word.  Without 28 it still works and the agenda
-  ;; holds this module's own files only.
-  (load (concat modules-dir "37-tasks.el") t) ; Tasks & agenda (f8, C-c n A)
-  ;; Optional (NOERROR): org-habit setup, fast logging, derived history.
-  ;; Loaded after 37-tasks.el because it adds its file to that module's
-  ;; `my/tasks-extra-agenda-files' and appends to its menu.  Without 37
-  ;; the commands still work; the habit file is simply not in the
-  ;; agenda, so no consistency graphs are drawn.
-  (load (concat modules-dir "38-habits.el") t) ; Habits (f9, C-c n H)
-  ;; Optional (NOERROR): remotes and staleness checks for project
-  ;; repositories.  Loaded after 28-writing-projects.el, whose creation
-  ;; hook it uses; without that module every command reports that there
-  ;; are no projects and does nothing.
-  (load (concat modules-dir "39-project-git.el") t) ; Project git (C-c n p G)
-  ;; Optional (NOERROR): markdown-mode set up to match the Org notes,
-  ;; and a Markdown note-creation command.  Loaded last because it only
-  ;; borrows -- the per-silo typeface from 03b-fonts.el, the docu column
-  ;; width from 10-visual-fill.el, two menu entries via 12-transient.el,
-  ;; `my/denote-base' from 05-notes.el -- and every borrow is guarded, so
-  ;; deleting the file removes Markdown support and nothing else.
-  (load (concat modules-dir "40-markdown.el") t) ; Markdown notes (C-c n t m)
-  ;; Optional (NOERROR): the advanced search commands.  Loaded after
-  ;; 12-transient.el because it takes over the "g" entry of the Find
-  ;; menu through `my/transient-replace'; without this file that entry
-  ;; keeps its original `consult-denote-grep' binding, which is the
-  ;; intended degradation.
-  (load (concat modules-dir "41-notes-search.el") t) ; Search (C-c n f g / n)
-  ;; Optional (NOERROR): the front end for tools/obsidian_import.py.
-  ;; Loaded after 12-transient.el, whose Tools menu it appends to, and
-  ;; after 00-core.el, whose `my-notes-dir' it passes to the script.
-  ;; Without this file the import is still available from a shell; only
-  ;; the menu entry and the buffer handling around it disappear.
-  (load (concat modules-dir "42-obsidian-import.el") t) ; Obsidian import (C-c n t o)
-  ;; Optional (NOERROR): spaced repetition with org-drill.  Loaded after
-  ;; 12-transient.el, whose main menu it appends to, and after
-  ;; 04-denote.el, whose file-name keywords identify the card decks.
-  ;; Without this file org-drill is simply not installed; nothing else
-  ;; refers to it.
-  (load (concat modules-dir "43-drill.el") t) ; Flashcards (C-c n r)
-  ;; Optional (NOERROR): hide or show inline images in the buffer being
-  ;; written in.  Loaded after 12-transient.el, whose View menu it
-  ;; appends to, and after 40-markdown.el, so that the Markdown half is
-  ;; there when the command asks for it.  Without this file images are
-  ;; governed by `org-startup-with-inline-images' and Org's own
-  ;; C-c C-x C-v alone.
-  (load (concat modules-dir "44-image-display.el") t) ; Images on/off (C-c u i)
-  ;; Optional (NOERROR): standard-page counter beside the word count.
-  ;; 01-ui.el asks for it through `fboundp', so without this file the
-  ;; mode line shows the word count alone, which is what it showed
-  ;; before the module existed.
-  (load (concat modules-dir "45-standard-pages.el") t) ; Standard pages (M-x report)
-  ;; Optional (NOERROR): selected notes published as a Hugo blog.
-  ;; Loaded after 12-transient.el, whose Export menu it appends to, and
-  ;; after 16-org-export.el, whose denote-link filter it switches off
-  ;; for its own exports only.  Without this file nothing is published
-  ;; and no other module notices.
-  (load (concat modules-dir "46-blog.el") t) ; Blog (C-c n x b)
-  ;; Optional (NOERROR): Markdown docs of the NixOS repository as a
-  ;; separate Hugo site.  Loaded after 12-transient.el, whose Export
-  ;; menu it appends to; depends on no other module.
-  (load (concat modules-dir "47-repo-docs.el") t) ; Repo docs (C-c n x r)
-  ;; Optional (NOERROR): favourite and recently changed settings.
-  ;; Loaded after 12-transient.el, whose settings menu it appends to,
-  ;; and after 00-core.el, whose settings folder keeps its record.
-  ;; Without this file Customize works as before.
-  (load (concat modules-dir "48-settings-tools.el") t) ; Settings tools (C-c n , * r z)
-  )
+(load (expand-file-name "modules/00-core.el" user-emacs-directory)) ; Package system + variables
+
+(my/modules-load
+ '(
+   "01-ui"                   ; Interface + sessions
+   "02-editing"              ; Modern conveniences
+   "02b-bold-marker"         ; Obsidian-style bold (word*)
+   "03-spelling"             ; Spellcheck (WORKING!)
+   "03b-fonts"               ; Fonts (PlaypenSans for journals)
+   "04-denote"               ; Denote multi-silo
+   "05-notes"                ; Note functions
+   ;; Optional: without it there are no metrics commands and no menu
+   ;; entries for them, and nothing else changes.
+   "05b-journal-metrics"     ; Journal metrics (C-c n c w / W)
+   "06-capture"              ; Org-capture (SMART DATE!)
+   "07-git"                  ; Git auto-commit
+   "08-keybindings"          ; Keybindings
+   "09-theme"                ; Theme (light)
+   "10-visual-fill"          ; Centered text
+   "11-org-appearance"       ; Org visual enhancements
+   "12-transient"            ; Transient menu (C-c n)
+   "13-centered-writing"     ; Writeroom mode (C-c n W)
+   "14-typing-analytics"     ; Typing statistics (keyfreq + keylog)
+   "15-workspace"            ; Obsidian-like panels (EXPERIMENTAL)
+   "16-org-export"
+   "17-bibliography"         ; Citar + org-noter + pdf-tools
+   "18-zotero-transient"     ; Zotero transient menu
+   "19-philosophy-notes"     ; Philosophy note types (C-c n l)
+   "20-transclusion"         ; transclusion for note linking inside other notes
+   "21-dashboards"           ; Historical dashboards (C-c n f h)
+   "22-zettelkasten"         ; Folgezettel sequences (C-c n z)
+   "23-fixed-tabs"           ; Route commands to named tabs
+   "24-readwise"             ; Readwise import (C-c r s)
+   ;; This block is in dependency order rather than numeric order.
+   ;; 27-denote-identifiers.el owns the identifier helpers; 25 loads them
+   ;; by path when they are missing, which used to make this file load 27
+   ;; a second time, and 26 calls them too.  Loading 27 first makes that
+   ;; fallback dormant, which is what it is for.
+   "27-denote-identifiers"   ; Identifier integrity after md files moved to org format
+   "25-inbox-review"         ; Inbox review for old notes from Obsidian
+   "26-maintenance"          ; Integrity checks and repairs (C-c n !)
+   "28-writing-projects"     ; Writing projects (C-c n p)
+   "29-writing-export"       ; ODT/DOCX export via ox-odt + LibreOffice
+   "30-link-tooltips"        ; Cheap mouse tooltips over denote: links
+   "31-org-images"           ; Image attachments (C-c n i i)
+   "32-web-links"            ; insert web link (C-c n i u)
+   "33-denote-hubs"          ; Hub notes (C-c n i H)
+   ;; Loaded last, and optional.  It appends to the View menu
+   ;; from 12-transient.el and defines the faces that 15-workspace.el
+   ;; references, both of which degrade rather than fail when absent:
+   ;; a missing face renders as `default', and `my/transient-append'
+   ;; skips a menu whose anchor it cannot find.
+   "34-appearance"           ; Padding, faces, pulse (C-c u)
+   ;; Optional: reports days missing from the journal series.
+   ;; Degrades on its own if 05b-journal-metrics.el or 21-dashboards.el
+   ;; are absent -- see the header of the module.
+   "35-journal-gaps"         ; Journal gaps (C-c n f j)
+   ;; Optional: summary statistics for the collection.  Reads
+   ;; helpers from 26 and 27 and signals a readable error if either is
+   ;; missing, rather than measuring nothing and reporting zero.
+   "36-notes-stats"          ; Statistics (C-c n f s)
+   ;; Optional: task capture, project routing, agenda files.
+   ;; Loaded after 28-writing-projects.el on purpose: it takes over
+   ;; `org-agenda-files' from that module, and taking over requires
+   ;; having the last word.  Without 28 it still works and the agenda
+   ;; holds this module's own files only.
+   "37-tasks"                ; Tasks & agenda (f8, C-c n A)
+   ;; Optional: org-habit setup, fast logging, derived history.
+   ;; Loaded after 37-tasks.el because it adds its file to that module's
+   ;; `my/tasks-extra-agenda-files' and appends to its menu.  Without 37
+   ;; the commands still work; the habit file is simply not in the
+   ;; agenda, so no consistency graphs are drawn.
+   "38-habits"               ; Habits (f9, C-c n H)
+   ;; Optional: remotes and staleness checks for project
+   ;; repositories.  Loaded after 28-writing-projects.el, whose creation
+   ;; hook it uses; without that module every command reports that there
+   ;; are no projects and does nothing.
+   "39-project-git"          ; Project git (C-c n p G)
+   ;; Optional: markdown-mode set up to match the Org notes,
+   ;; and a Markdown note-creation command.  Loaded last because it only
+   ;; borrows -- the per-silo typeface from 03b-fonts.el, the docu column
+   ;; width from 10-visual-fill.el, two menu entries via 12-transient.el,
+   ;; `my/denote-base' from 05-notes.el -- and every borrow is guarded, so
+   ;; deleting the file removes Markdown support and nothing else.
+   "40-markdown"             ; Markdown notes (C-c n t m)
+   ;; Optional: the advanced search commands.  Loaded after
+   ;; 12-transient.el because it takes over the "g" entry of the Find
+   ;; menu through `my/transient-replace'; without this file that entry
+   ;; keeps its original `consult-denote-grep' binding, which is the
+   ;; intended degradation.
+   "41-notes-search"         ; Search (C-c n f g / n)
+   ;; Optional: the front end for tools/obsidian_import.py.
+   ;; Loaded after 12-transient.el, whose Tools menu it appends to, and
+   ;; after 00-core.el, whose `my-notes-dir' it passes to the script.
+   ;; Without this file the import is still available from a shell; only
+   ;; the menu entry and the buffer handling around it disappear.
+   "42-obsidian-import"      ; Obsidian import (C-c n t o)
+   ;; Optional: spaced repetition with org-drill.  Loaded after
+   ;; 12-transient.el, whose main menu it appends to, and after
+   ;; 04-denote.el, whose file-name keywords identify the card decks.
+   ;; Without this file org-drill is simply not installed; nothing else
+   ;; refers to it.
+   "43-drill"                ; Flashcards (C-c n r)
+   ;; Optional: hide or show inline images in the buffer being
+   ;; written in.  Loaded after 12-transient.el, whose View menu it
+   ;; appends to, and after 40-markdown.el, so that the Markdown half is
+   ;; there when the command asks for it.  Without this file images are
+   ;; governed by `org-startup-with-inline-images' and Org's own
+   ;; C-c C-x C-v alone.
+   "44-image-display"        ; Images on/off (C-c u i)
+   ;; Optional: standard-page counter beside the word count.
+   ;; 01-ui.el asks for it through `fboundp', so without this file the
+   ;; mode line shows the word count alone, which is what it showed
+   ;; before the module existed.
+   "45-standard-pages"       ; Standard pages (M-x report)
+   ;; Optional: selected notes published as a Hugo blog.
+   ;; Loaded after 12-transient.el, whose Export menu it appends to, and
+   ;; after 16-org-export.el, whose denote-link filter it switches off
+   ;; for its own exports only.  Without this file nothing is published
+   ;; and no other module notices.
+   "46-blog"                 ; Blog (C-c n x b)
+   ;; Optional: Markdown docs of the NixOS repository as a
+   ;; separate Hugo site.  Loaded after 12-transient.el, whose Export
+   ;; menu it appends to; depends on no other module.
+   "47-repo-docs"            ; Repo docs (C-c n x r)
+   ;; Optional: favourite and recently changed settings.
+   ;; Loaded after 12-transient.el, whose settings menu it appends to,
+   ;; and after 00-core.el, whose settings folder keeps its record.
+   ;; Without this file Customize works as before.
+   "48-settings-tools"       ; Settings tools (C-c n , * r z)
+   ))
 
 (add-hook 'emacs-startup-hook
           (lambda ()

@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/project-git-mode
 
 ;;; Commentary:
 ;; Every writing project is its own git repository.  28-writing-projects

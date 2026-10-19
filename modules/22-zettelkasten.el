@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/zettelkasten-mode
 
 ;;; Commentary:
 ;; Luhmann-style Zettelkasten layer on top of Denote, using the

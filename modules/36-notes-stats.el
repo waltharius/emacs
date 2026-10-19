@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires: 26-maintenance 27-denote-identifiers
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/notes-stats-module-mode
 
 ;;; Commentary:
 ;; One screen answering "how big is this thing, and is it healthy",

@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/blog-mode
 
 ;;; Commentary:
 ;; Selected Denote notes become pages of one or more static Hugo sites,

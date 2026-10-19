@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/drill-mode
 
 ;;; Commentary:
 ;; Flashcards kept in ordinary Denote notes, reviewed with org-drill.

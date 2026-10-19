@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/habits-mode
 
 ;;; Commentary:
 ;; A habit is ticked off without leaving whatever is being written.

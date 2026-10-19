@@ -489,6 +489,26 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
       menu (and =C-c w s= / =C-c u i= for the last two); on -- back.
 - [ ] No warning of type =menus= afterwards.
 
+** R32. The loader [0/7]
+- [ ] Start as usual: no warning of type =modules=; =C-c n , m= lists
+      every module, core ones as "core", the rest "on".
+- [ ] =C-c n , m=, =24-readwise=: off at once (no =C-c n t r=); restart:
+      still off, =C-c n , m= says "off".  Choose it again, answer /y/:
+      loaded and on without a restart.
+- [ ] Turn off =17-bibliography=: question "needed by 18-zotero-transient
+      ... Turn both off?"; yes; both off.  Turn =18-zotero-transient= on:
+      17 comes back with it.
+- [ ] A module without a switch, e.g. =30-link-tooltips=: off -- the echo
+      area says it goes at the next start; restart: tooltips gone.  On
+      again, /n/: back after the next restart.
+- [ ] =C-c n , m= on =05-notes=: refused, core.
+- [ ] Break an optional module on purpose (in a scratch copy: add
+      =(error "test")= at the top of =45-standard-pages.el=), restart:
+      Emacs starts fully; warning "45-standard-pages: FAILED while
+      loading -- test".  =git checkout= the file.
+- [ ] The other machine, after pulling the settings: its own
+      =my/modules-off= unchanged.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

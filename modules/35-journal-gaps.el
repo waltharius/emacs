@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/journal-gaps-module-mode
 
 ;;; Commentary:
 ;; A report of what is MISSING from the journal series, as opposed to

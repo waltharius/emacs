@@ -50,6 +50,7 @@ rollback or a deliberately partial commit.
 | `changelog` | Were modules staged without a `CHANGELOG.md` entry? | yes |
 | `menus` | Is every command `function_helper.org` mentions reachable from a menu or a key — or listed, with its reason, under *Commands without a menu entry*? | yes |
 | `modules` | Does every module keep the module contract -- headers, `provide`, every hard dependency declared, nothing core needing something optional, no circles? | yes |
+| `loader` | Is every file in `modules/` in init.el's list for `my/modules-load`, once, and does every `MyPKS-Switch` header name a mode its module defines? | yes (since 2026-10-19) |
 | `menukeys` | Is any key of a menu given to two different commands -- in the menu's definition or by the modules adding to it? | yes (since 2026-10-19) |
 | `private` | Is a `--` symbol called from outside its module? | yes (since 2026-10-18) |
 | `personal` | Does a file git would commit contain a string from the private list `private-strings.txt` in the settings folder? | yes; *skipped*, with the path, when the list does not exist |

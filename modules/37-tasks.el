@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/tasks-mode
 
 ;;; Commentary:
 ;; A task is written without leaving whatever is being written.  One key

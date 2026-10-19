@@ -6493,6 +6493,7 @@ The check =modules= of =hooks/lint.py= enforces the rules marked
 | first line           | file name, one-line description, lexical binding                 |
 | =MyPKS-Requires:=    | modules this one cannot work without, separated by spaces; empty when it needs only 00-core.el, which is never listed |
 | =MyPKS-Optional:=    | =yes=: may be turned off; =no=: part of the core                 |
+| =MyPKS-Switch:=      | the module's switch, a global minor mode it defines (only modules that have one; the =loader= check verifies it) |
 | =Docs:=              | the section of this file describing the module                  |
 
 Read from Emacs, without loading the module:
@@ -6506,9 +6507,9 @@ Read from Emacs, without loading the module:
         (lm-header "MyPKS-Optional")))
 #+end_src
 
-=MyPKS-Requires= does not change the load order yet: =init.el= still
-decides it.  The loader (BACKLOG.org, /Module toggles/) will read these
-headers.
+=MyPKS-Requires= is what the module uses while it runs, not what has
+to be loaded before it: =init.el= decides the order, and the loader
+reads these headers to decide /which/ modules load -- see [[#loader][The loader]].
 
 ** Rules
 :PROPERTIES:
@@ -6556,6 +6557,75 @@ Not checked yet -- the target, reached module by module (BACKLOG.org,
     modules offer (=my/auto-commit-repository-sources=,
     =my/tasks-extra-agenda-files=), never by editing the other module.
 
+** The loader: which modules this machine loads
+:PROPERTIES:
+:CUSTOM_ID: loader
+:END:
+
+=init.el= loads =00-core.el= by path and then names every other module
+once, in load order, in one list handed to =my/modules-load=
+(00-core.el).  The order is still written by hand, with the reasons
+where it is not numeric; what changed is who decides whether a module
+loads at all.  Before anything is loaded, =my/modules--plan= reads each
+module's header and leaves out:
+
+| Left out                                             | Reported after start-up |
+|------------------------------------------------------+-------------------------|
+| an optional module in =my/modules-off=               | no -- chosen            |
+| an optional module needing one that is left out, or not in the list (repeated until nothing changes) | yes |
+| a name without a file                                | yes                     |
+
+Then the rest load in the order of =init.el=.  A core module loads as
+before: an error in it stops start-up, since nothing works without it.
+An optional module loads inside a guard: an error in it is recorded,
+start-up goes on with the next module, and after start-up one warning
+(type =modules=) lists what failed or was left out, with the error.
+Until 2026-10-19 one broken optional module stopped =init.el= at that
+line and left everything after it unloaded.
+
+*=my/modules-off=* (/Modules turned off on this machine/, at the top of
+=C-c n , ,=) is the list of optional modules not loaded.  It is an
+option, so it lives in this machine's =custom.el=, which =00-core.el=
+reads before the loader runs.  Changing it in Customize takes effect at
+the next start.
+
+*=C-c n , m=* (=my/modules-toggle=) lists every module with its state and
+one-line description, and turns the chosen one on or off:
+
+| State shown                  | Meaning                                                  |
+|------------------------------+----------------------------------------------------------|
+| core                         | cannot be turned off                                     |
+| on                           | loaded, and its switch (if any) on                      |
+| loaded, switched off         | loaded, its switch off (saved in Customize, or =M-x=)   |
+| off / off from the next start | in =my/modules-off=                                    |
+| on from the next start       | taken out of =my/modules-off=, not loaded yet            |
+| not loaded: needs ...        | left out at start-up for a module it needs              |
+| FAILED at start-up           | an error while loading; see =*Warnings*=                |
+
+- /Turning off/ a module others need lists them and turns them off too,
+  after a question; a core module that needs it refuses.  The module's
+  switch, where it has one ([[#module-switch][A module's switch]]), goes off at once; a
+  module without a switch stays until the next start, which the echo
+  area says.
+- /Turning on/ also turns on every module it needs (off, or left out),
+  switches them on at once if loaded, and offers to load the ones that
+  are not: /y/ loads them now, in =init.el='s order, /n/ at the next
+  start.  Loading later works for these modules, but what a module does
+  only while Emacs starts (an =after-init-hook=, a start-up question)
+  follows at the next start.
+
+The order needs no dependency sort: =MyPKS-Requires= says what a module
+uses while running, and =08-keybindings= needs the menus of
+=12-transient=, which loads later.  The pre-commit check =loader=
+fails when a file in =modules/= is missing from the list (it would never
+load), listed twice, or when a =MyPKS-Switch= names a mode the module
+does not define.
+
+Tests: =tests/test-loader.el= -- stand-in modules for every case above,
+run in a fresh =emacs -Q --batch=.
+
+Function: =my/modules-load=, =my/modules-toggle= | Variable: =my/modules-off= | Module: =modules/00-core.el=
+
 ** A module's switch
 :PROPERTIES:
 :CUSTOM_ID: module-switch
@@ -6580,8 +6650,8 @@ The switch is an option.  =M-x customize-option RET my/readwise-mode=,
 /Toggle/, /Apply and Save/ writes its position into this machine's
 =custom.el=, so a module turned off stays off at the next start of
 that machine only.  =M-x my/readwise-mode= turns it on or off for this
-session.  A menu for switching modules on and off comes with the
-loader (BACKLOG, step 5).
+session.  =C-c n , m= ([[#loader][The loader]]) turns the switch and the
+module's loading together.
 
 | Switch                    | Module                  | On: adds                                       |
 |---------------------------+-------------------------+------------------------------------------------|
@@ -8843,6 +8913,7 @@ on a button acts, /State/ → /Save for future sessions/ (or the
 | =C-c n , -= | remove a favourite                                |
 | =C-c n , r= | recently changed settings, newest first           |
 | =C-c n , z= | undo a recent change: the value before it         |
+| =C-c n , m= | modules on this machine: on, off, state ([[#loader][The loader]]) |
 | =C-c n , b= | blog sites started on this machine (=46-blog.el=, [[#blog-autostart][Autostart]]) |
 
 Function: =my/settings-menu= | Module: =modules/12-transient.el=

@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/typing-analytics-mode
 ;; Docs: ~/.emacs.d/function_helper.org::#typing-analytics
 
 ;;; Commentary:

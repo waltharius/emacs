@@ -2022,6 +2022,337 @@ been bound there since, that binding is left alone."
           (global-unset-key key))))))
 
 ;; ============================================================
+;; THE LOADER: WHICH MODULES THIS MACHINE LOADS
+;; ============================================================
+;; init.el names every module once, in load order, and hands the list
+;; to `my/modules-load'.  Each module says about itself, in its header
+;; (read with lisp-mnt, Emacs's own reader of library headers, without
+;; loading the file):
+;;
+;;   ;; MyPKS-Requires: 05-notes 27-denote-identifiers   modules it needs
+;;   ;; MyPKS-Optional: yes                               may be left out
+;;   ;; MyPKS-Switch: my/readwise-mode                    its on/off switch
+;;
+;; For each module in the list:
+;;   - core (Optional: no): loaded, and an error stops start-up as
+;;     before -- the configuration cannot work without it;
+;;   - optional, listed in `my/modules-off': not loaded;
+;;   - optional, needing a module that is not loaded at this start
+;;     (turned off, missing, or itself left out): not loaded, and
+;;     reported;
+;;   - optional otherwise: loaded, and an error inside it is caught,
+;;     reported after start-up, and start-up goes on with the next
+;;     module -- one broken module no longer leaves Emacs half started.
+;;
+;; `my/modules-off' is an option, so it is saved in this machine's
+;; custom.el, which this file has read before init.el calls the loader.
+;; `my/modules-toggle' (C-c n , m) changes it with the dependencies
+;; checked, and turns a module's switch at once where it has one.
+;;
+;; MyPKS-Requires is what a module uses while it runs, not what must be
+;; loaded before it: 08-keybindings needs the menus of 12-transient,
+;; which loads later.  So the loader first decides which modules this
+;; start loads at all (`my/modules--plan'), then loads them in the order
+;; of init.el.
+
+(require 'lisp-mnt)
+
+(defcustom my/modules-off nil
+  "Optional modules not loaded on this machine, by file name without .el.
+For example (\"24-readwise\" \"43-drill\").  Takes effect at the next
+start; `my/modules-toggle' (C-c n , m) also checks what depends on
+what, and turns a module's switch at once where it has one.  Core
+modules cannot be turned off."
+  :type '(repeat string)
+  :tag "Modules turned off on this machine"
+  :set #'my/settings-set-needs-restart
+  :group 'mypks)
+
+(defconst my/modules-directory
+  (file-name-as-directory (locate-user-emacs-file "modules/"))
+  "Folder of the modules.")
+
+(defvar my/modules-order nil
+  "Every module init.el names, in load order: what `my/modules-load' got.")
+
+(defvar my/modules-loaded nil
+  "Modules loaded this session, in load order.")
+
+(defvar my/modules--skipped nil
+  "Modules not loaded this session: alist of (NAME . REASON).
+REASON is `off', (needs . MODULES) or (failed . MESSAGE).")
+
+(defvar my/modules--info-cache (make-hash-table :test #'equal)
+  "NAME -> plist read from the module's header.")
+
+(defun my/module-info (name)
+  "Return what the header of module NAME says, as a plist.
+:summary (the first line's description), :requires (list of module
+names), :optional (non-nil when it may be left out), :switch (the symbol
+of its switch, or nil), :file.  Nil when there is no such file."
+  (or (gethash name my/modules--info-cache)
+      (let ((file (expand-file-name (concat name ".el") my/modules-directory)))
+        (when (file-readable-p file)
+          (puthash name
+                   (with-temp-buffer
+                     ;; The header is at the top; the rest of the file is
+                     ;; not read.
+                     (insert-file-contents file nil 0 4000)
+                     (let ((requires (lm-header "MyPKS-Requires"))
+                           (switch (lm-header "MyPKS-Switch")))
+                       (list :file file
+                             :summary (lm-summary)
+                             :requires (and requires (split-string requires))
+                             :optional (equal (lm-header "MyPKS-Optional") "yes")
+                             :switch (and switch (not (string-empty-p switch))
+                                          (intern switch)))))
+                   my/modules--info-cache)))))
+
+(defun my/modules--plan (names)
+  "Return the modules among NAMES this start leaves out: alist (NAME . REASON).
+Optional modules in `my/modules-off', modules without a file, and,
+repeatedly, optional modules needing one of those or one not in NAMES
+at all.  Core modules are never left out here: a core module that
+cannot load stops start-up when it is loaded."
+  (let ((out nil) (changed t))
+    (dolist (name names)
+      (let ((info (my/module-info name)))
+        (cond ((null info) (push (cons name '(failed . "no such file")) out))
+              ((and (plist-get info :optional) (member name my/modules-off))
+               (push (cons name 'off) out)))))
+    (while changed
+      (setq changed nil)
+      (dolist (name names)
+        (let ((info (my/module-info name)))
+          (when (and info (plist-get info :optional) (not (assoc name out)))
+            (let ((missing (seq-filter (lambda (r) (or (assoc r out)
+                                                       (not (member r names))))
+                                       (plist-get info :requires))))
+              (when missing
+                (push (cons name (cons 'needs missing)) out)
+                (setq changed t)))))))
+    out))
+
+(defun my/modules--load-one (name &optional left-out)
+  "Load module NAME as `my/modules-load' describes; record the outcome.
+LEFT-OUT is the plan of `my/modules--plan' at start-up.  Without it
+\(loading a module later, from `my/modules-toggle'), every module NAME
+requires must already be loaded."
+  (let* ((info (my/module-info name))
+         (planned (cdr (assoc name left-out)))
+         (missing (and (not left-out)
+                       (seq-remove (lambda (m) (member m my/modules-loaded))
+                                   (plist-get info :requires)))))
+    (cond
+     (planned
+      (my/modules--skip name planned))
+     ((null info)
+      (my/modules--skip name '(failed . "no such file")))
+     ((not (plist-get info :optional))
+      ;; Core: loaded as before; an error stops start-up.
+      (load (plist-get info :file) nil t)
+      (my/modules--loaded name))
+     ((member name my/modules-off)
+      (my/modules--skip name 'off))
+     (missing
+      (my/modules--skip name (cons 'needs missing)))
+     (t
+      (condition-case-unless-debug err
+          (progn
+            (load (plist-get info :file) nil t)
+            (my/modules--loaded name))
+        (error
+         (my/modules--skip name (cons 'failed (error-message-string err)))))))))
+
+(defun my/modules--loaded (name)
+  "Record that NAME is loaded, last in load order; forget an earlier skip."
+  (setq my/modules--skipped (assoc-delete-all name my/modules--skipped))
+  (setq my/modules-loaded (append my/modules-loaded (list name))))
+
+(defun my/modules--skip (name reason)
+  "Record that NAME was not loaded, for REASON."
+  (setq my/modules--skipped
+        (append (assoc-delete-all name my/modules--skipped)
+                (list (cons name reason)))))
+
+(defun my/modules-load (names)
+  "Load the modules NAMES, in this order; see the commentary above.
+00-core.el, which defines this, counts as loaded."
+  (setq my/modules-order (cons "00-core" names))
+  (unless (member "00-core" my/modules-loaded)
+    (my/modules--loaded "00-core"))
+  ;; A non-nil plan marks the start-up path in `my/modules--load-one',
+  ;; hence the placeholder entry when nothing is left out.
+  (let ((left-out (or (my/modules--plan names) '((nil . nil)))))
+    (dolist (name names)
+      (my/modules--load-one name left-out))))
+
+(defun my/modules--skip-line (entry)
+  "Return a line describing the skipped module ENTRY, (NAME . REASON)."
+  (let ((name (car entry)) (reason (cdr entry)))
+    (pcase reason
+      ('off (format "%s: turned off on this machine" name))
+      (`(needs . ,missing) (format "%s: not loaded, needs %s, which was not loaded"
+                                   name (string-join missing ", ")))
+      (`(failed . ,msg) (format "%s: FAILED while loading -- %s" name msg)))))
+
+(defun my/modules--warn ()
+  "After start-up, warn about modules that failed or could not be loaded.
+A module turned off on purpose is not mentioned."
+  (let ((problems (seq-remove (lambda (e) (eq (cdr e) 'off)) my/modules--skipped)))
+    (when problems
+      (display-warning
+       'modules
+       (concat "Modules not loaded:\n\n"
+               (mapconcat #'my/modules--skip-line problems "\n")
+               "\n\nThe rest of the configuration is loaded.  A failed module: the "
+               "error above, and *Messages*; start Emacs with --debug-init for a "
+               "backtrace.  C-c n , m lists every module.")
+       :warning))))
+
+(add-hook 'emacs-startup-hook #'my/modules--warn)
+
+;; TURNING MODULES ON AND OFF (C-c n , m)
+
+(defun my/modules--dependants (name names)
+  "Return the modules among NAMES that require NAME, directly or not."
+  (let ((found nil) (todo (list name)))
+    (while todo
+      (let ((current (pop todo)))
+        (dolist (other names)
+          (when (and (not (member other found))
+                     (member current (plist-get (my/module-info other) :requires)))
+            (push other found)
+            (push other todo)))))
+    (nreverse found)))
+
+(defun my/modules--requirements (name)
+  "Return every module NAME requires, directly or not."
+  (let ((found nil) (todo (plist-get (my/module-info name) :requires)))
+    (while todo
+      (let ((current (pop todo)))
+        (unless (member current found)
+          (push current found)
+          (setq todo (append todo (plist-get (my/module-info current) :requires))))))
+    (nreverse found)))
+
+(defun my/modules--state (name)
+  "Return a short description of NAME's state on this machine."
+  (let* ((info (my/module-info name))
+         (switch (plist-get info :switch))
+         (skipped (cdr (assoc name my/modules--skipped)))
+         (loaded (member name my/modules-loaded)))
+    (cond
+     ((not (plist-get info :optional)) "core")
+     ((and (member name my/modules-off) loaded) "off from the next start")
+     ((member name my/modules-off) "off")
+     ((consp skipped) (if (eq (car skipped) 'needs) "not loaded: needs a module that is off"
+                        "FAILED at start-up"))
+     ((not loaded) "on from the next start")
+     ((and switch (boundp switch) (not (symbol-value switch))) "loaded, switched off")
+     (t "on"))))
+
+(defun my/modules--on-p (name)
+  "Non-nil when NAME is on: not turned off, not left out for want of a
+module it needs, and its switch, if loaded, on.  What choosing NAME in
+`my/modules-toggle' turns off; anything else it turns on."
+  (let ((switch (plist-get (my/module-info name) :switch))
+        (skipped (cdr (assoc name my/modules--skipped))))
+    (and (not (member name my/modules-off))
+         (not (eq (car-safe skipped) 'needs))
+         (not (and switch (boundp switch) (member name my/modules-loaded)
+                   (not (symbol-value switch)))))))
+
+(defun my/modules--set-off (names off)
+  "Add NAMES to `my/modules-off' when OFF, else remove them; save it."
+  (let ((value (if off
+                   (seq-uniq (append my/modules-off names))
+                 (seq-remove (lambda (n) (member n names)) my/modules-off))))
+    ;; Bound so that the setter's "takes effect at the next start" is
+    ;; not shown: the command says what happens itself.
+    (let ((load-file-name "my/modules-toggle"))
+      (customize-save-variable 'my/modules-off value))))
+
+(defun my/modules--switch (name on)
+  "Turn the switch of NAME on or off now, if it has one and is loaded.
+Turning it on also saves it on, in case it was saved off in Customize."
+  (let ((switch (plist-get (my/module-info name) :switch)))
+    (when (and switch (fboundp switch) (member name my/modules-loaded))
+      (funcall switch (if on 1 -1))
+      (when (and on (get switch 'saved-value)
+                 (not (eval (car (get switch 'saved-value)) t)))
+        (customize-save-variable switch t)))))
+
+(defun my/modules-toggle (name)
+  "Turn the optional module NAME on or off on this machine.
+Turning off a module others need offers to turn those off too; turning
+one on turns on what it needs.  Saved in `my/modules-off', in this
+machine's settings.  A module with a switch changes at once; one without
+changes at the next start.  A module turned on that is not loaded can
+be loaded at once."
+  (interactive
+   (let* ((names (seq-remove (lambda (n) (equal n "00-core")) my/modules-order))
+          (table (mapcar (lambda (n)
+                           (cons (format "%-24s %-26s %s" n (my/modules--state n)
+                                         (or (plist-get (my/module-info n) :summary) ""))
+                                 n))
+                         names))
+          (choice (completing-read "Module (on/off on this machine): " table nil t)))
+     (list (cdr (assoc choice table)))))
+  (let* ((info (my/module-info name))
+         (names my/modules-order))
+    (unless (plist-get info :optional)
+      (user-error "%s is a core module and cannot be turned off" name))
+    (if (my/modules--on-p name)
+        ;; ---- turning off
+        (let* ((dependants (seq-filter (lambda (d) (not (member d my/modules-off)))
+                                       (my/modules--dependants name names)))
+               (core-dependants (seq-remove (lambda (d) (plist-get (my/module-info d) :optional))
+                                            dependants)))
+          (when core-dependants
+            (user-error "%s is needed by the core module %s" name
+                        (string-join core-dependants ", ")))
+          (when (and dependants
+                     (not (yes-or-no-p (format "%s is needed by %s.  Turn %s off? "
+                                               name (string-join dependants ", ")
+                                               (if (cdr dependants) "all of them" "both")))))
+            (user-error "Nothing changed"))
+          (let ((all (cons name dependants)))
+            (my/modules--set-off all t)
+            (dolist (n all) (my/modules--switch n nil))
+            (message "Off on this machine: %s.  %s"
+                     (string-join all ", ")
+                     (if (seq-every-p (lambda (n) (plist-get (my/module-info n) :switch)) all)
+                         "Switched off now; not loaded from the next start."
+                       "Gone from the next start; modules with a switch are off now."))))
+      ;; ---- turning on
+      ;; Every requirement that is off, or not loaded -- also one left
+      ;; out at start-up only because it needed another module that was
+      ;; off.
+      (let* ((needed (seq-filter (lambda (r) (or (member r my/modules-off)
+                                                 (not (member r my/modules-loaded))))
+                                 (my/modules--requirements name)))
+             (all (append needed (list name))))
+        (my/modules--set-off all nil)
+        (dolist (n all) (my/modules--switch n t))
+        (let ((unloaded (seq-remove (lambda (n) (member n my/modules-loaded))
+                                    ;; In load order, so a requirement loads first.
+                                    (seq-filter (lambda (n) (member n all)) names))))
+          (if (and unloaded
+                   (y-or-n-p (format "Load %s now (y), or from the next start (n)? "
+                                     (string-join unloaded ", "))))
+              (progn
+                (dolist (n unloaded) (my/modules--load-one n))
+                (let ((failed (seq-filter (lambda (e) (member (car e) unloaded))
+                                          my/modules--skipped)))
+                  (if failed
+                      (message "%s" (mapconcat #'my/modules--skip-line failed "; "))
+                    (message "On and loaded: %s.  What a module does only at start-up follows at the next start."
+                             (string-join unloaded ", ")))))
+            (message "On on this machine: %s%s" (string-join all ", ")
+                     (if unloaded " (loaded from the next start)" ""))))))))
+
+;; ============================================================
 ;; DOWNLOADS CHECKED AGAINST A KNOWN DIGEST
 ;; ============================================================
 ;; A theme or tool downloaded by a module is checked against the

@@ -16,17 +16,18 @@ says why and how.
    pinned, the =private= and =personal= checks: done 2026-10-18d-f.)
 2. Done 2026-10-19b-d: automatic git without blocking (start-up
    pull, idle cycle, one exit path).
-3. /Settings: core plus user layer/, step 5 -- decoupling part 3 and
-   skipped menu entries done 2026-10-19e-f; left: hint texts from what
-   loaded, a minor mode per module, then the loader together with
-   /Start-up: early-init.el, compilation, lazy loading/.
+3. /Settings: core plus user layer/, step 5 -- decoupling, skipped
+   menu entries, switches for 17 modules, the loader: done 2026-10-19.
+   Left: hint texts from what loaded; the other modules' switches, one
+   per session, each rethought first; own modules in the settings
+   folder; /Start-up: early-init.el, compilation, lazy loading/.
 4. /Files the modules write/ -- before the loader, whose list of
    modules turned off is itself a setting.
 5. /Continuous integration/ -- can start at any time; most useful once
    the core has tests of its own.
 6. /A public repository/: portable defaults and the privacy model in
-   the README, the welcome screen; then the tutorial with exercises
-   and the Polish guide.
+   the README, the welcome screen; then the installation guide for
+   beginners, the tutorial with exercises and the Polish guide.
 7. /Documentation to bring up to date/: the README and the help text
    synced with the code, from the running list kept since 2026-10-18 --
    at the end of the refactoring, or before the public repository,
@@ -58,7 +59,10 @@ settles; a line is a reminder, not the text to paste.
 - /Requirements/: Geekdoc pinned to one release with a SHA-256
   (2026-10-18f); "no lockfile" still true.  Hunspell's personal
   dictionary path.
-- /How the configuration is put together/ → /Optional modules/: still
+- /How the configuration is put together/ → /Explicit load order/ and
+  /Optional modules/: init.el is now a list for =my/modules-load=, and
+  the loader (2026-10-19n) decides what loads -- =my/modules-off=,
+  =C-c n , m=, errors in optional modules reported, not fatal.  Still
   describes NOERROR in init.el as the mechanism.  Now: the module
   contract (=MyPKS-Requires=, =MyPKS-Optional=), 9 core and 43
   optional modules (2026-10-19e), the per-module on/off switch
@@ -101,8 +105,8 @@ settles; a line is a reminder, not the text to paste.
 ** Help text of C-c h k (08-keybindings.el)
 - Brought up to date for Find, Insert and Export on 2026-10-19e; still
   to check: Create (Capture column), View (Toggle contents), Tools
-  (Spelling column), the Settings menu, and keys that exist only while
-  a module is on.
+  (Spelling column), the Settings menu (=m= modules, 2026-10-19n), and
+  keys that exist only while a module is on.
 
 ** The Polish guide (planned, /Polish for non-technical users/)
 - Nothing written yet; when it starts, from function_helper.org as it
@@ -252,17 +256,30 @@ Next, in order:
      drill; 2026-10-19i the blog; 2026-10-19k typing analytics and
      project git; 2026-10-19l tasks and habits; 2026-10-19m the eight
      that only add menu entries and keys (05b, 21, 22, 26, 32, 35, 36,
-     44).  Left: the modules that also set things up at load -- hooks
-     on Org or on files, advice, packages configured -- each needing a
-     look at what "off" should mean: 02b, 03b, 06, 09, 10, 11, 13, 15,
-     16, 19, 20, 23, 25, 28, 29, 30, 31, 33, 34, 40, 41, 45, 47, 48;
-     and separately 17-bibliography and 03-spelling.
-     17-bibliography needs its own look: other modules' exports use
-     the citation machinery it sets up.
-3. *The loader*: =init.el= reads the headers, an option lists the
-   modules turned off, the order follows =MyPKS-Requires= (checked
-   against today's order first); the menu entry refuses or offers the
-   dependants.  With the start-up items of the code review.
+     44).
+   - Left: the modules that also set things up at load -- hooks on Org
+     or on files, advice, packages configured: 02b, 03b, 06, 09, 10,
+     11, 13, 15, 16, 19, 20, 23, 25, 28, 29, 30, 31, 33, 34, 40, 41,
+     45, 47, 48; and 17-bibliography (other modules' exports use the
+     citation machinery it sets up) and 03-spelling.  Decided
+     2026-10-19: *one module per session*, and each first *rethought
+     rather than rewritten* -- what it is for, whether it belongs where
+     it is, what "off" should mean.  Examples raised: the writing mode
+     (13) and the appearance toggles (10, 11, 34) may belong in the
+     notes core, switched on and off per buffer as they already are,
+     at no cost, rather than being modules of their own.  Until then
+     these modules are loaded as part of the configuration as it is
+     shipped -- the author's choice, as for any configuration; someone
+     who clones the repository changes them in the code.  The loader
+     can still leave any of them out (at the next start).
+3. *The loader* -- done 2026-10-19n: =my/modules-load= (00-core.el)
+   reads the headers, leaves out what is in =my/modules-off= or needs
+   what is left out, guards optional modules against errors, reports
+   after start-up; =C-c n , m= turns modules on and off with their
+   dependencies.  The order stays hand-written in =init.el= (a
+   dependency sort was not needed: =MyPKS-Requires= is a run-time
+   relation).  Left with it: /Start-up: early-init.el, compilation,
+   lazy loading/ (code review section), now that =init.el= is a list.
 4. *Own modules* in =modules/= of the settings folder.
 
 ** TODO Welcome screen on first start
@@ -330,7 +347,29 @@ Steps, in order:
    (=~/notes=) are the shared ground; each machine, or each role on
    one machine, has its settings, modules and state in the settings
    folder.
-7. *A tutorial with exercises* (asked 2026-10-19), in the repository
+7. *An installation guide for beginners* (asked 2026-10-19): step by
+   step, for someone who has never used a terminal much, on the Linux
+   systems such people are given -- Fedora and Ubuntu first.  Someone
+   on Fedora is ready to try it.  What it covers, each step with the
+   exact command and what the screen should show afterwards:
+   - opening a terminal; what =sudo= asks for and why;
+   - installing Emacs (29 or newer: check the version the system
+     offers, =emacs --version=), git, Hunspell with Polish and English
+     dictionaries, and the optional tools by feature (LaTeX for PDF,
+     pandoc, ImageMagick, LibreOffice, Hugo -- Ubuntu's Hugo is too old
+     for Geekdoc, so its release from GitHub), with =dnf= and =apt=
+     side by side.  Package names to be checked on a current Fedora
+     and Ubuntu when writing, not from memory;
+   - =git clone= into =~/.emacs.d=, the first start (slow: packages
+     download), what the first-start questions mean (settings folder,
+     notes folder, silos);
+   - where things are afterwards (notes, settings), how to update
+     (=git pull=), how to undo a bad update (=git checkout= of the
+     previous version), and where to ask.
+   Tested by following it on clean Fedora and Ubuntu installations
+   (virtual machines), and by the first beginner; NixOS stays a short
+   section for the author's machines.
+8. *A tutorial with exercises* (asked 2026-10-19), in the repository
    beside function_helper.org: an Org file to work through on a fresh
    installation, so that someone who has never used Emacs learns the
    system by doing, and the keys by repeating them.  The two documents

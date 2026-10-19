@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/obsidian-import-mode
 
 ;;; Commentary:
 ;; A front end for tools/obsidian_import.py, which pulls notes written in

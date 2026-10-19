@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires: 27-denote-identifiers
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/maintenance-mode
 
 ;;; Commentary:
 ;; A place to look after the collection rather than write in it: find

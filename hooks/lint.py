@@ -413,6 +413,51 @@ def check_menu_keys():
 
 
 # ------------------------------------------------------------------
+# The loader.  init.el names every module once, in load order, for
+# `my/modules-load' (00-core.el); a module left out of that list is never
+# loaded, and nothing else would say so.  A module's switch is named in
+# its header (MyPKS-Switch), which the modules menu (C-c n , m) uses to
+# turn it at once; a name that the module does not define would make
+# that menu silently fail to switch it.
+# ------------------------------------------------------------------
+
+INIT = os.path.join(ROOT, "init.el")
+
+
+def load_list():
+    """Return the module names init.el hands to `my/modules-load'."""
+    text = open(INIT, encoding="utf-8").read()
+    start = text.find("(my/modules-load")
+    if start < 0:
+        return None
+    body = text[start: form_end(text, start)]
+    return re.findall(r'^\s*"([0-9][^"]*)"', body, re.M)
+
+
+def check_loader():
+    """Every module in init.el's list once; every MyPKS-Switch defined."""
+    names = load_list()
+    if names is None:
+        return ["init.el has no (my/modules-load ...) list"]
+    problems = []
+    files = [name[:-3] for name, _ in modules()]
+    listed = ["00-core"] + names
+    for name in files:
+        count = listed.count(name)
+        if count == 0:
+            problems.append(f"modules/{name}.el is not in init.el's list: it is never loaded")
+        elif count > 1:
+            problems.append(f"{name} is listed {count} times in init.el")
+    for name in sorted(set(listed) - set(files)):
+        problems.append(f"init.el lists {name}, which has no file in modules/")
+    for name, text in modules():
+        m = re.search(r"^;+ MyPKS-Switch:[ \t]*(\S+)", text.split(";;; Code:", 1)[0], re.M)
+        if m and not re.search(r"^\(define-minor-mode\s+" + re.escape(m.group(1)) + r"\b", text, re.M):
+            problems.append(f"{name}: MyPKS-Switch names {m.group(1)}, which it does not define")
+    return problems
+
+
+# ------------------------------------------------------------------
 # Personal strings.  The repository is meant to be public; the list of
 # what must not appear in it is not, so it lives in the settings folder
 # (00-core.el, `my/settings-directory'), outside the repository.
@@ -565,6 +610,7 @@ CHECKS = {
     "menus": (check_menu_reachability, "documented commands no menu or key reaches"),
     "modules": (check_module_contract, "module contract: headers, provide, declared dependencies"),
     "menukeys": (check_menu_keys, "one key given to two different entries of one menu"),
+    "loader": (check_loader, "every module in init.el's list once; every MyPKS-Switch defined"),
     "personal": (check_personal_strings, "personal strings (private-strings.txt) in files git would commit"),
 }
 

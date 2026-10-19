@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/image-display-mode
 
 ;;; Commentary:
 ;; One command, `my/image-display-toggle', that shows or hides inline

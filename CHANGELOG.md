@@ -21,6 +21,84 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19n — The loader: which modules each machine loads, and errors that do not stop start-up
+
+### Why
+
+BACKLOG, *Module toggles*, step 3.  `init.el` loaded 48 modules with
+48 `load` lines, optional ones with NOERROR -- which only covers a
+missing file: an error *inside* an optional module still stopped
+`init.el` at that line and left every later module unloaded.  Turning a
+module off meant editing `init.el`, the same on every machine.  The
+headers written for the module contract (2026-10-16c) were read by the
+lint check only.
+
+### What
+
+- 00-core.el, *The loader*:
+  - `my/modules-off` (option, per machine in custom.el): optional
+    modules not loaded.
+  - `my/module-info`: a module's header read with lisp-mnt from the top
+    of the file -- summary, `MyPKS-Requires`, `MyPKS-Optional`, and the
+    new `MyPKS-Switch`.
+  - `my/modules--plan`: before loading, the optional modules left out --
+    turned off, without a file, or needing a module left out or not in
+    the list, repeated until nothing changes.
+  - `my/modules-load`: loads the rest in init.el's order; a core module
+    as before (an error stops start-up), an optional one inside a guard
+    (`condition-case-unless-debug`, so `--debug-init` still gives a
+    backtrace); `my/modules-loaded` and `my/modules--skipped` record the
+    outcome; `my/modules--warn` (on `emacs-startup-hook`) lists what
+    failed or was left out for a missing requirement.
+  - `my/modules-toggle` (`C-c n , m`): every module with its state and
+    summary; turning off asks about the modules that need it (refuses
+    for a core one) and switches them off at once where they have a
+    switch; turning on brings what it needs and offers to load what is
+    not loaded, now or at the next start.
+- init.el: `00-core.el` by path, then one list for `my/modules-load`,
+  with the comments on order kept and the NOERROR remarks gone.
+- `MyPKS-Switch:` header in the 17 modules with a switch.
+- 12-transient.el: `m` in the settings menu, Machines column.
+- hooks/lint.py: check `loader` -- every file in `modules/` in init.el's
+  list once, every `MyPKS-Switch` defined in its module (checked by
+  removing a module from the list).
+- tests/test-loader.el (new): stand-in modules for every case (core,
+  a requirement loading later, off, left out in a chain, a requirement
+  not in the list, an error while loading, a switch), 13 checks in a
+  fresh `emacs -Q --batch`.
+- function_helper.org: *The loader*; the header table; the settings
+  menu.  hooks/HOOKS-README.md: `loader`.  TESTPLAN.org: R32.
+  BACKLOG.org: step 3 done; the remaining switches one module per
+  session, each rethought first; an installation guide for beginners
+  (Fedora, Ubuntu) among the public repository's steps; the docs list.
+
+### Decisions
+
+- **The order stays hand-written.**  BACKLOG proposed ordering by
+  `MyPKS-Requires`; that relation is what a module uses while running,
+  not what must be loaded first (08-keybindings needs 12-transient's
+  menus, which load later), so a sort would reorder modules for no
+  reason.  The loader decides *which* modules load; init.el *when*.
+- **Plan first, then load**: a module whose requirement loads later in
+  the list must still load, so "is the requirement loaded yet?" is the
+  wrong question at start-up; "will it load at this start?" is the
+  right one.  Loading a module later from `C-c n , m` asks the first
+  question, since then its requirements must already be there.
+- **A failed optional module does not stop start-up; a core one does**:
+  without the core nothing works, and a half-started Emacs that looks
+  normal is worse than a clear stop.
+- **Two bugs found by the test before delivery**: turning on a module
+  whose requirement had been left out at start-up only for want of
+  another one did not bring that requirement along; and such a module
+  counted as "on", so choosing it turned it off.  Both fixed; the test
+  covers them.
+- **The modules without a switch stay as shipped** (asked 2026-10-19):
+  the loader can leave them out at the next start; a switch for each
+  comes one module per session, after rethinking what the module is
+  for -- possibly merging some (the writing mode, the appearance
+  toggles) into the notes core instead.
+
+---
 ## Session 2026-10-19m — Switches for the eight modules that only add menu entries and keys
 
 ### Why

@@ -443,6 +443,7 @@ menu is a module turned off, and only listed by the report."
     ("n" "Notes folder and silos settings"      my/notes-open-silo-settings)
     ("o" "Folders with notes not in a silo"     my/silo-report-orphans)]
    ["Machines"
+    ("m" "Modules on this machine"              my/modules-toggle)
     ("c" "Copy settings from another machine"   my/host-settings-copy-from)
     ("u" "Use another machine's settings here"  my/host-settings-use)]
    [("q" "Quit" transient-quit-one)]])

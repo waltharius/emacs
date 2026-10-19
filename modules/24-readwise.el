@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires: 01-ui 05-notes
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/readwise-mode
 ;; Docs: ~/.emacs.d/function_helper.org::#menu-readwise
 
 ;;; Commentary:
