@@ -8,7 +8,7 @@
 ;; This file does NOT define most keybindings itself — they live next to
 ;; the commands they trigger, scattered across modules (that's normal
 ;; Emacs config style: 07-git.el binds its own magit keys, 01-ui.el binds
-;; its own tab-bar/desktop keys, 12-transient.el binds C-c n, etc.).
+;; its own tab-bar and desktop keys, and C-c n comes from 12-transient.el).
 ;;
 ;; What THIS file provides is `my/show-keybindings-help' (C-c h k): a
 ;; single accurate reference to every custom binding, including the

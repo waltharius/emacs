@@ -1,0 +1,2 @@
+# False positives of Gitleaks, by fingerprint (commit:file:rule:line).
+31d5a9e3f1df4bf0a166c483d48de4c80409a694:modules/08-keybindings.el:generic-api-key:6

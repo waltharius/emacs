@@ -21,6 +21,40 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19w — Gitleaks: one false positive in the history, ignored by its fingerprint
+
+### Why
+
+Reported 2026-10-19: the first run of the workflow failed in the job
+`secrets`.  Gitleaks 8.30.1 flagged commit 31d5a9e (2026-07-25),
+`modules/08-keybindings.el` line 6, rule `generic-api-key`: a comment
+listing which modules bind which keys, where the word "keys" was
+followed by a comma and a file name -- to the rule, a key name followed
+by a value of high enough entropy.  No secret.  (Not quoted here: the
+quotation would be flagged in this file too.)  Gitleaks 8.21.2, run by hand in 2026-10-19q, did
+not flag it; reproduced here with 8.30.1.
+
+### What
+
+- .gitleaksignore (new): the finding's fingerprint
+  (`commit:file:rule:line`), with a line saying what these entries are.
+  Gitleaks reads the file from the root of the repository by itself.
+- modules/08-keybindings.el: the same comment, now at line 11, reworded
+  ("tab-bar and desktop keys, and C-c n comes from 12-transient.el"),
+  so that a scan of the files (`gitleaks dir`) does not flag it either.
+- Checked: `gitleaks git` over all 882 commits and `gitleaks dir`, both
+  "no leaks found".
+- hooks/HOOKS-README.md, BACKLOG.org: how a false positive is handled.
+
+### Decisions
+
+- **By fingerprint, not by turning the rule off**: the rule stays on for
+  every other line and every future commit; only this one finding in
+  this one commit is ignored, and the file says so.
+- **The history is not rewritten**: the line holds no secret, and
+  rewriting published history costs every clone.
+
+---
 ## Session 2026-10-19v — SAFETY.org: what the configuration may do, and which test shows it (draft)
 
 ### Why
