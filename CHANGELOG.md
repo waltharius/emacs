@@ -21,6 +21,55 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19u — Continuous integration: the checks on GitHub at every push
+
+### Why
+
+BACKLOG, *Continuous integration*, and step 1 of *Checks by tools made
+by others*; asked 2026-10-19 ("co do github actions - robić").  The
+pre-commit hook runs on one machine, can be skipped, and never ran the
+tests; `git am` runs nothing.  A workflow runs the same checks on a
+clean machine at every push, on several versions of Emacs, and shows
+the result next to the commit.
+
+### What
+
+- .github/workflows/checks.yml (new), three jobs:
+  - `check-all`, on Emacs 29.1 (the oldest supported), 30.2 and 31.1
+    via purcell/setup-emacs: `tests/ci-packages.el`, then
+    `bash hooks/check-all`.  `~/.emacs.d/elpa` cached per Emacs version
+    and week.
+  - `secrets`: Gitleaks 8.30.1 over the whole history and all branches,
+    the download checked against the SHA-256 its release publishes.
+  - `shell`: ShellCheck on the two shell scripts.
+  - Read-only permissions; actions pinned to release commits
+    (checkout v7, cache v6, setup-emacs v8.0).
+- tests/ci-packages.el (new): installs Denote and no-littering when
+  missing; exits 1 when one could not be installed.  Checked with the
+  package functions stubbed both ways (no network here).
+- hooks/HOOKS-README.md: *On GitHub: the workflow*.  TESTPLAN.org:
+  Preparation.  BACKLOG.org: CI and the tools section; byte compilation
+  left as a weekly job of its own.
+
+### Checked here
+
+actionlint 1.7.12 (with ShellCheck 0.10.0 on the `run` steps): no
+errors.  The workflow itself has not run yet: the first push shows
+whether the three Emacs versions pass -- 29.1 and 31.1 have never run
+these tests.
+
+### Decisions
+
+- **Pinned to commits, not tags**: GitHub's own hardening advice for
+  third-party actions; a tag can be moved to other code.
+- **Gitleaks as a pinned binary, not gitleaks-action**: the action
+  needs a licence key for organisation accounts; the binary is the same
+  program, and its checksum is checked.
+- **Only the packages the tests need**: installing the whole
+  configuration (pdf-tools builds a program) belongs to the byte
+  compilation job still to come.
+
+---
 ## Session 2026-10-19t — After the restart: no stray split from a killed *Warnings*, setters quiet while a theme loads, leftovers to the trash
 
 ### Why

@@ -25,10 +25,10 @@ says why and how.
    packages in =hosts/<host>/var/=, the old files moved -- done
    2026-10-19o; the keylog, =MyPKS-Writes:= and the check =codefolder=:
    2026-10-19p.  Left: =MyPKS-Writes:= in the other modules that write.
-5. /Continuous integration/: =hooks/check-all= (every check and every
-   test, in a sandbox) done 2026-10-19q -- the workflow runs it.  With
-   it the tools of /Checks by tools made by others/ (Gitleaks,
-   ShellCheck), then the safety specification and its tests.
+5. /Continuous integration/: =hooks/check-all= (2026-10-19q) and the
+   workflow running it with Gitleaks and ShellCheck (2026-10-19u) done.
+   Left: byte compilation in the workflow; then the safety
+   specification and its tests (/Checks by tools made by others/).
 6. /A public repository/: portable defaults and the privacy model in
    the README, the welcome screen; then the installation guide for
    beginners, the tutorial with exercises and the Polish guide.
@@ -65,7 +65,8 @@ settles; a line is a reminder, not the text to paste.
   =.gitignore=; Syncthing users add it to =.stignore= (2026-10-19o).
 - /Requirements/: no-littering is one more package from MELPA
   (2026-10-19o).
-- /Repository layout/: =tests/= lists "run with emacs -Q --batch"; now
+- /Repository layout/: =.github/workflows/checks.yml= (2026-10-19u);
+  =tests/= lists "run with emacs -Q --batch"; now
   =bash hooks/check-all= runs every check and test, =tests/helper.el=
   is the sandbox (2026-10-19q).
 - /Requirements/: Geekdoc pinned to one release with a SHA-256
@@ -461,6 +462,15 @@ touching real data.  The workflow's job is now =bash hooks/check-all=
 after installing the packages the tests load (Denote, no-littering,
 compat; MELPA in the workflow, cached).
 
+*Done 2026-10-19u*: =.github/workflows/checks.yml= -- check-all on
+Emacs 29.1, 30.2 and 31.1 (=tests/ci-packages.el= installs Denote and
+no-littering, cached per week), Gitleaks over the history, ShellCheck;
+actions pinned to release commits; checked with actionlint 1.7.12.
+Left: *byte compilation* of every module, warnings listed and only new
+ones failing -- it needs every package of the configuration installed
+in the workflow (pdf-tools builds a program), so a job of its own,
+weekly rather than per push.
+
 * Checks by tools made by others
 Asked 2026-10-19, after an outside answer on checking code one does not
 read: the existing tools written by people find known kinds of mistake;
@@ -478,7 +488,8 @@ Run by hand 2026-10-19q, from their GitHub releases:
   only shell scripts: nothing found.  In the workflow.
 
 Next, in order:
-1. *The workflow* (above) with Gitleaks and ShellCheck as steps.
+1. *The workflow* (above) with Gitleaks and ShellCheck as steps --
+   done 2026-10-19u.
 2. *A safety specification* (=SAFETY.org=), short, in plain language,
    for the user to accept: what may be published (the blog), deleted
    or moved (notes root, old files, backups), sent over the network
