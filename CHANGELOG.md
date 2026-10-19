@@ -21,6 +21,69 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19f — A taken menu key is shown; the 'menukeys' check
+
+### Why
+
+Predicted by the 2026-10-16 review and listed in BACKLOG under the
+decoupling: `my/transient-append` and `my/transient-insert` leave an
+entry out when its key is already taken in the menu, and said so only
+in `*Messages*`.  Two modules wanting the same key therefore lost one
+entry without any visible sign, and load order decided which one --
+so turning an unrelated module on or off could change which of two
+features is reachable.
+
+### What
+
+- 12-transient.el:
+  - Every entry left out is recorded in `my/transient-skipped` (menu,
+    key, command, module, reason): `taken` (the key runs another
+    command; recorded with that command), `no-anchor` (the neighbour to
+    add next to is missing), `no-prefix` (the whole menu is missing,
+    i.e. its module is off), `error`.
+  - The same command on the same key is not recorded: that is a module
+    re-adding its own entry when its file is evaluated again, which the
+    skip existed for.  `my/transient--layout-command` reads the command
+    of the existing entry and returns nil for a layout format it does
+    not know, so a newer transient never produces false alarms -- it
+    reports such a key as taken by an unknown command.
+  - `my/transient--warn-skipped` (on `emacs-startup-hook`): one
+    warning, type `menus`, listing `taken`, `no-anchor` and `error`;
+    `no-prefix` is the intended degradation and is not warned about.
+  - `my/transient-skipped-report`: every entry left out, with the
+    module of its command.
+- hooks/lint.py: check `menukeys`, blocking.  Reads every
+  `transient-define-prefix` and every `my/transient-append`/`-insert`
+  in `modules/`, and fails on one key of one menu given to two
+  different commands; keys taken over with `my/transient-replace` are
+  skipped.  Checked by planting a collision (Statistics on `h`): the
+  check names both modules.
+- function_helper.org: *When two modules want one key*; the report in
+  *Commands without a menu entry*; contract rule 10.
+  hooks/HOOKS-README.md: the table and a section on `menukeys`.
+  README.md: the sentence on the checks.  TESTPLAN.org: R26.
+  BACKLOG.org: the item done.
+
+### Decisions
+
+- **Warn after start-up, not at each entry**: entries are added while
+  modules load, before the frame exists; one warning listing all of
+  them is read, a dozen messages scrolled past are not.
+- **The module named is the command's file** (`symbol-file`), or the
+  file loading at the time for a module still loading: the entry is
+  usually added by a `with-eval-after-load` that runs while
+  12-transient.el loads, so the loading file alone would always name
+  12-transient.el.
+- **Reserved keys need no list of their own** (BACKLOG proposed moving
+  them from comments into data): the check reads the modules' code, so
+  `w`/`W` of the journal metrics are reserved by being there.
+- Verified in batch with the transient built into Emacs 29.3: a re-added
+  entry is not recorded; a taken key, a missing anchor and a missing
+  menu are, with their reasons; a group whose first key is taken too;
+  the warning lists the first two kinds and not the third; the report
+  lists all.
+
+---
 ## Session 2026-10-19e — Decoupling 3: capture, PDF export, dashboard and fixed tabs optional
 
 ### Why

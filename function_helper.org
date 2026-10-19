@@ -119,6 +119,39 @@ intact.
 
 Module: =modules/12-transient.el=
 
+*** When two modules want one key
+:PROPERTIES:
+:CUSTOM_ID: menu-key-collisions
+:END:
+
+A module adds its entries while it loads.  When the key is already
+taken by another command, =my/transient-append= and
+=my/transient-insert= leave the entry out -- the module loaded first
+keeps the key -- and until 2026-10-19 said so only in =*Messages*=.
+Now every left-out entry is recorded in =my/transient-skipped=, and
+after start-up one warning (type =menus=, in =*Warnings*=) lists those
+that point at a mistake:
+
+| Reason      | Meaning                                         | Warned |
+|-------------+-------------------------------------------------+--------|
+| =taken=     | the key already runs another command            | yes    |
+| =no-anchor= | the entry to add next to is missing             | yes    |
+| =no-prefix= | the whole menu is missing: its module is off    | no, listed only |
+
+=M-x my/transient-skipped-report= lists all of them, with the module
+of each command.  The same command added twice under the same key is
+not recorded: that is a module re-adding its own entry when its file
+is evaluated again.
+
+Before Emacs runs, the pre-commit check =menukeys= (=hooks/lint.py=)
+reads every menu definition and every addition in =modules/= and fails
+on a key given to two different commands of one menu.  A key taken
+over on purpose goes through =my/transient-replace= (=g= of
+=41-notes-search.el=) and is not a conflict.  Reserved keys need no
+list of their own: the modules' code is the list the check reads.
+
+Function: =my/transient-skipped-report= | Variable: =my/transient-skipped= | Module: =modules/12-transient.el=
+
 ** C-c n c — Create / Capture
 :PROPERTIES:
 :CUSTOM_ID: menu-notes-create
@@ -1970,12 +2003,8 @@ Order, which is load order: =c i e w T t y p W S m q=.  The Detach
 column (=f=, =F=) is appended after the Toggle column by
 =23-fixed-tabs.el= (since 2026-10-19).
 
-=t= and =T= are different entries. =my/transient-append= skips an
-already-bound key *silently*, which is right for re-evaluating a module
-during development and wrong for a genuine collision: the entry simply
-does not appear and nothing is said about it. Before appending here,
-check the key against this table as well as against
-=12-transient.el= itself.
+=t= and =T= are different entries.  A key taken twice is no longer
+silent: see [[#menu-key-collisions][When two modules want one key]].
 
 Module: =modules/12-transient.el= / =modules/13-centered-writing.el=
 
@@ -6490,7 +6519,8 @@ Not checked yet -- the target, reached module by module (BACKLOG.org,
     module itself, and anchored on an entry of the menu's own module
     (12-transient.el), never on another optional module's entry.
     Reached 2026-10-19e for every menu of 12-transient.el: it names no
-    optional module's command any more.  Not checked mechanically yet.
+    optional module's command any more.  Not checked mechanically yet;
+    a taken key is (=menukeys=, [[#menu-key-collisions][below]]).
 11. Key bindings in the module they call.
 12. Nothing done at load but definitions.  What a module does while on
     -- hooks, timers, advice, keys, menu entries -- is started by a
@@ -9136,6 +9166,7 @@ here is the switch; the reason is for the reader.
 | =my/desktop-force-save=                 | repair, for a session lock left by a crashed Emacs                    |
 | =my/desktop-status=                     | diagnostic                                                            |
 | =my/fixed-tab-refresh-advice=           | applies a changed option; needed only after changing it               |
+| =my/transient-skipped-report=           | diagnostic; its warning appears by itself after start-up when something is left out |
 | =my/fonts-apply=                        | re-applies the fonts after attaching a display; runs by itself otherwise |
 | =my/journal-gaps-summary=               | the short form of =C-c n f j=, meant for hooks                        |
 | =my/journal-migrate-metrics-format=     | one-off migration of old journal notes                               |

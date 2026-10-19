@@ -16,9 +16,9 @@ says why and how.
    pinned, the =private= and =personal= checks: done 2026-10-18d-f.)
 2. Done 2026-10-19b-d: automatic git without blocking (start-up
    pull, idle cycle, one exit path).
-3. /Settings: core plus user layer/, step 5 -- decoupling part 3 done
-   2026-10-19e; left: skipped menu entries reported, hint texts from
-   what loaded, a minor mode per module, then the loader together with
+3. /Settings: core plus user layer/, step 5 -- decoupling part 3 and
+   skipped menu entries done 2026-10-19e-f; left: hint texts from what
+   loaded, a minor mode per module, then the loader together with
    /Start-up: early-init.el, compilation, lazy loading/.
 4. /Files the modules write/ -- before the loader, whose list of
    modules turned off is itself a setting.
@@ -148,14 +148,11 @@ Next, in order:
      anchored on 12-transient's own Quit or first column.  9 modules
      core, 43 optional.  =init.el= still loads them without NOERROR;
      the loader (3.) decides.
+   - Done 2026-10-19f: skipped entries recorded and a taken key
+     warned after start-up (=my/transient-skipped-report=); the
+     pre-commit check =menukeys=.
    - Left of the two menu gaps the 2026-10-16 review predicted:
-     - /Skipped entries reported./  =my/transient-append= and
-       =my/transient-insert= skip an entry whose key is taken and say so
-       only in =*Messages*=, so two modules wanting the same key lose
-       one entry silently and load order decides which.  Collect the
-       skipped entries in a list; a lint check (keys per menu, from the
-       modules' code) and a command listing them at run time.
-     - /Hint texts from what loaded/.  The main menu's labels name the
+     /hint texts from what loaded/.  The main menu's labels name the
      contents of each submenu by hand (/Insert →
      transclusion/link/time/date/), and go stale when a module is off.
      Building them from the loaded entries needs the layout of a

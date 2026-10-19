@@ -309,6 +309,99 @@ def check_menu_reachability():
 
 
 # ------------------------------------------------------------------
+# Menu keys.  Modules add entries to the menus of 12-transient.el (and
+# to each other's) at load time; `my/transient-append' and
+# `my/transient-insert' leave an entry out when its key is already
+# taken, so two modules choosing the same key lose one entry, and load
+# order decides which.  This check finds that before Emacs starts.
+# ------------------------------------------------------------------
+
+MENU_ENTRY_RE = re.compile(r'\(\s*"([^"\s]{1,4})"\s+"(?:[^"\\]|\\.)*"\s+#?\'?([^\s()\[\]]+)')
+MENU_DEF_RE = re.compile(r"\(transient-define-prefix\s+([^\s()]+)")
+MENU_ADD_RE = re.compile(r"\(my/transient-(append|insert|replace)\s+'([^\s()]+)\s+(\"[^\"]*\")?")
+
+
+def form_end(text, start):
+    """Return the index just past the balanced form opening at START.
+
+    Strings, comments and character literals are skipped, so a paren
+    inside a docstring or a character literal does not count.
+    """
+    depth, i, n = 0, start, len(text)
+    while i < n:
+        c = text[i]
+        if c == ";":
+            j = text.find("\n", i)
+            i = n if j < 0 else j
+            continue
+        if c == '"':
+            i += 1
+            while i < n and text[i] != '"':
+                i += 2 if text[i] == "\\" else 1
+        elif c == "?":
+            i += 2 if i + 1 < n and text[i + 1] == "\\" else 1
+        elif c in "([":
+            depth += 1
+        elif c in ")]":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return n
+
+
+def menu_entries():
+    """Return [(menu, key, command, file)] for every menu entry in modules/.
+
+    From the menus' own definitions (`transient-define-prefix') and from
+    the additions (`my/transient-append', `my/transient-insert').  An
+    entry replaced with `my/transient-replace' is replaced, not added:
+    the pair (menu, key) is returned with the new command only.
+    """
+    entries, replaced = [], set()
+    for name, text in modules():
+        code = code_of(text)
+        for m in MENU_DEF_RE.finditer(code):
+            body = code[m.start(): form_end(code, m.start())]
+            for e in MENU_ENTRY_RE.finditer(body):
+                entries.append((m.group(1), e.group(1), e.group(2), name))
+        for m in MENU_ADD_RE.finditer(code):
+            kind, menu = m.group(1), m.group(2)
+            body = code[m.end(): form_end(code, m.start())]
+            for e in MENU_ENTRY_RE.finditer(body):
+                if kind == "replace":
+                    replaced.add((menu, e.group(1)))
+                    entries.append((menu, e.group(1), e.group(2), name + " (replaces)"))
+                else:
+                    entries.append((menu, e.group(1), e.group(2), name))
+    return entries, replaced
+
+
+def check_menu_keys():
+    """One key, two different entries in one menu.
+
+    `my/transient-append' and `my/transient-insert' skip an entry whose
+    key is taken: the module loaded first keeps the key, the other's
+    entry is silently missing.  The same command on the same key twice
+    is not a conflict (a module re-adding its own entry).  A key taken
+    over on purpose goes through `my/transient-replace', which this
+    check leaves alone.
+    """
+    entries, replaced = menu_entries()
+    seen = defaultdict(list)
+    for menu, key, command, name in entries:
+        seen[(menu, key)].append((command, name))
+    problems = []
+    for (menu, key), uses in sorted(seen.items()):
+        if (menu, key) in replaced:
+            continue
+        if len({command for command, _ in uses}) > 1:
+            problems.append(f"{menu} \"{key}\": " + ", ".join(
+                f"{command} ({name})" for command, name in uses))
+    return problems
+
+
+# ------------------------------------------------------------------
 # Personal strings.  The repository is meant to be public; the list of
 # what must not appear in it is not, so it lives in the settings folder
 # (00-core.el, `my/settings-directory'), outside the repository.
@@ -460,6 +553,7 @@ CHECKS = {
     "coverage": (check_menu_coverage, "menu commands function_helper.org never mentions"),
     "menus": (check_menu_reachability, "documented commands no menu or key reaches"),
     "modules": (check_module_contract, "module contract: headers, provide, declared dependencies"),
+    "menukeys": (check_menu_keys, "one key given to two different entries of one menu"),
     "personal": (check_personal_strings, "personal strings (private-strings.txt) in files git would commit"),
 }
 

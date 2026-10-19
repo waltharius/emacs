@@ -833,8 +833,8 @@ that no symbol is defined twice, that every `Docs:` anchor exists, that
 every documented function still does, that every key the help text
 advertises is still bound, and that modules were not staged without a
 CHANGELOG entry. Further checks block privately-named symbols crossing
-module boundaries and personal strings in committed files; the full list
-is in `hooks/HOOKS-README.md`.
+module boundaries, one menu key given to two commands, and personal
+strings in committed files; the full list is in `hooks/HOOKS-README.md`.
 
 Run them by hand at any time with `python3 hooks/lint.py`; see
 `hooks/HOOKS-README.md` for what each one can and cannot see.

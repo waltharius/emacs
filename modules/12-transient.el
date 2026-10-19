@@ -185,6 +185,60 @@
 ;; This wrapper degrades instead: a missing prefix or anchor leaves the
 ;; entry out and says so, which is the correct outcome -- an entry
 ;; whose neighbour does not exist has nowhere meaningful to go.
+;;
+;; SKIPPED ENTRIES ARE RECORDED, AND A TAKEN KEY IS SHOWN.  "Says so"
+;; used to mean one line in *Messages*, which nobody reads at start-up.
+;; The dangerous case is a key two modules both want: the module loaded
+;; first keeps it, the other's entry is missing, and nothing looks
+;; wrong.  Every skipped entry now goes to `my/transient-skipped', and
+;; after start-up one warning lists the ones that point at a mistake:
+;;
+;;   taken       the key already runs another command        warned
+;;   no-anchor   the neighbour to add next to is missing     warned
+;;   no-prefix   the whole menu is missing (its module off)  listed only
+;;
+;; `my/transient-skipped-report' lists all three.  The same command on
+;; the same key is not recorded: that is a module re-adding its own
+;; entry (re-evaluating a file during development).  The pre-commit
+;; check `menukeys' (hooks/lint.py) finds taken keys before Emacs runs.
+
+(defvar my/transient-skipped nil
+  "Menu entries left out while modules added them, oldest first.
+Each is a plist: :menu, :key, :command, :reason (`taken', `no-anchor',
+`no-prefix' or `error'), :module (the file defining the command), and
+for `taken' :holder (the command already on the key), for `no-anchor'
+:anchor.  Shown by `my/transient-skipped-report'.")
+
+(defun my/transient--command-of (suffix)
+  "Return the command of SUFFIX, or of the first entry when it is a group.
+SUFFIX is a specification as passed to `my/transient-append':
+\='(\"k\" \"Label\" command ...) or a group vector."
+  (let ((entry (if (vectorp suffix) (seq-find #'consp (append suffix nil)) suffix)))
+    (seq-find (lambda (x) (and (symbolp x) (not (keywordp x)))) (cddr entry))))
+
+(defun my/transient--layout-command (layout-entry)
+  "Return the command of LAYOUT-ENTRY, as `transient-get-suffix' gives it.
+Nil when the format is not the known (LEVEL CLASS PLIST) list: transient
+has changed its layout format between versions, and an unknown format
+must not pass for a different command."
+  (and (consp layout-entry)
+       (listp (nth 2 layout-entry))
+       (plist-get (nth 2 layout-entry) :command)))
+
+(defun my/transient--record-skip (menu key suffix reason &rest more)
+  "Record that SUFFIX was not added to MENU under KEY, for REASON.
+MORE is a plist added to the record (:holder, :anchor, :error)."
+  (let* ((command (my/transient--command-of suffix))
+         ;; `symbol-file' knows a module only once it has finished
+         ;; loading; a module still loading is the file being loaded.
+         (file (or (and command (symbol-file command 'defun)) load-file-name))
+         (record (append (list :menu menu :key key :command command
+                               :reason reason
+                               :module (if file (file-name-nondirectory file) "?"))
+                         more)))
+    (unless (member record my/transient-skipped)
+      (setq my/transient-skipped (append my/transient-skipped (list record))))
+    (message "transient: %s `%s' not added to %s (%s)" command key menu reason)))
 
 (defun my/transient--suffix-key (suffix)
   "Return the key of SUFFIX, or of the first entry when SUFFIX is a group.
@@ -199,23 +253,27 @@ first entry stands for the whole group in the already-there test."
 The shared body of `my/transient-append' and `my/transient-insert'.
 SUFFIX may be a group (a vector); ANCHOR is then a coordinate list such
 as \='(0 0), the first column."
-  (let ((key (my/transient--suffix-key suffix)))
+  (let* ((key (my/transient--suffix-key suffix))
+         (existing (and (fboundp prefix)
+                        (ignore-errors (transient-get-suffix prefix key)))))
     (cond
      ((not (fboundp prefix))
-      (message "transient: no %s, skipping `%s'" prefix key))
-     ((ignore-errors (transient-get-suffix prefix key))
-      nil)
+      (my/transient--record-skip prefix key suffix 'no-prefix))
+     (existing
+      ;; The same command again: a module re-adding its own entry.
+      (let ((holder (my/transient--layout-command existing)))
+        (unless (eq holder (my/transient--command-of suffix))
+          (my/transient--record-skip prefix key suffix 'taken :holder holder))))
      ((not (ignore-errors (transient-get-suffix prefix anchor)))
-      (message "transient: %s has no `%s' to add next to, skipping `%s'"
-               prefix anchor key))
+      (my/transient--record-skip prefix key suffix 'no-anchor :anchor anchor))
      (t
       (condition-case err
           (if before
               (transient-insert-suffix prefix anchor suffix)
             (transient-append-suffix prefix anchor suffix))
         (error
-         (message "transient: could not add `%s' to %s: %s"
-                  key prefix (error-message-string err))))))))
+         (my/transient--record-skip prefix key suffix 'error
+                                    :error (error-message-string err))))))))
 
 (defun my/transient-append (prefix anchor suffix)
   "Add SUFFIX to PREFIX after ANCHOR, without ever signalling.
@@ -270,6 +328,57 @@ menu carries when the feature module is absent."
         (error
          (message "transient: could not replace `%s' in %s: %s"
                   key prefix (error-message-string err))))))))
+
+;; Reporting skipped entries: one warning after start-up, a command for
+;; the full list.
+
+(defun my/transient--skip-line (record)
+  "Return one line describing the skipped entry RECORD."
+  (let ((menu (plist-get record :menu))
+        (key (plist-get record :key))
+        (command (plist-get record :command))
+        (module (plist-get record :module)))
+    (pcase (plist-get record :reason)
+      ('taken (format "%s, key %s: %s (%s) not added -- the key already runs %s"
+                      menu key command module
+                      (or (plist-get record :holder) "another command")))
+      ('no-anchor (format "%s, key %s: %s (%s) not added -- its neighbour %S is missing"
+                          menu key command module (plist-get record :anchor)))
+      ('no-prefix (format "%s, key %s: %s (%s) not added -- the menu does not exist (its module is off)"
+                          menu key command module))
+      (_ (format "%s, key %s: %s (%s) not added -- %s"
+                 menu key command module (plist-get record :error))))))
+
+(defun my/transient--warn-skipped ()
+  "After start-up, warn once about entries left out by mistake.
+A taken key or a missing neighbour is a mistake in a module; a missing
+menu is a module turned off, and only listed by the report."
+  (let ((mistakes (seq-filter (lambda (r) (memq (plist-get r :reason) '(taken no-anchor error)))
+                              my/transient-skipped)))
+    (when mistakes
+      (display-warning
+       'menus
+       (concat "Menu entries left out:\n\n"
+               (mapconcat #'my/transient--skip-line mistakes "\n")
+               "\n\nTwo modules want the same key, or an entry's neighbour is gone.  "
+               "Change the key in one of the modules; M-x my/transient-skipped-report "
+               "lists every entry left out.")
+       :warning))))
+
+(add-hook 'emacs-startup-hook #'my/transient--warn-skipped)
+
+(defun my/transient-skipped-report ()
+  "List every menu entry modules tried to add and could not, and why."
+  (interactive)
+  (with-current-buffer (get-buffer-create "*Menu entries left out*")
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (insert (if my/transient-skipped
+                  (mapconcat #'my/transient--skip-line my/transient-skipped "\n")
+                "Every menu entry the modules added is in its menu.")
+              "\n")
+      (special-mode))
+    (pop-to-buffer (current-buffer))))
 
 ;; ============================================================
 ;; SUB-MENU: Settings  (C-c n ,)

@@ -50,6 +50,7 @@ rollback or a deliberately partial commit.
 | `changelog` | Were modules staged without a `CHANGELOG.md` entry? | yes |
 | `menus` | Is every command `function_helper.org` mentions reachable from a menu or a key — or listed, with its reason, under *Commands without a menu entry*? | yes |
 | `modules` | Does every module keep the module contract -- headers, `provide`, every hard dependency declared, nothing core needing something optional, no circles? | yes |
+| `menukeys` | Is any key of a menu given to two different commands -- in the menu's definition or by the modules adding to it? | yes (since 2026-10-19) |
 | `private` | Is a `--` symbol called from outside its module? | yes (since 2026-10-18) |
 | `personal` | Does a file git would commit contain a string from the private list `private-strings.txt` in the settings folder? | yes; *skipped*, with the path, when the list does not exist |
 | `coverage` | Is every command a menu runs mentioned in `function_helper.org`? | no — advisory |
@@ -133,6 +134,22 @@ so it stayed advisory, reporting new violations against a known count.
 The decoupling of 2026-10-16 brought the count to zero; since then a
 new call to another module's `--` function stops the commit instead of
 starting a new backlog.
+
+### `menukeys`: a key two modules want
+
+Modules add their menu entries while they load, with
+`my/transient-append` and `my/transient-insert` (12-transient.el).  A
+key already taken there keeps its first owner and the second entry is
+left out -- in Emacs, a warning after start-up (since 2026-10-19), but
+only once the configuration runs.  This check sees it at commit time:
+it reads every `transient-define-prefix` and every addition in
+`modules/` and fails on one key of one menu given to two different
+commands.  A key taken over on purpose goes through
+`my/transient-replace` and is skipped.
+
+What it cannot see: an entry whose description is computed (a key
+followed by a command and `:description`, without a label string), and
+keys bound by packages inside their own menus.
 
 ### What `keys` cannot see
 

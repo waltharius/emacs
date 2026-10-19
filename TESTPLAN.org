@@ -415,6 +415,16 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
 - [ ] No warning of type =menus= in =*Warnings*= after start-up;
       =M-x my/transient-skipped-report= says every entry is in its menu.
 
+** R26. A taken key is shown [0/2]
+- [ ] In a scratch copy of =36-notes-stats.el= change ="s"= of Statistics
+      to ="h"=, evaluate the buffer (=M-x eval-buffer=), then
+      =M-x my/transient-skipped-report=: "my/notes-find-menu, key h:
+      my/notes-stats ... the key already runs
+      my/dashboards-history-menu".  Restart without saving the copy:
+      no warning, the report says every entry is in its menu.
+- [ ] The same change saved in the repository: =git commit= is refused
+      by =menukeys= naming both modules.  =git checkout= the file.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply
