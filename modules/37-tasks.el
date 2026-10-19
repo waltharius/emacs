@@ -477,22 +477,23 @@ other templates and for aborts."
     (when (and destination (not (bound-and-true-p org-note-abort)))
       (message "Task filed under %s" destination))))
 
-(add-hook 'org-capture-after-finalize-hook #'my/tasks--report-destination)
+(defvar my/tasks-mode)
 
 (defun my/tasks--register-template ()
-  "Register the task template under `my/tasks-capture-key'."
-  (my/settings-capture-template
-   (list my/tasks-capture-key "Task"
-         'entry
-         '(function my/tasks--capture-target)
-         '(function my/tasks--capture-template)
-         :empty-lines 1
-         ;; Newest first, matching every other list in this
-         ;; configuration, and so that a task just written is on screen
-         ;; rather than below a screenful of older ones.
-         :prepend t)))
-
-(my/tasks--register-template)
+  "Register the task template under `my/tasks-capture-key'.
+Only while `my/tasks-mode' is on; otherwise the template is removed."
+  (if (bound-and-true-p my/tasks-mode)
+      (my/settings-capture-template
+       (list my/tasks-capture-key "Task"
+             'entry
+             '(function my/tasks--capture-target)
+             '(function my/tasks--capture-template)
+             :empty-lines 1
+             ;; Newest first, matching every other list in this
+             ;; configuration, and so that a task just written is on screen
+             ;; rather than below a screenful of older ones.
+             :prepend t))
+    (my/settings-capture-template-remove '(function my/tasks--capture-target))))
 
 ;; ============================================================
 ;; THE COMMAND
@@ -606,9 +607,13 @@ Works in an Org buffer and in the agenda."
 
 ;;;###autoload
 (defun my/tasks-update-agenda-files ()
-  "Set `org-agenda-files' from the task files and the project hubs."
+  "Set `org-agenda-files' from the task files and the project hubs.
+Called by other code (a changed option, 38-habits.el) only while
+`my/tasks-mode' is on; from M-x always."
   (interactive)
-  (setq org-agenda-files (my/tasks-agenda-files))
+  (when (or (bound-and-true-p my/tasks-mode)
+            (called-interactively-p 'interactive))
+    (setq org-agenda-files (my/tasks-agenda-files)))
   (when (called-interactively-p 'interactive)
     (message "org-agenda-files: %d file(s)" (length org-agenda-files))))
 
@@ -621,10 +626,7 @@ state that gets diagnosed as \"the agenda is broken\".  The cost is one
 `directory-files' call on a directory holding a handful of entries."
   (my/tasks-update-agenda-files))
 
-(advice-add 'org-agenda :before #'my/tasks--refresh-agenda-files)
-
-(with-eval-after-load 'org
-  (my/tasks-update-agenda-files))
+(defvar org-agenda-files)
 
 ;; ============================================================
 ;; THE PLANNER FOLDER: GIT, AND THE MOVE OUT OF THE NOTES FOLDER
@@ -643,6 +645,8 @@ state that gets diagnosed as \"the agenda is broken\".  The cost is one
 (with-eval-after-load '07-git
   ;; `add-hook' works on any list of functions, and with a quoted
   ;; symbol needs no declaration of 07-git.el's variable here.
+  ;; At load, outside `my/tasks-mode', on purpose: a switch turns off
+  ;; what the module does, not the backup of the planner.
   (add-hook 'my/auto-commit-repository-sources
             #'my/tasks--repository-directories t))
 
@@ -803,7 +807,6 @@ Start-up must not stop over the planner."
      (message "Planner: the move check failed (%s); using %s"
               (error-message-string err) my/tasks-directory))))
 
-(my/tasks--check-planner-move-safely)
 
 ;; ============================================================
 ;; LOGGING
@@ -840,29 +843,84 @@ Start-up must not stop over the planner."
     ("g" "Goto clock"            org-clock-goto)]
    [("q" "Quit" transient-quit-one)]])
 
-;; Anchored on "x", which belongs to 12-transient itself.  Anchoring on
-;; an entry contributed by another feature module would couple this one
-;; to that module's presence.
-(with-eval-after-load '12-transient
-  (my/transient-append 'my/notes-menu "x"
-                       '("A" "Agenda & tasks →" my/tasks-menu)))
-
 ;; ============================================================
 ;; KEYBINDING
 ;; ============================================================
 
 (defun my/tasks--apply-binding ()
-  "Bind `my/tasks-capture-binding' to `my/task-capture'."
-  (my/settings-bind-key #'my/task-capture my/tasks-capture-binding))
-
-(my/tasks--apply-binding)
+  "Bind `my/tasks-capture-binding' to `my/task-capture' while the module is on."
+  (my/settings-bind-key #'my/task-capture
+                        (and (bound-and-true-p my/tasks-mode)
+                             my/tasks-capture-binding)))
 
 ;; "C-c a" is the agenda key in every piece of Org documentation, every
 ;; tutorial and every answer on the subject.  It was a prefix for
 ;; typing-analytics until 2026-08; those four commands moved to "C-c y"
 ;; (14-typing-analytics.el), which is the right way round -- the agenda
 ;; is opened every morning and keyfreq a few times a year.
-(global-set-key (kbd "C-c a") #'org-agenda)
+(defconst my/tasks--keys
+  '(("C-c a" . org-agenda))
+  "Global keys of this module, for `my/module-keys'.")
+
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/tasks-mode' is this module's switch (module contract, rule 12).
+;;   on   the task template in the capture menu, the task key
+;;        (`my/tasks-capture-binding', F8) and C-c a, the agenda reading
+;;        the planner, the project hubs and the extra files (refreshed
+;;        before each agenda), the "filed under" message after a capture,
+;;        "A" in the main menu; the first time in a session, the check
+;;        whether the planner has to move out of the notes folder
+;;   off  none of that; `org-agenda-files' is emptied, since this module
+;;        is what fills it
+;; The planner stays in the automatic commits either way (above).  The
+;; Org settings for logging (`org-log-done', `org-log-into-drawer') are
+;; settings, not something the module runs, and stay.  Customize saves
+;; the position in this machine's settings
+;; (M-x customize-option RET my/tasks-mode).
+
+;; Anchored on "x", which belongs to 12-transient itself.  Anchoring on
+;; an entry contributed by another feature module would couple this one
+;; to that module's presence.
+(defconst my/tasks--menu-entries
+  '((append my/notes-menu "x" ("A" "Agenda & tasks →" my/tasks-menu)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
+(defvar my/tasks--planner-checked nil
+  "Non-nil once this session has run the planner move check.")
+
+(define-minor-mode my/tasks-mode
+  "Tasks and the agenda as a module.
+On: the task template, F8 and C-c a, the agenda files, \"A\" in the
+menu.  Off: none of them, and `org-agenda-files' is emptied; the
+commands remain for M-x and the planner is still committed
+automatically.  Customize saves the position in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/tasks
+  (if my/tasks-mode
+      (progn
+        ;; The planner's folder first: the agenda files depend on it.
+        (unless my/tasks--planner-checked
+          (setq my/tasks--planner-checked t)
+          (my/tasks--check-planner-move-safely))
+        (add-hook 'org-capture-after-finalize-hook #'my/tasks--report-destination)
+        (advice-add 'org-agenda :before #'my/tasks--refresh-agenda-files))
+    (remove-hook 'org-capture-after-finalize-hook #'my/tasks--report-destination)
+    (advice-remove 'org-agenda #'my/tasks--refresh-agenda-files))
+  (with-eval-after-load 'org
+    (if my/tasks-mode
+        (my/tasks-update-agenda-files)
+      (setq org-agenda-files nil)))
+  (my/tasks--register-template)
+  (my/tasks--apply-binding)
+  (my/module-keys my/tasks-mode my/tasks--keys)
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/tasks-mode my/tasks--menu-entries))))
+
+(my/tasks-mode (if my/tasks-mode 1 -1))
 
 (provide '37-tasks)
 ;;; 37-tasks.el ends here

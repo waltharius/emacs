@@ -21,6 +21,63 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19l — Switches for tasks and habits
+
+### Why
+
+BACKLOG step 2.  The two modules are done together because they work
+together: the habits' file joins the agenda through the tasks module's
+`my/tasks-agenda-file-functions`, both add a capture template and a
+key taken from an option, and both add entries to the main menu (habits
+also to the tasks menu).
+
+### What
+
+- 00-core.el: `my/settings-capture-template-remove`, the counterpart of
+  `my/settings-capture-template`, by the template's target.
+- 37-tasks.el: `my/tasks-mode`, on by default.  On: the task template,
+  `my/tasks-capture-binding` (F8) and C-c a, the agenda files (set
+  once Org loads, refreshed by the advice before `org-agenda`), the
+  "filed under" message on `org-capture-after-finalize-hook`, `A` in
+  the main menu, and -- once per session -- the planner move check,
+  which ran at load until now.  Off: all removed, `org-agenda-files`
+  emptied.  `my/tasks-update-agenda-files` fills the agenda files from
+  other code only while the module is on (from M-x always);
+  `my/tasks--register-template` and `my/tasks--apply-binding` follow
+  the switch, so a changed option does not bring a template or a key
+  back while it is off.  The planner stays in the automatic commits at
+  load, outside the switch.
+- 38-habits.el: `my/habits-mode`, on by default.  On: the habit
+  template, `my/habits-log-binding` (F9), the habit file in
+  `my/tasks-agenda-file-functions`, `H` in the main menu and `h` in the
+  tasks menu.  Off: all removed.  org-habit and its display settings
+  stay.
+- function_helper.org: both in the table of switches, a paragraph in
+  each module's section, the template helpers under *A module's
+  switch*.  TESTPLAN.org: R30.  BACKLOG.org: progress; C-c a, F8 and
+  F9 added to the documentation list.
+
+### Decisions
+
+- **Tasks off empties `org-agenda-files`**: the module fills the
+  variable for the whole configuration; leaving its last value behind
+  would keep an agenda the module no longer maintains.
+- **The planner move check moved into the switch**: asking whether to
+  move the planner is pointless on a machine where tasks are off.  It
+  runs the first time the switch goes on in a session, i.e. at start-up
+  as before.
+- **Logging settings and org-habit stay**: they are settings of Org,
+  not something either module runs; moving them is step 4 of the
+  settings work (core defaults as a custom theme).
+- Verified in batch (Emacs 29.3, real Org): on at load (templates,
+  agenda files with tasks and habits, F8/F9/C-c a, menus, advice and
+  hook, planner in the commits); habits off and on; tasks off empties
+  the agenda and removes the rest, keeps the planner in the commits;
+  with tasks off, toggling habits does not refill the agenda and a
+  changed F8 key is not bound; tasks on again binds the changed key and
+  brings back both files; one template each; nothing skipped.
+
+---
 ## Session 2026-10-19k — Switches for typing analytics and project git
 
 ### Why

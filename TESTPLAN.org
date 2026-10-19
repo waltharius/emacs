@@ -464,6 +464,20 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
 - [ ] Customize =my/project-git-mode= off, Apply and Save, restart: as
       above on this machine only.  Back on and save.
 
+** R30. Switches of tasks and habits [0/5]
+- [ ] Start as usual: =<f8>=, =<f9>=, =C-c a= work; the agenda shows
+      tasks and habits; =C-c c= lists the Task and Habit templates.
+- [ ] =M-x my/habits-mode= (off): =<f9>= undefined; no Habit template;
+      the agenda without habits; =C-c n= without =H=, =C-c n A= without
+      =h=.  On again: all back.
+- [ ] =M-x my/tasks-mode= (off): =<f8>=, =C-c a= undefined; no Task
+      template; =C-c n= without =A=; =M-x org-agenda= shows no files.
+      Change a task and =C-c v a=: the planner is still committed.
+- [ ] Still off, =M-x my/habits-mode= twice: the agenda stays empty.
+      =M-x my/tasks-mode= on: tasks and habits back in the agenda.
+- [ ] Customize =my/tasks-mode= off, Apply and Save, restart: no
+      planner move question, no =<f8>=.  Back on and save.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

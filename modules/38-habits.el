@@ -286,16 +286,19 @@ habit."
     (insert "* " my/habits-heading "\n")
     (forward-line -1)))
 
-(defun my/habits--register-template ()
-  "Register the habit template under `my/habits-capture-key'."
-  (my/settings-capture-template
-   (list my/habits-capture-key "Habit"
-         'entry
-         '(function my/habits--capture-target)
-         '(function my/habits--capture-template)
-         :empty-lines 1)))
+(defvar my/habits-mode)
 
-(my/habits--register-template)
+(defun my/habits--register-template ()
+  "Register the habit template under `my/habits-capture-key'.
+Only while `my/habits-mode' is on; otherwise the template is removed."
+  (if (bound-and-true-p my/habits-mode)
+      (my/settings-capture-template
+       (list my/habits-capture-key "Habit"
+             'entry
+             '(function my/habits--capture-target)
+             '(function my/habits--capture-template)
+             :empty-lines 1))
+    (my/settings-capture-template-remove '(function my/habits--capture-target))))
 
 ;;;###autoload
 (defun my/habit-new ()
@@ -541,10 +544,6 @@ Safe to run repeatedly: the drawer is replaced, not appended to."
   "Return the habit file, for the agenda."
   (list (my/habits--file)))
 
-(with-eval-after-load '37-tasks
-  (add-hook 'my/tasks-agenda-file-functions #'my/habits--agenda-files)
-  (when (fboundp 'my/tasks-update-agenda-files)
-    (my/tasks-update-agenda-files)))
 
 ;; ============================================================
 ;; MENU
@@ -564,26 +563,59 @@ Safe to run repeatedly: the drawer is replaced, not appended to."
     ("a" "Agenda"               org-agenda)]
    [("q" "Quit" transient-quit-one)]])
 
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-append)
-    ;; Two ways in.  "H" on the main menu, anchored on "x", which
-    ;; belongs to 12-transient itself; and inside the tasks menu when
-    ;; that module is present, because habits and tasks are read
-    ;; together.
-    (my/transient-append 'my/notes-menu "x"
-                         '("H" "Habits →" my/habits-menu))
-    (my/transient-append 'my/tasks-menu "U"
-                         '("h" "Habits →" my/habits-menu))))
+;; Two ways in.  "H" on the main menu, anchored on "x", which belongs
+;; to 12-transient itself; and inside the tasks menu when that module is
+;; present, because habits and tasks are read together.
+(defconst my/habits--menu-entries
+  '((append my/notes-menu "x" ("H" "Habits →" my/habits-menu))
+    (append my/tasks-menu "U" ("h" "Habits →" my/habits-menu)))
+  "Menu entries of this module, for `my/transient-entries'.")
 
 ;; ============================================================
 ;; KEYBINDING
 ;; ============================================================
 
 (defun my/habits--apply-binding ()
-  "Bind `my/habits-log-binding' to `my/habit-log'."
-  (my/settings-bind-key #'my/habit-log my/habits-log-binding))
+  "Bind `my/habits-log-binding' to `my/habit-log' while the module is on."
+  (my/settings-bind-key #'my/habit-log
+                        (and (bound-and-true-p my/habits-mode)
+                             my/habits-log-binding)))
 
-(my/habits--apply-binding)
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/habits-mode' is this module's switch (module contract, rule 12).
+;;   on   the habit template in the capture menu, the log key
+;;        (`my/habits-log-binding', F9), the habit file in the agenda
+;;        (through 37-tasks.el's `my/tasks-agenda-file-functions'), "H"
+;;        in the main menu and "h" in the tasks menu
+;;   off  none of that
+;; org-habit and its display settings stay loaded either way: they are
+;; Org's own, and only change how entries marked as habits are drawn.
+;; The habit file, in the planner, stays in the automatic commits with
+;; it.  Customize saves the position in this machine's settings
+;; (M-x customize-option RET my/habits-mode).
+
+(define-minor-mode my/habits-mode
+  "Habits as a module: the template, F9, the habit file in the agenda, menus.
+Turned off, none of them; the commands remain for M-x.  Customize saves
+the position in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/habits
+  (with-eval-after-load '37-tasks
+    (if my/habits-mode
+        (add-hook 'my/tasks-agenda-file-functions #'my/habits--agenda-files)
+      (remove-hook 'my/tasks-agenda-file-functions #'my/habits--agenda-files))
+    (when (fboundp 'my/tasks-update-agenda-files)
+      (my/tasks-update-agenda-files)))
+  (my/habits--register-template)
+  (my/habits--apply-binding)
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/habits-mode my/habits--menu-entries))))
+
+(my/habits-mode (if my/habits-mode 1 -1))
 
 (provide '38-habits)
 ;;; 38-habits.el ends here

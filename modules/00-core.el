@@ -683,6 +683,17 @@ the template instead of adding a second one."
                       org-capture-templates))
     (add-to-list 'org-capture-templates template t)))
 
+(defun my/settings-capture-template-remove (target)
+  "Remove the template whose target (fourth element) is TARGET.
+Now or once Org capture loads; the counterpart of
+`my/settings-capture-template' for a module turned off.  TARGET is as
+in the template, such as \='(function my/x--target)."
+  (with-eval-after-load 'org-capture
+    (setq org-capture-templates
+          (seq-remove (lambda (entry)
+                        (and (consp entry) (equal (nth 3 entry) target)))
+                      org-capture-templates))))
+
 (defun my/settings--tree-options ()
   "Return every option in the MyPKS tree."
   (let (options)

@@ -3291,6 +3291,16 @@ Module: =modules/28-writing-projects.el=
 Writing down a task without leaving what is being written. One key,
 three questions, and the window comes back.
 
+*The module's switch*, =my/tasks-mode= (since 2026-10-19,
+[[#module-switch][A module's switch]]).  On: the task template in the capture menu,
+=<f8>= and =C-c a=, the agenda files (refreshed before each agenda), the
+"filed under" message after a capture, =A= in the main menu; once per
+session, the check whether the planner must move out of the notes
+folder.  Off: none of that, and =org-agenda-files= is emptied -- this
+module is what fills it; =M-x my/tasks-update-agenda-files= still fills
+it by hand.  The planner stays in the automatic commits either way, and
+the Org logging settings stay.
+
 ** The command
 
 | Key        | Command                 | Effect                          |
@@ -3531,6 +3541,13 @@ Module: =modules/37-tasks.el=
 
 Binary habit tracking on top of Org's own =org-habit=. Did I do it
 today — nothing else.
+
+*The module's switch*, =my/habits-mode= (since 2026-10-19,
+[[#module-switch][A module's switch]]).  On: the habit template, =<f9>=, the habit
+file in the agenda (through the tasks module), =H= in the main menu and
+=h= in the tasks menu.  Off: none of that.  =org-habit= and its display
+settings stay loaded: they are Org's own and only change how entries
+marked as habits are drawn.
 
 ** The commands
 
@@ -6568,6 +6585,8 @@ loader (BACKLOG, step 5).
 | =my/drill-mode=           | =43-drill.el=           | =C-c n r=, the deck keyword in keyword prompts |
 | =my/typing-analytics-mode= | =14-typing-analytics.el= | command counts (keyfreq), the keystroke log if =my/keylog-enabled=, =C-c y k/s/t/T= |
 | =my/project-git-mode=     | =39-project-git.el=     | publishing new projects, the staleness check on opening a project file, =C-c n p G= |
+| =my/tasks-mode=           | =37-tasks.el=           | the task template, =<f8>=, =C-c a=, the agenda files, =A= in the main menu; off empties =org-agenda-files= |
+| =my/habits-mode=          | =38-habits.el=          | the habit template, =<f9>=, the habit file in the agenda, =H= and tasks → =h= |
 | =my/blog-mode=            | =46-blog.el=            | export on save, the autostart sites (after start-up, or at once when turned on later), Export → =b=, Settings → =b=; off also cancels pending exports and stops its Hugo servers |
 
 How a module writes one, with two helpers:
@@ -6608,6 +6627,10 @@ How a module writes one, with two helpers:
   is extended at load, outside the switch): the switch turns off what
   the module does, not the backup of what it already wrote.  Decided
   2026-10-19, with the planner and the writing projects.
+- A capture template goes in with =my/settings-capture-template= and out
+  with =my/settings-capture-template-remove= (00-core.el), both by the
+  template's target; a key taken from an option goes through
+  =my/settings-bind-key= with nil when off.
 
 The entry lists are quoted data; the contract check reads the menu in
 =(insert MENU ...)= as data handed to a degrading function, not as a
