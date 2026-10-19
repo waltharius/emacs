@@ -27,8 +27,9 @@ says why and how.
    2026-10-19p.  Left: =MyPKS-Writes:= in the other modules that write.
 5. /Continuous integration/: =hooks/check-all= (2026-10-19q) and the
    workflow running it with Gitleaks and ShellCheck (2026-10-19u) done.
-   Left: byte compilation in the workflow; then the safety
-   specification and its tests (/Checks by tools made by others/).
+   The safety specification drafted (=SAFETY.org=, 2026-10-19v), waiting
+   for acceptance; then its tests.  Left: byte compilation in the
+   workflow (/Checks by tools made by others/).
 6. /A public repository/: portable defaults and the privacy model in
    the README, the welcome screen; then the installation guide for
    beginners, the tutorial with exercises and the Polish guide.
@@ -65,7 +66,9 @@ settles; a line is a reminder, not the text to paste.
   =.gitignore=; Syncthing users add it to =.stignore= (2026-10-19o).
 - /Requirements/: no-littering is one more package from MELPA
   (2026-10-19o).
-- /Repository layout/: =.github/workflows/checks.yml= (2026-10-19u);
+- /Repository layout/: =SAFETY.org= (2026-10-19v), what the
+  configuration may do with notes, files and accounts, and which test
+  shows it; =.github/workflows/checks.yml= (2026-10-19u);
   =tests/= lists "run with emacs -Q --batch"; now
   =bash hooks/check-all= runs every check and test, =tests/helper.el=
   is the sandbox (2026-10-19q).
@@ -490,7 +493,9 @@ Run by hand 2026-10-19q, from their GitHub releases:
 Next, in order:
 1. *The workflow* (above) with Gitleaks and ShellCheck as steps --
    done 2026-10-19u.
-2. *A safety specification* (=SAFETY.org=), short, in plain language,
+2. *A safety specification* (=SAFETY.org=) -- drafted 2026-10-19v,
+   waiting for the owner's acceptance; four findings (F1-F4) to decide.
+   Short, in plain language,
    for the user to accept: what may be published (the blog), deleted
    or moved (notes root, old files, backups), sent over the network
    (git push, Readwise, Zotero, downloads), and which programs run with

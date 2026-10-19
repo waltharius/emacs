@@ -1,0 +1,90 @@
+#+title: Safety specification
+#+startup: showall
+
+*Status: draft of 2026-10-19, for the owner's acceptance.*  Nothing here
+is in force until accepted; a rule changed or struck out by the owner is
+changed here first, and the code and tests follow.
+
+* What this is
+What this configuration may and may not do with the owner's notes,
+files, data and accounts -- written to be judged without reading the
+code.  For each rule: what guards it in the code today, and which
+automatic test shows it holds, or "none yet".  A rule without a test is
+a promise in a comment, not a checked fact.
+
+A test counts only when it has been shown to fail with the safeguard
+taken out (recorded in CHANGELOG.md).  Tests run at every push
+(=.github/workflows/checks.yml=) and by hand with =bash hooks/check-all=.
+
+How this list was made: by searching the code (2026-10-19) for what
+publishes, deletes, moves, reaches the network and runs programs, and
+reading each place found.  A place the search patterns missed is not
+here; the independent review (last section) is the check on that.
+
+* 1. Publishing
+| #   | Rule                                                                                                                                                                         | Safeguard today                                                                                 | Automatic test |
+|-----+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+----------------|
+| 1.1 | A note is exported to a site only when it carries a section's keyword *and* lives in one of that section's silos.                                                          | 46-blog.el, section rules                                                                       | none yet       |
+| 1.2 | A site with a server never takes notes from a private silo (journal, inbox), and never uses a silo's name as a section keyword (that would select the whole silo).           | checked before every blog command; a mistake stops the command                                  | none yet       |
+| 1.3 | A file added to a site by hand (outside the silos) is refused for a site with a server when it lies in a private silo.                                                     | 46-blog.el, extra files                                                                         | none yet       |
+| 1.4 | A link to a note that is not published on that site becomes its visible text only -- no file name, no path, no address of the note.                                       | 46-blog.el, Denote link export                                                                  | none yet       |
+| 1.5 | Nothing is uploaded without a question naming the site and the server.                                                                                                     | =my/blog-publish= asks; a failed export asks again                                             | none yet       |
+| 1.6 | Unpublishing (a keyword removed) deletes generated pages only, never notes; on a site with a server a run started by hand asks first and a background run deletes nothing. | 46-blog.el, section pruning                                                                     | none yet       |
+
+* 2. Deleting and moving
+| #   | Rule                                                                                                                                                         | Safeguard today                                                                                    | Automatic test                         |
+|-----+--------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------+----------------------------------------|
+| 2.1 | A note is deleted only after a question (unless the owner turned the question off).  See finding F1: an untracked note is deleted for good, not to the trash. | =my/confirm-deletion= (ask by default); =git rm= when the note is tracked, recoverable from git    | none yet                               |
+| 2.2 | Moving a note to another silo never overwrites a file of the same name: it refuses.                                                                         | =my/denote-move-to-silo= checks first                                                              | none yet                               |
+| 2.3 | The previous notes folder is removed only by a command that is off by default, after two questions, and to the trash.                                       | =my/notes-delete-old-root=, =my/notes-allow-delete-old-root=                                       | none yet                               |
+| 2.4 | Old state files move from =~/.emacs.d= only from a fixed list, never over an existing file; leftovers go to the trash only when the owner answers /t/.        | =my/var--move-old-files=, =my/var--trash-old=                                                      | test-var-files, test-session           |
+| 2.5 | Temporary folders of exports and installs are deleted only when the code created them in the same run.                                                     | 16-org-export, 29-writing-export, 46-blog, 47-repo-docs                                            | none yet                               |
+| 2.6 | Backup copies are never deleted except by Emacs's own numbering (the 10 newest and 5 oldest versions of a file are kept).                                  | =version-control=, =kept-new-versions=, =kept-old-versions= in 00-core.el                          | none (Emacs's own behaviour)           |
+
+* 3. The network
+| #   | Rule                                                                                                                                                                               | Safeguard today                                                                                 | Automatic test                    |
+|-----+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+-----------------------------------|
+| 3.1 | Git pulls and pushes only the repositories it commits, only to the remotes they already have; a remote is added or changed only by the project command made for that (39-project-git). | 07-git.el; pushing can be turned off, or off per folder (=my/auto-commit-no-push-directories=)  | test-auto-commit (order, offline, conflicts) |
+| 3.2 | The Readwise token is read through auth-source (=~/.authinfo.gpg=, encrypted, as the module's message advises; Emacs also reads a plain =~/.authinfo=) and sent to readwise.io only, in a request header; the module writes it nowhere -- not to a note, a setting or =*Messages*=. | 24-readwise.el, auth-source                                                                     | none yet                          |
+| 3.3 | A downloaded archive that is unpacked (Geekdoc) is checked against a SHA-256 recorded in the code first.  See finding F3 for themes installed with git clone.                     | =my/check-sha256= (00-core.el), 46-blog, 47-repo-docs                                           | none yet                          |
+| 3.4 | Packages come from GNU ELPA, NonGNU ELPA and MELPA.  See finding F4: versions are not pinned.                                                                                     | package.el                                                                                      | none                              |
+| 3.5 | Nothing else in the configuration sends data anywhere.                                                                                                                             | the search of 2026-10-19 (above)                                                                | none: the independent review      |
+
+* 4. Running programs
+| #   | Rule                                                                                                                                                                                                        | Safeguard today                                                                    | Automatic test |
+|-----+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+----------------|
+| 4.1 | A file name, title or other text from the notes given to an outside program (git, pandoc, LibreOffice, cp, tar, Hugo, rsync, an image viewer, Python, Hunspell, grep) is one argument, never shell syntax: a name with spaces, quotes, =;= or =$(...)= cannot run anything. | argument lists (=call-process=, =make-process=); the one shell line (blog build and upload) quotes each part with =shell-quote-argument= | none yet |
+| 4.2 | The repository's shell scripts pass ShellCheck.                                                                                                                                                            | =hooks/pre-commit=, =hooks/check-all=                                              | ShellCheck in the workflow |
+
+* 5. What leaves the machine in the code repository
+| #   | Rule                                                                                                                                                    | Safeguard today                                                                                    | Automatic test                                   |
+|-----+---------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------+--------------------------------------------------|
+| 5.1 | The code repository holds no personal data: settings live in the settings folder, state in its =var/=.                                                  | lint checks =personal= and =codefolder=; =.gitignore=                                              | lint (every commit and push), Gitleaks (history) |
+| 5.2 | When the settings folder is itself in git, the state of each machine (history, undo, sessions, keylog) is not committed.                                | =/hosts/*/var/= in its =.gitignore=                                                                | test-var-files                                   |
+
+* Findings to decide
+- *F1*: a note that git does not track is deleted for good
+  (=delete-file=); a tracked one can be got back from git.  Proposal:
+  untracked notes go to the trash.
+- *F2*: the upload question (1.5) says where to, not that the upload
+  makes the server folder an exact copy of the build (=rsync --delete=):
+  a wrong =:remote= would empty that folder.  Proposal: the question
+  says so, and refuses a =:remote= that is a home folder or =/=.
+- *F3*: a theme installed with =git clone= takes whatever its
+  repository holds that day.  Proposal: a commit recorded with the URL
+  and checked out after the clone, as the Geekdoc archive has its
+  SHA-256.
+- *F4*: packages are not pinned (no lockfile), so a changed or
+  compromised package would arrive with the next install.  Proposal: a
+  lockfile, an established tool for it, decided separately (BACKLOG).
+
+* Next
+1. The owner accepts, changes or strikes rules and findings.
+2. Tests for the rules marked "none yet", most consequential first:
+   publishing (1.1-1.6), file names given to programs (4.1), deleting
+   and moving (2.1-2.3).  Each shown to fail with its safeguard taken
+   out.
+3. An independent review of 46-blog, 07-git, 39-project-git and the
+   moves in 00-core: a reviewer that did not write them -- an agent
+   given only this file and the code, or a person who knows Emacs --
+   reporting where the code does not do what this file says.

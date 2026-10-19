@@ -21,6 +21,42 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19v — SAFETY.org: what the configuration may do, and which test shows it (draft)
+
+### Why
+
+BACKLOG, *Checks by tools made by others*, step 2, after the outside
+answer on checking code one does not read: tools find known mistakes,
+but what *this* configuration must never do has to be written down in
+words its owner can judge, and each rule needs a test shown to fail
+without its safeguard.  Asked 2026-10-19 ("możemy ruszać z kolejnym
+krokiem").
+
+### What
+
+- SAFETY.org (new, draft): 21 rules in five areas -- publishing,
+  deleting and moving, the network, running programs, what the code
+  repository may hold -- each with its safeguard in the code and its
+  automatic test or "none yet" (5 have one); four findings to decide:
+  - F1: a note git does not track is deleted for good, not to the
+    trash;
+  - F2: the upload question does not say the server folder becomes an
+    exact copy of the build (`rsync --delete`);
+  - F3: themes installed with `git clone` are not pinned to a commit;
+  - F4: packages are not pinned.
+  Made by searching the code for what publishes, deletes, moves,
+  reaches the network and runs programs, and reading each place found;
+  the facts it states about the code were checked against it.
+- BACKLOG.org: the step drafted; the docs list.
+
+### Decisions
+
+- **A draft until accepted**: the rules are the owner's to set; the
+  code follows the file, not the reverse.
+- **"none yet" written out**: a rule nothing tests is shown as such, so
+  the gaps are visible rather than implied away.
+
+---
 ## Session 2026-10-19u — Continuous integration: the checks on GitHub at every push
 
 ### Why
