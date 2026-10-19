@@ -21,6 +21,54 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19i — The blog's switch: exports, autostart and servers stop with it
+
+### Why
+
+Next module of BACKLOG step 2.  The blog does the most by itself of
+the integrations: an `after-save-hook` that exports saved notes, a
+start-up timer that exports and serves the autostart sites, Hugo
+servers running all day, and entries in two menus.  The start-up timer
+was a nameless function on `emacs-startup-hook`, which nothing could
+take off again.
+
+### What
+
+- 46-blog.el:
+  - `my/blog-mode`, on by default.  On: `my/blog--after-save` on
+    `after-save-hook`; `my/blog--schedule-autostart` on
+    `emacs-startup-hook`, or called at once when the switch is turned on
+    in a running Emacs; the entries Export → `b` and Settings → `b`
+    (`my/blog--menu-entries`).  Off: hooks removed, the start-up timer
+    and pending save exports cancelled, the Hugo servers stopped
+    (`my/blog--stop-everything`), the menu entries removed.
+  - `my/blog--schedule-autostart` replaces the lambda; the timer is kept
+    in `my/blog--autostart-timer`, so it can be cancelled.
+  - `my/blog--autostart-apply` (a change of `my/blog-autostart` in
+    Customize) starts nothing while the module is off;
+    `my/blog-toggle-autostart` saves the choice and says the site starts
+    when the module is turned on.
+- function_helper.org: the blog in the table of switches; *Autostart*
+  gains *The module's switch*.  TESTPLAN.org: R28.  BACKLOG.org: step 2
+  progress.
+
+### Decisions
+
+- **Off stops the servers**, including a preview opened by hand: an
+  off module runs nothing, and a server left behind would keep serving
+  pages no longer exported.  The echo area names the sites stopped.
+  The per-site autostart toggle (2026-10-19a) still asks before
+  stopping one server: there the module stays on.
+- **Turned on later, the sites start at once** (after the usual idle
+  delay) rather than waiting for the next start of Emacs.
+- Verified in batch (Emacs 29.3): at load the save hook, the start-up
+  hook (no timer yet) and both menu entries; start-up arms the timer;
+  off removes the hooks, cancels both kinds of timer, stops a running
+  server and removes the entries; a change of the autostart option
+  while off starts nothing; on again arms the timer at once and
+  restores hooks and entries; nothing recorded as skipped.
+
+---
 ## Session 2026-10-19h — A switch per module: Readwise, Zotero, Obsidian import, drill
 
 ### Why

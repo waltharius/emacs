@@ -1947,7 +1947,8 @@ every site turned on would also restart servers stopped with `s'.")
 Exports and serves each such site whose server is not running.  Sites
 turned off are left running until stopped with `s': stopping a server
 is not this option's call."
-  (unless my/blog--autostart-quiet
+  (when (and (not my/blog--autostart-quiet)
+             (bound-and-true-p my/blog-mode))
     (dolist (site my/blog-sites)
       (when (and (my/blog--autostart-p site)
                  (not (my/blog--serving-p (car site))))
@@ -1984,7 +1985,9 @@ served now; turned off, its server is stopped after a question."
     (let ((my/blog--autostart-quiet t))
       (customize-save-variable 'my/blog-autostart new))
     (if turn-on
-        (progn
+        (if (not (bound-and-true-p my/blog-mode))
+            (message "%s: autostart on for this machine; the blog module is off, so it starts when the module is turned on"
+                     site-name)
           (message "%s: autostart on for this machine; exporting and serving" site-name)
           (my/blog--autostart-site site))
       (message "%s: autostart off for this machine" site-name)
@@ -2058,11 +2061,83 @@ be taken off the site, too."
                        (error (message "Blog, %s: %s" name
                                        (error-message-string err)))))))))))))
 
-(add-hook 'after-save-hook #'my/blog--after-save)
+(defvar my/blog--autostart-timer nil
+  "Idle timer that runs `my/blog--autostart' once, after start-up.")
 
-(add-hook 'emacs-startup-hook
-          (lambda ()
-            (run-with-idle-timer my/blog-autostart-delay nil #'my/blog--autostart)))
+(defun my/blog--schedule-autostart ()
+  "Run `my/blog--autostart' after `my/blog-autostart-delay' idle seconds.
+Named, unlike the lambda it replaces (2026-10-19i), so that turning
+the module off can take it off `emacs-startup-hook'."
+  (when (timerp my/blog--autostart-timer)
+    (cancel-timer my/blog--autostart-timer))
+  (setq my/blog--autostart-timer
+        (run-with-idle-timer my/blog-autostart-delay nil #'my/blog--autostart)))
+
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/blog-mode' is this module's switch (module contract, rule 12):
+;;
+;;   on   saving a note exports it to the autostart sites; after start-up
+;;        (or at once, when turned on later) the autostart sites are
+;;        exported and served; the Export menu has "b", the settings menu
+;;        "b" (autostart on this machine)
+;;   off  none of that: pending exports are cancelled, and the Hugo
+;;        servers this module runs are stopped -- an off module runs
+;;        nothing
+;;
+;; The commands stay defined and work from M-x (an export by hand, a
+;; preview).  Customize saves the position in this machine's settings
+;; (M-x customize-option RET my/blog-mode); turned off there, nothing
+;; of the blog starts with Emacs on that machine.
+
+(defconst my/blog--menu-entries
+  '((insert my/notes-export-menu "q" ("b" "Blog (Hugo) →" my/blog-menu))
+    ;; Also in the settings menu (C-c n , b), Machines column: which
+    ;; sites start is a setting of this machine.  Anchored on "u",
+    ;; 12-transient's own last key there.
+    (append my/settings-menu "u" ("b" "Blog autostart on this machine" my/blog-toggle-autostart)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
+(defun my/blog--stop-everything ()
+  "Cancel pending exports and the start-up timer; stop the Hugo servers.
+Returns the names of the sites whose server was stopped."
+  (when (timerp my/blog--autostart-timer)
+    (cancel-timer my/blog--autostart-timer))
+  (setq my/blog--autostart-timer nil)
+  (dolist (entry my/blog--save-timers)
+    (when (timerp (cdr entry))
+      (cancel-timer (cdr entry))))
+  (setq my/blog--save-timers nil)
+  (let ((stopped (my/blog--running-previews)))
+    (dolist (name stopped)
+      (let ((proc (get-buffer-process (my/blog--preview-buffer name))))
+        (when proc (delete-process proc))))
+    stopped))
+
+(define-minor-mode my/blog-mode
+  "The blog as a module: exports on save, autostart sites, menu entries.
+Turned off, nothing of it runs: pending exports are cancelled and its
+Hugo servers stopped; the commands remain for M-x.  Customize saves the
+position in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/blog
+  (if my/blog-mode
+      (progn
+        (add-hook 'after-save-hook #'my/blog--after-save)
+        (if after-init-time
+            ;; Turned on in a running Emacs: start the sites now.
+            (my/blog--schedule-autostart)
+          (add-hook 'emacs-startup-hook #'my/blog--schedule-autostart)))
+    (remove-hook 'after-save-hook #'my/blog--after-save)
+    (remove-hook 'emacs-startup-hook #'my/blog--schedule-autostart)
+    (let ((stopped (my/blog--stop-everything)))
+      (when stopped
+        (message "Blog off: Hugo servers stopped for %s" (string-join stopped ", ")))))
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/blog-mode my/blog--menu-entries))))
 
 ;; ============================================================
 ;; MENU  (C-c n x b)
@@ -2089,20 +2164,10 @@ be taken off the site, too."
     ("l" "Last report"             my/blog-show-report)]
    [("q" "Quit" transient-quit-one)]])
 
-;; Inserted rather than declared in 12-transient.el, so that deleting
-;; this file removes the entry with it.  Before Quit, the one entry of
-;; the Export menu 12-transient.el owns (anchored on "Q" of
-;; 16-org-export.el until 2026-10-19).
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-insert)
-    (my/transient-insert 'my/notes-export-menu "q"
-                         '("b" "Blog (Hugo) →" my/blog-menu)))
-  (when (fboundp 'my/transient-append)
-    ;; Also in the settings menu (C-c n , b), Machines column: which
-    ;; sites start is a setting of this machine.  Anchored on "u",
-    ;; 12-transient's own last key there.
-    (my/transient-append 'my/settings-menu "u"
-                         '("b" "Blog autostart on this machine" my/blog-toggle-autostart))))
+;; The switch, applied with the position Customize read from this
+;; machine's custom.el: its menu entries (`my/blog--menu-entries', before
+;; Quit of the Export menu, which 12-transient.el owns) and hooks.
+(my/blog-mode (if my/blog-mode 1 -1))
 
 (provide '46-blog)
 ;;; 46-blog.el ends here

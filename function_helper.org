@@ -6559,6 +6559,7 @@ loader (BACKLOG, step 5).
 | =my/readwise-mode=        | =24-readwise.el=        | =C-c r s=, =C-c r o=, =C-c r r=, Tools → =r=   |
 | =my/obsidian-import-mode= | =42-obsidian-import.el= | Tools → =o=                                    |
 | =my/drill-mode=           | =43-drill.el=           | =C-c n r=, the deck keyword in keyword prompts |
+| =my/blog-mode=            | =46-blog.el=            | export on save, the autostart sites (after start-up, or at once when turned on later), Export → =b=, Settings → =b=; off also cancels pending exports and stops its Hugo servers |
 
 How a module writes one, with two helpers:
 
@@ -8240,6 +8241,15 @@ A site with =:autostart t= is kept current without being asked:
 laptop only, and it rebuilds on every change. A missing site directory
 or a missing Hugo leaves one line in =*Messages*= and nothing else. The
 server ends with Emacs.
+
+*The module's switch.*  All of the above happens only while
+=my/blog-mode= is on ([[#module-switch][A module's switch]]).  Off, saving a note
+exports nothing, no site starts, pending exports are cancelled and the
+Hugo servers of the blog are stopped; =C-c n x b= is gone from the
+menu, and the commands remain for =M-x=.  Saved off in Customize on
+one machine, nothing of the blog starts with Emacs there.  A site
+turned on with =S= while the module is off starts when the module is
+turned on.
 
 *Per machine.*  Which sites start is decided by =my/blog-autostart=
 (/Autostart on this machine/, Tools → Hugo sites), which Customize

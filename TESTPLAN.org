@@ -439,6 +439,18 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
       commands of 17-bibliography (=C-c b c=) still work.  On again.
 - [ ] No warning of type =menus= after any of this.
 
+** R28. The blog's switch [0/4]
+- [ ] Start as usual: the autostart sites come up as before
+      (=http://localhost:1314/=).
+- [ ] =M-x my/blog-mode= (off): echo area names the stopped servers;
+      the sites no longer answer; =C-c n x= has no =b=, =C-c n ,= no =b=;
+      saving a note in the journal exports nothing (=*Messages*= quiet).
+- [ ] =M-x my/blog-mode= (on): within a few idle seconds the autostart
+      sites are exported and served again; menus back.
+- [ ] Customize =my/blog-mode= off, Apply and Save, restart: no Hugo
+      process (=pgrep hugo=), no export.  The other machine unchanged.
+      Back on and save.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

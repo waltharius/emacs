@@ -82,8 +82,12 @@ settles; a line is a reminder, not the text to paste.
   repository, which is opt-in (the README says the opposite); it and
   the start-up pull run in the background; quitting asks when work is
   not on the server; blog sites start per machine
-  (=my/blog-autostart=, 2026-10-19a); the personal dictionary follows
-  a pull while Emacs runs.
+  (=my/blog-autostart=, 2026-10-19a) and only while the blog module is
+  on (=my/blog-mode=, 2026-10-19i); the personal dictionary follows a
+  pull while Emacs runs.
+- A short paragraph on turning a module off (=my/<name>-mode=, saved
+  per machine in Customize) and which modules have a switch so far
+  (2026-10-19h-i), until the loader's menu replaces it.
 - /Known issues/: 1 (twenty-one symbols) and 3 (18-zotero-transient a
   menu without content -- check) are settled or changed; 5 still true.
 - /Before committing a change/: the list of checks (=menukeys=,
@@ -242,8 +246,8 @@ Next, in order:
    Obsidian import, Readwise, Zotero, blog, drill.
    - Done 2026-10-19h: the helpers (=my/module-keys=,
      =my/transient-entries=) and Obsidian import, Readwise, Zotero,
-     drill.  Next: the blog (hooks, a start-up timer, servers), then
-     the other modules one at a time, those that add hooks or timers
+     drill; 2026-10-19i the blog.  Next: the other modules one at a
+     time, those that add hooks or timers
      first (14-typing-analytics, 37-tasks, 38-habits, 39-project-git).
      17-bibliography needs its own look: other modules' exports use
      the citation machinery it sets up.
