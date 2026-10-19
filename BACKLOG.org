@@ -25,7 +25,8 @@ says why and how.
 5. /Continuous integration/ -- can start at any time; most useful once
    the core has tests of its own.
 6. /A public repository/: portable defaults and the privacy model in
-   the README, the welcome screen; then the Polish guide.
+   the README, the welcome screen; then the tutorial with exercises
+   and the Polish guide.
 7. /Documentation to bring up to date/: the README and the help text
    synced with the code, from the running list kept since 2026-10-18 --
    at the end of the refactoring, or before the public repository,
@@ -322,6 +323,47 @@ Steps, in order:
    (=~/notes=) are the shared ground; each machine, or each role on
    one machine, has its settings, modules and state in the settings
    folder.
+7. *A tutorial with exercises* (asked 2026-10-19), in the repository
+   beside function_helper.org: an Org file to work through on a fresh
+   installation, so that someone who has never used Emacs learns the
+   system by doing, and the keys by repeating them.  The two documents
+   divide the work: function_helper.org says /what/ a command does and
+   how it is built; the tutorial makes the reader /do/ it, says why the
+   exercise matters and what should be seen afterwards.
+   - *For a complete beginner.*  It starts with what is
+     counter-intuitive to someone from other editors: what a frame, a
+     window and a buffer are (and that a window is not what the desktop
+     calls a window); reading key notation (=C-c n=, =M-x=); that a
+     key can be the first of several; the minibuffer and cancelling
+     with =C-g=; the transient menus (=C-c n=), which stay open, wait
+     for a key and show what comes next; the echo area and
+     =*Messages*=; saving, undo, and what a "mode" is.  Emacs's own
+     tutorial (=C-h t=) already teaches moving and editing text, and
+     is translated into Polish (=TUTORIAL.pl=): the first chapter sends
+     the reader there for that and covers only what it does not.
+   - *Then every module and its commands*, one chapter each, in the
+     order a new user meets them (notes and silos, journal, finding,
+     linking, capture, export, then the integrations): a short reason
+     for the chapter, then tasks -- each saying what to do, which keys,
+     what the result should look like, and why the command works that
+     way.  A chapter per module, so that a module turned off can be
+     skipped, and its chapter says which switch turns it on.
+   - *In English and in Polish*: each task in both languages, side by
+     side in one file or as two files kept in step (to decide when
+     writing; one file is harder to drift, two are easier to read).
+   - *Safe to practise.*  Exercises create, rename and delete notes, so
+     they work in a practice notes folder, never the real one: the
+     first chapter sets one up (the settings already allow another
+     notes folder), and a command opens a fresh copy of the tutorial,
+     as =C-h t= does, so the exercises can be done again from the start.
+   - *Kept in step with the code*: written when the refactoring has
+     settled (after the documentation sync, step 7 of the order of
+     work), and a lint check later could compare its commands with
+     function_helper.org's, as =menus= does for the menus.
+   - Overlaps the Polish guide planned under /Polish for non-technical
+     users/ (task-oriented, keys and menus only).  To decide when
+     starting: whether that guide becomes the explanatory text of the
+     tutorial's chapters rather than a third document.
 
 Rejected for now: *one repository with a public and a private branch*
 (code on =main=, =hosts/= only on =private=, =main= merged into

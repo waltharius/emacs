@@ -21,6 +21,40 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19j — Backlog: a tutorial with exercises for the public repository
+
+### Why
+
+Asked for: with the public repository, a document someone who has never
+used Emacs can work through on a fresh installation -- exercises for
+every module and command, in English and Polish, each saying why it is
+there and what it should produce, starting from the Emacs basics that
+surprise newcomers (frame, window, buffer, key notation, transient
+menus).
+
+### What
+
+- BACKLOG.org: *A public repository*, step 7, *A tutorial with
+  exercises*: audience, what the first chapter covers and what it leaves
+  to Emacs's own tutorial, one chapter per module, both languages, a
+  practice notes folder and a fresh copy per run, when to write it, and
+  the overlap with the planned Polish guide.  *Order of work*, step 6,
+  names it.
+
+### Decisions
+
+- **Emacs's own tutorial for moving and editing** (`C-h t`): it is
+  maintained with Emacs and ships in Polish (`etc/tutorials/TUTORIAL.pl`,
+  checked in Emacs 29.3); repeating it would be a second copy to keep
+  correct.  The new tutorial covers what that one does not: this
+  configuration, its menus, and the concepts behind them.
+- **Exercises in a practice notes folder**: they create, rename and
+  delete notes; the real collection is never the place to learn that.
+- **Written after the documentation sync**, when commands and keys have
+  settled; a tutorial written now would be rewritten with every step of
+  the refactoring.
+
+---
 ## Session 2026-10-19i — The blog's switch: exports, autostart and servers stop with it
 
 ### Why
