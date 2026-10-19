@@ -451,6 +451,19 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
       process (=pgrep hugo=), no export.  The other machine unchanged.
       Back on and save.
 
+** R29. Switches of typing analytics and project git [0/4]
+- [ ] =M-x my/typing-analytics-mode= (off): =C-c y k= undefined;
+      =~/.emacs.keyfreq= modified just now (saved on the way out).  On
+      again: =C-c y k= shows the counts, still growing.
+- [ ] With =my/keylog-enabled= on, turn the module off: =C-c y s= (via
+      =M-x my/keylog-status=) says OFF; on again: ON.
+- [ ] =M-x my/project-git-mode= (off): open a file of a writing project
+      -- no "checking" message; =C-c n p= has no =G=; after a change in
+      the project, =C-c v a= still commits it (backups do not follow
+      the switch).  On again: =G= back.
+- [ ] Customize =my/project-git-mode= off, Apply and Save, restart: as
+      above on this machine only.  Back on and save.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

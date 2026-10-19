@@ -76,8 +76,8 @@ settles; a line is a reminder, not the text to paste.
   (=C-c n ,=, with =b= blog autostart, favourites, recent changes);
   Insert =u= in the Link column (2026-10-19e).
 - /Global/: =C-c v a= commits in the background and returns at once
-  (2026-10-19c); =C-c n , b=; the Readwise and Zotero keys exist only
-  while their modules are on (2026-10-19h).
+  (2026-10-19c); =C-c n , b=; the Readwise, Zotero and =C-c y= keys
+  exist only while their modules are on (2026-10-19h, k).
 - /What happens without being asked/: auto-commit covers the notes,
   the settings folder, the planner and writing projects -- *not* this
   repository, which is opt-in (the README says the opposite); it and
@@ -85,10 +85,11 @@ settles; a line is a reminder, not the text to paste.
   not on the server; blog sites start per machine
   (=my/blog-autostart=, 2026-10-19a) and only while the blog module is
   on (=my/blog-mode=, 2026-10-19i); the personal dictionary follows a
-  pull while Emacs runs.
+  pull while Emacs runs.  A module turned off keeps its folders in
+  the automatic commits (2026-10-19k).
 - A short paragraph on turning a module off (=my/<name>-mode=, saved
   per machine in Customize) and which modules have a switch so far
-  (2026-10-19h-i), until the loader's menu replaces it.
+  (2026-10-19h, i, k ...), until the loader's menu replaces it.
 - /Known issues/: 1 (twenty-one symbols) and 3 (18-zotero-transient a
   menu without content -- check) are settled or changed; 5 still true.
 - /Before committing a change/: the list of checks (=menukeys=,
@@ -247,9 +248,10 @@ Next, in order:
    Obsidian import, Readwise, Zotero, blog, drill.
    - Done 2026-10-19h: the helpers (=my/module-keys=,
      =my/transient-entries=) and Obsidian import, Readwise, Zotero,
-     drill; 2026-10-19i the blog.  Next: the other modules one at a
-     time, those that add hooks or timers
-     first (14-typing-analytics, 37-tasks, 38-habits, 39-project-git).
+     drill; 2026-10-19i the blog; 2026-10-19k typing analytics and
+     project git.  Next: 37-tasks and 38-habits together (habits hook
+     into the tasks' agenda files and both add capture templates and
+     keys from options), then the modules without hooks or timers.
      17-bibliography needs its own look: other modules' exports use
      the citation machinery it sets up.
 3. *The loader*: =init.el= reads the headers, an option lists the

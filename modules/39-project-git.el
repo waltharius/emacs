@@ -312,11 +312,6 @@ hook."
   "Publish a newly created project.  For `my/writing-project-created-hook'."
   (my/project-git-init slug))
 
-(with-eval-after-load '28-writing-projects
-  (when (boundp 'my/writing-project-created-hook)
-    (add-hook 'my/writing-project-created-hook
-              #'my/project-git--on-project-created)))
-
 ;; ============================================================
 ;; PUSHING
 ;; ============================================================
@@ -517,8 +512,6 @@ For `find-file-hook'."
                  (my/project-git--due-p dir))
         (my/project-git--fetch-and-report dir)))))
 
-(add-hook 'find-file-hook #'my/project-git--maybe-check)
-
 ;; ============================================================
 ;; AUTO-COMMIT
 ;; ============================================================
@@ -532,10 +525,12 @@ For `find-file-hook'."
               (delq nil (mapcar #'my/project-git--directory
                                 (my/project-git--slugs)))))
 
+;; Registered at load, outside the switch below, on purpose: the switch
+;; turns off what this module does, not the backup of what is already
+;; written.  A writing project committed only while a feature is on
+;; would stop being backed up without anyone deciding so.
 (with-eval-after-load '07-git
-  (when (boundp 'my/auto-commit-repository-sources)
-    (add-to-list 'my/auto-commit-repository-sources
-                 #'my/project-git-repositories t)))
+  (add-hook 'my/auto-commit-repository-sources #'my/project-git-repositories t))
 
 ;; ============================================================
 ;; MENU
@@ -562,13 +557,52 @@ For `find-file-hook'."
     ("l" "Log buffer"          my/project-git-show-log)]
    [("q" "Quit" transient-quit-one)]])
 
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-append)
-    ;; Inside the writing-projects menu, which is where a project is
-    ;; already being thought about.  Skipped when that module is absent,
-    ;; which is correct: without projects there is nothing to publish.
-    (my/transient-append 'my/writing-projects-menu "U"
-                         '("G" "Git →" my/project-git-menu))))
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/project-git-mode' is this module's switch (module contract,
+;; rule 12).  On:
+;;   - a new writing project is published (`my/writing-project-created-hook')
+;;   - opening a project file checks the project against its remote,
+;;     at most every `my/project-git-check-interval' (`find-file-hook')
+;;   - the writing-projects menu has "G" (C-c n p G)
+;; Off, none of that.  The projects stay in the automatic commits of
+;; 07-git.el either way (registered above): a backup does not depend on
+;; a feature switch.  The commands stay for M-x.  Customize saves
+;; the position in this machine's settings
+;; (M-x customize-option RET my/project-git-mode).
+
+;; Inside the writing-projects menu, which is where a project is already
+;; being thought about.  Skipped when that module is absent, which is
+;; correct: without projects there is nothing to publish.
+(defconst my/project-git--menu-entries
+  '((append my/writing-projects-menu "U" ("G" "Git →" my/project-git-menu)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
+(define-minor-mode my/project-git-mode
+  "Project repositories as a module: publishing and staleness checks.
+Turned off, new projects are not published, opening a project file
+checks nothing and C-c n p G is gone; the commands remain for M-x.
+The projects are still committed automatically.  Customize saves the
+position in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/project-git
+  (if my/project-git-mode
+      (add-hook 'find-file-hook #'my/project-git--maybe-check)
+    (remove-hook 'find-file-hook #'my/project-git--maybe-check))
+  ;; Hooks of other modules, which may load later: `add-hook' on a
+  ;; quoted name works on any list of functions and needs nothing of
+  ;; theirs declared here.
+  (with-eval-after-load '28-writing-projects
+    (if my/project-git-mode
+        (add-hook 'my/writing-project-created-hook #'my/project-git--on-project-created)
+      (remove-hook 'my/writing-project-created-hook #'my/project-git--on-project-created)))
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/project-git-mode my/project-git--menu-entries))))
+
+(my/project-git-mode (if my/project-git-mode 1 -1))
 
 (provide '39-project-git)
 ;;; 39-project-git.el ends here

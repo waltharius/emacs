@@ -4017,6 +4017,13 @@ Every writing project is its own git repository. [[#writing-projects][Writing Pr
 creates it; this module gives it a remote on the local GitLab, watches
 whether it has fallen behind, and says so before any editing starts.
 
+*The module's switch*, =my/project-git-mode= (since 2026-10-19,
+[[#module-switch][A module's switch]]).  On: a new project is published, opening a
+project file checks it against its remote (at most every
+=my/project-git-check-interval=), and =C-c n p G= is in the menu.  Off:
+none of that.  The projects stay in the automatic commits of
+=07-git.el= either way.
+
 ** The menu
 
 | Key | Command                    | Effect                          |
@@ -6559,6 +6566,8 @@ loader (BACKLOG, step 5).
 | =my/readwise-mode=        | =24-readwise.el=        | =C-c r s=, =C-c r o=, =C-c r r=, Tools → =r=   |
 | =my/obsidian-import-mode= | =42-obsidian-import.el= | Tools → =o=                                    |
 | =my/drill-mode=           | =43-drill.el=           | =C-c n r=, the deck keyword in keyword prompts |
+| =my/typing-analytics-mode= | =14-typing-analytics.el= | command counts (keyfreq), the keystroke log if =my/keylog-enabled=, =C-c y k/s/t/T= |
+| =my/project-git-mode=     | =39-project-git.el=     | publishing new projects, the staleness check on opening a project file, =C-c n p G= |
 | =my/blog-mode=            | =46-blog.el=            | export on save, the autostart sites (after start-up, or at once when turned on later), Export → =b=, Settings → =b=; off also cancels pending exports and stops its Hugo servers |
 
 How a module writes one, with two helpers:
@@ -6594,6 +6603,11 @@ How a module writes one, with two helpers:
 - Hooks and timers are added and removed in the same body with
   =add-hook=/=remove-hook=, a named function each (rule 12 needs that:
   a nameless function cannot be removed).
+- *One exception: backups.*  A module's folders stay in the automatic
+  commits of =07-git.el= when it is off (=my/auto-commit-repository-sources=
+  is extended at load, outside the switch): the switch turns off what
+  the module does, not the backup of what it already wrote.  Decided
+  2026-10-19, with the planner and the writing projects.
 
 The entry lists are quoted data; the contract check reads the menu in
 =(insert MENU ...)= as data handed to a degrading function, not as a
@@ -8741,6 +8755,12 @@ plain-text copy of the writing outside the notes folder.
 
 =my/keylog-enabled= (/Tools/ → /Typing analytics/) logs in every
 session; it takes effect at once.
+
+*The module's switch*, =my/typing-analytics-mode= (since 2026-10-19,
+[[#module-switch][A module's switch]]): off, neither kind of data is collected -- what
+was collected is written to disk first -- and the =C-c y= keys are
+gone; the log then does not start even with =my/keylog-enabled= on.
+On again, both resume as the options say.
 
 *When the log reaches the disk.*  Keystrokes are collected in memory
 and appended to the file in batches, whichever comes first: after

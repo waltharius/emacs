@@ -29,20 +29,17 @@
   :tag "Typing analytics"
   :group 'mypks-tools)
 
+;; Installed here; switched on and off with the module
+;; (`my/typing-analytics-mode', below).  Command names only, no text.
 (use-package keyfreq
   :ensure t
-  :config
-  ;; Command names only, no text: on by default.
-  (keyfreq-mode 1)
-  (keyfreq-autosave-mode 1))
+  :defer t
+  :commands (keyfreq-mode keyfreq-autosave-mode keyfreq-show))
 
-;; Quick access to view statistics.
-;;
-;; Moved off the "C-c a" prefix 2026-08.  "C-c a" is the agenda key in
-;; every piece of Org documentation there is, and holding it for four
-;; commands opened a few times a year, at the cost of the one opened
-;; every morning, was the wrong way round.
-(global-set-key (kbd "C-c y k") 'keyfreq-show)
+;; C-c y k shows the statistics.  Moved off the "C-c a" prefix 2026-08.
+;; "C-c a" is the agenda key in every piece of Org documentation there
+;; is, and holding it for four commands opened a few times a year, at
+;; the cost of the one opened every morning, was the wrong way round.
 
 ;; ============================================================
 ;; CHARACTER-LEVEL TYPING ANALYTICS
@@ -212,16 +209,58 @@ effect at once.  `C-c y T' and `C-c y t' switch it for one session."
   :set (my/settings-apply-on-set #'my/keylog--apply)
   :group 'my/typing-analytics)
 
+(defvar my/typing-analytics-mode)
+
 (defun my/keylog--apply ()
-  "Start or stop logging as `my/keylog-enabled' says."
-  (if my/keylog-enabled (my/keylog-enable) (my/keylog-disable)))
+  "Start or stop logging as `my/keylog-enabled' and the module's switch say.
+Logging runs only while both are on."
+  (if (and my/keylog-enabled (bound-and-true-p my/typing-analytics-mode))
+      (my/keylog-enable)
+    (my/keylog-disable)))
 
-(my/keylog--apply)
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/typing-analytics-mode' is this module's switch (module contract,
+;; rule 12): on, command frequency is counted (keyfreq), the keystroke
+;; log runs if `my/keylog-enabled' says so, and the keys C-c y k/s/t/T
+;; work; off, nothing is counted or logged -- what was collected is
+;; written to disk first -- and the keys are gone.  The commands stay
+;; defined for M-x.  Customize saves the position in this machine's
+;; settings (M-x customize-option RET my/typing-analytics-mode).
 
-;; Quick access commands
-(global-set-key (kbd "C-c y s") #'my/keylog-status)
-(global-set-key (kbd "C-c y t") #'my/keylog-disable)  ; Off for this session
-(global-set-key (kbd "C-c y T") #'my/keylog-enable)   ; On for this session
+(defconst my/typing-analytics--keys
+  '(("C-c y k" . keyfreq-show)
+    ("C-c y s" . my/keylog-status)
+    ("C-c y t" . my/keylog-disable)   ; off for this session
+    ("C-c y T" . my/keylog-enable))   ; on for this session
+  "Global keys of this module, for `my/module-keys'.")
+
+(declare-function keyfreq-table-save "keyfreq" (table &optional mustsave))
+(defvar keyfreq-table)
+
+(define-minor-mode my/typing-analytics-mode
+  "Typing analytics as a module: command counts, the keystroke log, C-c y.
+Turned off, nothing is counted or logged (collected data is written
+first) and the keys are gone; the commands remain for M-x.  Customize
+saves the position in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/typing-analytics
+  (if my/typing-analytics-mode
+      (when (require 'keyfreq nil t)
+        (keyfreq-mode 1)
+        (keyfreq-autosave-mode 1))
+    (when (bound-and-true-p keyfreq-mode)
+      ;; Written now: keyfreq saves only from its timer and at exit.
+      (when (and (fboundp 'keyfreq-table-save) (boundp 'keyfreq-table))
+        (keyfreq-table-save keyfreq-table t))
+      (keyfreq-autosave-mode -1)
+      (keyfreq-mode -1)))
+  (my/keylog--apply)
+  (my/module-keys my/typing-analytics-mode my/typing-analytics--keys))
+
+(my/typing-analytics-mode (if my/typing-analytics-mode 1 -1))
 
 ;; ============================================================
 ;; USAGE INSTRUCTIONS

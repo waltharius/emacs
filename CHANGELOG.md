@@ -21,6 +21,54 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19k — Switches for typing analytics and project git
+
+### Why
+
+BACKLOG step 2, the modules that add hooks or run things in the
+background: typing analytics counts every command and may log every
+keystroke; project git checks projects against their remote whenever a
+project file is opened, publishes new projects, and puts the projects
+into the automatic commits.
+
+### What
+
+- 14-typing-analytics.el: `my/typing-analytics-mode`, on by default.
+  On: `keyfreq-mode` and `keyfreq-autosave-mode` (no longer turned on
+  in `use-package`'s `:config`; the package is now deferred), the
+  keystroke log when `my/keylog-enabled` says so, the keys C-c y
+  k/s/t/T.  Off: keyfreq's table written to disk, both keyfreq modes
+  off, the log stopped (its buffer written), the keys released.
+  `my/keylog--apply` starts the log only while the module is on.
+- 39-project-git.el: `my/project-git-mode`, on by default.  On: the
+  check on `find-file-hook`, the publication on
+  `my/writing-project-created-hook`, `G` in the writing-projects menu.
+  Off: all three removed.  `my/project-git-repositories` stays in
+  `my/auto-commit-repository-sources` either way (now with `add-hook`,
+  as the other modules do).
+- function_helper.org: both in the table of switches; a paragraph in
+  each module's section.  TESTPLAN.org: R29.  BACKLOG.org: step 2
+  progress.
+
+### Decisions
+
+- **A switch does not stop backups.**  The projects stay in 07-git's
+  automatic commits when the module is off: turning off a feature must
+  not quietly stop the backup of what was already written.  The one
+  exception to rule 12, written into *A module's switch*.  (The first
+  draft of this session removed them with the switch; changed before
+  it was delivered.)
+- **keyfreq's table is written before keyfreq goes off**: it saves only
+  from its timer and at exit, so turning it off between two saves would
+  otherwise lose the counts since the last one.
+- Verified in batch (Emacs 29.3; a stand-in for keyfreq, which is not
+  installed here): on at load; the log follows `my/keylog-enabled` only
+  while the module is on; off saves the counts, stops both, releases
+  the keys; project git off removes its hook, its creation hook and its
+  menu entry, and keeps its auto-commit source; on again restores them;
+  nothing recorded as skipped.
+
+---
 ## Session 2026-10-19j — Backlog: a tutorial with exercises for the public repository
 
 ### Why
