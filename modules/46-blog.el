@@ -268,7 +268,8 @@
      :remote nil
      :url "http://localhost:1314/"
      :port 1314
-     :theme ("PaperMod" "https://github.com/adityatelange/hugo-PaperMod")
+     :theme ("PaperMod" "https://github.com/adityatelange/hugo-PaperMod"
+             "969bebdc5600a1639158b5ef4eff9cf6cbb511ac")
      :autostart t
      :broken-links mark
      :sections (("journal" :keyword "journal" :silos ("journal"))
@@ -288,7 +289,8 @@
      :remote nil
      :url "http://localhost:1313/"
      :port 1313
-     :theme ("PaperMod" "https://github.com/adityatelange/hugo-PaperMod")
+     :theme ("PaperMod" "https://github.com/adityatelange/hugo-PaperMod"
+             "969bebdc5600a1639158b5ef4eff9cf6cbb511ac")
      :sections (("posts" :keyword "blog" :silos ("pks" "docu")))))
   "Hugo sites notes are published to.
 Each entry is (NAME . PLIST):
@@ -301,10 +303,13 @@ Each entry is (NAME . PLIST):
   :url           address the site is read at; needed for other sites
                  to link to its pages (see `my/blog--link-sites')
   :port          port of `hugo server', default 1313
-  :theme         (NAME URL [SHA256]): installed in themes/NAME when
+  :theme         (NAME URL [PIN]): installed in themes/NAME when
                  missing; URL is a git repository (cloned) or a .tar.gz
-                 release archive (downloaded and unpacked).  SHA256, for
-                 an archive: its digest; another digest stops the install
+                 release archive (downloaded and unpacked).  PIN, for an
+                 archive: its SHA-256, another digest stops the install;
+                 for a git repository: the commit (40 hex digits)
+                 checked out after the clone, so the theme changes only
+                 when this entry does
   :autostart     non-nil: export and serve after start-up, re-export
                  when a note of the site is saved
   :broken-links  value of `org-export-with-broken-links' for this site:
@@ -1678,20 +1683,65 @@ blocks (a theme is a few MB, once per machine)."
        (my/blog--theme-install-done target nil)))))
 
 (defun my/blog--install-theme-git (site theme target)
-  "Clone the git repository of THEME into TARGET.
-SITE names the site in messages.  Ends with `my/blog--theme-install-done'."
-  (message "%s: cloning theme %s..." (car site) (car theme))
-  (make-process
-   :name (format "blog-theme-%s" (car site))
-   :buffer (get-buffer-create (format "*Blog theme: %s*" (car site)))
-   :command (list "git" "clone" "--depth" "1" (cadr theme) target)
-   :noquery t
-   :sentinel (lambda (proc _event)
-               (when (memq (process-status proc) '(exit signal))
-                 (let ((ok (zerop (process-exit-status proc))))
-                   (message "%s: theme %s %s" (car site) (car theme)
-                            (if ok "installed" "clone FAILED"))
-                   (my/blog--theme-install-done target ok))))))
+  "Clone the git repository of THEME into TARGET, at its pinned commit.
+SITE names the site in messages.  Ends with `my/blog--theme-install-done'.
+The third element of THEME, a commit, is checked out after the clone
+(SAFETY.org, finding F3): the theme is then what that commit holds,
+whatever its repository holds today.  A whole clone, not --depth 1,
+since a shallow one may not contain the commit.  When the commit
+cannot be checked out, TARGET is removed, so that the next sync tries
+again instead of using an unpinned theme.  Without a commit the clone
+takes the repository as it is, and says so."
+  (let ((name (car site))
+        (pin (nth 2 theme))
+        (buffer (get-buffer-create (format "*Blog theme: %s*" (car site)))))
+    (message "%s: cloning theme %s..." name (car theme))
+    (make-process
+     :name (format "blog-theme-%s" name)
+     :buffer buffer
+     :command (list "git" "clone" "--quiet" (cadr theme) target)
+     :noquery t
+     :sentinel
+     (lambda (proc _event)
+       (when (memq (process-status proc) '(exit signal))
+         (cond
+          ((not (zerop (process-exit-status proc)))
+           (message "%s: theme %s clone FAILED" name (car theme))
+           (my/blog--theme-install-done target nil))
+          ((null pin)
+           (message "%s: theme %s installed, NOT pinned to a commit (see `my/blog-sites')"
+                    name (car theme))
+           (my/blog--theme-install-done target t))
+          (t
+           (make-process
+            :name (format "blog-theme-%s" name)
+            :buffer buffer
+            :command (list "git" "-C" target "checkout" "--quiet" "--detach" pin)
+            :noquery t
+            :sentinel
+            (lambda (proc _event)
+              (when (memq (process-status proc) '(exit signal))
+                (let ((ok (zerop (process-exit-status proc))))
+                  (if ok
+                      (message "%s: theme %s installed at commit %s"
+                               name (car theme) (substring pin 0 (min 12 (length pin))))
+                    (delete-directory target t)
+                    (message "%s: theme %s: commit %s not found in %s; not installed"
+                             name (car theme) pin (cadr theme)))
+                  (my/blog--theme-install-done target ok))))))))))))
+
+(defun my/blog--theme-pin-mismatch (theme target)
+  "Return the commit TARGET is at when it differs from THEME's pin, else nil.
+Only for a git theme with a pin whose TARGET is a git repository."
+  (let ((pin (nth 2 theme)))
+    (when (and pin
+               (not (string-match-p "\\.\\(tar\\.gz\\|tgz\\)\\'" (cadr theme)))
+               (file-directory-p (expand-file-name ".git" target)))
+      (with-temp-buffer
+        (when (eq 0 (call-process "git" nil t nil "-C" target "rev-parse" "HEAD"))
+          (let ((head (string-trim (buffer-string))))
+            (unless (string-prefix-p pin head)
+              head)))))))
 
 (defun my/blog--ensure-theme (site then)
   "Install the `:theme' of SITE when it is missing, then call THEN.
@@ -1710,6 +1760,14 @@ starting a second one (see `my/blog--theme-installs')."
      ((or (null theme)
           (and (file-directory-p target)
                (not (gethash target my/blog--theme-installs))))
+      ;; Installed before the pin, or moved by hand since: said, not
+      ;; changed -- the folder may hold work of the owner's.
+      (when-let* ((head (and theme (executable-find "git")
+                             (my/blog--theme-pin-mismatch theme target))))
+        (message "%s: theme %s is at commit %s, not the pinned %s; delete %s to reinstall it"
+                 (car site) (car theme) (substring head 0 12)
+                 (substring (nth 2 theme) 0 (min 12 (length (nth 2 theme))))
+                 (abbreviate-file-name target)))
       (funcall then t))
      ((gethash target my/blog--theme-installs)
       (push then (gethash target my/blog--theme-installs)))
@@ -1873,10 +1931,38 @@ With several running, ask which."
       (message "Publish FAILED (exit %d) - see %s"
                (process-exit-status proc) my/blog-publish-buffer))))
 
+(defun my/blog--remote-problem (remote)
+  "Return why REMOTE must not receive an upload, or nil when it may.
+The upload mirrors the build with rsync --delete, so the destination
+folder ends up holding the build and nothing else (SAFETY.org, finding
+F2).  Refused: a destination that is a home folder or the root -- an
+empty path after the host (\"user@server:\" is the home folder there),
+~ or ~user, /, /root, /home/NAME, /Users/NAME -- or, on this machine,
+this machine's home folder.  The rights of the user rsync logs
+in as limit what it can delete on the server; within that user's own
+home they limit nothing."
+  (let* ((path (if (string-match "\\`[^/:]+:\\(.*\\)\\'" remote)
+                   (match-string 1 remote)
+                 remote))
+         (bare (replace-regexp-in-string "/+\\'" "" path)))
+    (cond
+     ((string-match-p "\\`rsync://" remote) nil)
+     ((member bare '("" "." "~" "/root"))
+      "that is a home folder or the root")
+     ((string-match-p "\\`~[^/]*\\'" bare)
+      "that is a home folder")
+     ((string-match-p "\\`/\\(home\\|Users\\)/[^/]+\\'" bare)
+      "that is a home folder")
+     ((and (string-prefix-p "/" bare)
+           (equal (file-name-as-directory bare)
+                  (file-name-as-directory (expand-file-name "~"))))
+      "that is this machine's home folder"))))
+
 (defun my/blog--build-and-upload (site-name)
   "Build SITE-NAME with Hugo and mirror it to its `:remote'."
   (let* ((site (my/blog--site site-name))
          (remote (my/blog--prop site :remote))
+         (problem (my/blog--remote-problem remote))
          (dir (my/blog--directory site))
          (public (file-name-as-directory (expand-file-name "public" dir)))
          (command (format "%s --source %s --gc --minify --cleanDestinationDir && %s -az --delete %s %s"
@@ -1885,6 +1971,10 @@ With several running, ask which."
                           (shell-quote-argument my/blog-rsync-program)
                           (shell-quote-argument public)
                           (shell-quote-argument remote))))
+    ;; Asked by `my/blog-publish' already; again here, at the last
+    ;; moment, whoever calls this.
+    (when problem
+      (user-error "Site %s: refusing to upload to %s -- %s" site-name remote problem))
     (with-current-buffer (get-buffer-create my/blog-publish-buffer)
       (let ((inhibit-read-only t))
         (erase-buffer)
@@ -1909,6 +1999,8 @@ a `:remote' is laptop-only and cannot be published."
          (remote (my/blog--prop site :remote)))
     (unless (and (stringp remote) (not (string-empty-p remote)))
       (user-error "Site %s has no :remote - it is laptop-only" site-name))
+    (when-let* ((problem (my/blog--remote-problem remote)))
+      (user-error "Site %s: refusing to upload to %s -- %s" site-name remote problem))
     (my/blog--check-program my/blog-hugo-program)
     (my/blog--check-program my/blog-rsync-program)
     ;; The published configuration is the repository's, not whatever
@@ -1919,7 +2011,7 @@ a `:remote' is laptop-only and cannot be published."
      (list :write t :interactive t
            :on-done (lambda (ok)
                       (when (and (or ok (yes-or-no-p "Some notes failed to export.  Publish anyway? "))
-                                 (yes-or-no-p (format "Build %s and upload to %s? "
+                                 (yes-or-no-p (format "Build %s and upload to %s?  That folder becomes an exact copy of the build: anything else in it is deleted. "
                                                       site-name remote)))
                         (my/blog--build-and-upload site-name)))))))
 

@@ -908,8 +908,12 @@ switched off per session or for good; plain `yes-or-no-p' without it."
     (yes-or-no-p prompt)))
 
 (defun my/denote--delete-file (file)
-  "Delete FILE with `git rm -f' when it is tracked, plain deletion otherwise.
+  "Delete FILE with `git rm -f' when it is tracked, to the trash otherwise.
 Returns the word describing what happened, for the report.
+
+A tracked file can be got back from git; an untracked one, deleted for
+good before 2026-10-19 (SAFETY.org, finding F1), goes to the system's
+trash, from where it can be restored.
 
 `call-process' is used rather than a shell command so that a file name
 containing an apostrophe or a space needs no quoting and cannot be
@@ -918,7 +922,9 @@ re-read as syntax."
            (= 0 (call-process "git" nil nil nil
                               "ls-files" "--error-unmatch" file)))
       (progn (call-process "git" nil nil nil "rm" "-f" file) "git")
-    (progn (delete-file file) "disk")))
+    (let ((delete-by-moving-to-trash t))
+      (delete-file file t)
+      "trash")))
 
 (defun my/denote--attachment-prompt (own)
   "Return the question asked about deleting the attachments OWN.
@@ -1065,13 +1071,14 @@ is preserved instead of showing an unrelated delete plus add."
       (rename-file source target t))))
 
 (defun my/denote--remove (file)
-  "Delete FILE, using \"git rm\" when it is tracked."
+  "Delete FILE, using \"git rm\" when it is tracked, to the trash otherwise."
   (let ((default-directory (file-name-directory file)))
     (if (and (executable-find "git")
              (= 0 (call-process "git" nil nil nil
                                 "ls-files" "--error-unmatch" file)))
         (call-process "git" nil nil nil "rm" "-f" file)
-      (delete-file file))))
+      (let ((delete-by-moving-to-trash t))
+        (delete-file file t)))))
 
 (defun my/denote-move-to-silo ()
   "Move the current Denote note to another silo.

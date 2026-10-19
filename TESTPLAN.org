@@ -541,6 +541,20 @@ first: on exit it still writes to the old places.
       "... takes effect at the next start" line; =C-c u t= (theme
       toggle) adds none either.
 
+** R34. SAFETY.org findings F1-F3 [0/4]
+- [ ] =C-c n d d= (Document → Delete note) on a note git does not track (a fresh note in a
+      silo outside git, or a copy): it is in the desktop's trash
+      afterwards and can be restored from there.
+- [ ] A site with =:remote "user@server:"= (temporarily, in =C-c n ,
+      ,=): publishing refuses with "that is a home folder or the root";
+      put the real =:remote= back.
+- [ ] Publishing a real site: the question says the folder there
+      becomes an exact copy of the build.
+- [ ] =t= in the blog menu (sync) of a PaperMod site: a message that the
+      theme is at another commit than the pinned one when it was cloned
+      before (expected once); after deleting =themes/PaperMod= and
+      syncing again: "installed at commit 969bebdc5600".
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

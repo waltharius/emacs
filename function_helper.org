@@ -1806,8 +1806,11 @@ Identifiers are read with =my/denote--file-identifier=, which lives in
 :END:
 
 Deletes the current note file and kills its buffer. If tracked by Git,
-uses =git rm -f=; otherwise plain =delete-file=. Asks first, through the
-shared deletion question (see [[#confirm-deletion][Deletion questions]]).
+uses =git rm -f= (the note can be got back from git); otherwise it goes
+to the system's trash, from where it can be restored -- before
+2026-10-19 it was deleted for good (SAFETY.org, F1).  Attachments
+deleted with it go the same way.  Asks first, through the shared
+deletion question (see [[#confirm-deletion][Deletion questions]]).
 
 *Warning:* =git rm -f= bypasses staging — deletion is immediate in the
 working tree. Commit or stash important changes first.
@@ -8041,8 +8044,21 @@ when the entry does.  To update: the new release's URL and its digest
 =themes/hugo-geekdoc= in the site.  An archive without a digest is
 installed as before, with a message that it was not checked; a site
 list saved in Customize before 2026-10-18 still has the =latest= URL
-and no digest until its =:theme= is edited.  Git themes (PaperMod) are
-not pinned yet (BACKLOG).
+and no digest until its =:theme= is edited.
+
+*Pinned, with a commit* (since 2026-10-19, SAFETY.org F3).  For a git
+URL the third element of =:theme= is a commit (40 hex digits): the
+repository is cloned whole and that commit checked out, so the theme is
+what the commit holds, whatever the repository holds today.  A commit
+the repository lacks installs nothing (the folder is removed, the next
+sync tries again).  A theme folder already present at another commit --
+cloned before the pin, or moved by hand -- is reported at each sync and
+left as it is: delete =themes/<name>= to reinstall it.  The default
+PaperMod entries name the newest commit of 2026-10-19; to update, the
+commit of the release wanted (=git ls-remote URL HEAD=) and a fresh
+install.  A git theme without a commit is installed as before, with a
+message that it is not pinned; a site list saved in Customize keeps
+its old =:theme= until edited.
 
 An install runs once per theme directory: a second request while one
 runs (the autostart of a site and =t= pressed during the download)
@@ -8152,7 +8168,8 @@ blog theme.
   :remote nil                          ; must stay nil: private silo
   :url "http://localhost:1314/"
   :port 1314
-  :theme ("PaperMod" "https://github.com/adityatelange/hugo-PaperMod")
+  :theme ("PaperMod" "https://github.com/adityatelange/hugo-PaperMod"
+          "969bebdc5600a1639158b5ef4eff9cf6cbb511ac")
   :autostart t
   :broken-links mark
   :sections (("journal" :keyword "journal" :silos ("journal"))
@@ -8565,6 +8582,17 @@ hard: a changed one may need a reload bypassing the cache
 | =my/blog-open-site=          | site directory in Dired                                        |
 | =my/blog-show-report=        | report of the last export (=*Blog export*=, =q= closes)        |
 | =my/blog-sync-site=          | copy site files from =hugo/=, create the site, clone the theme |
+
+*Publishing asks, and refuses a home folder* (SAFETY.org, 1.5 and F2).
+The upload mirrors =public/= with =rsync --delete=: the folder named by
+=:remote= ends up holding the build and nothing else.  The question
+before it says so.  =my/blog--remote-problem= refuses a destination
+that is a home folder or the root -- an empty path after the host
+(=user@server:= is that user's home there), =~=, =~user=, =/=,
+=/root=, =/home/NAME=, =/Users/NAME=, or this machine's home -- before
+the export starts and again just before rsync runs.  The rights of the
+user rsync logs in as are the second limit: a deploy user that owns
+only the site's folder cannot delete anything else.
 
 With more than one site the commands ask which; the last site used is
 offered first, =my/blog-default-site= before that.

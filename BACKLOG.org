@@ -132,13 +132,12 @@ settles; a line is a reminder, not the text to paste.
 From the outside review of 2026-10-16.  Each item is small and touches
 one place.
 
-** TODO Git themes pinned to a commit
-Geekdoc archives are pinned with a SHA-256 since 2026-10-18f; themes
-cloned with git (PaperMod, =46-blog.el=) still take whatever the default
-branch holds on the day of the clone.  A commit as the third element of
-=:theme= for a git URL: =git init=, =git fetch --depth 1 URL COMMIT=,
-=git checkout FETCH_HEAD= (GitHub serves single commits that way), in
-the same staging-and-rename flow as the archives.
+** DONE Git themes pinned to a commit
+Done 2026-10-19y (SAFETY.org F3): the commit as the third element of
+=:theme=, the repository cloned whole and the commit checked out (a
+whole clone rather than fetching one commit: simpler, and a theme is a
+few MB); PaperMod pinned to its newest commit of that day; a folder at
+another commit reported.
 
 ** Not code: SEC2
 =safe-local-variable-values= in =hosts/<host>/custom.el= still holds
@@ -506,7 +505,8 @@ Next, in order:
    what arguments.  For each: the test that covers it, or "not
    covered".
 3. *Tests against the specification*, each shown to fail when the
-   unsafe change is made (the check is kept in the CHANGELOG):
+   unsafe change is made (the check is kept in the CHANGELOG) --
+   started 2026-10-19y with the three findings (=tests/test-safety.el=):
    - the blog never publishes a note not marked for it, nor one under
      a private folder;
    - a file name with spaces, quotes, =;= or =$(...)= passed to an
@@ -731,6 +731,24 @@ a forgotten one.  =use-package-compute-statistics= off once done (P6).
 To decide here as well (2026-10-16 review): pinned package versions
 -- a lockfile (Elpaca, straight) or the packages from Nix -- since
 MELPA serves whatever is current at installation time.
+
+*Packages pinned* (SAFETY.org F4, asked 2026-10-19): wanted, "like
+flake.lock", so that what is installed is predictable.  The owner's
+question: how are security fixes in packages followed then?  Notes for
+the decision, to be checked before it:
+- package.el has no lockfile.  Elpaca and straight.el write one (a
+  commit per package) and install exactly that; on NixOS the packages
+  can come from Nix (emacs-overlay with =emacsWithPackages=), pinned by
+  the system's own =flake.lock= -- one lock for the system and Emacs.
+- A lock trades surprise updates for stale ones: fixes arrive only when
+  the lock is updated.  So the lock is updated on a schedule (e.g.
+  monthly) as one commit; the workflow runs the tests on it; the
+  commit lists which packages changed and links their changelogs.
+- No advisory database covering ELPA/MELPA packages is known to us
+  (to verify); security fixes are announced, if at all, in each
+  package's repository and on emacs-devel for Emacs itself.  A short
+  list of the packages that touch the network or run programs (magit,
+  pdf-tools, request, ...) to watch by hand may be what is realistic.
 
 ** TODO Names: one prefix (B1)
 *Why*: variables are split between =my-= and =my/=.  *Why later*: a

@@ -1,9 +1,10 @@
 #+title: Safety specification
 #+startup: showall
 
-*Status: draft of 2026-10-19, for the owner's acceptance.*  Nothing here
-is in force until accepted; a rule changed or struck out by the owner is
-changed here first, and the code and tests follow.
+*Status: accepted by the owner on 2026-10-19*, with findings F1-F3
+decided as proposed and F4 left for a decision of its own.  A rule
+changed or struck out by the owner is changed here first, and the code
+and tests follow.
 
 * What this is
 What this configuration may and may not do with the owner's notes,
@@ -28,13 +29,13 @@ here; the independent review (last section) is the check on that.
 | 1.2 | A site with a server never takes notes from a private silo (journal, inbox), and never uses a silo's name as a section keyword (that would select the whole silo).           | checked before every blog command; a mistake stops the command                                  | none yet       |
 | 1.3 | A file added to a site by hand (outside the silos) is refused for a site with a server when it lies in a private silo.                                                     | 46-blog.el, extra files                                                                         | none yet       |
 | 1.4 | A link to a note that is not published on that site becomes its visible text only -- no file name, no path, no address of the note.                                       | 46-blog.el, Denote link export                                                                  | none yet       |
-| 1.5 | Nothing is uploaded without a question naming the site and the server.                                                                                                     | =my/blog-publish= asks; a failed export asks again                                             | none yet       |
+| 1.5 | Nothing is uploaded without a question naming the site and the server, and saying that the folder there becomes an exact copy of the build.  An upload to a home folder or the root is refused (F2). | =my/blog-publish= asks; =my/blog--remote-problem= refuses, in =my/blog-publish= and again in =my/blog--build-and-upload= | test-safety (1.5) |
 | 1.6 | Unpublishing (a keyword removed) deletes generated pages only, never notes; on a site with a server a run started by hand asks first and a background run deletes nothing. | 46-blog.el, section pruning                                                                     | none yet       |
 
 * 2. Deleting and moving
 | #   | Rule                                                                                                                                                         | Safeguard today                                                                                    | Automatic test                         |
 |-----+--------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------+----------------------------------------|
-| 2.1 | A note is deleted only after a question (unless the owner turned the question off).  See finding F1: an untracked note is deleted for good, not to the trash. | =my/confirm-deletion= (ask by default); =git rm= when the note is tracked, recoverable from git    | none yet                               |
+| 2.1 | A note is deleted only after a question (unless the owner turned the question off).  A tracked note can be got back from git, an untracked one from the trash (F1). | =my/confirm-deletion= (ask by default); =git rm= when tracked, the system's trash otherwise (=my/denote--delete-file=, =my/denote--remove=) | test-safety (2.1) |
 | 2.2 | Moving a note to another silo never overwrites a file of the same name: it refuses.                                                                         | =my/denote-move-to-silo= checks first                                                              | none yet                               |
 | 2.3 | The previous notes folder is removed only by a command that is off by default, after two questions, and to the trash.                                       | =my/notes-delete-old-root=, =my/notes-allow-delete-old-root=                                       | none yet                               |
 | 2.4 | Old state files move from =~/.emacs.d= only from a fixed list, never over an existing file; leftovers go to the trash only when the owner answers /t/.        | =my/var--move-old-files=, =my/var--trash-old=                                                      | test-var-files, test-session           |
@@ -46,7 +47,7 @@ here; the independent review (last section) is the check on that.
 |-----+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+-----------------------------------|
 | 3.1 | Git pulls and pushes only the repositories it commits, only to the remotes they already have; a remote is added or changed only by the project command made for that (39-project-git). | 07-git.el; pushing can be turned off, or off per folder (=my/auto-commit-no-push-directories=)  | test-auto-commit (order, offline, conflicts) |
 | 3.2 | The Readwise token is read through auth-source (=~/.authinfo.gpg=, encrypted, as the module's message advises; Emacs also reads a plain =~/.authinfo=) and sent to readwise.io only, in a request header; the module writes it nowhere -- not to a note, a setting or =*Messages*=. | 24-readwise.el, auth-source                                                                     | none yet                          |
-| 3.3 | A downloaded archive that is unpacked (Geekdoc) is checked against a SHA-256 recorded in the code first.  See finding F3 for themes installed with git clone.                     | =my/check-sha256= (00-core.el), 46-blog, 47-repo-docs                                           | none yet                          |
+| 3.3 | A theme is what its entry pins: a downloaded archive (Geekdoc) is checked against its SHA-256 before it is unpacked; a theme cloned with git (PaperMod) is checked out at its pinned commit, and a folder at another commit is reported (F3). | =my/check-sha256= (00-core.el), 46-blog, 47-repo-docs; =my/blog--install-theme-git=, =my/blog--theme-pin-mismatch= | test-safety (3.3, git); the archive digest: none yet |
 | 3.4 | Packages come from GNU ELPA, NonGNU ELPA and MELPA.  See finding F4: versions are not pinned.                                                                                     | package.el                                                                                      | none                              |
 | 3.5 | Nothing else in the configuration sends data anywhere.                                                                                                                             | the search of 2026-10-19 (above)                                                                | none: the independent review      |
 
@@ -62,24 +63,28 @@ here; the independent review (last section) is the check on that.
 | 5.1 | The code repository holds no personal data: settings live in the settings folder, state in its =var/=.                                                  | lint checks =personal= and =codefolder=; =.gitignore=                                              | lint (every commit and push), Gitleaks (history) |
 | 5.2 | When the settings folder is itself in git, the state of each machine (history, undo, sessions, keylog) is not committed.                                | =/hosts/*/var/= in its =.gitignore=                                                                | test-var-files                                   |
 
-* Findings to decide
-- *F1*: a note that git does not track is deleted for good
-  (=delete-file=); a tracked one can be got back from git.  Proposal:
-  untracked notes go to the trash.
-- *F2*: the upload question (1.5) says where to, not that the upload
-  makes the server folder an exact copy of the build (=rsync --delete=):
-  a wrong =:remote= would empty that folder.  Proposal: the question
-  says so, and refuses a =:remote= that is a home folder or =/=.
-- *F3*: a theme installed with =git clone= takes whatever its
-  repository holds that day.  Proposal: a commit recorded with the URL
-  and checked out after the clone, as the Geekdoc archive has its
-  SHA-256.
-- *F4*: packages are not pinned (no lockfile), so a changed or
-  compromised package would arrive with the next install.  Proposal: a
-  lockfile, an established tool for it, decided separately (BACKLOG).
+* Findings
+- *F1* (done 2026-10-19y): a note git does not track was deleted for
+  good (=delete-file=).  It goes to the trash now; a tracked one is
+  still removed with =git rm= and can be got back from git.
+- *F2* (done 2026-10-19y): the upload question said where to, not that
+  the upload makes the folder there an exact copy of the build (=rsync
+  --delete=).  It says so now, and a =:remote= that is a home folder or
+  the root is refused.  The rights of the user rsync logs in as limit
+  what it can delete -- a deploy user owning only the site's folder
+  limits the damage to that folder -- but not within that user's own
+  home, which is where an empty path (=user@server:=) points.
+- *F3* (done 2026-10-19y): a theme installed with =git clone= took
+  whatever its repository held that day.  PaperMod is pinned to its
+  newest commit of 2026-10-19 (=969bebdc5600=), checked out after the
+  clone; an installed theme at another commit is reported, not
+  changed.
+- *F4* (open): packages are not pinned (no lockfile), so a changed or
+  compromised package would arrive with the next install.  A decision
+  of its own (BACKLOG, /Start-up/ and /Packages pinned/).
 
 * Next
-1. The owner accepts, changes or strikes rules and findings.
+1. Accepted 2026-10-19.
 2. Tests for the rules marked "none yet", most consequential first:
    publishing (1.1-1.6), file names given to programs (4.1), deleting
    and moving (2.1-2.3).  Each shown to fail with its safeguard taken

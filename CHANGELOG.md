@@ -21,6 +21,64 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19y — SAFETY.org accepted; F1-F3: notes to the trash, no upload to a home folder, themes pinned to a commit
+
+### Why
+
+Answered 2026-10-19: the rules of SAFETY.org accepted; F1 "ok, do
+kosza"; F2 accepted, with the remark that rsync will hardly run with
+rights to clear anything; F3 "pin to the newest commit"; F4 a topic of
+its own (a lockfile, as with flake.lock -- and how would security fixes
+be followed then?).
+
+On the remark to F2: true for a deploy user that owns only the site's
+folder -- rsync cannot delete beyond that user's rights.  Within the
+user's own home it can, and an empty path after the host
+(`user@server:`) is that home.  So the refusal stays; the docs name
+both limits.
+
+### What
+
+- 05-notes.el (F1): `my/denote--delete-file` and `my/denote--remove`
+  send a file git does not track to the trash (`delete-file` with
+  `delete-by-moving-to-trash`) instead of deleting it; the report says
+  "trash".  Tracked files: `git rm` as before.
+- 46-blog.el (F2): `my/blog--remote-problem` refuses an upload
+  destination that is a home folder or the root (`user@server:`, `~`,
+  `~user`, `/`, `/root`, `/home/NAME`, `/Users/NAME`, this machine's
+  home); checked in `my/blog-publish` before the export and again in
+  `my/blog--build-and-upload` before rsync.  The question says the
+  folder there becomes an exact copy of the build.
+- 46-blog.el (F3): for a git `:theme`, the third element is a commit;
+  `my/blog--install-theme-git` clones the whole repository and checks
+  that commit out, removing the folder when the commit is missing;
+  `my/blog--theme-pin-mismatch` reports an installed theme at another
+  commit (at each sync, without changing it).  PaperMod pinned to
+  969bebdc5600a1639158b5ef4eff9cf6cbb511ac, its newest commit on
+  2026-10-19 (`git ls-remote`).
+- tests/test-safety.el (new, 8 tests, named after the rules): untracked
+  note to the trash, tracked note kept by git; home folders and the
+  root refused, site folders allowed, refusal at the last moment
+  without starting rsync; theme at its pinned commit, unknown commit
+  installs nothing, a moved theme noticed.  Shown to fail with each
+  safeguard taken out (plain `delete-file`; no refusal; no checkout):
+  5 of 8 failed, the rest test what stays true either way.
+- SAFETY.org: accepted; rules 1.5, 2.1, 3.3 with their tests; findings
+  F1-F3 done, F4 open.  function_helper.org: deleting a note, theme
+  pinning, publishing.  BACKLOG.org: git themes DONE; *Packages pinned*
+  with notes for the F4 decision.  TESTPLAN.org: R34.
+
+### Decisions
+
+- **A whole clone, then checkout**, rather than fetching the single
+  commit: simpler, works with any git server, and a theme is small.
+- **A theme already installed is reported, not replaced**: the folder
+  may hold changes of the owner's; deleting it reinstalls at the pin.
+- **The refusal is a list of shapes, not a path check on the server**:
+  the code cannot see the server; it can refuse the destinations that
+  are a home folder or the root by their form.
+
+---
 ## Session 2026-10-19x — The settings test passes wherever the repository lies
 
 ### Why
