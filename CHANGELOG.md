@@ -21,6 +21,30 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19x — The settings test passes wherever the repository lies
+
+### Why
+
+Reported 2026-10-19 from the first run of the workflow: on Emacs 29.1,
+30.2 and 31.1 alike, every test of test-core-settings failed with
+`(file-missing "Setting current directory" ... "~/work/emacs/emacs/")`;
+everything else passed on all three.  The cause is the one fixed in
+2026-10-19s for test-loader and test-var-files: the child Emacs gets a
+temporary HOME, and the current folder, kept as `~/...`, is read with
+it.  On the user's machine the folder is `~/.emacs.d`, which this test
+happens to create inside the temporary HOME -- so it passed there, by
+luck; on GitHub's machines the repository is at `~/work/<repo>/<repo>`.
+The fix of 2026-10-19s should have covered this third test too.
+
+### What
+
+- tests/test-core-settings.el: the child Emacs starts in the temporary
+  HOME (`default-directory` bound to it).
+- Reproduced with the repository cloned to `$HOME/work/emacs/emacs`:
+  9 of 9 failed before, 9 of 9 pass after; every other test file passes
+  in that layout too.
+
+---
 ## Session 2026-10-19w — Gitleaks: one false positive in the history, ignored by its fingerprint
 
 ### Why

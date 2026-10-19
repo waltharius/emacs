@@ -39,6 +39,13 @@ of EXTRA, a form given as a string, evaluated after loading."
   (let* ((home (make-temp-file "mypks-core-" t))
          (emacs-dir (expand-file-name ".emacs.d/" home))
          (out (expand-file-name "result.eld" home))
+         ;; The child starts in the temporary HOME.  The current folder
+         ;; is kept as "~/..." when it lies under HOME, and the child
+         ;; reads that "~" with the temporary HOME: on GitHub's machines
+         ;; ~/work/<repo>/<repo>/ does not exist there ("Setting current
+         ;; directory").  In ~/.emacs.d it passed only because this test
+         ;; makes a .emacs.d in the temporary HOME.
+         (default-directory (file-name-as-directory home))
          (process-environment
           (append (list (concat "HOME=" home)) env
                   (seq-remove (lambda (e) (string-match-p "\\`\\(HOME\\|MYPKS_DIR\\|MYPKS_HOST\\)=" e))
