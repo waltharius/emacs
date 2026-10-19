@@ -2089,15 +2089,15 @@ be taken off the site, too."
     ("l" "Last report"             my/blog-show-report)]
    [("q" "Quit" transient-quit-one)]])
 
-;; Appended rather than declared in 12-transient.el, so that deleting
-;; this file removes the entry with it.  Anchored on "Q", the last key
-;; 12-transient.el itself declares in the Export menu, for the reason
-;; given in 29-writing-export.el: chaining anchors between feature
-;; modules drops everything after a missing one.
+;; Inserted rather than declared in 12-transient.el, so that deleting
+;; this file removes the entry with it.  Before Quit, the one entry of
+;; the Export menu 12-transient.el owns (anchored on "Q" of
+;; 16-org-export.el until 2026-10-19).
 (with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-export-menu "q"
+                         '("b" "Blog (Hugo) →" my/blog-menu)))
   (when (fboundp 'my/transient-append)
-    (my/transient-append 'my/notes-export-menu "Q"
-                         '("b" "Blog (Hugo) →" my/blog-menu))
     ;; Also in the settings menu (C-c n , b), Machines column: which
     ;; sites start is a setting of this machine.  Anchored on "u",
     ;; 12-transient's own last key there.

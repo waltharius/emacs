@@ -415,14 +415,16 @@ the month."
 
 ;; ============================================================
 ;; DYNAMIC MENU INTEGRATION
-;; Appends "History →" to the existing "Overview" group inside
-;; my/notes-find-menu, right after the existing "r" (Random note)
-;; entry, following the same pattern as 19-philosophy-notes.el.
+;; Inserts "History →" into the "Overview" column of my/notes-find-menu,
+;; before its Quit, which 12-transient.el owns.  Anchored on "r"
+;; (Random note, 15-workspace.el) until 2026-10-19, so it vanished
+;; without that module.
 ;; ============================================================
 
 (with-eval-after-load '12-transient
-  (my/transient-append 'my/notes-find-menu "r"
-                       '("h" "History →" my/dashboards-history-menu)))
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-find-menu "q"
+                         '("h" "History →" my/dashboards-history-menu))))
 
 (provide '21-dashboards)
 ;;; 21-dashboards.el ends here

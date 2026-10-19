@@ -24,8 +24,11 @@ looks like one, per `org-web-tools' default behaviour) and inserts
   (interactive)
   (call-interactively #'org-web-tools-insert-link-for-url))
 
+;; In the Link column of the Insert menu, after "L" (12-transient.el).
+;; Anchored on "I" (31-org-images.el) until 2026-10-19, so the entry
+;; vanished without the images module; a web link is a link anyway.
 (with-eval-after-load '12-transient
-  (my/transient-append 'my/notes-insert-menu "I"
+  (my/transient-append 'my/notes-insert-menu "L"
                        '("u" "Web link (auto title)" my/insert-web-link)))
 
 (provide '32-web-links)

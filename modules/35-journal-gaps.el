@@ -389,15 +389,15 @@ Useful from a hook or when the answer is `none, carry on'."
 ;; ============================================================
 ;; MENU
 ;; ============================================================
-;; Appended to the Overview group of my/notes-find-menu, after the
-;; History entry that 21-dashboards.el adds there.  Anchoring on "h"
-;; rather than on "r" keeps the two dated views next to each other; if
-;; 21-dashboards.el is absent the anchor is missing and
-;; `my/transient-append' skips this, which is the intended degradation.
+;; Inserted into the Overview column of my/notes-find-menu, before its
+;; Quit, which 12-transient.el owns.  Loaded after 21-dashboards.el, so
+;; it still lands right after the History entry when that module is on;
+;; when it is off, Journal gaps stays in the menu.  (Until 2026-10-19 it
+;; was anchored on "h" and disappeared without 21-dashboards.el.)
 
 (with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-append)
-    (my/transient-append 'my/notes-find-menu "h"
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-find-menu "q"
                          '("j" "Journal gaps" my/journal-gaps))))
 
 (provide '35-journal-gaps)

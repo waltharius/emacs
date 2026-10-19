@@ -127,6 +127,10 @@ Module: =modules/12-transient.el=
 Create notes and manage captures. Note types in the first column,
 capture commands in the second. <<p-1>>
 
+The Capture column (=i c m=) is inserted by =06-capture.el= since
+2026-10-19, as a whole column before the Quit column; without that
+module the menu has no Capture column.
+
 *** n — New note
 :PROPERTIES:
 :CUSTOM_ID: fn-my-denote-base
@@ -427,6 +431,21 @@ Function: =my/capture-promote-to-note= | Module: =modules/06-capture.el=
 Search, navigate, and review notes. =f/g/n/b= locate specific notes;
 =d/t/r= give overview/serendipity views; =h= opens historical
 dashboards (dynamic submenu).
+
+The Overview column holds only =q= Quit in =12-transient.el=; the
+modules insert their entries before it, in load order (since
+2026-10-19):
+
+| Key | Contributed by |
+|-----+----------------|
+| =d= Dashboard, =t= Tag stats, =r= Random note | =15-workspace.el= |
+| =h= History → | =21-dashboards.el= |
+| =j= Journal gaps | =35-journal-gaps.el= |
+| =s= Statistics | =36-notes-stats.el= |
+
+Until then =d t r= were declared in =12-transient.el=, =h= and =s= were
+anchored on =r= and =t=, and =j= on =h=: Journal gaps disappeared
+without the history module, Statistics without the dashboard.
 
 =g= and =n= come from =41-notes-search.el=. =g= is a *replacement*: the
 entry declared in =12-transient.el= runs the plain
@@ -902,7 +921,9 @@ Module: =modules/21-dashboards.el=
 Insert links, timestamps, and other content at point. =t=, =i=, =I=,
 =u= and =H= are appended dynamically by =20-transclusion.el=,
 =31-org-images.el=, =32-web-links.el= and =33-denote-hubs.el=; =H= is
-the one entry that writes into another file rather than at point. =w=
+the one entry that writes into another file rather than at point.
+=u= sits in the Link column, after =L=, since 2026-10-19: it was
+anchored on =I= of the images module and vanished without it. =w=
 is declared here rather than appended, because its module,
 =05-notes.el=, is mandatory and there is nothing to degrade around.
 
@@ -1802,6 +1823,21 @@ Export notes to PDF using LuaLaTeX. Output mirrors silo structure in
 =~/notes/pdf/=. Single-file export also available as global =C-c p=.
 Module: =modules/16-org-export.el=
 
+Every entry is inserted by its module before =q= Quit, the one entry
+=12-transient.el= declares, in load order (since 2026-10-19):
+
+| Key | Contributed by |
+|-----+----------------|
+| =p= PDF, =P= Batch ANY, =Q= Batch ALL (and the global =C-c p=) | =16-org-export.el= |
+| =O= ODT, =W= DOCX, =?= Check office setup | =29-writing-export.el= |
+| =b= Blog (Hugo) → | =46-blog.el= |
+| =r= Repo docs (Hugo) → | =47-repo-docs.el= |
+
+Until then =p P Q= and =C-c p= were declared in =12-transient.el= and
+=08-keybindings.el=, and the others were appended after =Q= -- each
+right after it, so they showed in reverse order, and all vanished
+without =16-org-export.el=.
+
 *** p — Export to PDF
 :PROPERTIES:
 :CUSTOM_ID: fn-my-org-export-to-pdf
@@ -1931,8 +1967,8 @@ appended after =e=, which belongs to =11-org-appearance.el= since.
 | =m= Images in buffer | =44-image-display.el= |
 
 Order, which is load order: =c i e w T t y p W S m q=.  The Detach
-column (=f=, =F=) is still declared here; it belongs to
-=23-fixed-tabs.el= and moves with the next part of the decoupling.
+column (=f=, =F=) is appended after the Toggle column by
+=23-fixed-tabs.el= (since 2026-10-19).
 
 =t= and =T= are different entries. =my/transient-append= skips an
 already-bound key *silently*, which is right for re-evaluating a module
@@ -6453,9 +6489,8 @@ Not checked yet -- the target, reached module by module (BACKLOG.org,
     =my/transient-insert= or =my/transient-replace=, called from the
     module itself, and anchored on an entry of the menu's own module
     (12-transient.el), never on another optional module's entry.
-    12-transient.el and 08-keybindings.el still name the commands of
-    other modules directly, which is most of why the core is as large
-    as it is (below).
+    Reached 2026-10-19e for every menu of 12-transient.el: it names no
+    optional module's command any more.  Not checked mechanically yet.
 11. Key bindings in the module they call.
 12. Nothing done at load but definitions.  What a module does while on
     -- hooks, timers, advice, keys, menu entries -- is started by a
@@ -6525,18 +6560,18 @@ working.  When it is wrong all the same, the pair goes into
 :CUSTOM_ID: module-contract-core
 :END:
 
-Core, =MyPKS-Optional: no= (13): =00-core=, =01-ui=, =02-editing=, =04-denote=, =05-notes=, =06-capture=, =07-git=, =08-keybindings=, =12-transient=, =15-workspace=, =16-org-export=, =23-fixed-tabs=, =27-denote-identifiers=.
+Core, =MyPKS-Optional: no= (9): =00-core=, =01-ui=, =02-editing=, =04-denote=, =05-notes=, =07-git=, =08-keybindings=, =12-transient=, =27-denote-identifiers=.
 
 These are the configuration itself (00-core, 01-ui, 02-editing,
 04-denote, 05-notes, 07-git, the key bindings and the main menu) and
-every module they need.  Several are core only because 12-transient.el
-or 08-keybindings.el name their commands: capture, export, the
-dashboard, fixed tabs.  Moving those entries into the modules (rule 10)
-makes them optional; the bibliography and Zotero went first
-(2026-10-16d), then spelling, centred text, Org appearance and the
-writing mode (2026-10-16e).
+what they need.  Modules were core only because 12-transient.el or
+08-keybindings.el named their commands; moving those entries into the
+modules (rule 10) made them optional: the bibliography and Zotero
+first (2026-10-16d), then spelling, centred text, Org appearance and
+the writing mode (2026-10-16e), then capture, PDF export, the
+dashboard and fixed tabs (2026-10-19e).
 
-Optional (39):
+Optional (43):
 
 | Module | What | Requires |
 |---+---+---|
@@ -6544,17 +6579,21 @@ Optional (39):
 | =03-spelling= | Spell checking configuration | -- |
 | =03b-fonts= | Font configuration, per silo | -- |
 | =05b-journal-metrics= | Structured daily metrics for journal notes | =05-notes= |
+| =06-capture= | Org-capture for ideas | =05-notes= |
 | =09-theme= | Theme configuration and light/dark switching | -- |
 | =10-visual-fill= | Visual fill column: single source of truth | -- |
 | =11-org-appearance= | Org-mode visual enhancements | -- |
 | =13-centered-writing= | Simple centered cursor for writing | -- |
 | =14-typing-analytics= | Track typing patterns for ergonomic analysis | -- |
+| =15-workspace= | Notes dashboard and workspace tools | =01-ui= =27-denote-identifiers= |
+| =16-org-export= | Org export and PDF settings | -- |
 | =17-bibliography= | Zotero/Citar bibliography integration | -- |
 | =18-zotero-transient= | Transient menu for bibliography/Zotero | =17-bibliography= |
 | =19-philosophy-notes= | Philosophy note types (Denote) | -- |
 | =20-transclusion= | Obsidian-style transclusion for Denote notes | -- |
 | =21-dashboards= | Historical note dashboards | =01-ui= |
 | =22-zettelkasten= | Folgezettel sequences with denote-sequence | -- |
+| =23-fixed-tabs= | Route commands to their own named tab | =01-ui= =05-notes= |
 | =24-readwise= | Import Readwise highlights | =01-ui= =05-notes= |
 | =25-inbox-review= | Review migrated Obsidian notes | =27-denote-identifiers= |
 | =26-maintenance= | Integrity checks and collection-wide repairs | =27-denote-identifiers= |
@@ -6668,7 +6707,7 @@ rather than defines, and repeating it is harmless.
 | =my/notes--completion-keys= | =05-notes.el= | 06-capture.el |
 | =my/fixed-tab-goto= | =01-ui.el= | 15-workspace.el, 21-dashboards.el |
 | =my/transient-append= | =12-transient.el= | every module adding a menu entry |
-| =my/transient-insert= | =12-transient.el= | the modules of Tools → Integrations and View → Toggle; 03-spelling.el (a whole column) |
+| =my/transient-insert= | =12-transient.el= | the modules filling Create → Capture, Find → Overview, Export, Tools → Integrations and View → Toggle; 03-spelling.el and 06-capture.el (a whole column) |
 | =my/transient-replace= | =12-transient.el= | 41-notes-search.el |
 
 Resolution is at call time, so load order does not constrain these —

@@ -1,7 +1,7 @@
 ;;; 23-fixed-tabs.el --- Route commands to their own named tab -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires: 01-ui 05-notes
-;; MyPKS-Optional: no
+;; MyPKS-Optional: yes
 ;; Docs: ~/.emacs.d/function_helper.org::#fixed-tabs
 
 ;;; Commentary:
@@ -146,6 +146,21 @@ the frame with nothing in it."
     (user-error "Refusing to detach the only tab in this frame"))
    (t
     (call-interactively #'tab-bar-detach-tab))))
+
+;; ============================================================
+;; MENU
+;; ============================================================
+;; The column "Detach to own frame" of the View menu (C-c n v), appended
+;; after its first column, Toggle (coordinate (0 0)), which
+;; 12-transient.el owns.  Declared there until 2026-10-19.
+
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-append)
+    (my/transient-append
+     'my/notes-view-menu '(0 0)
+     ["Detach to own frame"
+      ("f" "This buffer"    my/detach-buffer-to-frame)
+      ("F" "This whole tab" my/detach-tab-to-frame)])))
 
 (provide '23-fixed-tabs)
 ;;; 23-fixed-tabs.el ends here

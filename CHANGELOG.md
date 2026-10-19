@@ -21,6 +21,81 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19e — Decoupling 3: capture, PDF export, dashboard and fixed tabs optional
+
+### Why
+
+BACKLOG, *Module toggles*, step 1, part 3.  `12-transient.el` still
+declared commands of four modules in its menus (the Capture column,
+Dashboard, Tag stats and Random note, the three PDF exports, the
+Detach column), and `08-keybindings.el` bound `C-c p`.  So those
+modules had to stay core -- a configuration without one of them had
+menu entries pointing at commands that do not exist -- and other
+modules were anchored on their entries: Statistics on Tag stats,
+History on Random note, Journal gaps on History, and the ODT/DOCX,
+blog and repo-docs entries on Batch PDF.  Turning off the dashboard
+would have taken Statistics and History with it; turning off PDF export,
+the whole Export menu.
+
+### What
+
+- 12-transient.el: requires `05-notes` only (was also `06-capture
+  15-workspace 16-org-export 23-fixed-tabs`).  The Find menu's Overview
+  column and the Export menu hold only Quit; the Create menu has no
+  Capture column; the View menu no Detach column.
+- The modules add their own entries, before 12-transient's Quit, or
+  as a whole column next to 12-transient's own column:
+  - 06-capture.el: the Capture column of Create (`i c m`), before the
+    Quit column (coordinate `(0 1)`).
+  - 15-workspace.el: `d t r` in Find → Overview.
+  - 16-org-export.el: `p P Q` in Export, and `C-c p` (from
+    08-keybindings.el).
+  - 23-fixed-tabs.el: the Detach column (`f F`) after View → Toggle.
+- Anchors moved off other modules' entries onto Quit: 21-dashboards
+  (`h`, was after `r`), 35-journal-gaps (`j`, after `h`), 36-notes-stats
+  (`s`, after `t`), 29-writing-export (`O W ?`, after `Q`), 46-blog
+  (`b`, after `Q`), 47-repo-docs (`r`, after `Q`; now waits for
+  12-transient like the others).  32-web-links (`u`) from after `I` of
+  31-org-images to after `L` in the Link column, which 12-transient owns.
+- Headers: 06-capture, 15-workspace, 16-org-export and 23-fixed-tabs
+  `MyPKS-Optional: yes`; 08-keybindings no longer requires
+  16-org-export.  Core 9 modules, optional 43.
+- 08-keybindings.el: the menu tree of the help text (Find, Insert,
+  Export) brought up to date.
+- function_helper.org: Create, Find, Export, View and Insert describe
+  who adds what; *Core and optional today*; contract rule 10 reached.
+  TESTPLAN.org: R25.  BACKLOG.org: part 3 done; the submenu registry
+  reduced to the hint texts, with the reason.
+
+### Decisions
+
+- **Anchor on Quit, insert before it**, as the Tools and View menus
+  already do: Quit is the one entry no module owns, so an entry never
+  disappears because the module that used to be its neighbour is off.
+  The order of the entries becomes load order, which is also the order
+  of the module numbers.
+- **The visible order changes** in two menus.  Find → Overview: `d t r
+  h j s` (was `d t s r h j`).  Export: `p P Q O W ? b r` (was `p P Q r
+  b ? W O`: each module appended right after `Q`, so the later one came
+  first).  Quit moves into the last column in Find and Export, as in
+  Tools and View.
+- **Web link moves to the Link column** rather than staying among the
+  images: anchoring it on the images module made it vanish without
+  that module, and a web link is a link.
+- **No registry of submenus.**  BACKLOG proposed one because
+  12-transient required five modules; with the entries moved it
+  requires only 05-notes, and modules with a submenu of their own
+  already add it with `my/transient-append`.  What is left of that
+  item is the main menu's hand-written hints (BACKLOG).
+- **init.el unchanged**: the four modules are still loaded without
+  NOERROR; which modules load is the loader's job (BACKLOG step 3).
+- Verified in batch with the transient built into Emacs 29.3, loading
+  12-transient.el and the menu code of the modules: with all modules the
+  menus hold exactly the entries above in that order; without 06, 15,
+  16 and 23 the Capture and Detach columns are gone, Find → Overview
+  holds `h j s`, Export `O W ? b r`, and nothing else is missing.
+
+---
 ## Session 2026-10-19d — One exit commit instead of three paths
 
 ### Why

@@ -1,7 +1,7 @@
 ;;; 16-org-export.el --- Org export and PDF settings -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires:
-;; MyPKS-Optional: no
+;; MyPKS-Optional: yes
 ;; Docs: ~/.emacs.d/function_helper.org::#menu-notes-export
 
 ;;; Commentary:
@@ -26,7 +26,7 @@
 ;; - Batch ANY-mode: files matching any of the given keywords
 ;; - Batch ALL-mode: files matching ALL of the given keywords simultaneously
 ;;
-;; Usage:
+;; Usage (also C-c n x: p, P, Q, inserted into the Export menu below):
 ;;   C-c p                             - export current buffer to PDF
 ;;   M-x my/org-export-pdf-by-keyword  - batch, ANY keyword matches
 ;;   M-x my/org-export-pdf-by-all-keywords - batch, ALL keywords must match
@@ -536,6 +536,27 @@ Output mirrors notes structure: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc."
        matching
        (format "ALL of: %s"
                (mapconcat (lambda (k) (format "\"%s\"" k)) keywords ", "))))))
+
+;; ============================================================
+;; KEY AND MENU
+;; ============================================================
+;; C-c p was bound in 08-keybindings.el and the three entries declared
+;; in 12-transient.el; both live here since 2026-10-19, so that a
+;; configuration without this module has neither a key nor menu entries
+;; pointing at commands that do not exist.  The menu entries go before
+;; Quit, the one entry of the Export menu no module owns; 29, 46 and 47
+;; insert theirs the same way, after these, in load order.
+
+(global-set-key (kbd "C-c p") #'my/org-export-to-pdf)
+
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-export-menu "q"
+                         '("p" "Export to PDF"            my/org-export-to-pdf))
+    (my/transient-insert 'my/notes-export-menu "q"
+                         '("P" "Batch PDF — ANY keyword"  my/org-export-pdf-by-keyword))
+    (my/transient-insert 'my/notes-export-menu "q"
+                         '("Q" "Batch PDF — ALL keywords" my/org-export-pdf-by-all-keywords))))
 
 (provide '16-org-export)
 ;;; 16-org-export.el ends here

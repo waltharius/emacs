@@ -885,11 +885,14 @@ Only while the preview server runs: otherwise nobody is looking, and
     ("l" "Last report"          my/repo-docs-report)]
    [("q" "Quit" transient-quit-one)]])
 
-;; Appended to the Export menu of 12-transient.el through its degrading
-;; wrapper, so the menu is intact whether or not this module is loaded.
-(when (fboundp 'my/transient-append)
-  (my/transient-append 'my/notes-export-menu "Q"
-                       '("r" "Repo docs (Hugo) →" my/repo-docs-menu)))
+;; Inserted into the Export menu of 12-transient.el before its Quit,
+;; through the degrading wrapper, so the menu is intact whether or not
+;; this module is loaded.  (Anchored on "Q" of 16-org-export.el until
+;; 2026-10-19.)
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-export-menu "q"
+                         '("r" "Repo docs (Hugo) →" my/repo-docs-menu))))
 
 (provide '47-repo-docs)
 

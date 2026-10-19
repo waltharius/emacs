@@ -1,7 +1,7 @@
 ;;; 15-workspace.el --- Notes dashboard and workspace tools -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires: 01-ui 27-denote-identifiers
-;; MyPKS-Optional: no
+;; MyPKS-Optional: yes
 ;; Docs: ~/.emacs.d/function_helper.org::#fn-my-open-notes-dashboard
 
 ;;; Commentary:
@@ -762,6 +762,24 @@ Point ends up in the leftmost column."
 (global-set-key (kbd "C-c w d") #'my/open-notes-dashboard)
 (global-set-key (kbd "C-c w x") #'my/notes-explore)
 (global-set-key (kbd "C-c w r") #'denote-explore-random-note)
+
+;; ============================================================
+;; MENU
+;; ============================================================
+;; The Overview column of the Find menu (C-c n f): inserted before its
+;; Quit, which 12-transient.el owns, so that without this module the
+;; column loses these three entries and keeps the others' (history,
+;; journal gaps, statistics).  Until 2026-10-19 they were declared in
+;; 12-transient.el, and two other modules were anchored on them.
+
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-find-menu "q"
+                         '("d" "Dashboard"   my/open-notes-dashboard))
+    (my/transient-insert 'my/notes-find-menu "q"
+                         '("t" "Tag stats"   my/notes-explore))
+    (my/transient-insert 'my/notes-find-menu "q"
+                         '("r" "Random note" denote-explore-random-note))))
 
 (provide '15-workspace)
 ;;; 15-workspace.el ends here

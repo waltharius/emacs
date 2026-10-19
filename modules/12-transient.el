@@ -1,6 +1,6 @@
 ;;; 12-transient.el --- Transient menu for notes (hierarchical) -*- lexical-binding: t; -*-
 
-;; MyPKS-Requires: 05-notes 06-capture 15-workspace 16-org-export 23-fixed-tabs
+;; MyPKS-Requires: 05-notes
 ;; MyPKS-Optional: no
 
 ;;; Commentary:
@@ -36,16 +36,16 @@
   ;; "w" and "W" are reserved: 05b-journal-metrics.el appends the two
   ;; metrics commands after "J" dynamically, so that deleting that module
   ;; leaves this menu valid instead of binding void commands.
+  ;;
+  ;; The Capture column (i c m) is inserted by 06-capture.el before the
+  ;; Quit column, coordinate (0 1), so that without that module the menu
+  ;; simply has no Capture column.
   [["Create"
     ("n" "New note"       my/denote-base)
     ("j" "Journal today"  my/denote-journal)
     ("J" "Journal date"   my/denote-journal-date)
     ("e" "Essay"          my/denote-essay)
     ("L" "Linked note"    my/denote-linked-note)]
-   ["Capture"
-    ("i" "Ideas capture"   my/capture-idea)
-    ("c" "Capture menu"    org-capture)
-    ("m" "Promote to note" my/capture-promote-to-note)]
    [("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================
@@ -55,15 +55,15 @@
 
 (transient-define-prefix my/notes-find-menu ()
   "Search and navigate notes."
+  ;; The Overview column is filled by the modules, each inserting before
+  ;; "q": 15-workspace.el (d t r), 21-dashboards.el (h),
+  ;; 35-journal-gaps.el (j), 36-notes-stats.el (s), in load order.
   [["Find"
     ("f" "Find file"    denote-open-or-create)
     ("g" "Grep notes"   consult-denote-grep)
     ("b" "Backlinks"    denote-backlinks)]
    ["Overview"
-    ("d" "Dashboard"    my/open-notes-dashboard)
-    ("t" "Tag stats"    my/notes-explore)
-    ("r" "Random note"  denote-explore-random-note)]
-   [("q" "Quit" transient-quit-one)]])
+    ("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================
 ;; SUB-MENU: Insert  (C-c n i)
@@ -111,12 +111,12 @@
 ;; ============================================================
 
 (transient-define-prefix my/notes-export-menu ()
-  "Export notes to PDF."
+  "Export notes: PDF, office documents, sites."
+  ;; Filled by the modules, each inserting before "q", in load order:
+  ;; 16-org-export.el (p P Q), 29-writing-export.el (O W ?),
+  ;; 46-blog.el (b), 47-repo-docs.el (r).
   [["Export"
-    ("p" "Export to PDF"           my/org-export-to-pdf)
-    ("P" "Batch PDF — ANY keyword" my/org-export-pdf-by-keyword)
-    ("Q" "Batch PDF — ALL keywords" my/org-export-pdf-by-all-keywords)]
-   [("q" "Quit" transient-quit-one)]])
+    ("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================
 ;; SUB-MENU: View toggles  (C-c n v)
@@ -127,14 +127,12 @@
 ;; entries before "q" with `my/transient-insert': 10-visual-fill.el (c),
 ;; 11-org-appearance.el (i e), 13-centered-writing.el (w),
 ;; 30-link-tooltips.el (T), 34-appearance.el (t y p W S),
-;; 44-image-display.el (m).
+;; 44-image-display.el (m).  The column "Detach to own frame" (f F) is
+;; appended after it by 23-fixed-tabs.el.
 (transient-define-prefix my/notes-view-menu ()
   "Toggle visual appearance settings."
   [["Toggle"
-    ("q" "Quit" transient-quit-one)]
-   ["Detach to own frame"
-    ("f" "This buffer"      my/detach-buffer-to-frame)
-    ("F" "This whole tab"   my/detach-tab-to-frame)]])
+    ("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================
 ;; SUB-MENU: Tools  (C-c n t)

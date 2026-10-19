@@ -293,18 +293,19 @@ produces a document with no bibliography at all."
 ;; MENU
 ;; ============================================================
 
-;; Anchored on "Q", the last entry of the Export group in
-;; `my/notes-export-menu'.  Appending each new key after the previous
-;; one would chain the additions together, so a change to any single
-;; anchor would silently drop everything after it.
+;; Inserted before Quit, the one entry of `my/notes-export-menu' that
+;; 12-transient.el owns.  Anchored on "Q" (16-org-export.el) until
+;; 2026-10-19, so the entries vanished without that module, and each
+;; append after the same "Q" put them in reverse order.
 
 (with-eval-after-load '12-transient
-  (my/transient-append 'my/notes-export-menu "Q"
-                       '("O" "Export to ODT" my/org-export-to-odt))
-  (my/transient-append 'my/notes-export-menu "Q"
-                       '("W" "Export to DOCX" my/org-export-to-docx))
-  (my/transient-append 'my/notes-export-menu "Q"
-                       '("?" "Check office export setup" my/office-check-setup)))
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-export-menu "q"
+                         '("O" "Export to ODT" my/org-export-to-odt))
+    (my/transient-insert 'my/notes-export-menu "q"
+                         '("W" "Export to DOCX" my/org-export-to-docx))
+    (my/transient-insert 'my/notes-export-menu "q"
+                         '("?" "Check office export setup" my/office-check-setup))))
 
 (provide '29-writing-export)
 ;;; 29-writing-export.el ends here

@@ -1,7 +1,7 @@
 ;;; 06-capture.el --- Org-capture for ideas -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires: 05-notes
-;; MyPKS-Optional: no
+;; MyPKS-Optional: yes
 ;; Docs: ~/.emacs.d/function_helper.org::#capture-system
 
 ;;; Commentary:
@@ -913,6 +913,24 @@ had."
 ;; ============================================================
 
 (global-set-key (kbd "C-c c") 'org-capture)
+
+;; ============================================================
+;; MENU
+;; ============================================================
+;; The Capture column of the Create menu (C-c n c), inserted from here
+;; rather than declared in 12-transient.el, so that without this module
+;; the Create menu has no Capture column and nothing else changes.
+;; Before the Quit column, coordinate (0 1): the Create column is (0 0).
+;; This module loads before 12-transient.el, hence the wait for it.
+
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert
+     'my/notes-create-menu '(0 1)
+     ["Capture"
+      ("i" "Ideas capture"   my/capture-idea)
+      ("c" "Capture menu"    org-capture)
+      ("m" "Promote to note" my/capture-promote-to-note)])))
 
 (provide '06-capture)
 ;;; 06-capture.el ends here

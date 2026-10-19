@@ -1197,9 +1197,11 @@ with working `denote:' links."
 ;; MENU
 ;; ============================================================
 
+;; Before Quit in the Overview column, which 12-transient.el owns;
+;; anchored on "t" (Tag stats, 15-workspace.el) until 2026-10-19.
 (with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-append)
-    (my/transient-append 'my/notes-find-menu "t"
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-find-menu "q"
                          '("s" "Statistics" my/notes-stats))))
 
 (global-set-key (kbd "C-c w s") #'my/notes-stats)

@@ -404,6 +404,17 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
       =C-c v l= on the next frame shows a cycle; quitting later commits
       again.
 
+** R25. Decoupling 3: capture, export, dashboard, fixed tabs [0/6]
+- [ ] =C-c n c=: columns Create, Capture (=i c m=), Quit -- as before.
+- [ ] =C-c n f=: Find =f g n b=; Overview =d t r h j s=, then =q=
+      (before: =d t s r h j=, Quit in its own column).
+- [ ] =C-c n x=: one column =p P Q O W ? b r q= (before: =p P Q r b ? W O=
+      and Quit apart).  =C-c p= exports the buffer to PDF as before.
+- [ ] =C-c n v=: Toggle column, then Detach to own frame (=f F=).
+- [ ] =C-c n i=: =u= Web link in the Link column after =L=.
+- [ ] No warning of type =menus= in =*Warnings*= after start-up;
+      =M-x my/transient-skipped-report= says every entry is in its menu.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

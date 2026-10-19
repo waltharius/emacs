@@ -1,6 +1,6 @@
 ;;; 08-keybindings.el --- Keybindings reference -*- lexical-binding: t; -*-
 
-;; MyPKS-Requires: 01-ui 05-notes 12-transient 16-org-export
+;; MyPKS-Requires: 01-ui 05-notes 12-transient
 ;; MyPKS-Optional: no
 ;; Docs: ~/.emacs.d/function_helper.org::#global-keybindings
 
@@ -65,9 +65,7 @@
 ;; PDF EXPORT (C-c p)
 ;; ============================================================
 ;; Export current Org buffer to PDF -> ~/notes/pdf/
-;; Defined in modules/16-org-export.el
-
-(global-set-key (kbd "C-c p") #'my/org-export-to-pdf)
+;; Bound in modules/16-org-export.el since 2026-10-19, with the command.
 
 ;; ============================================================
 ;; ORG-CAPTURE (already defined in 06-capture.el)
@@ -313,10 +311,12 @@ C-c n -- NOTES TRANSIENT MENU TREE
             date:2014, date:2012-01..2015-05, date:<2015, from:/to:
        d  Dashboard         t  Tag stats         r  Random note
        h  History ->  (t/j = this-day-in-history, m/M = same-day-every-month)
+       j  Journal gaps      s  Statistics
   i  Insert ->
-       l  Insert link       L  Linked note
-       h  Time (HH:MM)      d  Date (YYYY-MM-DD)
-       w  Well-being
+       l  Insert link       L  Linked note       u  Web link (auto title)
+       H  Add to HUB
+       h  Time (HH:MM)      d  Date (YYYY-MM-DD) w  Week's days
+       i  Image from disk   I  Attachments folder
        t  Transclusion ->
             a  Add (wizard)    A  Add all in buffer
             g  Refresh         r  Remove          T  Toggle mode
@@ -330,6 +330,8 @@ C-c n -- NOTES TRANSIENT MENU TREE
        p  Export to PDF
        P  Batch PDF - ANY keyword
        Q  Batch PDF - ALL keywords
+       O  Export to ODT     W  Export to DOCX    ?  Check office setup
+       b  Blog (Hugo) ->    r  Repo docs (Hugo) ->
   v  View ->
        c  Center text       w  Writing mode
        i  Indent headings   e  Emphasis markers
