@@ -9087,8 +9087,23 @@ laptop is not on the other.  Copying =var/persist/= from one machine to
 the other replaces the other's progress; the two are not merged.
 
 *Without no-littering* -- not installed yet and no network at the first
-start -- the packages keep their old files and the report says so; the
-files named with =my/var-file= move anyway.
+start -- the packages keep their old files, and a FAILED report at every
+start says so, with what use-package said (kept by
+=my/var--load-no-littering= in =my/var--no-littering-problems=; it
+reports failures only as warnings); the files named with =my/var-file=
+move anyway, into =var/=, which 00-core.el creates itself.
+
+*A fresh package list before installing* (=my/package--refresh-before-first-install=,
+advice on =package-install=): package.el installs from the list of
+packages it keeps on disk, which can be weeks old, and MELPA deletes a
+build once a newer one exists -- the old list then names a file that is
+gone ("Not found").  use-package refreshes only for a package missing
+from the list altogether.  So the list is fetched again once, before
+the first installation of a session, the usual remedy; starts that
+install nothing do not touch the network.
+
+Tests: =tests/test-packages.el= (the refresh once, the reason in the
+report).
 
 Tests: =tests/test-var-files.el= (the folders, own files, package
 files, a taken place, the =.gitignore= line, a second start), in a

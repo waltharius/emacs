@@ -21,6 +21,48 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19r — A fresh package list before installing; the report says why no-littering did not load
+
+### Why
+
+Reported 2026-10-19 after 2026-10-19o: the start-up report said only
+"no-littering did not load".  *Warnings* held the reason: "Failed to
+install no-littering: https://melpa.org/packages/no-littering-20260817.404.tar:
+Not found".  package.el installs from the package list it keeps on
+disk; MELPA deletes a build once a newer one exists; use-package
+fetches a new list only when a package is missing from the old one
+altogether.  So any package added to the configuration after the list
+was last fetched could fail the same way -- worst on a first install.
+
+### What
+
+- 00-core.el, package management: `my/package--refresh-before-first-install`,
+  advice before `package-install` that fetches the list once and
+  removes itself.  A start that installs nothing touches no network.
+- 00-core.el, *Files Emacs writes*: `my/var--load-no-littering` keeps
+  use-package's warnings about no-littering while it loads
+  (`my/var--no-littering-problems`); `my/var--not-loaded-lines` puts
+  them in the report with what to do.  The report is now a FAILED one
+  of its own, at every start until no-littering loads -- before, it was
+  a line inside the DONE report, shown only when something had moved.
+- tests/test-packages.el (new, 3 tests): the refresh runs once and the
+  advice is gone after; the reason is in the report; warnings are kept
+  while loading only.  Shown to fail with either `advice-remove` left
+  out.
+- function_helper.org: both, under *Files Emacs writes while it works*.
+  BACKLOG.org: the installation guide says what to do when a package
+  fails to install.
+
+### Decisions
+
+- **Refresh before the first install, not at every start**: the
+  common remedy (Emacs wiki, use-package issues); a refresh costs a few
+  seconds of network, needed only when something is installed.
+- **The reason taken from the warning, not by installing ourselves**:
+  use-package stays the one way packages are installed, so a test or a
+  user setting `use-package-ensure-function` is still obeyed.
+
+---
 ## Session 2026-10-19q — hooks/check-all: every check and test in one command; tests in a sandbox
 
 ### Why

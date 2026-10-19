@@ -23,6 +23,21 @@
 ;; Initialize package system
 (package-initialize)
 
+;; A fresh list of packages before the first installation of a session.
+;; package.el installs from the list it keeps on disk, which can be
+;; weeks old; MELPA deletes a build once a newer one exists, so a
+;; package the old list names fails with "Not found" (asked 2026-10-19:
+;; no-littering, https://melpa.org/packages/no-littering-<old>.tar).
+;; use-package refreshes only when a package is not on the list at all.
+;; The usual remedy, from the Emacs wiki and use-package's own issues:
+;; refresh once, before the first `package-install', then step aside.
+(defun my/package--refresh-before-first-install (&rest _)
+  "Refresh the package list once, before the first installation."
+  (advice-remove 'package-install #'my/package--refresh-before-first-install)
+  (package-refresh-contents))
+
+(advice-add 'package-install :before #'my/package--refresh-before-first-install)
+
 ;; Install use-package if not present
 (unless (package-installed-p 'use-package)
   (package-refresh-contents)
@@ -401,12 +416,25 @@ A rejected NAME is reported, naming SOURCE, where it came from."
 (defvar no-littering-etc-directory)
 (defvar no-littering-var-directory)
 
+(defvar my/var--no-littering-problems nil
+  "What use-package said when no-littering did not load, for the report.")
+
 (defun my/var--load-no-littering ()
   "Load no-littering with its folders in the settings folder.
-Returns non-nil when it loaded; a failure is a warning, not a stop."
+Returns non-nil when it loaded; a failure is a warning, not a stop.
+use-package reports a failure as a warning only, so its warnings about
+no-littering are also kept in `my/var--no-littering-problems', for the
+start-up report to say why."
   (setq no-littering-etc-directory my/etc-directory
         no-littering-var-directory my/var-directory)
-  (use-package no-littering :demand t)
+  (let ((keep (lambda (_type message &rest _)
+                (when (and (stringp message) (string-match-p "no-littering" message))
+                  (push message my/var--no-littering-problems)))))
+    (advice-add 'display-warning :before keep)
+    (unwind-protect
+        (use-package no-littering :demand t)
+      (advice-remove 'display-warning keep)))
+  (setq my/var--no-littering-problems (nreverse my/var--no-littering-problems))
   (featurep 'no-littering))
 
 (defconst my/var--old-files
@@ -504,6 +532,16 @@ Returns non-nil when the line was added now."
         (write-region (point-min) (point-max) file nil 'silent))
       t)))
 
+(defun my/var--not-loaded-lines ()
+  "Report lines on why no-littering did not load, and what to do."
+  (append
+   (or my/var--no-littering-problems
+       (list "use-package gave no reason; *Warnings* may hold one."))
+   (list ""
+         "M-x package-install RET no-littering (it fetches a fresh list of"
+         "packages first), or restart with a network; the files of packages"
+         "move at the next start.")))
+
 (defun my/var--setup ()
   "Load no-littering, move the old files, keep var/ out of git; report."
   ;; Made here, not only by no-littering: without it (not installed, no
@@ -528,9 +566,13 @@ Returns non-nil when the line was added now."
                    (when ignored
                      (list "" (format "%s/.gitignore leaves var/ out of git."
                                       (abbreviate-file-name
-                                       (directory-file-name my/settings-directory)))))
-                   (unless loaded
-                     (list "" "no-littering did not load: packages still use their old files."))))
+                                       (directory-file-name my/settings-directory)))))))
+            reports))
+    ;; At every start until it loads: the files of packages stay in
+    ;; ~/.emacs.d meanwhile, which is what this section is for.
+    (unless loaded
+      (push (list 'failed "no-littering did not load: packages still use their old files"
+                  (my/var--not-loaded-lines))
             reports))
     (when both
       (push (list 'failed "Old files left where they were: the new ones exist too"

@@ -377,7 +377,12 @@ Steps, in order:
      notes folder, silos);
    - where things are afterwards (notes, settings), how to update
      (=git pull=), how to undo a bad update (=git checkout= of the
-     previous version), and where to ask.
+     previous version), and where to ask;
+   - when a package fails to install: the start-up report says why;
+     "Not found" means an old package list -- fetched again
+     automatically before installing since 2026-10-19r, by hand with
+     =M-x package-refresh-contents=; no network at the first start
+     means a restart with one.
    Tested by following it on clean Fedora and Ubuntu installations
    (virtual machines), and by the first beginner; NixOS stays a short
    section for the author's machines.
