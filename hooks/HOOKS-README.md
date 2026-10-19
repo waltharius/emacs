@@ -50,6 +50,7 @@ rollback or a deliberately partial commit.
 | `changelog` | Were modules staged without a `CHANGELOG.md` entry? | yes |
 | `menus` | Is every command `function_helper.org` mentions reachable from a menu or a key — or listed, with its reason, under *Commands without a menu entry*? | yes |
 | `modules` | Does every module keep the module contract -- headers, `provide`, every hard dependency declared, nothing core needing something optional, no circles? | yes |
+| `codefolder` | Is every file a module names in `~/.emacs.d` (`locate-user-emacs-file`, `expand-file-name` with `user-emacs-directory`) a file of the repository, or one of the installation files 00-core.el reads? State belongs in `my/var-file`. | yes (since 2026-10-19) |
 | `loader` | Is every file in `modules/` in init.el's list for `my/modules-load`, once, and does every `MyPKS-Switch` header name a mode its module defines? | yes (since 2026-10-19) |
 | `menukeys` | Is any key of a menu given to two different commands -- in the menu's definition or by the modules adding to it? | yes (since 2026-10-19) |
 | `private` | Is a `--` symbol called from outside its module? | yes (since 2026-10-18) |

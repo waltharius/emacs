@@ -6494,6 +6494,7 @@ The check =modules= of =hooks/lint.py= enforces the rules marked
 | =MyPKS-Requires:=    | modules this one cannot work without, separated by spaces; empty when it needs only 00-core.el, which is never listed |
 | =MyPKS-Optional:=    | =yes=: may be turned off; =no=: part of the core                 |
 | =MyPKS-Switch:=      | the module's switch, a global minor mode it defines (only modules that have one; the =loader= check verifies it) |
+| =MyPKS-Writes:=      | files the module writes besides notes, relative to the settings folder or its =var/= (=var/keys=); a record for people, not read by code |
 | =Docs:=              | the section of this file describing the module                  |
 
 Read from Emacs, without loading the module:
@@ -9110,12 +9111,20 @@ no-littering is installed.
 | =backups/=, =autosaves/=                          | =var/backups/=, =var/autosaves/=        |
 | =notes-root.eld=                                  | =var/notes-root.eld=                    |
 | =~/.emacs.keyfreq=                                | =var/keyfreq.el=                        |
+| =keys= (keylog, 14-typing-analytics.el)           | =var/keys=                              |
 | =tramp=, =url/=, =eshell/=, =network-security.data=, =ielm-history.eld=, =nov-places=, =request/=, =abbrev_defs=, =projects=, =auto-save-list/= | no-littering's names in =var/= (=abbrev.el= in =etc/=) |
 
-Still in =~/.emacs.d=: the keylog =keys= of =14-typing-analytics.el=
-(next step, with the files other modules write), =elpa/= and
-=eln-cache/= (installed and compiled code), =mypks-local.eld= (which
-settings folder to read).
+Still in =~/.emacs.d=: =elpa/= and =eln-cache/= (installed and compiled
+code), =mypks-local.eld= (which settings folder to read).
+
+*The rule* (lint check =codefolder=): a file a module names in
+=~/.emacs.d= -- =(locate-user-emacs-file "x")= or =(expand-file-name
+"x" user-emacs-directory)= -- is a file of the repository (code,
+documentation, bundled styles, site templates), or one of the
+installation's own files 00-core.el reads (=mypks-local.eld= and the
+older places of the settings).  State goes to =my/var-file=, data
+shared by the machines to =my/etc-file= or the settings folder.  A
+module that writes files says which in its header (=MyPKS-Writes:=).
 
 Function: =my/var-file=, =my/etc-file=, =my/var--setup=, =my/var--move-old-files= | Module: =modules/00-core.el=
 

@@ -21,6 +21,47 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19p — The keylog in var/; MyPKS-Writes; lint check codefolder
+
+### Why
+
+Second part of *Files the modules write* (BACKLOG): after the files of
+Emacs and packages (2026-10-19o), the files of the modules themselves.
+A search of `modules/` for names in `~/.emacs.d` found one written
+there: the keylog `keys` of 14-typing-analytics.el -- every typed
+character with its time.  The rest are files of the repository (code,
+docs, CSL styles, site templates) or the installation files 00-core.el
+reads.
+
+### What
+
+- 14-typing-analytics.el: `my/keylog-file` = `var/keys`; the notes on
+  where the data is say the settings folder.
+- 00-core.el: `keys` in `my/var--old-files`, so the old keylog moves at
+  the next start.
+- `;; MyPKS-Writes:` header: 00-core, 01-ui, 02-editing,
+  14-typing-analytics.  For people; no code reads it.
+- hooks/lint.py: check `codefolder` -- a file named with
+  `locate-user-emacs-file` or `(expand-file-name "x"
+  user-emacs-directory)` must be tracked by git or be one of the
+  installation's files (`mypks-local.eld`, the old places of the
+  settings).  Checked against the old keylog line: FAILED.
+- tests/test-var-files.el: the keylog moved (16 checks, 8 without
+  no-littering).
+- function_helper.org: the rule, the header row, the keylog row.
+  hooks/HOOKS-README.md: `codefolder`.  TESTPLAN.org: R33 keylog item.
+  BACKLOG.org: step 4 done but for the header in other modules.
+
+### Decisions
+
+- **The check looks at names, not at writes**: telling a read from a
+  write needs following the code; a name in `~/.emacs.d` that git does
+  not hold is a file written there, or a file missing from the
+  repository -- either is worth stopping a commit for.
+- **MyPKS-Writes not checked yet**: completeness would need a list of
+  every writing function; the header is added as modules are touched.
+
+---
 ## Session 2026-10-19o — Files Emacs writes while it works: out of ~/.emacs.d, into the settings folder
 
 ### Why

@@ -509,7 +509,7 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
 - [ ] The other machine, after pulling the settings: its own
       =my/modules-off= unchanged.
 
-** R33. Files Emacs writes, in the settings folder [0/7]
+** R33. Files Emacs writes, in the settings folder [0/8]
 Before: note what is in =~/.emacs.d= (=ls -a=).  Quit the old Emacs
 first: on exit it still writes to the old places.
 - [ ] First start: report "Files Emacs writes are now in
@@ -523,6 +523,8 @@ first: on exit it still writes to the old places.
 - [ ] =~/.config/mypks/.gitignore= holds =/hosts/*/var/=; with the
       settings folder in a git repository, =git status= there shows no
       file from =var/=.
+- [ ] Typing analytics on: =~/.emacs.d/keys= gone; =var/keys= holds the
+      old log and grows while typing.
 - [ ] Drill session (=C-c n r=): the cards' schedule as
       before.
 - [ ] Second start: no report.  A FAILED report "Old files left where

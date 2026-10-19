@@ -23,8 +23,8 @@ says why and how.
    folder; /Start-up: early-init.el, compilation, lazy loading/.
 4. /Files the modules write/: no-littering, the state of Emacs and its
    packages in =hosts/<host>/var/=, the old files moved -- done
-   2026-10-19o.  Left: the files of the modules themselves (the keylog
-   first), =MyPKS-Writes:= and its check.
+   2026-10-19o; the keylog, =MyPKS-Writes:= and the check =codefolder=:
+   2026-10-19p.  Left: =MyPKS-Writes:= in the other modules that write.
 5. /Continuous integration/ -- can start at any time; most useful once
    the core has tests of its own.
 6. /A public repository/: portable defaults and the privacy model in
@@ -533,13 +533,16 @@ Decided (asked 2026-10-19): org-drill's learning data per machine, in
 =var/persist/=; copying it to another machine replaces that machine's
 progress.
 
-*Left*, the second step:
-- The files the modules write themselves, each through =my/var-file=
-  or a shared-data helper: the keylog =keys= (14-typing-analytics.el)
-  first; then a search of =modules/= for =user-emacs-directory= and
-  =locate-user-emacs-file= used for writing.
-- =;; MyPKS-Writes:= in the header, and a lint check: no module writes
-  under =user-emacs-directory=.
+*Done 2026-10-19p*: the keylog in =var/keys=; =;; MyPKS-Writes:= in
+the header (00-core, 01-ui, 02-editing, 14-typing-analytics); lint
+check =codefolder=: a file named in =~/.emacs.d= must be a file of the
+repository.  The search found no other module writing there.
+
+*Left*:
+- =MyPKS-Writes:= in the other modules that write files outside the
+  notes (03-spelling, 48-settings-tools, 46-blog's sites, ...), when
+  each is next touched; a check that the header is there needs a list
+  of writing functions, so it waits.
 - =.stignore= for Syncthing users with the settings folder inside the
   synced notes: documented, not written.
 

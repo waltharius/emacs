@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: no
+;; MyPKS-Writes: var/desktop/, var/save-place.el
 ;; Docs: ~/.emacs.d/function_helper.org::#session-management
 
 ;;; Commentary:

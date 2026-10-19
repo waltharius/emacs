@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: no
+;; MyPKS-Writes: var/backups/, var/autosaves/, var/notes-root.eld, .gitignore of the settings folder
 ;; Docs: ~/.emacs.d/function_helper.org::#settings
 
 ;;; Commentary:
@@ -438,7 +439,8 @@ Returns non-nil when it loaded; a failure is a warning, not a stop."
     ("undo-fu-session/"      . "undo-fu-session/")
     ("backups/"              . "backups/")
     ("autosaves/"            . "autosaves/")
-    ("notes-root.eld"        . "notes-root.eld"))
+    ("notes-root.eld"        . "notes-root.eld")
+    ("keys"                  . "keys"))          ; 14-typing-analytics.el
   "Old file in ~/.emacs.d (or ~/) and where it goes.
 A variable set by no-littering, or a name in `my/var-directory'.  A
 name ending in / is a folder.  \"saveplace\" (named by 01-ui.el until

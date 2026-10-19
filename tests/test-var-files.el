@@ -37,6 +37,7 @@
     ("ed/undo-fu-session/abc" . "undo")
     ("ed/backups/!home!x!file.txt.~1~" . "backup")
     ("ed/notes-root.eld" . "(:current \"~/notes/\")")
+    ("ed/keys" . "keylog")
     (".emacs.keyfreq" . "keyfreq")
     ;; Taken already: the old history stays where it is.
     ("settings/hosts/testhost/var/savehist.el" . "new history"))
@@ -51,6 +52,7 @@
 (check \"own file moved: undo history\" (and (file-exists-p (var \"undo-fu-session/abc\")) (not (file-exists-p (home \"ed/undo-fu-session\")))))
 (check \"own file moved: backups, and the backup folder points there\" (and (file-exists-p (var \"backups/!home!x!file.txt.~1~\")) (equal my-emacs-backups (var \"backups/\"))))
 (check \"own file moved: notes root\" (and (equal my/notes-root-state-file (var \"notes-root.eld\")) (not (file-exists-p (home \"ed/notes-root.eld\")))))
+(check \"own file moved: keylog of 14-typing-analytics.el\" (and (file-exists-p (var \"keys\")) (not (file-exists-p (home \"ed/keys\")))))
 (check \".gitignore leaves var/ out\" (string-match-p \"^/hosts/\\\\*/var/$\" (read-file (home \"settings/.gitignore\"))))
 (check \".gitignore line not added twice\" (null (my/var--ignore-in-git)))
 (if (not (featurep 'no-littering))
@@ -126,7 +128,7 @@
          (failed (seq-filter (lambda (l) (string-prefix-p "FAIL " l))
                              (split-string output "\n"))))
     (should (null failed))
-    (should (= passed (if skipped 7 15)))))
+    (should (= passed (if skipped 8 16)))))
 
 (provide 'test-var-files)
 ;;; test-var-files.el ends here

@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: no
+;; MyPKS-Writes: var/undo-fu-session/
 ;; Docs: ~/.emacs.d/function_helper.org::#global-keybindings
 
 ;;; Commentary:

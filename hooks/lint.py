@@ -541,6 +541,45 @@ def repository_files():
     return files
 
 
+# Files of this installation that 00-core.el reads in ~/.emacs.d without
+# git tracking them: which settings folder to use, and the places the
+# settings had before the settings folder (read once, to copy them).
+CODE_FOLDER_INSTALLATION = {"mypks-local.eld", "host", "hosts/", "custom.el", "ui-state.el"}
+
+CODE_FOLDER_NAME = re.compile(
+    r'\(locate-user-emacs-file\s+"([^"]+)"'
+    r'|\(expand-file-name\s+"([^"]+)"\s+user-emacs-directory\)')
+
+
+def check_code_folder():
+    """A file named in ~/.emacs.d is a file of the repository.
+
+    State and data go to the settings folder (`my/var-file',
+    `my/etc-file', 00-core.el); a name in the configuration folder that
+    git does not track is a file written next to the code."""
+    try:
+        tracked = subprocess.run(
+            ["git", "-c", "core.quotePath=false", "ls-files", "-z"],
+            cwd=ROOT, capture_output=True, text=True, check=True,
+        ).stdout.split("\0")
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    tracked = [t for t in tracked if t]
+    problems = []
+    for name, text in modules():
+        for match in CODE_FOLDER_NAME.finditer(text):
+            path = match.group(1) or match.group(2)
+            if path in CODE_FOLDER_INSTALLATION:
+                continue
+            folder = path.rstrip("/") + "/"
+            if any(t == path or t.startswith(folder) for t in tracked):
+                continue
+            line = text.count("\n", 0, match.start()) + 1
+            problems.append(f"modules/{name}:{line}: {path!r} in ~/.emacs.d is no file of the "
+                            "repository; state goes to my/var-file, shared data to my/etc-file")
+    return problems
+
+
 def check_personal_strings():
     """A personal string -- a name, a host, an address -- in a file git would commit.
 
@@ -610,6 +649,7 @@ CHECKS = {
     "menus": (check_menu_reachability, "documented commands no menu or key reaches"),
     "modules": (check_module_contract, "module contract: headers, provide, declared dependencies"),
     "menukeys": (check_menu_keys, "one key given to two different entries of one menu"),
+    "codefolder": (check_code_folder, "files named in ~/.emacs.d that the repository does not hold"),
     "loader": (check_loader, "every module in init.el's list once; every MyPKS-Switch defined"),
     "personal": (check_personal_strings, "personal strings (private-strings.txt) in files git would commit"),
 }

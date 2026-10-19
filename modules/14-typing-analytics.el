@@ -3,6 +3,7 @@
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
 ;; MyPKS-Switch: my/typing-analytics-mode
+;; MyPKS-Writes: var/keys, var/keyfreq.el
 ;; Docs: ~/.emacs.d/function_helper.org::#typing-analytics
 
 ;;; Commentary:
@@ -11,8 +12,8 @@
 ;; 2. Character-level typing patterns - actual keystrokes, speed, and hand/finger usage
 ;;
 ;; All data is stored locally:
-;; - ~/.emacs.keyfreq (command statistics)
-;; - ~/.emacs.d/keys (character-level data)
+;; - <settings folder>/hosts/<host>/var/keyfreq.el (command statistics)
+;; - <settings folder>/hosts/<host>/var/keys (character-level data)
 ;;
 ;; Purpose: Gather data for ergonomic keyboard selection
 
@@ -66,8 +67,10 @@
 (define-obsolete-variable-alias 'keylog-last-save-time 'my/keylog-last-save-time "2026-10")
 (define-obsolete-variable-alias 'keylog-autosave-interval 'my/keylog-autosave-interval "2026-10")
 
-(defvar my/keylog-file (expand-file-name "keys" user-emacs-directory)
-  "File to store raw keystroke data with timestamps.")
+(defvar my/keylog-file (my/var-file "keys")
+  "File to store raw keystroke data with timestamps.
+In var/ of this machine (00-core.el): personal, per machine, never in
+git.  Until 2026-10-19 it was ~/.emacs.d/keys; 00-core.el moves it.")
 
 ;; WHEN THE LOG REACHES THE DISK.  Keystrokes are collected in memory
 ;; and appended to the file in batches, whichever comes first:
@@ -274,12 +277,13 @@ saves the position in this machine's settings."
 ;; - C-c y T : Start character tracking for this session
 ;;
 ;; Data locations:
-;; - ~/.emacs.keyfreq - Command frequency data
-;; - ~/.emacs.d/keys - Raw keystroke data with timestamps
+;; - <settings folder>/hosts/<host>/var/keyfreq.el - Command frequency data
+;; - <settings folder>/hosts/<host>/var/keys - Raw keystroke data with timestamps
 ;;
 ;; Recommended collection period: 2-4 weeks for representative data
 ;;
-;; Privacy: All data stays on your laptop. Both files are in .gitignore.
+;; Privacy: All data stays on this machine.  var/ is in the settings
+;; folder's .gitignore (00-core.el).
 
 (provide '14-typing-analytics)
 ;;; 14-typing-analytics.el ends here
