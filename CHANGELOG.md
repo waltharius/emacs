@@ -21,6 +21,34 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19g — Backlog: a running list of documentation to bring up to date
+
+### Why
+
+Asked for: the refactoring changes behaviour the README and the help
+text of `C-c h k` describe, faster than they are rewritten.  Rewriting
+the README at every patch would rewrite the same paragraphs several
+times while the design still moves; forgetting them leaves a README
+that contradicts the code -- it already says the configuration
+repository is auto-committed, which has been opt-in since August.
+
+### What
+
+- BACKLOG.org: *Documentation to bring up to date*, with what is known
+  to be out of date in README.md (by section), in the help text of
+  `C-c h k`, and a note for the planned Polish guide; the rule that a
+  patch changing something those describe, and not changing them
+  itself, adds a line.  *Order of work* gains step 7, the sync.
+
+### Decisions
+
+- **function_helper.org and CHANGELOG.md are not on the list**: they
+  are kept current with every patch, and are what the sync reads.
+- **Lines are reminders, not text to paste**: by the time of the sync
+  the code is the authority, and text drafted weeks earlier would have
+  to be checked against it anyway.
+
+---
 ## Session 2026-10-19f — A taken menu key is shown; the 'menukeys' check
 
 ### Why

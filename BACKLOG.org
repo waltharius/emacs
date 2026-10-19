@@ -26,6 +26,80 @@ says why and how.
    the core has tests of its own.
 6. /A public repository/: portable defaults and the privacy model in
    the README, the welcome screen; then the Polish guide.
+7. /Documentation to bring up to date/: the README and the help text
+   synced with the code, from the running list kept since 2026-10-18 --
+   at the end of the refactoring, or before the public repository,
+   whichever comes first.
+
+* Documentation to bring up to date
+Asked 2026-10-18: a running list of what the user-facing documentation
+-- README.md, the help text of =C-c h k= (08-keybindings.el), the
+planned Polish guide -- no longer says correctly, so that one sync at
+the end of the refactoring brings them in line with the code.
+=function_helper.org= and =CHANGELOG.md= are kept current with every
+patch and are the source for that sync; they are not on this list.
+
+The rule: a patch that changes something the README or the help text
+describes, and does not change them itself, adds a line here.  The
+sync works through the list against the code and removes each line it
+settles; a line is a reminder, not the text to paste.
+
+** README.md
+- /First run/: the settings folder (=~/.config/mypks/=,
+  =hosts/<host>/custom.el=, =mypks-local.eld=, =MYPKS_DIR=,
+  =MYPKS_HOST=), what the first start creates and asks; the personal
+  dictionary moving there; =private-strings.txt= for the =personal=
+  check.  The dashboard opening at start-up is 15-workspace.el, now
+  optional (2026-10-19e).
+- /Expected file layout/: =~/.config/mypks/dictionaries/= (shared
+  personal dictionary, =merge=union=), =hosts/<host>/spelling.eld=,
+  =recent-settings.eld= (2026-10-18a).
+- /Requirements/: Geekdoc pinned to one release with a SHA-256
+  (2026-10-18f); "no lockfile" still true.  Hunspell's personal
+  dictionary path.
+- /How the configuration is put together/ → /Optional modules/: still
+  describes NOERROR in init.el as the mechanism.  Now: the module
+  contract (=MyPKS-Requires=, =MyPKS-Optional=), 9 core and 43
+  optional modules (2026-10-19e), the per-module on/off switch
+  (=my/<name>-mode=, from 2026-10-19h), the loader to come.
+- /Menu extension without coupling/: the rule is now "insert before
+  Quit, or next to a column 12-transient.el owns"
+  (=my/transient-insert=, coordinates for whole columns); a taken key
+  is warned about after start-up and refused by the =menukeys= check
+  (2026-10-19e-f); entries are removed when their module is turned off
+  (=my/transient-entries=, 2026-10-19h).
+- /Naming/: "violated by twenty-one symbols" -- zero since the
+  decoupling, and the =private= check blocks (2026-10-18e).
+- /The menu/: order and contents of Find, Export (ODT, DOCX, blog,
+  repo docs), Tools (Spelling column first), the Settings menu
+  (=C-c n ,=, with =b= blog autostart, favourites, recent changes);
+  Insert =u= in the Link column (2026-10-19e).
+- /Global/: =C-c v a= commits in the background and returns at once
+  (2026-10-19c); =C-c n , b=; the Readwise and Zotero keys exist only
+  while their modules are on (2026-10-19h).
+- /What happens without being asked/: auto-commit covers the notes,
+  the settings folder, the planner and writing projects -- *not* this
+  repository, which is opt-in (the README says the opposite); it and
+  the start-up pull run in the background; quitting asks when work is
+  not on the server; blog sites start per machine
+  (=my/blog-autostart=, 2026-10-19a); the personal dictionary follows
+  a pull while Emacs runs.
+- /Known issues/: 1 (twenty-one symbols) and 3 (18-zotero-transient a
+  menu without content -- check) are settled or changed; 5 still true.
+- /Before committing a change/: the list of checks (=menukeys=,
+  =personal= skipped without its list).
+- A section /Privacy model and limits/ (BACKLOG, public repository,
+  step 5).
+
+** Help text of C-c h k (08-keybindings.el)
+- Brought up to date for Find, Insert and Export on 2026-10-19e; still
+  to check: Create (Capture column), View (Toggle contents), Tools
+  (Spelling column), the Settings menu, and keys that exist only while
+  a module is on.
+
+** The Polish guide (planned, /Polish for non-technical users/)
+- Nothing written yet; when it starts, from function_helper.org as it
+  stands then, not from this list.
 
 * Hardening the core
 From the outside review of 2026-10-16.  Each item is small and touches
