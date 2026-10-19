@@ -1,6 +1,10 @@
 # ============================================================
 # PRIVACY PROTECTION - Files that may contain note titles/paths
 # ============================================================
+# Since 2026-10-19 these are written to the settings folder
+# (~/.config/mypks/hosts/<host>/var/, no-littering, 00-core.el) and the
+# old ones are moved there at start-up.  The lines stay for an older
+# version of this configuration, which still writes here.
 
 # Session state (contains full file paths with note titles!)
 recentf

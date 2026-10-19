@@ -509,6 +509,26 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
 - [ ] The other machine, after pulling the settings: its own
       =my/modules-off= unchanged.
 
+** R33. Files Emacs writes, in the settings folder [0/7]
+Before: note what is in =~/.emacs.d= (=ls -a=).  Quit the old Emacs
+first: on exit it still writes to the old places.
+- [ ] First start: report "Files Emacs writes are now in
+      ~/.config/mypks/hosts/<host>/var/" listing what moved; no FAILED
+      report (or only for =places=, see below).
+- [ ] =C-x C-r= / the recent files: the same list as before.  Open a
+      note visited before: the cursor where it was.
+- [ ] The session (desktop) restored as before.
+- [ ] Undo in a note edited before the restart: the old changes are
+      there (undo-fu-session).
+- [ ] =~/.config/mypks/.gitignore= holds =/hosts/*/var/=; with the
+      settings folder in a git repository, =git status= there shows no
+      file from =var/=.
+- [ ] Drill session (=C-c n r=): the cards' schedule as
+      before.
+- [ ] Second start: no report.  A FAILED report "Old files left where
+      they were" names a file found in both places: compare, delete the
+      one not wanted, restart.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

@@ -21,8 +21,10 @@ says why and how.
    Left: hint texts from what loaded; the other modules' switches, one
    per session, each rethought first; own modules in the settings
    folder; /Start-up: early-init.el, compilation, lazy loading/.
-4. /Files the modules write/ -- before the loader, whose list of
-   modules turned off is itself a setting.
+4. /Files the modules write/: no-littering, the state of Emacs and its
+   packages in =hosts/<host>/var/=, the old files moved -- done
+   2026-10-19o.  Left: the files of the modules themselves (the keylog
+   first), =MyPKS-Writes:= and its check.
 5. /Continuous integration/ -- can start at any time; most useful once
    the core has tests of its own.
 6. /A public repository/: portable defaults and the privacy model in
@@ -55,7 +57,12 @@ settles; a line is a reminder, not the text to paste.
   optional (2026-10-19e).
 - /Expected file layout/: =~/.config/mypks/dictionaries/= (shared
   personal dictionary, =merge=union=), =hosts/<host>/spelling.eld=,
-  =recent-settings.eld= (2026-10-18a).
+  =recent-settings.eld= (2026-10-18a).  =hosts/<host>/var/= (state of
+  the machine) and =etc/= (shared configuration of packages), the old
+  files moved there, =/hosts/*/var/= in the settings folder's
+  =.gitignore=; Syncthing users add it to =.stignore= (2026-10-19o).
+- /Requirements/: no-littering is one more package from MELPA
+  (2026-10-19o).
 - /Requirements/: Geekdoc pinned to one release with a SHA-256
   (2026-10-18f); "no lockfile" still true.  Hunspell's personal
   dictionary path.
@@ -66,7 +73,7 @@ settles; a line is a reminder, not the text to paste.
   describes NOERROR in init.el as the mechanism.  Now: the module
   contract (=MyPKS-Requires=, =MyPKS-Optional=), 9 core and 43
   optional modules (2026-10-19e), the per-module on/off switch
-  (=my/<name>-mode=, from 2026-10-19h), the loader to come.
+  (=my/<name>-mode=, from 2026-10-19h).
 - /Menu extension without coupling/: the rule is now "insert before
   Quit, or next to a column 12-transient.el owns"
   (=my/transient-insert=, coordinates for whole columns); a taken key
@@ -474,7 +481,7 @@ say what it writes besides code, so that it can live outside the
 repository, differ between machines, or exist in several variants
 (one per role).
 
-Today, written into =~/.emacs.d= and kept out of git only by
+Before 2026-10-19o, written into =~/.emacs.d= and kept out of git only by
 =.gitignore=: =recentf=, =saveplace=, =bookmarks=, =savehist=/=history=,
 =desktop/=, =.org-id-locations=, =org-clock-save.el=, =keys= (keylog,
 14-typing-analytics.el), =.emacs.keyfreq=, =transient/= (menu
@@ -514,6 +521,27 @@ dictionary, in =dictionaries/= at the root of the settings folder
 =hosts/<host>/spelling.eld=.  The pattern -- shared data at the root,
 the per-machine record of a migration under =hosts/<host>/= -- is the
 one the remaining files can follow.
+
+*Done 2026-10-19o*, the files of Emacs and of packages: no-littering
+loaded in 00-core.el before custom.el, =var/= in =hosts/<host>/=, =etc/=
+at the root of the settings folder (shared), the old files moved at
+every start while their new place is free, a file found in both places
+reported and left, =/hosts/*/var/= in the settings folder's
+=.gitignore=; =my/var-file= and =my/etc-file= for files named in this
+configuration (desktop, save-place, undo history, backups, notes root).
+Decided (asked 2026-10-19): org-drill's learning data per machine, in
+=var/persist/=; copying it to another machine replaces that machine's
+progress.
+
+*Left*, the second step:
+- The files the modules write themselves, each through =my/var-file=
+  or a shared-data helper: the keylog =keys= (14-typing-analytics.el)
+  first; then a search of =modules/= for =user-emacs-directory= and
+  =locate-user-emacs-file= used for writing.
+- =;; MyPKS-Writes:= in the header, and a lint check: no module writes
+  under =user-emacs-directory=.
+- =.stignore= for Syncthing users with the settings folder inside the
+  synced notes: documented, not written.
 
 * Agenda per notes folder
 Asked 2026-10-14 ("if it cannot be done, never mind").  Since

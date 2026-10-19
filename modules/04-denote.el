@@ -97,8 +97,9 @@
 ;; their hub file, and a writing session outlives an Emacs session.
 ;;
 ;; Nothing is set here any more.  `org-clock-persist-file' in particular
-;; must keep its default value: `org-clock-persistence-insinuate' writes
-;; to it on every clock change, and a nil file name errors out.
+;; must name a real file -- no-littering's, in var/ of this machine
+;; (00-core.el): `org-clock-persistence-insinuate' writes to it on every
+;; clock change, and a nil file name errors out.
 ;; See the Clock section of 28-writing-projects.el.
 
 ;; ============================================================

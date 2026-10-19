@@ -346,6 +346,200 @@ A rejected NAME is reported, naming SOURCE, where it came from."
       (my/local--put :previous nil))
     (setq my/host--reports (nreverse my/host--reports))))
 
+;; ============================================================
+;; FILES EMACS WRITES WHILE IT WORKS: OUT OF ~/.emacs.d
+;; ============================================================
+;; Emacs and its packages keep state between sessions: recently opened
+;; files, the place in each file, minibuffer history, the session
+;; (desktop), undo history, Org's id locations and clock, the learning
+;; data of org-drill, connection histories.  By default each picks its
+;; own file in ~/.emacs.d, next to the code, and only .gitignore kept
+;; them out of the repository.  They are personal and belong to one
+;; machine, so they go into the settings folder instead:
+;;
+;;   <settings folder>/hosts/<host>/var/   state of this machine
+;;   <settings folder>/etc/                configuration written by
+;;                                         packages, shared by all
+;;                                         machines (menu levels, abbrevs)
+;;
+;; no-littering (github.com/emacscollective/no-littering, MELPA) knows
+;; the variables of several hundred packages and points each at one of
+;; these two folders; it has to load before those packages do, so here,
+;; before custom.el.  `my/var-file' and `my/etc-file' are for files this
+;; configuration names itself.
+;;
+;; MOVING THE OLD FILES.  no-littering does not move existing files, so
+;; at every start `my/var--move-old-files' looks for the old ones in
+;; ~/.emacs.d (and ~/.emacs.keyfreq) and moves each whose new place is
+;; still free.  When both exist -- an older version of this
+;; configuration ran in between -- the old one stays and is reported, at
+;; every start until one of them is removed by hand.
+;;
+;; GIT.  var/ changes all the time and holds what was typed (undo
+;; history), so the settings folder's .gitignore leaves it out
+;; (`my/var--ignore-in-git'); etc/ is committed with the settings.
+;;
+;; Without no-littering (not installed yet and no network at the first
+;; start) the packages keep their old files; the ones named here with
+;; `my/var-file' move anyway.
+
+(defconst my/var-directory (expand-file-name "var/" my/host-directory)
+  "State of this machine: <settings folder>/hosts/<host>/var/.")
+
+(defconst my/etc-directory (expand-file-name "etc/" my/settings-directory)
+  "Configuration written by packages, for every machine: <settings folder>/etc/.")
+
+(defun my/var-file (name)
+  "Return NAME expanded in `my/var-directory', state of this machine."
+  (expand-file-name name my/var-directory))
+
+(defun my/etc-file (name)
+  "Return NAME expanded in `my/etc-directory', shared by all machines."
+  (expand-file-name name my/etc-directory))
+
+(defvar no-littering-etc-directory)
+(defvar no-littering-var-directory)
+
+(defun my/var--load-no-littering ()
+  "Load no-littering with its folders in the settings folder.
+Returns non-nil when it loaded; a failure is a warning, not a stop."
+  (setq no-littering-etc-directory my/etc-directory
+        no-littering-var-directory my/var-directory)
+  (use-package no-littering :demand t)
+  (featurep 'no-littering))
+
+(defconst my/var--old-files
+  '(;; Package files: the new place is the variable no-littering sets.
+    ("recentf"               . recentf-save-file)
+    ("saveplace"             . save-place-file)
+    ("places"                . save-place-file)
+    ("bookmarks"             . bookmark-default-file)
+    ("history"               . savehist-file)
+    (".org-id-locations"     . org-id-locations-file)
+    ("org-clock-save.el"     . org-clock-persist-file)
+    ("transient/history.el"  . transient-history-file)
+    ("transient/levels.el"   . transient-levels-file)
+    ("transient/values.el"   . transient-values-file)
+    ("persist/"              . persist--directory-location)
+    ("tramp"                 . tramp-persistency-file-name)
+    ("url/"                  . url-configuration-directory)
+    ("eshell/"               . eshell-directory-name)
+    ("network-security.data" . nsm-settings-file)
+    ("ielm-history.eld"      . ielm-history-file-name)
+    ("nov-places"            . nov-save-place-file)
+    ("request/"              . request-storage-directory)
+    ("abbrev_defs"           . abbrev-file-name)
+    ("projects"              . project-list-file)
+    ("auto-save-list/"       . auto-save-list-file-prefix)
+    ("~/.emacs.keyfreq"      . keyfreq-file)
+    ;; Files this configuration names itself: the new place is a name
+    ;; in var/, the same one no-littering would give where it has one.
+    ("desktop/"              . "desktop/")
+    ("undo-fu-session/"      . "undo-fu-session/")
+    ("backups/"              . "backups/")
+    ("autosaves/"            . "autosaves/")
+    ("notes-root.eld"        . "notes-root.eld"))
+  "Old file in ~/.emacs.d (or ~/) and where it goes.
+A variable set by no-littering, or a name in `my/var-directory'.  A
+name ending in / is a folder.  \"saveplace\" (named by 01-ui.el until
+2026-10) comes before \"places\" (Emacs's own name), so that the file
+in use is the one moved.")
+
+(defun my/var--empty-directory-p (dir)
+  "Non-nil when DIR is a directory with nothing in it."
+  (and (file-directory-p dir)
+       (null (directory-files dir nil directory-files-no-dot-files-regexp t))))
+
+(defun my/var--move-old-files ()
+  "Move the files `my/var--old-files' names to their new places.
+Returns (MOVED BOTH FAILED), lists of strings for the report."
+  (let ((with-packages (featurep 'no-littering))
+        moved both failed)
+    (pcase-dolist (`(,old . ,target) my/var--old-files)
+      (let* ((folder (string-suffix-p "/" old))
+             (from (directory-file-name (expand-file-name old user-emacs-directory)))
+             (to (cond ((stringp target) (my/var-file target))
+                       ((and with-packages (boundp target)) (symbol-value target))))
+             (to (and to (directory-file-name (expand-file-name to)))))
+        (when (and to (file-exists-p from) (not (equal from to)))
+          (let ((line (format "%s  ->  %s" (abbreviate-file-name from)
+                              (abbreviate-file-name to))))
+            ;; A folder Emacs already made, still empty, counts as free.
+            (when (and folder (my/var--empty-directory-p to))
+              (delete-directory to))
+            (if (file-exists-p to)
+                (push line both)
+              (condition-case err
+                  (progn
+                    (make-directory (file-name-directory to) t)
+                    (rename-file from to)
+                    (push line moved))
+                (error (push (format "%s: %s" line (error-message-string err))
+                             failed))))))))
+    (list (nreverse moved) (nreverse both) (nreverse failed))))
+
+(defconst my/var--gitignore-line "/hosts/*/var/"
+  "The line of the settings folder's .gitignore that leaves var/ out.")
+
+(defun my/var--ignore-in-git ()
+  "Add `my/var--gitignore-line' to the settings folder's .gitignore.
+Returns non-nil when the line was added now."
+  (let ((file (expand-file-name ".gitignore" my/settings-directory)))
+    (unless (and (file-readable-p file)
+                 (with-temp-buffer
+                   (insert-file-contents file)
+                   (re-search-forward
+                    (concat "^" (regexp-quote my/var--gitignore-line) "[ \t]*$") nil t)))
+      (make-directory my/settings-directory t)
+      (with-temp-buffer
+        (when (file-readable-p file)
+          (insert-file-contents file)
+          (goto-char (point-max))
+          (unless (bolp) (insert "\n")))
+        (insert "# State of each machine (recent files, history, undo, sessions):\n"
+                "# per machine, changing all the time, and personal.  00-core.el.\n"
+                my/var--gitignore-line "\n")
+        (write-region (point-min) (point-max) file nil 'silent))
+      t)))
+
+(defun my/var--setup ()
+  "Load no-littering, move the old files, keep var/ out of git; report."
+  (let* ((loaded (condition-case err
+                     (my/var--load-no-littering)
+                   (error (display-warning 'no-littering (error-message-string err))
+                          nil)))
+         (result (my/var--move-old-files))
+         (moved (nth 0 result))
+         (both (nth 1 result))
+         (failed (nth 2 result))
+         (ignored (condition-case nil (my/var--ignore-in-git) (error nil)))
+         reports)
+    (when (or moved ignored)
+      (push (list 'done (format "Files Emacs writes are now in %s"
+                                (abbreviate-file-name my/var-directory))
+                  (append
+                   (when moved (cons "Moved from their old places:" moved))
+                   (when ignored
+                     (list "" (format "%s/.gitignore leaves var/ out of git."
+                                      (abbreviate-file-name
+                                       (directory-file-name my/settings-directory)))))
+                   (unless loaded
+                     (list "" "no-littering did not load: packages still use their old files."))))
+            reports))
+    (when both
+      (push (list 'failed "Old files left where they were: the new ones exist too"
+                  (append both
+                          (list ""
+                                "An older version of this configuration ran in between.  The file"
+                                "on the right is used; delete the one on the left when it holds"
+                                "nothing wanted (or replace the right one with it).")))
+            reports))
+    (when failed
+      (push (list 'failed "Old files that could not be moved"
+                  (append failed (list "" "They stay in use by nothing; move them by hand.")))
+            reports))
+    (setq my/host--reports (append my/host--reports (nreverse reports)))))
+
 (defun my/host--load-settings ()
   "Prepare and load this machine's settings file; never stop start-up."
   (condition-case err
@@ -354,6 +548,9 @@ A rejected NAME is reported, naming SOURCE, where it came from."
                        (list (error-message-string err)
                              "Emacs starts with the defaults; nothing was removed."))
                  my/host--reports)))
+  ;; Before custom.el: no-littering sets file names with setq, and a
+  ;; value saved in Customize has to win over it.
+  (my/var--setup)
   (setq custom-file (expand-file-name "custom.el" my/host-directory))
   (when (file-exists-p custom-file)
     (condition-case err
@@ -1346,9 +1543,9 @@ Until this is turned on it only says that it is disabled."
   :tag "Allow deleting the old notes folder"
   :group 'mypks-silos)
 
-(defconst my/notes-root-state-file (locate-user-emacs-file "notes-root.eld")
+(defconst my/notes-root-state-file (my/var-file "notes-root.eld")
   "Where the notes root used last, and the one before it, are kept.
-Machine state, not configuration: kept out of git.")
+Machine state, not configuration: in var/ of this machine.")
 
 (defun my/notes--read-root-state ()
   "Return the plist in `my/notes-root-state-file', or nil."
@@ -1706,10 +1903,10 @@ appears with its first note."
   "Autosave directory for note files.")
 
 ;; Emacs configuration directories
-(defvar my-emacs-backups (locate-user-emacs-file "backups/")
+(defvar my-emacs-backups (my/var-file "backups/")
   "Backup directory for other files.")
 
-(defvar my-emacs-autosaves (locate-user-emacs-file "autosaves/")
+(defvar my-emacs-autosaves (my/var-file "autosaves/")
   "Autosave directory for other files.")
 
 ;; TEXT WRAPPING: Fill column for normal notes
@@ -1862,10 +2059,14 @@ than signalling an error."
   :config
   (setq recentf-max-saved-items 100)
   (setq recentf-auto-cleanup 'never)
-  (setq recentf-exclude '("\\.git/"
+  (setq recentf-exclude `("\\.git/"
                           "COMMIT_EDITMSG"
                           "\\.elc$"
                           "/elpa/"
+                          ;; The files of `my/var-directory' and
+                          ;; `my/etc-directory' are no one's reading.
+                          ,(concat "\\`" (regexp-quote (expand-file-name my/var-directory)))
+                          ,(concat "\\`" (regexp-quote (expand-file-name my/etc-directory)))
                           "^/tmp/"
                           "^#.*#$"
                           "^\\.#")))

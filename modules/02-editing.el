@@ -269,11 +269,12 @@
 (use-package undo-fu-session
   :ensure t
   :init
-  ;; Kept inside .emacs.d rather than next to the notes: this is
-  ;; machine-local state, and syncing it between devices would produce
-  ;; conflicts over files that are meaningless on the other machine.
-  (setq undo-fu-session-directory
-        (expand-file-name "undo-fu-session/" user-emacs-directory))
+  ;; In var/ of this machine (00-core.el, `my/var-file') rather than next
+  ;; to the notes: machine-local state, and syncing it between devices
+  ;; would produce conflicts over files meaningless on the other machine.
+  ;; Left out of git by the settings folder's .gitignore: it holds the
+  ;; text of edited buffers.
+  (setq undo-fu-session-directory (my/var-file "undo-fu-session/"))
   :config
   ;; Buffers whose content is regenerated each time and whose undo
   ;; history would be misleading if restored.

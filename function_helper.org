@@ -8970,6 +8970,8 @@ their own, so that the code holds nothing personal and can be public:
 | =<settings folder>/hosts/<host>/custom.el=   | what Customize saves (=C-c n , ,=)                   |
 | =<settings folder>/hosts/<host>/ui-state.el= | choices made with keys: theme, font size, text width |
 | =<settings folder>/dictionaries/=            | the personal dictionary, shared by every machine ([[#fn-spell-personal-dictionary][Personal dictionary]]) |
+| =<settings folder>/hosts/<host>/var/=        | what Emacs and packages keep between sessions, per machine ([[#var-files][Files Emacs writes]]) |
+| =<settings folder>/etc/=                     | configuration written by packages, shared by every machine ([[#var-files][Files Emacs writes]]) |
 
 *The settings folder* is =~/.config/mypks/= by default — the usual place
 for a program's settings on Linux — and is itself a setting: /Folder of
@@ -9039,6 +9041,83 @@ Loaded at the top of =00-core.el=, before any option is defined;
 =init.el= no longer loads a custom file itself.
 
 Function: =my/settings-folder=, =my/host-settings-open=, =my/host-settings-copy-from=, =my/host-settings-use= | Module: =modules/00-core.el=
+
+** Files Emacs writes while it works
+:PROPERTIES:
+:CUSTOM_ID: var-files
+:END:
+
+Emacs and its packages keep state between sessions -- recently opened
+files, the place in each file, minibuffer history, the session, undo
+history, Org's id locations and clock, org-drill's learning data,
+connection histories.  By default each package picks a file of its own
+in =~/.emacs.d=, next to the code, kept out of git only by
+=.gitignore=.  They are personal and belong to one machine, so they
+live in the settings folder:
+
+| Folder                                | Holds                                                                    | In git                         |
+|---------------------------------------+--------------------------------------------------------------------------+--------------------------------|
+| =<settings folder>/hosts/<host>/var/= | state of this machine: recent files, places, history, desktop, undo history, Org ids and clock, drill data, backups of files outside the notes, the notes root used last | no (=.gitignore= of the settings folder) |
+| =<settings folder>/etc/=              | configuration packages write: menu levels and saved values of =transient=, abbrevs | yes, with the settings |
+
+[[https://github.com/emacscollective/no-littering][no-littering]] (MELPA)
+points several hundred packages' file variables at these two folders;
+it loads in =00-core.el= after this machine's settings folder is known
+and before =custom.el=, so a file name saved in Customize still wins.
+Files this configuration names itself use =my/var-file= and
+=my/etc-file=.
+
+*The old files move at the next start.*  no-littering moves nothing, so
+=my/var--move-old-files= looks for each old file in =~/.emacs.d= (and
+=~/.emacs.keyfreq=) at every start and moves it when its new place is
+free; the outcome is a report.  When both exist -- an older version of
+this configuration ran in between, e.g. after a rollback -- the old one
+stays and is reported as FAILED at every start until one of them is
+deleted by hand: the new one is what is used.
+
+*Git.*  =var/= changes all the time and holds the text of edited
+buffers (undo history), so =/hosts/*/var/= goes into the =.gitignore=
+of the settings folder, added at the first start if missing.  With the
+notes synced by Syncthing and the settings folder inside them, the
+same line belongs in =.stignore=: nothing adds it there.
+
+*Learning data of org-drill* is per machine: progress made on one
+laptop is not on the other.  Copying =var/persist/= from one machine to
+the other replaces the other's progress; the two are not merged.
+
+*Without no-littering* -- not installed yet and no network at the first
+start -- the packages keep their old files and the report says so; the
+files named with =my/var-file= move anyway.
+
+Tests: =tests/test-var-files.el= (the folders, own files, package
+files, a taken place, the =.gitignore= line, a second start), in a
+fresh =emacs -Q --batch=; the package files are checked when
+no-littering is installed.
+
+| Old place in =~/.emacs.d=                         | New place                               |
+|---------------------------------------------------+-----------------------------------------|
+| =recentf=                                         | =var/recentf-save.el=                   |
+| =saveplace=, =places=                             | =var/save-place.el=                     |
+| =bookmarks=                                       | =var/bookmark-default.el=               |
+| =history=                                         | =var/savehist.el=                       |
+| =desktop/=                                        | =var/desktop/=                          |
+| =.org-id-locations=                               | =var/org/id-locations.el=               |
+| =org-clock-save.el=                               | =var/org/clock-persist.el=              |
+| =transient/history.el=                            | =var/transient/history.el=              |
+| =transient/levels.el=, =transient/values.el=      | =etc/transient/= (shared)               |
+| =persist/= (org-drill)                            | =var/persist/=                          |
+| =undo-fu-session/=                                | =var/undo-fu-session/=                  |
+| =backups/=, =autosaves/=                          | =var/backups/=, =var/autosaves/=        |
+| =notes-root.eld=                                  | =var/notes-root.eld=                    |
+| =~/.emacs.keyfreq=                                | =var/keyfreq.el=                        |
+| =tramp=, =url/=, =eshell/=, =network-security.data=, =ielm-history.eld=, =nov-places=, =request/=, =abbrev_defs=, =projects=, =auto-save-list/= | no-littering's names in =var/= (=abbrev.el= in =etc/=) |
+
+Still in =~/.emacs.d=: the keylog =keys= of =14-typing-analytics.el=
+(next step, with the files other modules write), =elpa/= and
+=eln-cache/= (installed and compiled code), =mypks-local.eld= (which
+settings folder to read).
+
+Function: =my/var-file=, =my/etc-file=, =my/var--setup=, =my/var--move-old-files= | Module: =modules/00-core.el=
 
 ** The tree
 :PROPERTIES:

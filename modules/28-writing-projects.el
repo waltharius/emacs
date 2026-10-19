@@ -60,7 +60,8 @@
 ;;   present, that module owns the variable and this one supplies the
 ;;   project half of the list; see the Agenda section below.  The
 ;;   setting that used to live in 05-notes.el has been removed.
-;; - Requires `org-clock-persist-file' to keep its default value.  See the
+;; - Requires `org-clock-persist-file' to name a real file (no-littering
+;;   sets it, 00-core.el).  See the
 ;;   Clock section: 04-denote.el used to set it to nil.
 ;;
 ;; Docs: ~/.emacs.d/function_helper.org::#writing-projects

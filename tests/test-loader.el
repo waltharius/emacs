@@ -106,6 +106,8 @@
           (with-temp-buffer
             (call-process (expand-file-name invocation-name invocation-directory)
                           nil t nil "-Q" "--batch"
+                          ;; A test installs nothing (no-littering, 00-core.el).
+                          "--eval" "(setq use-package-ensure-function 'ignore)"
                           "--eval" (format "(setq user-emacs-directory %S)" emacs-dir)
                           "-l" (expand-file-name "modules/00-core.el" my/loader-test--repo)
                           "-l" script)

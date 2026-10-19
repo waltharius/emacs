@@ -21,6 +21,73 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19o — Files Emacs writes while it works: out of ~/.emacs.d, into the settings folder
+
+### Why
+
+BACKLOG, *Files the modules write*, and step 4 of the order of work.
+Recent files, the place in each file, minibuffer history, the session,
+undo history (the text of edited buffers), Org's id locations and
+clock, org-drill's learning data and a dozen other files were written
+into `~/.emacs.d`, next to the code, and kept out of git only by
+`.gitignore`.  They are personal and belong to one machine; the
+repository is to become public.
+
+### What
+
+- 00-core.el, *Files Emacs writes while it works*:
+  - `my/var-directory` = `<settings folder>/hosts/<host>/var/` (state
+    of this machine), `my/etc-directory` = `<settings folder>/etc/`
+    (configuration packages write, shared); `my/var-file`,
+    `my/etc-file`.
+  - no-littering (github.com/emacscollective/no-littering, MELPA)
+    loaded with its two folders set to these, from
+    `my/host--load-settings`, after the settings folder is prepared and
+    before `custom.el` is read.  A failure to load is a warning.
+  - `my/var--move-old-files`: each old file in `~/.emacs.d` (and
+    `~/.emacs.keyfreq`) from `my/var--old-files` moved to its new place
+    while that place is free; a folder Emacs already made and left
+    empty counts as free; a file in both places left and reported.
+  - `my/var--ignore-in-git`: `/hosts/*/var/` in the settings folder's
+    `.gitignore`, once.
+  - `my/var--setup`: the three, and the report.
+  - `my-emacs-backups`, `my-emacs-autosaves`, `my/notes-root-state-file`
+    in `var/`; `recentf-exclude` leaves out `var/` and `etc/`.
+- 01-ui.el: `desktop-dirname` and `save-place-file`, 02-editing.el:
+  `undo-fu-session-directory` -- in `var/`, under no-littering's names.
+- 04-denote.el, 28-writing-projects.el: the note on
+  `org-clock-persist-file` says "a real file" instead of "the default".
+- tests/test-var-files.el (new): old files in a fresh `emacs -Q
+  --batch`, 15 checks (7 without no-littering installed).
+  tests/test-loader.el: installs nothing (`use-package-ensure-function`
+  set to `ignore`), since 00-core.el now asks for a package.
+- .gitignore: a note that the privacy lines now cover older versions.
+- function_helper.org: *Files Emacs writes while it works*; the table
+  of the settings folder.  TESTPLAN.org: R33.  BACKLOG.org: step 4,
+  first part done; the docs list.
+
+### Decisions
+
+- **no-littering, not a list of our own**: it is the established
+  package for this, maintained, and covers packages added later.
+- **var/ per machine, etc/ shared**: state (history, places, sessions,
+  undo) means nothing on another machine and would conflict in git;
+  what packages write as configuration (menu levels, abbrevs) is a
+  choice wanted everywhere, like the personal dictionary.
+- **org-drill's data per machine** (asked 2026-10-19): two machines
+  writing one file would conflict; copying the folder replaces the
+  other machine's progress, it does not merge.
+- **Loaded before custom.el**: no-littering sets file names with
+  `setq`, so a value saved in Customize has to come after it.
+- **Moved at every start, not once**: a check costs a few file tests,
+  and after a rollback to an older version the old files come back --
+  then both exist, and the report says which is used.
+- **var/ out of git**: it changes all the time and
+  holds the text of edited buffers.
+- **The modules' own files come next**, with the header line
+  `MyPKS-Writes:` and its check: the keylog first.
+
+---
 ## Session 2026-10-19n — The loader: which modules each machine loads, and errors that do not stop start-up
 
 ### Why

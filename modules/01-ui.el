@@ -488,7 +488,9 @@ off, so it is safe to call at any time."
 (use-package desktop
   :ensure nil
   :init
-  (setq desktop-dirname             (locate-user-emacs-file "desktop/")
+  ;; In var/ of this machine (00-core.el, `my/var-file'), the folder
+  ;; no-littering would give it too.
+  (setq desktop-dirname             (my/var-file "desktop/")
         desktop-base-file-name      "desktop"
         desktop-base-lock-name      "desktop.lock"
         desktop-path               (list desktop-dirname)
@@ -715,7 +717,8 @@ which loads after this file."
   :init
   (save-place-mode 1)
   :config
-  (setq save-place-file (locate-user-emacs-file "saveplace")))
+  ;; no-littering's name for it, in var/ of this machine (00-core.el).
+  (setq save-place-file (my/var-file "save-place.el")))
 
 ;; ============================================================
 ;; TAB-BAR-MODE: Workspace tabs (like browser tabs)
