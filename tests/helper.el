@@ -29,7 +29,9 @@
 
 (defun my/test--enter-sandbox ()
   "Point HOME, the settings folder and ~/.emacs.d into a temporary folder."
-  ;; The real package folder, taken before HOME changes.
+  ;; The real package folder and current folder, taken before HOME
+  ;; changes: both may be written with "~", which then means the sandbox.
+  (setq default-directory (file-name-as-directory (expand-file-name default-directory)))
   (let ((elpa (expand-file-name "elpa/" user-emacs-directory)))
     (setq my/test-sandbox (make-temp-file "mypks-test-" t))
     (setenv "HOME" my/test-sandbox)

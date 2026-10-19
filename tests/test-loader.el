@@ -83,6 +83,11 @@
          (emacs-dir (expand-file-name "ed/" root))
          (modules (expand-file-name "modules/" emacs-dir))
          (script (expand-file-name "checks.el" root))
+         ;; The child starts in the temporary folder.  Emacs keeps the
+         ;; current folder as "~/.emacs.d/" when it is under HOME, and
+         ;; with HOME changed below that "~" would mean the temporary
+         ;; HOME, where no .emacs.d exists: "Setting current directory".
+         (default-directory (file-name-as-directory root))
          (process-environment
           (append (list (concat "HOME=" root)
                         (concat "MYPKS_DIR=" (expand-file-name "settings" root)))

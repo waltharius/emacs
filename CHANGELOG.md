@@ -21,6 +21,32 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19s — Tests that start a second Emacs pass with the repository in ~/.emacs.d
+
+### Why
+
+Reported 2026-10-19 from `bash hooks/check-all` on the user's machine:
+test-loader and test-var-files failed with `(file-missing "Setting
+current directory" "No such file or directory" "~/.emacs.d/")`; they
+passed here.  Emacs keeps the current folder as `~/.emacs.d/` when it
+lies under HOME -- the case on the user's machine, not here, where the
+repository is elsewhere.  Both tests give the child Emacs a temporary
+HOME, and `call-process` read that `~` with it: a folder that does not
+exist.  Reproduced here with the repository cloned into a HOME of its
+own.
+
+### What
+
+- tests/test-loader.el, tests/test-var-files.el: the child Emacs starts
+  in the temporary folder (`default-directory` bound to it).
+- tests/helper.el: the current folder is made absolute before HOME
+  changes, for the same reason.
+
+Checked with the repository at `$HOME/.emacs.d`: every test passes but
+test-journal-metrics, which needs Denote, not installed here (56 of 56
+with it on `load-path`).
+
+---
 ## Session 2026-10-19r — A fresh package list before installing; the report says why no-littering did not load
 
 ### Why
