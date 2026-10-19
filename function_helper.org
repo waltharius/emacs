@@ -2463,6 +2463,26 @@ Functions: =my/fixed-tab-goto= (=01-ui.el=),
 =my/fixed-tab-refresh-advice=, =my/fixed-tab--install= |
 Variable: =my/fixed-tab-commands= | Module: =modules/23-fixed-tabs.el=
 
+** Windows of killed buffers when a tab comes back
+:PROPERTIES:
+:CUSTOM_ID: tab-restore-windows
+:END:
+
+Since Emacs 30, selecting a tab -- also the tabs a restored session
+brings back -- shows a placeholder buffer, " *Old buffer NAME*" with
+"This window displayed the buffer NAME", in each of its windows whose
+buffer was killed in the meantime (=tab-bar-select-restore-windows=).
+For a file the placeholder offers [Restore]; for =*Warnings*= and the
+other buffers Emacs makes by itself it is only a split nobody asked
+for: a =*Warnings*= window of one session came back as such a split in
+the next.  =my/tab-bar-restore-windows= closes the window of a killed
+buffer that visited no file and leaves files to Emacs's placeholder; the
+only window of a frame is never closed.  Nothing changes on Emacs 29.
+
+Tests: =tests/test-session.el=.
+
+Function: =my/tab-bar-restore-windows= | Module: =modules/01-ui.el=
+
 ** Detaching to a separate frame (C-c n v f / F)
 :PROPERTIES:
 :CUSTOM_ID: detach-to-frame
@@ -9072,9 +9092,12 @@ Files this configuration names itself use =my/var-file= and
 =my/var--move-old-files= looks for each old file in =~/.emacs.d= (and
 =~/.emacs.keyfreq=) at every start and moves it when its new place is
 free; the outcome is a report.  When both exist -- an older version of
-this configuration ran in between, e.g. after a rollback -- the old one
-stays and is reported as FAILED at every start until one of them is
-deleted by hand: the new one is what is used.
+this configuration ran in between, e.g. after a rollback, or a file was
+written to its new place before no-littering loaded -- the old one
+stays and a FAILED report lists both: the new one is what is used.
+Answering /t/ moves the old ones to the trash (=my/var--trash-old=;
+they can be taken back from there); /k/ keeps them, and the report
+comes back at the next start.
 
 *Git.*  =var/= changes all the time and holds the text of edited
 buffers (undo history), so =/hosts/*/var/= goes into the =.gitignore=
@@ -9207,6 +9230,14 @@ immediately (=my/settings-apply-on-set=):
 | =my/notes-search-ignored-directories=, =my/notes-search-prefer-ripgrep= | =grep-find-ignored-directories=, =consult-denote-grep-command= |
 | =my/writing-clock-idle-minutes=, =my/writing-clock-auto-clockout-seconds=, =my/writing-use-mutter-idle= | Org's idle handling; auto clock-out from the next clock-in |
 | =my/readwise-directory=                                         | the last-sync file moves with it                             |
+
+*Not a change: a theme loading.*  Enabling a theme ends with
+=(enable-theme 'user)=, which hands every saved option to its setter
+again, unchanged.  The theme loads after init, so setters took it for a
+change by hand -- the silos applied a second time and messages at every
+start and every theme toggle.  =my/settings--live-p= is nil while a
+theme is enabled or disabled (=my/settings--theme-recalc=, set by an
+advice around =enable-theme= and =disable-theme=).
 
 *At the next start*: only the notes folder (=my-notes-dir=), because
 changing it means moving the notes, which is offered at start-up before

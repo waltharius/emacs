@@ -440,7 +440,12 @@ start-up report to say why."
 (defconst my/var--old-files
   '(;; Package files: the new place is the variable no-littering sets.
     ("recentf"               . recentf-save-file)
-    ("saveplace"             . save-place-file)
+    ;; 01-ui.el names save-place's file itself, so it moves with or
+    ;; without no-littering: listed with the packages until 2026-10-19s,
+    ;; it stayed while 01-ui.el already wrote the new one.  Before
+    ;; "places", Emacs's own name, so that the file in use is the one
+    ;; moved.
+    ("saveplace"             . "save-place.el")
     ("places"                . save-place-file)
     ("bookmarks"             . bookmark-default-file)
     ("history"               . savehist-file)
@@ -471,9 +476,10 @@ start-up report to say why."
     ("keys"                  . "keys"))          ; 14-typing-analytics.el
   "Old file in ~/.emacs.d (or ~/) and where it goes.
 A variable set by no-littering, or a name in `my/var-directory'.  A
-name ending in / is a folder.  \"saveplace\" (named by 01-ui.el until
-2026-10) comes before \"places\" (Emacs's own name), so that the file
-in use is the one moved.")
+name ending in / is a folder.  Where both are left -- \"places\" is
+Emacs's own name for save-place's file, \"saveplace\" the one 01-ui.el
+used until 2026-10 -- the report offers to move the old ones to the
+trash.")
 
 (defun my/var--empty-directory-p (dir)
   "Non-nil when DIR is a directory with nothing in it."
@@ -482,7 +488,8 @@ in use is the one moved.")
 
 (defun my/var--move-old-files ()
   "Move the files `my/var--old-files' names to their new places.
-Returns (MOVED BOTH FAILED), lists of strings for the report."
+Returns (MOVED BOTH FAILED): MOVED and FAILED lists of strings for the
+report, BOTH a list of (LINE . OLD-FILE)."
   (let ((with-packages (featurep 'no-littering))
         moved both failed)
     (pcase-dolist (`(,old . ,target) my/var--old-files)
@@ -498,7 +505,7 @@ Returns (MOVED BOTH FAILED), lists of strings for the report."
             (when (and folder (my/var--empty-directory-p to))
               (delete-directory to))
             (if (file-exists-p to)
-                (push line both)
+                (push (cons line from) both)
               (condition-case err
                   (progn
                     (make-directory (file-name-directory to) t)
@@ -542,6 +549,22 @@ Returns non-nil when the line was added now."
          "packages first), or restart with a network; the files of packages"
          "move at the next start.")))
 
+(defun my/var--trash-old (files)
+  "Move FILES, old files left by `my/var--move-old-files', to the trash."
+  (let ((delete-by-moving-to-trash t)
+        trashed failed)
+    (dolist (file files)
+      (condition-case err
+          (progn (move-file-to-trash file)
+                 (push (abbreviate-file-name file) trashed))
+        (error (push (format "%s: %s" (abbreviate-file-name file)
+                             (error-message-string err))
+                     failed))))
+    (my/notes-report (if failed 'failed 'done)
+                     (if failed "Some old files could not be moved to the trash"
+                       "Old files moved to the trash")
+                     (append (nreverse trashed) (when failed (cons "" (nreverse failed)))))))
+
 (defun my/var--setup ()
   "Load no-littering, move the old files, keep var/ out of git; report."
   ;; Made here, not only by no-littering: without it (not installed, no
@@ -576,11 +599,19 @@ Returns non-nil when the line was added now."
             reports))
     (when both
       (push (list 'failed "Old files left where they were: the new ones exist too"
-                  (append both
+                  (append (mapcar #'car both)
                           (list ""
-                                "An older version of this configuration ran in between.  The file"
-                                "on the right is used; delete the one on the left when it holds"
-                                "nothing wanted (or replace the right one with it).")))
+                                "The file on the right is the one in use.  The one on the left is"
+                                "older: written before the move, by an older version of this"
+                                "configuration, or before no-littering loaded."
+                                ""
+                                "t moves the old ones to the trash (they can be taken back from"
+                                "there); k keeps them, and this report comes back at the next start."))
+                  '((?t "trash the old ones" "Move the files on the left to the trash")
+                    (?k "keep" "Leave them; ask again at the next start"))
+                  (lambda (answer)
+                    (when (eq answer ?t)
+                      (my/var--trash-old (mapcar #'cdr both)))))
             reports))
     (when failed
       (push (list 'failed "Old files that could not be moved"
@@ -612,9 +643,14 @@ Returns non-nil when the line was added now."
 (my/host--load-settings)
 
 (defun my/host--show-reports ()
-  "Show the reports collected while preparing this machine's settings."
+  "Show the reports collected while preparing this machine's settings.
+A report is (KIND TITLE LINES [CHOICES [THEN]]): the first four go to
+`my/notes-report', THEN is called with the key answered."
   (dolist (report my/host--reports)
-    (apply #'my/notes-report report))
+    (let ((answer (apply #'my/notes-report (seq-take report 4)))
+          (then (nth 4 report)))
+      (when (and then answer)
+        (funcall then answer))))
   (setq my/host--reports nil))
 
 ;; Committed with the other repositories when the settings folder is a
@@ -870,11 +906,31 @@ The environment variable MYPKS_HOST overrides both."
 ;; other option changes, unless the user has set them explicitly; see
 ;; `my/settings-reevaluate-dependents'.
 
+(defvar my/settings--theme-recalc nil
+  "Non-nil while a theme is enabled or disabled.  See below.")
+
+(defun my/settings--during-theme (function &rest args)
+  "Call FUNCTION with ARGS with `my/settings--theme-recalc' set."
+  (let ((my/settings--theme-recalc t))
+    (apply function args)))
+
+;; Enabling a theme ends with (enable-theme 'user), which hands every
+;; option saved in Customize to its setter again, unchanged (custom.el,
+;; `enable-theme' and `custom-theme-recalc-variable').  The theme loads
+;; after init, so without this every setter took it for a change made by
+;; hand: messages at start-up ("Silos applied", "... takes effect at the
+;; next start"), the silos applied twice, and the same at every theme
+;; toggle.  Seen 2026-10-19 in *Messages* after a restart.
+(advice-add 'enable-theme :around #'my/settings--during-theme)
+(advice-add 'disable-theme :around #'my/settings--during-theme)
+
 (defun my/settings--live-p ()
   "Non-nil when a setter runs for a change made in a running Emacs.
 Not during init, and not while a file loads: `defcustom' calls the
-setter itself when its module is loaded, and that is no change at all."
-  (and after-init-time (not load-file-name)))
+setter itself when its module is loaded, and that is no change at all.
+Not while a theme is enabled or disabled either: that re-applies the
+saved values (`my/settings--theme-recalc')."
+  (and after-init-time (not load-file-name) (not my/settings--theme-recalc)))
 
 (defun my/settings-apply-on-set (function)
   "Return a Customize setter that stores the value and calls FUNCTION.

@@ -823,7 +823,42 @@ customized elsewhere."
   :config
   (setq tab-bar-show t)
   (setq tab-bar-new-tab-choice "*scratch*")
-  (setq tab-bar-close-button-show t))
+  (setq tab-bar-close-button-show t)
+  ;; Emacs 30 and later: a window whose buffer was killed while its tab
+  ;; was not shown.  See `my/tab-bar-restore-windows'.
+  (when (boundp 'tab-bar-select-restore-windows)
+    (setq tab-bar-select-restore-windows #'my/tab-bar-restore-windows)))
+
+;; WINDOWS OF KILLED BUFFERS WHEN A TAB COMES BACK
+;; ----------------------------------------------
+;; Since Emacs 30, selecting a tab -- also the tabs a restored session
+;; brings back -- shows a placeholder buffer " *Old buffer NAME*" ("This
+;; window displayed the buffer NAME") in each window whose buffer has
+;; been killed since (`tab-bar-select-restore-windows').  For a file it
+;; offers [Restore]; for *Warnings* and other buffers Emacs made by
+;; itself it only leaves a split nobody asked for (reported 2026-10-19:
+;; a *Warnings* window from one session came back as such a split in
+;; the next).  So: a killed file's window keeps Emacs's placeholder, any
+;; other is closed.
+
+(defun my/tab-bar-restore-windows (frame windows type)
+  "Close windows of killed buffers that visited no file.
+WINDOWS and the rest as for `tab-bar-select-restore-windows'; windows of
+files, and a window that is the only one, get Emacs's placeholder."
+  (let (keep)
+    (dolist (quad windows)
+      (let* ((window (nth 0 quad))
+             (old (nth 1 quad))
+             (file (and (bufferp old) (buffer-file-name old))))
+        (unless (and (not file)
+                     (window-live-p window)
+                     (not (window-dedicated-p window))
+                     (condition-case nil
+                         (progn (delete-window window) t)
+                       (error nil)))
+          (push quad keep))))
+    (when (and keep (fboundp 'tab-bar-select-restore-windows))
+      (tab-bar-select-restore-windows frame (nreverse keep) type))))
 
 ;; ============================================================
 ;; WINNER-MODE: Undo/redo window configurations

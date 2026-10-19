@@ -21,6 +21,77 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-19t — After the restart: no stray split from a killed *Warnings*, setters quiet while a theme loads, leftovers to the trash
+
+### Why
+
+Reported 2026-10-19 after restarting with 2026-10-19s, with
+screenshots:
+
+1. A FAILED report: `~/.emacs.d/saveplace` and `~/.emacs.d/places` left
+   in place, `var/save-place.el` already there.  01-ui.el has written
+   save-place's file to `var/` since 2026-10-19o whether or not
+   no-littering loads, but the move of `saveplace` was listed with the
+   package files, done only when no-littering loads -- which on that
+   machine it did not, until 2026-10-19r.  So the new file was written
+   first and the old one could no longer move.  The report also left
+   the user to delete the files by hand.
+2. A horizontal split showing " *Old buffer *Warnings**", "This window
+   displayed the buffer *Warnings*" -- seen once before, some patches
+   back, never before that.  Emacs 30 (`tab-bar-select-restore-windows`,
+   tab-bar.el) puts that placeholder in a tab's window whose buffer was
+   killed while the tab was not shown; the *Warnings* window had come
+   from the previous session's warnings (no-littering failing).
+3. In *Messages*, after start-up: "Silos applied: journal, pks, docu",
+   "Modules turned off on this machine: saved; takes effect at the next
+   start", "Notes folder: saved; ...".  Enabling a theme ends with
+   `(enable-theme 'user)`, which hands every saved option to its setter
+   again (custom.el, `enable-theme`, `custom-theme-recalc-variable`);
+   the theme loads after init, so the setters took it for a change by
+   hand.  The silos were applied a second time at every start and every
+   theme toggle.
+
+### What
+
+- 00-core.el: `saveplace` moves as a file 01-ui.el names
+  (`"save-place.el"`), before `places`, so it moves without
+  no-littering too.
+- 00-core.el: the report on files left in both places offers *t* (move
+  the old ones to the trash, `my/var--trash-old`) and *k* (keep; asked
+  again next start).  `my/host--show-reports` calls a report's fifth
+  element with the answer.  `my/var--move-old-files` returns the old
+  file with each such line.
+- 00-core.el: `my/settings--theme-recalc`, set by an advice around
+  `enable-theme` and `disable-theme`; `my/settings--live-p` is nil
+  while it is set.
+- 01-ui.el: `my/tab-bar-restore-windows` as
+  `tab-bar-select-restore-windows` (Emacs 30 and later): the window of a
+  killed buffer that visited no file is closed; a file keeps Emacs's
+  placeholder with [Restore]; the only window of a frame stays.
+- tests/test-session.el (new, 5 tests): the window closed, a file's
+  window and the only window kept, a theme is no change, old files and
+  folders trashed.  The first two fixes shown to fail when taken out.
+  tests/test-var-files.el: saveplace moves without no-littering too (17
+  checks, 9 without).
+- function_helper.org: *Windows of killed buffers when a tab comes
+  back*; *When a change takes effect* (a theme loading is no change);
+  the trash choice.  TESTPLAN.org: R33, three items.
+
+### For the files already left on that machine
+
+The next start shows the report with the choice: *t* moves
+`~/.emacs.d/saveplace` and `~/.emacs.d/places` to the trash.  They hold
+cursor positions from before 2026-10-19o; `var/save-place.el` holds
+those since.
+
+### Decisions
+
+- **Close, not placeholder, for buffers without a file**: nothing can
+  be restored for them, and a split nobody opened is worse than none.
+- **The theme rule in `my/settings--live-p`**, the one place every
+  setter asks, rather than in each setter.
+
+---
 ## Session 2026-10-19s — Tests that start a second Emacs pass with the repository in ~/.emacs.d
 
 ### Why

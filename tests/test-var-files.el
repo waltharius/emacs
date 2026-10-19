@@ -53,12 +53,13 @@
 (check \"own file moved: backups, and the backup folder points there\" (and (file-exists-p (var \"backups/!home!x!file.txt.~1~\")) (equal my-emacs-backups (var \"backups/\"))))
 (check \"own file moved: notes root\" (and (equal my/notes-root-state-file (var \"notes-root.eld\")) (not (file-exists-p (home \"ed/notes-root.eld\")))))
 (check \"own file moved: keylog of 14-typing-analytics.el\" (and (file-exists-p (var \"keys\")) (not (file-exists-p (home \"ed/keys\")))))
+(check \"own file moved: saveplace, also without no-littering\" (equal (read-file (var \"save-place.el\")) \"place in use\"))
 (check \".gitignore leaves var/ out\" (string-match-p \"^/hosts/\\\\*/var/$\" (read-file (home \"settings/.gitignore\"))))
 (check \".gitignore line not added twice\" (null (my/var--ignore-in-git)))
 (if (not (featurep 'no-littering))
     (princ \"SKIP no-littering not available: package files not checked\\n\")
   (check \"recentf moved, and recentf reads it there\" (and (string-match-p \"recentf-list\" (read-file (var \"recentf-save.el\"))) (equal recentf-save-file (var \"recentf-save.el\"))))
-  (check \"saveplace moved, places left: its new place was taken\" (and (equal (read-file (var \"save-place.el\")) \"place in use\") (file-exists-p (home \"ed/places\"))))
+  (check \"places left: its new place was taken\" (and (equal (read-file (var \"save-place.el\")) \"place in use\") (file-exists-p (home \"ed/places\"))))
   (check \"history left where it was, the new one untouched\" (and (equal (read-file (home \"ed/history\")) \"old history\") (equal (read-file (var \"savehist.el\")) \"new history\")))
   (check \"Org ids moved into a new subfolder\" (file-exists-p (var \"org/id-locations.el\")))
   (check \"menu levels moved to etc/\" (equal (read-file (home \"settings/etc/transient/levels.el\")) \"levels\"))
@@ -133,7 +134,7 @@
          (failed (seq-filter (lambda (l) (string-prefix-p "FAIL " l))
                              (split-string output "\n"))))
     (should (null failed))
-    (should (= passed (if skipped 8 16)))))
+    (should (= passed (if skipped 9 17)))))
 
 (provide 'test-var-files)
 ;;; test-var-files.el ends here

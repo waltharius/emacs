@@ -510,7 +510,7 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
 - [ ] The other machine, after pulling the settings: its own
       =my/modules-off= unchanged.
 
-** R33. Files Emacs writes, in the settings folder [0/8]
+** R33. Files Emacs writes, in the settings folder [0/10]
 Before: note what is in =~/.emacs.d= (=ls -a=).  Quit the old Emacs
 first: on exit it still writes to the old places.
 - [ ] First start: report "Files Emacs writes are now in
@@ -529,8 +529,15 @@ first: on exit it still writes to the old places.
 - [ ] Drill session (=C-c n r=): the cards' schedule as
       before.
 - [ ] Second start: no report.  A FAILED report "Old files left where
-      they were" names a file found in both places: compare, delete the
-      one not wanted, restart.
+      they were" names a file found in both places: /t/ moves the old
+      ones to the trash (check the desktop's trash), restart: no report.
+- [ ] (Emacs 30 and later.)  In a second tab, =M-: (display-warning
+      'test "x")=; switch to the first tab, =C-x k *Warnings*=; back
+      to the second tab: no " *Old buffer *Warnings**" split, the
+      window is gone.
+- [ ] After a restart, =*Messages*= has no "Silos applied" and no
+      "... takes effect at the next start" line; =C-c u t= (theme
+      toggle) adds none either.
 
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
