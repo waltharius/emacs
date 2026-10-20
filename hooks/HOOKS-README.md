@@ -105,8 +105,8 @@ minutes per job.
 | `parens` | Does every module still read as Lisp? | yes |
 | `duplicates` | Is any symbol defined at top level in two modules? | yes |
 | `anchors` | Does every `Docs: ...::#anchor` exist in `function_helper.org`? | yes |
-| `functions` | Does every `Function: =my/x=` in the docs name a symbol that exists? | yes |
-| `keys` | Does every key the `08-keybindings.el` help text lists get bound somewhere? | yes |
+| `functions` | Does every name in a `Function:` or `Functions:` line of the docs (each `=my/x=` before the first `|`, continuation lines too) exist? | yes |
+| `keys` | Is every key the `08-keybindings.el` help text lists the key of a binding form in a module -- `global-set-key`, `define-key`, `keymap-set`, `keymap-global-set`, `bind-key`, `local-set-key`, or a `("KEY" . command)` pair? | yes |
 | `changelog` | Were modules staged without a `CHANGELOG.md` entry? | yes |
 | `menus` | Is every command `function_helper.org` mentions reachable from a menu or a key — or listed, with its reason, under *Commands without a menu entry*? | yes |
 | `modules` | Does every module keep the module contract -- headers, `provide`, every hard dependency declared, nothing core needing something optional, no circles? | yes |
@@ -238,9 +238,11 @@ It reads the flat reference section of the help text only, stopping at
 the transient menu tree. Menu keys are not global bindings and would
 all look unbound.
 
-It also only asks whether *something* binds the key, not whether it
-binds it to what the text claims. A key moved from one command to
-another passes. Catching that would mean parsing which command each
+It asks whether a binding form binds the key -- not, as until
+2026-10-20, whether the quoted key appears anywhere, where a comment or
+a docstring was enough (audit of that date). It does not ask whether
+the form binds it to what the text claims: a key moved from one command
+to another passes, and a binding in code that never runs counts. Catching that would mean parsing which command each
 `global-set-key` names and comparing it to a prose description, which is
 the point where a checker starts guessing.
 

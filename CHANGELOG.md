@@ -21,6 +21,49 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-20c — keys and functions check what they say; smaller lint defects
+
+### Why
+
+The audit of 2026-10-20, sections 2 and 6:
+
+- `keys` asked whether `"KEY"` appeared anywhere in a module, so a
+  comment ("old binding was "C-c x"") or a docstring kept it green
+  after the real binding was gone;
+- `functions` stopped at the first closing `=`: in "Function: =my/a=
+  and =my/b=" only `my/a` was checked, and "Functions:" lines were not
+  read at all -- 195 documented names are checked now;
+- `duplicates` knew neither `defsubst`, `cl-defmacro`, `defface` nor
+  `define-inline`;
+- `loader` matched a switch name with `\b`, so `my/x-mode-extra` stood
+  for `my/x-mode`;
+- `private` said "called" where it sees any use.
+
+### What
+
+- hooks/lint.py: `bound_keys` -- the keys of binding forms in code
+  lines (`global-set-key`, `define-key`, `keymap-set`,
+  `keymap-global-set`, `bind-key`, `local-set-key`, `("KEY" . cmd)`
+  pairs as in `:bind` and `my/module-keys`); `check_keybinding_help`
+  uses it.  Every help key is found that way today.
+- hooks/lint.py: `check_documented_functions` reads every `=name=`
+  before the first `|` of a `Function:`/`Functions:` line and its
+  continuation lines; a name ending in `*` is a family, met when one
+  member exists (`=my/zettel-*=`).
+- hooks/lint.py: `DEF_RE` with `defsubst`, `define-inline`, `defface`,
+  `define-globalized-minor-mode`, the transient infix and argument
+  forms, `cl-defmacro`, `cl-defgeneric`; still column 0 only, now said
+  in a comment.  The switch name must be followed by a space or a
+  newline.  `private` "used".
+- tests/hooks/test_lint.py: 14 more tests -- keys bound four ways, and
+  not by a comment or a docstring; functions with "and", a comma, the
+  plural, a continuation line, a family, nothing read after `|`;
+  definitions of the new forms.  6 of them fail with the lint of
+  2026-10-20b.
+- hooks/HOOKS-README.md: the `keys` and `functions` rows; what `keys`
+  cannot see.
+
+---
 ## Session 2026-10-20b — No green without a check: empty selections, empty test files, skips, unreadable inputs
 
 ### Why

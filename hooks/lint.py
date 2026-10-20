@@ -27,10 +27,14 @@ HELPER = os.path.join(ROOT, "function_helper.org")
 CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")
 KEYS_FILE = os.path.join(MODULES, "08-keybindings.el")
 
+# Top-level definitions: at column 0.  One nested in another form
+# (inside `with-eval-after-load', say) is not seen -- a known limit.
 DEF_RE = re.compile(
-    r"^\((defun|defmacro|defvar|defvar-local|defcustom|defconst|defgroup"
-    r"|defalias|define-derived-mode|define-minor-mode|transient-define-prefix"
-    r"|transient-define-suffix|cl-defun)\s+'?([^\s()]+)",
+    r"^\((defun|defmacro|defsubst|define-inline|defvar|defvar-local|defcustom"
+    r"|defconst|defgroup|defface|defalias|define-derived-mode|define-minor-mode"
+    r"|define-globalized-minor-mode|transient-define-prefix|transient-define-suffix"
+    r"|transient-define-infix|transient-define-argument"
+    r"|cl-defun|cl-defmacro|cl-defgeneric)\s+'?([^\s()]+)",
     re.M,
 )
 SYM_RE = re.compile(r"\bmy[/-][A-Za-z0-9/_?<>=+*!-]+")
@@ -162,12 +166,18 @@ def check_documented_functions():
     helper = open(HELPER, encoding="utf-8").read()
     known = set(definitions())
     problems = []
-    for m in re.finditer(r"^Function:\s+=([^=]+)=", helper, re.M):
-        # Several docs name two functions: "=my/a= and =my/b=", or a
-        # comma-separated pair.  Never split on "/" -- that is part of
-        # the `my/' prefix itself.
-        for sym in re.split(r"\s*(?:,|=?\s+and\s+=?)\s*", m.group(1).strip()):
-            sym = sym.strip()
+    # "Function: =my/a=, =my/b= and =my/c= | Module: ..." -- every name
+    # between = signs before the first "|", over continuation lines too;
+    # "Functions:" as well.  Until 2026-10-20 the pattern stopped at the
+    # first closing "=", so only the first name was checked, and the
+    # plural was not read at all (audit of 2026-10-20).
+    for m in re.finditer(r"^Functions?:(.*(?:\n(?![ \t]*$)(?!\*)(?!\S+:)[^|\n]*)*)",
+                         helper, re.M):
+        names = m.group(1).split("|", 1)[0]
+        for sym in re.findall(r"=([^=\s]+)=", names):
+            # =my/zettel-*= names a family: one member must exist.
+            if sym.endswith("*") and any(k.startswith(sym[:-1]) for k in known):
+                continue
             if sym.startswith("my") and sym not in known:
                 line = helper[: m.start()].count("\n") + 1
                 problems.append(f"function_helper.org:{line} documents {sym}, which no module defines")
@@ -191,16 +201,44 @@ def help_text_keys():
     return keys
 
 
+# A key as the bindings write it: C-, M-, s-, S-, H-, A- or <...>.
+KEY_STRING = r'(?:[CMsSHA]-|<)[^"\n]*'
+BOUND_KEY_RES = [
+    # (global-set-key (kbd "C-c x") ...), (define-key MAP (kbd "C-c x") ...),
+    # (keymap-set MAP "C-c x" ...), (keymap-global-set "C-c x" ...),
+    # (bind-key "C-c x" ...)
+    re.compile(r'\((?:global-set-key|define-key|keymap-set|keymap-global-set|bind-key'
+               r'|local-set-key)\s+(?:[^\s()"]+\s+)?(?:\(kbd\s+)?"(' + KEY_STRING + r')"'),
+    # A (KEY . COMMAND) pair: use-package :bind, `my/module-keys' lists.
+    re.compile(r'\("(' + KEY_STRING + r')"\s*\.\s*[#\']*[^\s()"]+\)'),
+]
+
+
+def bound_keys():
+    """Every key a binding form in modules/ binds, comment lines left out.
+
+    Until 2026-10-20 the check asked only whether the quoted key appeared
+    anywhere in a module -- a comment or a docstring was enough (audit of
+    2026-10-20).  Now it must be the key of a binding form.
+    """
+    found = set()
+    for _, text in modules():
+        code = code_of(text)
+        for rx in BOUND_KEY_RES:
+            found.update(m.group(1) for m in rx.finditer(code))
+    return found
+
+
 def check_keybinding_help():
-    """A key the help text advertises that nothing in modules/ binds."""
+    """A key the help text advertises that no binding form in modules/ binds."""
     if not os.path.exists(KEYS_FILE):
         return []
-    bound = "".join(text for _, text in modules())
+    bound = bound_keys()
     problems = []
     for key, line in help_text_keys():
         if key in EXTERNAL_KEYS:
             continue
-        if f'"{key}"' not in bound:
+        if key not in bound:
             problems.append(f"help text claims {key!r} but no module binds it  ({line})")
     return problems
 
@@ -452,7 +490,10 @@ def check_loader():
         problems.append(f"init.el lists {name}, which has no file in modules/")
     for name, text in modules():
         m = re.search(r"^;+ MyPKS-Switch:[ \t]*(\S+)", text.split(";;; Code:", 1)[0], re.M)
-        if m and not re.search(r"^\(define-minor-mode\s+" + re.escape(m.group(1)) + r"\b", text, re.M):
+        # The name, then a space or a newline: \b let my/x-mode-extra
+        # stand for my/x-mode (audit of 2026-10-20).
+        if m and not re.search(r"^\(define-minor-mode\s+" + re.escape(m.group(1)) + r"\s",
+                               text, re.M):
             problems.append(f"{name}: MyPKS-Switch names {m.group(1)}, which it does not define")
     return problems
 
@@ -647,7 +688,7 @@ def check_changelog():
 
 CHECKS = {
     "duplicates": (check_duplicate_defs, "one symbol defined in two modules"),
-    "private": (check_private_symbols, "`--' symbols called across module boundaries"),
+    "private": (check_private_symbols, "`--' symbols used across module boundaries"),
     "anchors": (check_anchors, "Docs: links pointing at missing CUSTOM_IDs"),
     "functions": (check_documented_functions, "documented functions that no longer exist"),
     "keys": (check_keybinding_help, "keys the help text claims but nothing binds"),
