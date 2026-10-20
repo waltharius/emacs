@@ -142,5 +142,41 @@ class Definitions(unittest.TestCase):
             self.assertIn(sym, found)
 
 
+class Tests(unittest.TestCase):
+    """The advisory 'tests' check: which modules a test file says it tests."""
+
+    def problems(self, test_files, staged=()):
+        tests_dir = tempfile.mkdtemp()
+        for name, text in test_files.items():
+            with open(os.path.join(tests_dir, name), "w", encoding="utf-8") as f:
+                f.write(text)
+        with mock.patch.object(lint, "TESTS_DIR", tests_dir), \
+                mock.patch.object(lint, "module_names", return_value=["10-a.el", "20-b.el"]), \
+                mock.patch.object(lint, "staged_files", return_value=list(staged)):
+            return lint.check_tests()
+
+    def test_untested_module_listed(self):
+        found = self.problems({"test-a.el": ";;; x\n;; Tests: 10-a\n"})
+        self.assertTrue(any("1 of 2 modules have no test: 20-b" in p for p in found))
+
+    def test_unknown_module_named(self):
+        found = self.problems({"test-a.el": ";; Tests: 10-a 20-b 99-gone\n"})
+        self.assertTrue(any("99-gone" in p for p in found))
+
+    def test_missing_header(self):
+        found = self.problems({"test-a.el": ";;; no header\n"})
+        self.assertTrue(any("no ';; Tests:' header" in p for p in found))
+
+    def test_changed_module_without_its_test(self):
+        found = self.problems({"test-a.el": ";; Tests: 10-a 20-b\n"},
+                              staged=["modules/10-a.el"])
+        self.assertTrue(any("none of its tests is staged" in p for p in found))
+
+    def test_changed_module_with_its_test(self):
+        found = self.problems({"test-a.el": ";; Tests: 10-a 20-b\n"},
+                              staged=["modules/10-a.el", "tests/test-a.el"])
+        self.assertEqual([], found)
+
+
 if __name__ == "__main__":
     unittest.main()

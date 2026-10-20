@@ -27,9 +27,12 @@ says why and how.
    2026-10-19p.  Left: =MyPKS-Writes:= in the other modules that write.
 5. /Continuous integration/: =hooks/check-all= (2026-10-19q) and the
    workflow running it with Gitleaks and ShellCheck (2026-10-19u) done.
-   The safety specification drafted (=SAFETY.org=, 2026-10-19v), waiting
-   for acceptance; then its tests.  Left: byte compilation in the
-   workflow (/Checks by tools made by others/).
+   The safety specification accepted (=SAFETY.org=, 2026-10-19y), its
+   first tests 2026-10-19y and 2026-10-20d; the hooks audited and fixed
+   2026-10-20a-e; the testing rules in =TESTING.org= (2026-10-20e).
+   Left: the module tests (/Module tests/), byte compilation and a load
+   test of every module in a weekly job (/Checks by tools made by
+   others/).
 6. /A public repository/: portable defaults and the privacy model in
    the README, the welcome screen; then the installation guide for
    beginners, the tutorial with exercises and the Polish guide.
@@ -473,6 +476,17 @@ ones failing -- it needs every package of the configuration installed
 in the workflow (pdf-tools builds a program), so a job of its own,
 weekly rather than per push.
 
+* Module tests
+Asked 2026-10-20: every module with tests that show its functions
+work, and say what broke and where.  The rule proposed in
+=TESTING.org=, /Every module tested/, three parts for the owner to
+decide: (1) a behaviour change comes with its test -- the advisory lint
+check =tests= reminds at each commit, blocking once decided; (2) a load
+test of every module (loads, switch off and on, keys and menu entries
+follow), in the weekly job with all packages installed; (3) tests of
+the functions of the modules that touch data first, in the order given
+there.  9 of 52 modules are named by a test file on 2026-10-20.
+
 * Checks by tools made by others
 Asked 2026-10-19, after an outside answer on checking code one does not
 read: the existing tools written by people find known kinds of mistake;
@@ -497,7 +511,7 @@ Next, in order:
 1. *The workflow* (above) with Gitleaks and ShellCheck as steps --
    done 2026-10-19u.
 2. *A safety specification* (=SAFETY.org=) -- drafted 2026-10-19v,
-   waiting for the owner's acceptance; four findings (F1-F4) to decide.
+   accepted 2026-10-19 (F1-F3 done 2026-10-19y, F4 open).
    Short, in plain language,
    for the user to accept: what may be published (the blog), deleted
    or moved (notes root, old files, backups), sent over the network

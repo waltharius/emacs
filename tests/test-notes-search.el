@@ -1,4 +1,7 @@
 ;;; test-notes-search.el --- ERT tests for 41-notes-search -*- lexical-binding: t; -*-
+
+;; Tests: 41-notes-search
+
 ;;; Commentary:
 ;; Everything in 41-notes-search.el that is a pure function: the
 ;; tokeniser, the date grammar, the glob list it produces, the

@@ -15,6 +15,7 @@ Run by hooks/pre-commit, or by hand:
 Exit status is 1 when any check fails, so it can gate a commit.
 """
 
+import glob
 import os
 import re
 import sys
@@ -661,6 +662,62 @@ def check_module_contract():
     return module_contract.check(dict(modules()), MODULE_DEPENDENCY_OK)
 
 
+TESTS_DIR = os.path.join(ROOT, "tests")
+
+
+def test_coverage():
+    """Map module name (without .el) -> test files whose `;; Tests:' names it.
+
+    The header is the test file's own statement of which modules it tests
+    -- not merely loads: TESTING.org, *Which module a test tests*.
+    Also returns the names a header gives that are no module.
+    """
+    modules_known = {name[:-3] for name in module_names()}
+    covered, unknown = defaultdict(list), []
+    for path in sorted(glob.glob(os.path.join(TESTS_DIR, "test-*.el"))):
+        text = open(path, encoding="utf-8").read()
+        m = re.search(r"^;; Tests:[ \t]*(.*)$", text, re.M)
+        base = os.path.basename(path)
+        if not m:
+            unknown.append(f"{base}: no ';; Tests:' header naming the modules it tests")
+            continue
+        for module in m.group(1).split():
+            if module in modules_known:
+                covered[module].append(base)
+            else:
+                unknown.append(f"{base}: ';; Tests:' names {module}, which is no module")
+    return covered, unknown
+
+
+def check_tests():
+    """Modules without a test, and modules staged without one of their tests.
+
+    Advisory (TESTING.org): the list is the backlog of module tests, and
+    the staged part is the reminder that a change comes with its test.
+    """
+    covered, problems = test_coverage()
+    untested = [name[:-3] for name in module_names() if name[:-3] not in covered]
+    if untested:
+        problems.append(f"{len(untested)} of {len(module_names())} modules have no test: "
+                        + " ".join(untested))
+    try:
+        staged = staged_files()
+    except Skip:
+        staged = []
+    staged_tests = {os.path.basename(f) for f in staged if f.startswith("tests/")}
+    for path in staged:
+        if not (path.startswith("modules/") and path.endswith(".el")):
+            continue
+        module = os.path.basename(path)[:-3]
+        tests = covered.get(module)
+        if not tests:
+            problems.append(f"{path} changed; it has no test (TESTING.org)")
+        elif not staged_tests.intersection(tests):
+            problems.append(f"{path} changed; none of its tests is staged with it "
+                            f"({', '.join(tests)})")
+    return problems
+
+
 def staged_files():
     """Files staged for the commit: added, copied, modified, renamed, deleted.
 
@@ -699,6 +756,7 @@ CHECKS = {
     "menukeys": (check_menu_keys, "one key given to two different entries of one menu"),
     "codefolder": (check_code_folder, "files named in ~/.emacs.d that the repository does not hold"),
     "loader": (check_loader, "every module in init.el's list once; every MyPKS-Switch defined"),
+    "tests": (check_tests, "modules without a test; modules changed without one of their tests"),
     "personal": (check_personal_strings, "personal strings (private-strings.txt) in files git would commit"),
 }
 
@@ -707,7 +765,7 @@ CHECKS = {
 # them, and since 2026-10-18e it blocks, so that a new call to another
 # module's `--' function stops the commit instead of starting a new
 # backlog.
-ADVISORY = {"coverage"}
+ADVISORY = {"coverage", "tests"}
 
 
 def main(argv):

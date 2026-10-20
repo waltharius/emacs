@@ -1,4 +1,7 @@
 ;;; test-spelling-dictionary.el --- ERT tests for the personal dictionary of 03-spelling -*- lexical-binding: t; -*-
+
+;; Tests: 03-spelling
+
 ;;; Commentary:
 ;; The personal dictionary in the settings folder: reading Hunspell's
 ;; format, merging old files into the new one, the merge=union

@@ -1,4 +1,7 @@
 ;;; test-auto-commit.el --- ERT tests for the background git of 07-git -*- lexical-binding: t; -*-
+
+;; Tests: 07-git
+
 ;;; Commentary:
 ;; The automatic commits of 07-git.el against real repositories: a bare
 ;; "server" and two clones in a temporary folder, one standing for this

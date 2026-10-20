@@ -1,5 +1,7 @@
 ;;; test-var-files.el --- ERT tests for the files Emacs writes, out of ~/.emacs.d -*- lexical-binding: t; -*-
 
+;; Tests: 00-core
+
 ;;; Commentary:
 
 ;; `my/var--setup' (00-core.el): no-littering loaded with its folders in

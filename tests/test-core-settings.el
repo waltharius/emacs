@@ -1,4 +1,7 @@
 ;;; test-core-settings.el --- ERT tests for the settings folder and host of 00-core -*- lexical-binding: t; -*-
+
+;; Tests: 00-core
+
 ;;; Commentary:
 ;; Which settings folder and which host folder 00-core.el chooses, and
 ;; what it refuses: precedence of MYPKS_DIR / MYPKS_HOST over

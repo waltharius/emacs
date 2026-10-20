@@ -1,0 +1,111 @@
+#+title: Testing: rules for the tests of this configuration
+#+startup: showall
+
+How tests are written here, and why.  Most rules come from something
+that went wrong; the origin is named, so a rule can be dropped when its
+reason no longer holds.  SAFETY.org says /what/ must hold; this file
+says how a test shows it.  Running them: =bash hooks/check-all=
+(hooks/HOOKS-README.md).
+
+* Where the tests are
+| Kind                         | Where                    | Runs                                            |
+|------------------------------+--------------------------+-------------------------------------------------|
+| Tests of modules (ERT)       | =tests/test-*.el=        | =hooks/check-all=, each file in its own =emacs -Q --batch= |
+| Tests of the checkers        | =tests/hooks/test_*.py=  | =hooks/check-all= ("hook tests"), Python unittest |
+| Sandbox for module tests     | =tests/helper.el=        | =my/test-load-modules=: temporary HOME, settings, =~/.emacs.d= |
+| Packages for the workflow    | =tests/ci-packages.el=   | the workflow, before the tests                  |
+| What only a person can check | =TESTPLAN.org=           | by hand, on the real machine                    |
+
+* The rules
+1. *A test shows that it can fail.*  A new test is run once with the
+   safeguard or the function it tests taken out, and must fail then;
+   the CHANGELOG entry says what was taken out and which tests failed.
+   A test that passes either way checks nothing.  (2026-10-19, after
+   the outside answer on checking code one does not read.)
+2. *Assert the promise, not a sign of it.*  "Goes to the trash" is
+   shown by the file being in the trash, not by it being gone -- a plain
+   deletion makes it gone too.  (Audit of 2026-10-20: the old-files
+   trash test.)
+3. *A rule of several clauses is tested clause by clause*, and
+   SAFETY.org says which clauses are tested and which are not.  A test
+   file's name next to a whole rule claims more than it shows.  (Audit
+   of 2026-10-20.)
+4. *Nothing passes without having run.*  A check that cannot read its
+   input says =skipped=, never =ok=; a selection matching no test file,
+   or a file with no test, fails; skips are counted, and fail in the
+   workflow, where nothing should be missing (=MYPKS_STRICT_TESTS=).
+   (Audit of 2026-10-20.)
+5. *A test that skips for long is a broken test.*  The menu test of
+   notes-search skipped from the day it was written, and was wrong all
+   along; it was found only when skips began to count.  A skip names
+   its reason; a skip that is not about a missing program or package
+   is fixed, not kept.  (2026-10-20b.)
+6. *Positive and negative cases together.*  A checker is tested with
+   what it must accept and what it must refuse -- the dependency
+   reader with 15 guarded and 12 hard uses -- and with the misleading
+   text that fooled it once: a key only in a comment, a name after the
+   first =|=.  (Audit of 2026-10-20.)
+7. *A checker that reads text says so.*  =keys=, =functions=,
+   =codefolder=, =menus= recognise shapes of text; their description in
+   HOOKS-README.md names the shapes, not the property they stand for.
+   (Audit of 2026-10-20.)
+8. *Tests never touch the real data*, and pass wherever the repository
+   lies: modules load through =tests/helper.el=; a test that starts a
+   second Emacs gives it a temporary HOME *and* starts it in a
+   temporary folder (=default-directory=), since a current folder
+   written as =~/...= means another place under another HOME.
+   (2026-10-19s and x: green in =~/.emacs.d=, red on GitHub.)
+9. *A test installs nothing and needs no network.*  Packages come from
+   =~/.emacs.d/elpa/=; =use-package-ensure-function= is =ignore= in a
+   test's Emacs.  (2026-10-19q: 77 s of network attempts per run.)
+10. *The checkers have tests too*, in =tests/hooks/=: what a check
+    reports is only as good as what it recognises.  (Audit of
+    2026-10-20.)
+
+* Which module a test tests
+Every test file starts with a header naming the modules whose
+behaviour it asserts -- not every module it loads:
+
+#+begin_src emacs-lisp
+;;; test-safety.el --- ERT tests for the rules of SAFETY.org -*- lexical-binding: t; -*-
+
+;; Tests: 00-core 05-notes 46-blog
+#+end_src
+
+The lint check =tests= (advisory) reads these headers: it lists the
+modules no test file names, and, at a commit, a module staged without
+any of its test files.
+
+*Names say what and where.*  A failure is read first by its test's
+name, so the name carries the module and the behaviour:
+=my/<area>-test-<behaviour>=, e.g. =my/ns-test-parse-range-forms=,
+=my/var-test-all=; a test of a SAFETY.org rule carries the rule's
+number, =my/safety-test-2.1-no-answer-deletes-nothing=.  The docstring
+says what is promised and, for a regression, what went wrong before.
+One test asserts one behaviour, so that a red test points at one thing.
+
+* Every module tested: the rule proposed (2026-10-20)
+Asked 2026-10-20: should every module have tests that show its
+functions work, so that when something breaks it is clear what and
+where?  Proposed, in three parts; the owner decides each:
+
+1. *A change to a module's behaviour comes with a test of it*, in the
+   same patch -- or, for what cannot be checked in batch (how something
+   looks, a window layout), a TESTPLAN.org item and a line in the
+   CHANGELOG saying so.  Checked today by the advisory =tests= check at
+   each commit; *blocking* once the owner says so.
+2. *Every module has at least a load test*: it loads in the sandbox
+   with all its packages, its switch goes off and on again without an
+   error, its keys and menu entries come and go with the switch.  One
+   test file for all modules, so a module that breaks is named by the
+   test.  Needs every package of the configuration installed in the
+   workflow -- the weekly job planned for byte compilation (BACKLOG).
+3. *Modules that touch data get tests of their functions first*, in
+   this order -- the order of SAFETY.org's risks: 05-notes (moving,
+   renaming), 07-git, 27-denote-identifiers, 25-inbox-review,
+   26-maintenance, 31-org-images, 39-project-git, 46-blog (the rest of
+   SAFETY.org 1.x), 47-repo-docs, 42-obsidian-import, 24-readwise; then
+   the others, a few per session, as each is next changed.
+
+On 2026-10-20, 9 of 52 modules are named by a test file
+(=python3 hooks/lint.py tests= lists the others).

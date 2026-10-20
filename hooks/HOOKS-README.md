@@ -116,6 +116,7 @@ minutes per job.
 | `private` | Is a `--` symbol called from outside its module? | yes (since 2026-10-18) |
 | `personal` | Does a file git would commit contain a string from the private list `private-strings.txt` in the settings folder? | yes; *skipped*, with the path, when the list does not exist |
 | `coverage` | Is every command a menu runs mentioned in `function_helper.org`? | no — advisory |
+| `tests` | Which modules does no test file name in its `;; Tests:` header, and is a module staged without any of its test files? (TESTING.org) | no — advisory |
 
 A check that cannot read its input -- git cannot list the files, outside
 a repository -- raises `Skip` and prints `skipped` with the reason; it

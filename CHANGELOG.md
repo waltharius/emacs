@@ -21,6 +21,45 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-20e — TESTING.org: the rules the audit taught; which module a test tests
+
+### Why
+
+Asked 2026-10-20, with the audit: lessons for the tests still to be
+written, and whether every module should have tests that show its
+functions work and point at what broke and where.
+
+### What
+
+- TESTING.org (new): where the tests are; ten rules, each with what
+  taught it (a test shows that it can fail; assert the promise, not a
+  sign of it; clause by clause; nothing passes without having run; a
+  long skip is a broken test; positive and negative cases; a checker
+  that reads text says so; never the real data, anywhere the
+  repository lies; no installing, no network; the checkers tested
+  too); how a test file names the modules it tests and how tests are
+  named; the module rule *proposed*, in three parts for the owner to
+  decide.
+- `;; Tests:` header in every test file: the modules whose behaviour it
+  asserts (not every module it loads).
+- hooks/lint.py: check `tests`, advisory -- the modules no test file
+  names (43 of 52 today), a header naming no module, and at a commit a
+  module staged without one of its test files.
+- tests/hooks/test_lint.py: 5 tests of it.
+- BACKLOG.org: *Module tests*; the stale "waiting for acceptance" of
+  SAFETY.org (audit, section 7) corrected in two places.
+  hooks/HOOKS-README.md: the `tests` row.
+
+### Decisions
+
+- **Advisory first**: 43 modules without a test would block every
+  commit; the list is the backlog, visible at every commit, and the
+  owner decides when the rule blocks.
+- **The test file says what it tests**, rather than lint guessing from
+  what it loads: journal-metrics loads 04-denote, 07-git and
+  12-transient without testing them.
+
+---
 ## Session 2026-10-20d — SAFETY.org says which clauses are tested; the missing safety tests
 
 ### Why

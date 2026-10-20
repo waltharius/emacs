@@ -1,4 +1,7 @@
 ;;; test-journal-metrics.el --- ERT tests for 05b-journal-metrics -*- lexical-binding: t; -*-
+
+;; Tests: 05b-journal-metrics 21-dashboards
+
 ;;; Commentary:
 ;; Everything in 05b-journal-metrics.el and 21-dashboards.el that can be
 ;; exercised without a human at the minibuffer: keyword read/write, the two

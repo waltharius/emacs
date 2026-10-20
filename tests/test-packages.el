@@ -1,5 +1,7 @@
 ;;; test-packages.el --- ERT tests for installing packages and the no-littering report -*- lexical-binding: t; -*-
 
+;; Tests: 00-core
+
 ;;; Commentary:
 
 ;; 00-core.el: the package list is refreshed once, before the first

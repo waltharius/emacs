@@ -1,5 +1,7 @@
 ;;; test-session.el --- ERT tests for what a restart brings back -*- lexical-binding: t; -*-
 
+;; Tests: 00-core 01-ui
+
 ;;; Commentary:
 
 ;; Three things seen after a restart on 2026-10-19:

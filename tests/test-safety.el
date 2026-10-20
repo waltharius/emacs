@@ -1,5 +1,7 @@
 ;;; test-safety.el --- ERT tests for the rules of SAFETY.org -*- lexical-binding: t; -*-
 
+;; Tests: 00-core 05-notes 46-blog
+
 ;;; Commentary:
 
 ;; One test per rule or finding of SAFETY.org; the rule's number is in

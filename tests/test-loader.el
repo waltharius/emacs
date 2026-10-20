@@ -1,4 +1,7 @@
 ;;; test-loader.el --- ERT tests for the module loader of 00-core -*- lexical-binding: t; -*-
+
+;; Tests: 00-core
+
 ;;; Commentary:
 ;; `my/modules-load' and `my/modules-toggle' (00-core.el) on a set of
 ;; small stand-in modules in a temporary folder, each a few lines with
