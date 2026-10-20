@@ -6,7 +6,7 @@
 
 ;;; Commentary:
 ;;
-;; Description: Hunspell (pl_PL + en_GB-large UTF-8) for spelling
+;; Description: Hunspell (Polish and English, the dictionaries installed) for spelling
 ;;              Flyspell for highlighting errors AS YOU TYPE
 ;;
 ;; STARTUP BEHAVIOUR
@@ -32,6 +32,8 @@
 ;;; Code:
 
 (require 'filenotify)
+(require 'seq)
+(require 'subr-x)
 
 ;; Declared for the byte compiler: ispell.el loads on demand, after
 ;; this file sets some of its variables.
@@ -46,6 +48,8 @@
 ;; ============================================================
 
 (setq ispell-program-name "hunspell")
+;; The dictionaries themselves are chosen once ispell loads, from those
+;; installed (`my/spell-languages', below); this is the wish.
 (setq ispell-dictionary "pl_PL,en_GB-large")
 (setenv  "LANG"   "pl_PL.UTF-8")
 (setenv  "LC_ALL" "pl_PL.UTF-8")
@@ -428,13 +432,67 @@ Hunspell restarts with the file as saved."
   ;; without file notifications.  A second sync finds nothing new.
   (add-hook 'after-save-hook #'my/spell--dictionary-sync nil t))
 
-(setq ispell-hunspell-dictionary-alist
-      '(("pl_PL" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
-         ("-d" "pl_PL" "-i" "utf-8") nil utf-8)
-        ("en_GB-large" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
-         ("-d" "en_GB-large" "-i" "utf-8") nil utf-8)
-        ("pl_PL,en_GB-large" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil
-         ("-d" "pl_PL,en_GB-large" "-i" "utf-8") nil utf-8)))
+;; ============================================================
+;; WHICH DICTIONARIES: THE FIRST INSTALLED OF EACH LANGUAGE
+;; ============================================================
+;; Until 2026-10-20 the dictionaries were named outright,
+;; "pl_PL,en_GB-large": names of the NixOS packages.  Fedora's
+;; hunspell-en-GB installs en_GB only, Debian's and Ubuntu's the same,
+;; and Hunspell asked for en_GB-large fails -- spell checking was off on
+;; any machine but the owner's, with an error at start-up.  Now each
+;; language lists the dictionaries that will do, best first, and the
+;; first one Hunspell has is used.  What Hunspell has is what Emacs's
+;; own `ispell-find-hunspell-dictionaries' finds (`hunspell -D').
+
+(defcustom my/spell-languages
+  '(("pl_PL")
+    ("en_GB-large" "en_GB" "en_US"))
+  "The languages to check, each a list of dictionaries, best first.
+For each language the first dictionary Hunspell has is used, and all
+of them together, as one combined dictionary.  A language none of whose
+dictionaries is installed is left out, and said so once at start-up.
+Takes effect at the next start of Emacs."
+  :type '(repeat (repeat :tag "Language: dictionaries, best first" string))
+  :tag "Spelling languages"
+  :group 'my/spelling)
+
+(defun my/spell--choose (languages available)
+  "Return, for each of LANGUAGES, its first dictionary in AVAILABLE.
+LANGUAGES as `my/spell-languages'; a language with none is left out."
+  (delq nil (mapcar (lambda (choices) (seq-find (lambda (d) (member d available)) choices))
+                    languages)))
+
+(defun my/spell--missing (languages available)
+  "Return the LANGUAGES (their lists) none of whose dictionaries is AVAILABLE."
+  (seq-remove (lambda (choices) (seq-some (lambda (d) (member d available)) choices))
+              languages))
+
+(defun my/spell--dictionary-entry (name)
+  "An `ispell-hunspell-dictionary-alist' entry for dictionary NAME, in UTF-8."
+  (list name "[[:alpha:]]" "[^[:alpha:]]" "[']" nil (list "-d" name "-i" "utf-8") nil 'utf-8))
+
+(defun my/spell--use-installed-dictionaries ()
+  "Point ispell at the installed dictionaries `my/spell-languages' asks for.
+Returns the combined dictionary name, or nil when none is installed."
+  (let* ((available (progn
+                      (ignore-errors (ispell-find-hunspell-dictionaries))
+                      (mapcar #'car ispell-hunspell-dict-paths-alist)))
+         (chosen (my/spell--choose my/spell-languages available))
+         (missing (my/spell--missing my/spell-languages available))
+         (combined (and chosen (string-join chosen ","))))
+    (when missing
+      (display-warning
+       'my/spelling
+       (format "No Hunspell dictionary for: %s.  Install one (Fedora: sudo dnf install hunspell-pl hunspell-en-GB), or change \"Spelling languages\" in C-c n , ,.%s"
+               (mapconcat (lambda (choices) (string-join choices " or ")) missing "; ")
+               (if chosen (format "  Checking with %s meanwhile." combined)
+                 "  Spell checking is off."))
+       :warning))
+    (setq ispell-hunspell-dictionary-alist
+          (append (mapcar #'my/spell--dictionary-entry chosen)
+                  (when (cdr chosen) (list (my/spell--dictionary-entry combined)))))
+    (setq ispell-dictionary combined)
+    combined))
 
 ;; ============================================================
 ;; HUNSPELL DICT PATH REGISTRATION
@@ -478,9 +536,12 @@ Hunspell restarts with the file as saved."
                    (list "en_GB-large"
                          (expand-file-name "en_GB.aff" nix-path)))))
 
-  ;; Rebuild internal ispell state with the updated alist
-  (ispell-set-spellchecker-params)
-  (ispell-hunspell-add-multi-dic "pl_PL,en_GB-large"))
+  ;; Choose among what is installed, then rebuild ispell's state; a
+  ;; combined dictionary needs `ispell-hunspell-add-multi-dic' too.
+  (let ((combined (my/spell--use-installed-dictionaries)))
+    (ispell-set-spellchecker-params)
+    (when (and combined (string-match-p "," combined))
+      (ispell-hunspell-add-multi-dic combined))))
 
 ;; ============================================================
 ;; E6 — SUPPRESS "Save <personal dictionary>?" ON QUIT

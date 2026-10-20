@@ -21,6 +21,42 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-20h — Spell checking with whatever Polish and English dictionaries are installed
+
+### Why
+
+Preparing the first guide for a non-technical user on Fedora: the
+spelling module named the dictionaries outright, "pl_PL,en_GB-large",
+the names of the NixOS packages, and registered their paths only for
+NixOS.  Fedora's hunspell-en-GB installs en_GB, not en_GB-large (its
+package spec, as far as checked); Debian and Ubuntu the same.
+Reproduced here on Ubuntu with hunspell, hunspell-pl and hunspell-en-gb
+installed: loading flyspell failed with "ispell-phaf: No matching entry
+for pl_PL in `ispell-hunspell-dict-paths-alist'" -- no spell checking,
+an error at the first note opened.
+
+### What
+
+- 03-spelling.el: `my/spell-languages` (option, *Spelling languages*):
+  each language a list of dictionaries, best first -- `("pl_PL")`,
+  `("en_GB-large" "en_GB" "en_US")`.  When ispell loads,
+  `my/spell--use-installed-dictionaries` asks Emacs's
+  `ispell-find-hunspell-dictionaries` what Hunspell has, takes the first
+  of each language (`my/spell--choose`), sets `ispell-dictionary` and the
+  dictionary entries to them and their combination, and warns once
+  about a language with none installed (`my/spell--missing`), naming
+  the Fedora packages.  The NixOS registration stays, so on the owner's
+  machine the choice is en_GB-large as before.
+- tests/test-spelling-languages.el (new, 4 tests): the choice on
+  Fedora-like, NixOS-like and incomplete installations; with Hunspell
+  installed, the dictionaries are found and only a misspelling is
+  marked in a Polish-and-English sentence.  All 4 fail with the module
+  of 2026-10-20g.
+- .github/workflows/checks.yml: hunspell, hunspell-pl, hunspell-en-gb
+  installed, so the last test runs there (a skip fails in strict mode).
+- function_helper.org: *Which dictionaries*.
+
+---
 ## Session 2026-10-20g — A new machine starts without the modules that need an account or a habit
 
 ### Why

@@ -50,6 +50,11 @@ jobs:
           path: ~/.emacs.d/elpa
           key: elpa-${{ matrix.emacs }}-${{ hashFiles('tests/ci-packages.el') }}-${{ steps.week.outputs.week }}
 
+      # Hunspell with a Polish and an English dictionary: the spelling
+      # test checks that the installed ones are found (test-spelling-languages).
+      - name: Hunspell and its dictionaries
+        run: sudo apt-get install -y hunspell hunspell-pl hunspell-en-gb
+
       - name: Install the packages the tests load
         run: |
           mkdir -p ~/.emacs.d/elpa

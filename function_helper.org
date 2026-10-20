@@ -2319,6 +2319,19 @@ buffer where something earlier turned it off.  A named function since
 :CUSTOM_ID: fn-spell-dictionaries
 :END:
 
+*Which dictionaries* (since 2026-10-20).  /Spelling languages/
+(=my/spell-languages=, in =C-c n , ,=) lists the languages, each with
+the dictionaries that will do, best first: =pl_PL=; =en_GB-large=,
+=en_GB=, =en_US=.  When ispell loads, Emacs's own
+=ispell-find-hunspell-dictionaries= asks Hunspell what is installed
+(=hunspell -D=), and the first installed dictionary of each language is
+used, all of them combined (=pl_PL,en_GB= on Fedora, Debian and Ubuntu,
+whose English packages have no =en_GB-large=).  A language with none
+installed is left out, with one warning naming what to install.  Until
+2026-10-20 the names were fixed to the NixOS ones, and on any other
+system loading flyspell failed: "ispell-phaf: No matching entry for
+pl_PL".  Tests: =tests/test-spelling-languages.el=.
+
 Emacs starts Hunspell with =-i UTF-8=. On NixOS, Hunspell 1.7.2 cannot
 convert an ISO8859-2 dictionary for it: =*Messages*= shows the version
 line followed by =error - iconv: ISO8859-2 -> UTF-8=, ispell rejects the
