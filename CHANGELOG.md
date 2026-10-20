@@ -21,6 +21,37 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-20j — A Hugo server running through a theme reinstall is restarted
+
+### Why
+
+Reported 2026-10-20: after deleting `themes/PaperMod` of the journal
+site (the sync had said it was at another commit than the pinned one)
+and previewing the site again, the theme was cloned and checked out at
+969bebdc5600, but the page showed "Failed to reload config: failed to
+load modules: module "PaperMod" not found", though the folder was there.
+The journal site's `hugo server`, started at start-up, had seen the
+folder disappear and failed to reload; it does not try again by itself.
+`my/blog-preview` found it running and only opened the browser.
+
+### What
+
+- 46-blog.el: `my/blog--theme-install-done` calls
+  `my/blog--restart-servers-of-theme` after a successful install: the
+  running server of every site using that theme folder is stopped and,
+  a second later, started again -- with `--navigateToChanged` when it
+  had it.  A failed install leaves the server alone.
+- tests/test-blog.el (new, `;; Tests: 46-blog`, 2 tests): the server of
+  the site using the theme is restarted, following changes as before;
+  a site with another theme is left running; a failed install restarts
+  nothing.  The first fails without the restart.
+- function_helper.org: *A running server is restarted after an
+  install*.  TESTPLAN.org: R34.
+
+For the server running now: stop the preview and start it again
+(`s`, then `v`, in the blog menu).
+
+---
 ## Session 2026-10-20i — A first guide in Polish: installing on Fedora and the first day
 
 ### Why

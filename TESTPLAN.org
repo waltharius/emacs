@@ -554,7 +554,9 @@ first: on exit it still writes to the old places.
 - [ ] =t= in the blog menu (sync) of a PaperMod site: a message that the
       theme is at another commit than the pinned one when it was cloned
       before (expected once); after deleting =themes/PaperMod= and
-      syncing again: "installed at commit 969bebdc5600".
+      syncing again: "installed at commit 969bebdc5600", and, when the
+      site's preview was running, "theme reinstalled, Hugo server
+      restarted" -- the page in the browser works after a reload.
 
 ** R35. A new machine starts without the opt-in modules [0/2]
 - [ ] =MYPKS_HOST=newtest emacs= (a machine name never used): the

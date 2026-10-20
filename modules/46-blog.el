@@ -1604,11 +1604,41 @@ by hand can both find the theme missing.  The second caller joins the
 first install instead of starting another one into the same directory.")
 
 (defun my/blog--theme-install-done (target ok)
-  "Finish the install of TARGET: call every waiting callback with OK."
+  "Finish the install of TARGET: call every waiting callback with OK.
+After a successful install, a `hugo server' already running for a site
+using TARGET is restarted (`my/blog--restart-servers-of-theme')."
   (let ((callbacks (gethash target my/blog--theme-installs)))
     (remhash target my/blog--theme-installs)
+    (when ok
+      (my/blog--restart-servers-of-theme target))
     (dolist (callback (nreverse callbacks))
       (funcall callback ok))))
+
+;; A SERVER RUNNING THROUGH A REINSTALL.  `hugo server' notices when the
+;; theme folder disappears, fails to reload its configuration, and shows
+;; "module ... not found" from then on -- also after the theme is back,
+;; since it does not try again by itself.  Reported 2026-10-20: the
+;; journal site's server, started at start-up, kept that page after
+;; themes/PaperMod was deleted and cloned again at its pinned commit;
+;; the preview command only opened the browser on the running server.
+
+(defun my/blog--restart-servers-of-theme (target)
+  "Restart the running `hugo server' of every site whose theme is TARGET."
+  (dolist (site my/blog-sites)
+    (let ((theme (my/blog--prop site :theme))
+          (name (car site)))
+      (when (and theme
+                 (my/blog--serving-p name)
+                 (equal (file-name-as-directory (expand-file-name target))
+                        (file-name-as-directory
+                         (expand-file-name (concat "themes/" (car theme))
+                                           (my/blog--directory site)))))
+        (let* ((proc (get-buffer-process (my/blog--preview-buffer name)))
+               (follow (member "--navigateToChanged" (process-command proc))))
+          (delete-process proc)
+          ;; A moment for the port to be free again.
+          (run-at-time 1 nil #'my/blog--serve name (and follow t))
+          (message "%s: theme reinstalled, Hugo server restarted" name))))))
 
 (defun my/blog--process-tail (proc)
   "Return the last non-empty line PROC wrote, or an empty string."

@@ -8089,6 +8089,13 @@ install.  A git theme without a commit is installed as before, with a
 message that it is not pinned; a site list saved in Customize keeps
 its old =:theme= until edited.
 
+*A running server is restarted after an install* (since 2026-10-20).
+=hugo server= notices when the theme folder disappears, fails to reload,
+and keeps showing "module ... not found" after the theme is back.  So
+when a theme is installed, a server already running for a site using it
+is stopped and started again a second later, following changes as
+before (=my/blog--restart-servers-of-theme=).
+
 An install runs once per theme directory: a second request while one
 runs (the autostart of a site and =t= pressed during the download)
 waits for the first instead of starting another. An archive is unpacked
