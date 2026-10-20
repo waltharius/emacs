@@ -157,5 +157,29 @@ class Definitions(unittest.TestCase):
         self.assertEqual("none", classify("(defvar my/declared) (defun my/use () nil)"))
 
 
+def module(name, headers):
+    """A minimal module NAME that keeps the form of the contract, with HEADERS."""
+    return (f";;; {name} --- Test -*- lexical-binding: t; -*-\n"
+            f";; MyPKS-Requires:\n{headers};; Docs: ~/.emacs.d/function_helper.org::#x\n"
+            f";;; Commentary:\n;;; Code:\n(provide '{name[:-3]})\n;;; {name} ends here\n")
+
+
+class DefaultHeader(unittest.TestCase):
+    """MyPKS-Default: off, only on an optional module (2026-10-20)."""
+
+    def problems(self, headers):
+        return [p for p in module_contract.check({"10-a.el": module("10-a.el", headers)})
+                if "MyPKS-Default" in p]
+
+    def test_off_on_optional(self):
+        self.assertEqual([], self.problems(";; MyPKS-Optional: yes\n;; MyPKS-Default: off\n"))
+
+    def test_off_on_core(self):
+        self.assertTrue(self.problems(";; MyPKS-Optional: no\n;; MyPKS-Default: off\n"))
+
+    def test_other_value(self):
+        self.assertTrue(self.problems(";; MyPKS-Optional: yes\n;; MyPKS-Default: on\n"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Default: off
 ;; MyPKS-Switch: my/blog-mode
 
 ;;; Commentary:

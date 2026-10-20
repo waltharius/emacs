@@ -6518,6 +6518,7 @@ The check =modules= of =hooks/lint.py= enforces the rules marked
 | =MyPKS-Optional:=    | =yes=: may be turned off; =no=: part of the core                 |
 | =MyPKS-Switch:=      | the module's switch, a global minor mode it defines (only modules that have one; the =loader= check verifies it) |
 | =MyPKS-Writes:=      | files the module writes besides notes, relative to the settings folder or its =var/= (=var/keys=); a record for people, not read by code |
+| =MyPKS-Default:=     | =off=: a new machine starts with the module off (only optional modules; see [[#settings-host][The settings folder]]) |
 | =Docs:=              | the section of this file describing the module                  |
 
 Read from Emacs, without loading the module:
@@ -9065,11 +9066,22 @@ they are copied from, in this order: the previous settings folder
 =~/.emacs.d= (where they were for one day, 2026-10-14); the old shared
 =custom.el= and =ui-state.el= in =~/.emacs.d=.  Otherwise, when other
 machines have settings, a question: copy one of them, or start with
-the defaults; with no one to copy from, an empty settings file with a
+the defaults; with no one to copy from, a new settings file with a
 header.  Nothing is deleted anywhere; once every machine has started
 once, =git rm -r hosts custom.el ui-state.el= in =~/.emacs.d= removes
 the copies nothing reads any more (=.gitignore= then keeps =hosts/=
 out).
+
+*A new machine starts without some modules* (since 2026-10-20).  A
+module whose header says =;; MyPKS-Default: off= -- one that needs an
+account, another program or a habit of its own -- is listed in
+=my/modules-off= of every *new* settings file, so a first-time user
+starts without it: Readwise, Zotero, the Obsidian import, the blog, the
+repository's documentation site, typing analytics.  The start-up report
+names them; =C-c n , m= turns any of them on.  A machine that has
+settings keeps them, and settings copied from another machine bring
+that machine's choice (=my/host--new-machine-modules-off=,
+=my/host--write-new-settings=; tests in =tests/test-core-settings.el=).
 
 *Copying another machine's settings* (=C-c n , c=) replaces this
 machine's file after a question and applies it at once; values the

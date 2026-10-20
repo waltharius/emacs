@@ -486,6 +486,8 @@ test of every module (loads, switch off and on, keys and menu entries
 follow), in the weekly job with all packages installed; (3) tests of
 the functions of the modules that touch data first, in the order given
 there.  9 of 52 modules are named by a test file on 2026-10-20.
+Decided 2026-10-20: (1) blocks from the day the repository is ready for
+a first-time user; (2) in the weekly job; (3) yes.
 
 * Checks by tools made by others
 Asked 2026-10-19, after an outside answer on checking code one does not

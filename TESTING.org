@@ -91,16 +91,21 @@ number, =my/safety-test-2.1-no-answer-deletes-nothing=.  The docstring
 says what is promised and, for a regression, what went wrong before.
 One test asserts one behaviour, so that a red test points at one thing.
 
-* Every module tested: the rule proposed (2026-10-20)
+* Every module tested: the rule (2026-10-20)
 Asked 2026-10-20: should every module have tests that show its
 functions work, so that when something breaks it is clear what and
-where?  Proposed, in three parts; the owner decides each:
+where?  Proposed in three parts, decided by the owner the same day:
+(1) blocks once the repository is ready for people who only want a
+note-taking program -- an installation guide and a tutorial that walk
+them through the basics; until then the =tests= check reminds;
+(2) yes, in the weekly job; (3) yes.
 
 1. *A change to a module's behaviour comes with a test of it*, in the
    same patch -- or, for what cannot be checked in batch (how something
    looks, a window layout), a TESTPLAN.org item and a line in the
    CHANGELOG saying so.  Checked today by the advisory =tests= check at
-   each commit; *blocking* once the owner says so.
+   each commit; *blocking* from the day the repository is ready for a
+   first-time user (decided 2026-10-20).
 2. *Every module has at least a load test*: it loads in the sandbox
    with all its packages, its switch goes off and on again without an
    error, its keys and menu entries come and go with the switch.  One

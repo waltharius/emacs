@@ -244,6 +244,42 @@ A rejected NAME is reported, naming SOURCE, where it came from."
 "
   "Start of a new, empty settings file.")
 
+;; MODULES A NEW MACHINE STARTS WITHOUT.  A module whose header says
+;; `;; MyPKS-Default: off' -- one that needs an account, another program
+;; or a habit of its own (Readwise, Zotero, the Obsidian import, the
+;; blog) -- is turned off in the settings file a new machine starts with,
+;; and turned on with C-c n , m like any other.  Only a new settings file
+;; gets the list: a machine with settings keeps what it has, and settings
+;; copied from another machine bring that machine's choice.  The headers
+;; are read here, before the loader is defined, with the same pattern
+;; lisp-mnt uses.  Asked 2026-10-20, for a first-time user.
+
+(defun my/host--new-machine-modules-off ()
+  "Return the names of the modules whose header says MyPKS-Default: off."
+  (let ((dir (expand-file-name "modules/" user-emacs-directory))
+        found)
+    (when (file-directory-p dir)
+      (dolist (file (directory-files dir t "\\`[0-9][0-9][a-z]?-.*\\.el\\'"))
+        (with-temp-buffer
+          (insert-file-contents file nil 0 4000)
+          (when (re-search-forward "^;+[ \t]*MyPKS-Default[ \t]*:[ \t]*off[ \t]*$" nil t)
+            (push (file-name-base file) found)))))
+    (sort found #'string<)))
+
+(defun my/host--write-new-settings (custom)
+  "Write a new settings file CUSTOM; return report lines about it.
+The file holds the header and the modules a new machine starts without."
+  (let ((off (my/host--new-machine-modules-off)))
+    (with-temp-file custom
+      (insert my/host--custom-header)
+      (when off
+        (insert "\n(custom-set-variables\n '(my/modules-off '"
+                (prin1-to-string off) "))\n")))
+    (when off
+      (list (format "Turned off, as on every new machine: %s."
+                    (string-join off ", "))
+            "C-c n , m turns any of them on."))))
+
 (defun my/host--other-hosts ()
   "Return the names of other machines that have a settings file."
   (when (file-directory-p my/hosts-directory)
@@ -341,21 +377,24 @@ A rejected NAME is reported, naming SOURCE, where it came from."
                                         (abbreviate-file-name my/host-directory) other)
                                 "each machine changes only its own file."))
                     my/host--reports))
-          (with-temp-file custom (insert my/host--custom-header))
-          (push (list 'done (format "%s starts with the default settings" my/host-name)
-                      (list (format "Settings saved in C-c n , , go to %scustom.el."
-                                    (abbreviate-file-name my/host-directory))))
-                my/host--reports))))
+          (let ((off (my/host--write-new-settings custom)))
+            (push (list 'done (format "%s starts with the default settings" my/host-name)
+                        (append
+                         (list (format "Settings saved in C-c n , , go to %scustom.el."
+                                       (abbreviate-file-name my/host-directory)))
+                         (when off (cons "" off))))
+                  my/host--reports)))))
      ;; A first machine, or no one to ask.
      (t
-      (with-temp-file custom (insert my/host--custom-header))
-      (push (list 'done (format "%s starts with the default settings" my/host-name)
-                  (append
-                   (list (format "Settings saved in C-c n , , go to %scustom.el."
-                                 (abbreviate-file-name my/host-directory))
-                         "")
-                   (my/host--backup-note)))
-            my/host--reports)))
+      (let ((off (my/host--write-new-settings custom)))
+        (push (list 'done (format "%s starts with the default settings" my/host-name)
+                    (append
+                     (list (format "Settings saved in C-c n , , go to %scustom.el."
+                                   (abbreviate-file-name my/host-directory)))
+                     (when off (cons "" off))
+                     (list "")
+                     (my/host--backup-note)))
+              my/host--reports))))
     (when (and (not (file-exists-p state)) (file-readable-p legacy-state))
       (copy-file legacy-state state))
     (when previous

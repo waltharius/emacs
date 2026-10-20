@@ -414,6 +414,16 @@ def check(files, exempt=None):
                             "the module needs nothing but 00-core)")
         if opt_value is None or opt_value.lower() not in ("yes", "no"):
             problems.append(f"{name}: no ';; MyPKS-Optional: yes' or 'no' header")
+        # MyPKS-Default: off -- a new machine starts with the module off
+        # (00-core.el, `my/host--new-machine-modules-off').  Only "off"
+        # means anything, and only an optional module can be off.
+        default = header(text, "MyPKS-Default")
+        if default is not None:
+            if default.lower() != "off":
+                problems.append(f"{name}: 'MyPKS-Default: {default}' -- the only value is 'off' "
+                                "(leave the header out for a module that starts on)")
+            elif (opt_value or "").lower() != "yes":
+                problems.append(f"{name}: 'MyPKS-Default: off' on a module that is not optional")
         for other in requires(text):
             if other == feature:
                 problems.append(f"{name}: requires itself")

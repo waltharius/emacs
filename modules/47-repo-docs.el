@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Default: off
 
 ;;; Commentary:
 ;; The Markdown files of one git repository -- by default the NixOS

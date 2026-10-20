@@ -21,6 +21,44 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-20g — A new machine starts without the modules that need an account or a habit
+
+### Why
+
+Asked 2026-10-20, for a first guide for a non-technical user on
+Fedora: Readwise, Zotero, the Obsidian import and the blogs off by
+default, available and turned on explicitly.  Turning them off by
+changing a default would have turned them off on the owner's machines
+too, wherever `my/modules-off` was never saved.  And the decisions on
+the module test rule of TESTING.org.
+
+### What
+
+- `;; MyPKS-Default: off` in 18-zotero-transient, 24-readwise,
+  42-obsidian-import, 46-blog, 47-repo-docs (the repository's
+  documentation site) and 14-typing-analytics (it counts the commands
+  used; a new user should choose that).
+- 00-core.el: `my/host--new-machine-modules-off` reads that header
+  from every module (before the loader is defined, the pattern
+  lisp-mnt uses); `my/host--write-new-settings` writes a new settings
+  file with those modules in `my/modules-off` -- for a first machine,
+  and for a new machine that chose the defaults over copying another's.
+  The report "<host> starts with the default settings" names them and
+  `C-c n , m`.  A machine with settings, or settings copied from
+  another machine, is not touched.
+- hooks/module_contract.py: `MyPKS-Default` may only be `off`, and
+  only on an optional module.
+- tests/test-core-settings.el: a new machine's settings hold the
+  module marked off and not the other; a machine with settings keeps
+  its file unchanged (with stand-in modules; the runner takes files to
+  write first).  The first fails when the list is not written.
+  tests/hooks/test_module_contract.py: 3 tests of the header.
+- TESTING.org: the module rule decided -- part 1 blocks once the
+  repository is ready for a first-time user, part 2 in the weekly job,
+  part 3 yes.  function_helper.org: the header; *A new machine starts
+  without some modules*.  TESTPLAN.org: R35.  BACKLOG.org: the decision.
+
+---
 ## Session 2026-10-20f — The notes-search menu test reads every shape of a transient entry; CI with the archive transient
 
 ### Why

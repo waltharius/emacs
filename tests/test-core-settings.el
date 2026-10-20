@@ -31,14 +31,16 @@
     (file-name-directory (or load-file-name buffer-file-name))))
   "The repository's folder.")
 
-(defun my/core-test--run (env &optional local-text extra)
+(defun my/core-test--run (env &optional local-text extra files)
   "Load 00-core.el in a fresh Emacs with ENV; return what it chose.
 ENV is a list of \"NAME=value\" strings added to the environment.
 LOCAL-TEXT, when non-nil, is written to mypks-local.eld first.  The
 result is a plist: :dir (the settings folder, relative to the home),
 :host, :reports (kind and title of each report), :put (the error
 message of a write to mypks-local.eld, or nil) and :extra, the value
-of EXTRA, a form given as a string, evaluated after loading."
+of EXTRA, a form given as a string, evaluated after loading.  FILES is
+a list of (PATH . TEXT), PATH relative to the temporary home, written
+before the start."
   (let* ((home (make-temp-file "mypks-core-" t))
          (emacs-dir (expand-file-name ".emacs.d/" home))
          (out (expand-file-name "result.eld" home))
@@ -59,6 +61,10 @@ of EXTRA, a form given as a string, evaluated after loading."
           (when local-text
             (with-temp-file (expand-file-name "mypks-local.eld" emacs-dir)
               (insert local-text)))
+          (pcase-dolist (`(,path . ,text) files)
+            (let ((file (expand-file-name path home)))
+              (make-directory (file-name-directory file) t)
+              (with-temp-file file (insert text))))
           (call-process
            (expand-file-name invocation-name invocation-directory) nil nil nil
            "-Q" "--batch"
@@ -159,6 +165,33 @@ of EXTRA, a form given as a string, evaluated after loading."
   "A readable file can be written."
   (let ((r (my/core-test--run nil "(:host \"other\")")))
     (should (null (plist-get r :put)))))
+
+;; ============================================================
+;; MODULES A NEW MACHINE STARTS WITHOUT
+;; ============================================================
+
+(defconst my/core-test--modules
+  '((".emacs.d/modules/10-a.el" . ";;; 10-a.el --- A\n;; MyPKS-Optional: yes\n;; MyPKS-Default: off\n")
+    (".emacs.d/modules/20-b.el" . ";;; 20-b.el --- B\n;; MyPKS-Optional: yes\n"))
+  "Two stand-in modules: 10-a off on a new machine, 20-b not.")
+
+(ert-deftest my/core-test-new-machine-starts-without-opt-in-modules ()
+  "A new machine's settings turn off the modules marked MyPKS-Default: off,
+and say so in the report."
+  (let ((r (my/core-test--run '("MYPKS_DIR=~/s/" "MYPKS_HOST=new") nil
+                              "(with-temp-buffer (insert-file-contents custom-file) (load custom-file nil t) (list (buffer-string) (get 'my/modules-off 'saved-value)))"
+                              my/core-test--modules)))
+    (should (string-match-p "'(my/modules-off '(\"10-a\"))" (car (plist-get r :extra))))
+    (should (equal (eval (car (cadr (plist-get r :extra)))) '("10-a")))
+    (should (string-match-p "new starts with the default settings" (my/core-test--titles r)))))
+
+(ert-deftest my/core-test-existing-machine-keeps-its-modules ()
+  "A machine that has settings keeps them: nothing is turned off."
+  (let ((r (my/core-test--run '("MYPKS_DIR=~/s/" "MYPKS_HOST=old") nil
+                              "(with-temp-buffer (insert-file-contents custom-file) (buffer-string))"
+                              (cons '("s/hosts/old/custom.el" . ";; settings of old\n")
+                                    my/core-test--modules))))
+    (should (equal (plist-get r :extra) ";; settings of old\n"))))
 
 (provide 'test-core-settings)
 ;;; test-core-settings.el ends here

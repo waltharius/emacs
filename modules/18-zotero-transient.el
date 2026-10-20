@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires: 17-bibliography
 ;; MyPKS-Optional: yes
+;; MyPKS-Default: off
 ;; MyPKS-Switch: my/zotero-mode
 ;; Docs: ~/.emacs.d/function_helper.org::#menu-zotero-detail
 

@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Default: off
 ;; MyPKS-Switch: my/typing-analytics-mode
 ;; MyPKS-Writes: var/keys, var/keyfreq.el
 ;; Docs: ~/.emacs.d/function_helper.org::#typing-analytics

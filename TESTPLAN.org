@@ -556,6 +556,13 @@ first: on exit it still writes to the old places.
       before (expected once); after deleting =themes/PaperMod= and
       syncing again: "installed at commit 969bebdc5600".
 
+** R35. A new machine starts without the opt-in modules [0/2]
+- [ ] =MYPKS_HOST=newtest emacs= (a machine name never used): the
+      report "newtest starts with the default settings" names the
+      modules turned off; =C-c n , m= lists them as off.  Quit; delete
+      =~/.config/mypks/hosts/newtest/=.
+- [ ] A normal start on this machine: those modules are still on.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply
