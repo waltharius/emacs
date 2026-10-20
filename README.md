@@ -295,9 +295,11 @@ twenty-one symbols; see *Known issues*.
 
 Two files are kept current with every commit:
 
-- **`CHANGELOG.md`** — sessions newest-first, headed
+- **`CHANGELOG.md`** and **`changelog/`** — sessions newest-first,
+  one file per month (`changelog/2026-10.md`), headed
   `## Session YYYY-MM-DDx — Title`, where `x` is a letter counting
-  sessions within a day and is always present. It records reasoning and
+  sessions within a day and is always present. `CHANGELOG.md` holds
+  the table of months, the heading convention and the lessons learned. It records reasoning and
   rejected alternatives, not just what changed. It is the longer half
   of this documentation and the part worth reading if you want to know
   *why* anything is the way it is.
@@ -811,7 +813,8 @@ custom.el                Customize-managed settings; the faces block is
                          deliberately empty — see the note at the top
 modules/                 the configuration
 function_helper.org      user-facing command reference (C-c n h)
-CHANGELOG.md             session log: what changed and why
+CHANGELOG.md             session log: months, conventions, lessons learned
+changelog/               the sessions, one file per month: what changed and why
 tests/                   ERT tests, run with emacs -Q --batch
 hooks/                   pre-commit consistency checks
 tools/                   scripts driven from Emacs

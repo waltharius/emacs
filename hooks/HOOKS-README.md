@@ -107,7 +107,8 @@ minutes per job.
 | `anchors` | Does every `Docs: ...::#anchor` exist in `function_helper.org`? | yes |
 | `functions` | Does every name in a `Function:` or `Functions:` line of the docs (each `=my/x=` before the first `|`, continuation lines too) exist? | yes |
 | `keys` | Is every key the `08-keybindings.el` help text lists the key of a binding form in a module -- `global-set-key`, `define-key`, `keymap-set`, `keymap-global-set`, `bind-key`, `local-set-key`, or a `("KEY" . command)` pair? | yes |
-| `changelog` | Were modules staged without a `CHANGELOG.md` entry? | yes |
+| `changelog` | Were modules staged without an entry in a month's file of the change log, `changelog/YYYY-MM.md`? (`CHANGELOG.md` alone, the table of months and the lessons, is not an entry.) | yes |
+| `changelogs` | Does every session heading in `changelog/` have the form `## Session YYYY-MM-DDx — Title`, sit in the file of its month, newest first, with a label used once; is every month's file in `CHANGELOG.md`'s table, and no session left in `CHANGELOG.md`? | yes (since 2026-10-20k) |
 | `menus` | Is every command `function_helper.org` mentions reachable from a menu or a key — or listed, with its reason, under *Commands without a menu entry*? | yes |
 | `modules` | Does every module keep the module contract -- headers, `provide`, every hard dependency declared, nothing core needing something optional, no circles? | yes |
 | `codefolder` | Is every file a module names in `~/.emacs.d` (`locate-user-emacs-file`, `expand-file-name` with `user-emacs-directory`) a file of the repository, or one of the installation files 00-core.el reads? State belongs in `my/var-file`. | yes (since 2026-10-19) |

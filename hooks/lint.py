@@ -26,6 +26,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODULES = os.path.join(ROOT, "modules")
 HELPER = os.path.join(ROOT, "function_helper.org")
 CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")
+CHANGELOG_DIR = os.path.join(ROOT, "changelog")
 KEYS_FILE = os.path.join(MODULES, "08-keybindings.el")
 
 # Top-level definitions: at column 0.  One nested in another form
@@ -729,18 +730,90 @@ def staged_files():
     return [l for l in out.split("\n") if l]
 
 
+# A month's file of the change log: changelog/YYYY-MM.md (since
+# 2026-10-20k; before, every session was in CHANGELOG.md).
+MONTH_FILE_RE = re.compile(r"^changelog/(\d{4}-\d{2})\.md$")
+SESSION_LINE_RE = re.compile(r"^## Session\b.*$", re.M)
+SESSION_RE = re.compile(r"^## Session (\d{4}-\d{2})-\d{2}[a-z] — \S")
+
+
 def check_changelog():
-    """Modules changed without a CHANGELOG entry in the same commit."""
+    """Modules changed without a change log entry in the same commit.
+
+    The entry is in a month's file, changelog/YYYY-MM.md; CHANGELOG.md
+    alone (its lessons, its table) does not count as one.
+    """
     staged = staged_files()
     if not staged:
         return []
     touched = [f for f in staged if f.startswith("modules/") and f.endswith(".el")]
-    if touched and "CHANGELOG.md" not in staged:
+    if touched and not any(MONTH_FILE_RE.match(f) for f in staged):
         return [
-            "modules changed with no CHANGELOG.md entry: " + ", ".join(touched),
+            "modules changed with no change log entry (changelog/YYYY-MM.md): "
+            + ", ".join(touched),
             "  (write the entry, or commit with --no-verify if this is a rollback)",
         ]
     return []
+
+
+def session_label(line):
+    """The label of a session heading LINE: 2026-10-20k."""
+    return line.split()[2]
+
+
+def label_key(label):
+    """Sort key of a LABEL: the date, then the letter."""
+    return (label[:10], label[10:])
+
+
+def check_changelog_files(directory=None, index=None):
+    """The change log's month files keep the heading convention.
+
+    Every session heading in changelog/YYYY-MM.md has the form
+    `## Session YYYY-MM-DDx — Title` with the file's month, the
+    sessions are newest first, no label is used twice, CHANGELOG.md
+    links every month's file and holds no session.
+    """
+    directory = directory or CHANGELOG_DIR
+    index = index or CHANGELOG
+    problems = []
+    if not os.path.isdir(directory):
+        raise Skip(f"no folder {os.path.relpath(directory, ROOT)}")
+    with open(index, encoding="utf-8") as f:
+        index_text = f.read()
+    for line in SESSION_LINE_RE.findall(index_text):
+        problems.append(f"CHANGELOG.md: a session belongs in changelog/YYYY-MM.md: {line}")
+    seen = {}
+    for name in sorted(os.listdir(directory)):
+        rel = "changelog/" + name
+        m = MONTH_FILE_RE.match(rel)
+        if not m:
+            problems.append(f"{rel}: not a month's file (changelog/YYYY-MM.md)")
+            continue
+        month = m.group(1)
+        if f"]({rel})" not in index_text:
+            problems.append(f"{rel}: not linked from CHANGELOG.md's table of months")
+        with open(os.path.join(directory, name), encoding="utf-8") as f:
+            lines = SESSION_LINE_RE.findall(f.read())
+        if not lines:
+            problems.append(f"{rel}: holds no session")
+        previous = None
+        for line in lines:
+            s = SESSION_RE.match(line)
+            if not s:
+                problems.append(f"{rel}: heading not of the form "
+                                f"'## Session YYYY-MM-DDx — Title': {line}")
+                continue
+            label = session_label(line)
+            if s.group(1) != month:
+                problems.append(f"{rel}: session {label} belongs in changelog/{s.group(1)}.md")
+            if label in seen:
+                problems.append(f"{rel}: label {label} used twice (also in {seen[label]})")
+            seen[label] = rel
+            if previous and label_key(label) >= label_key(previous):
+                problems.append(f"{rel}: {label} is above {previous}: newest first")
+            previous = label
+    return problems
 
 
 CHECKS = {
@@ -749,7 +822,8 @@ CHECKS = {
     "anchors": (check_anchors, "Docs: links pointing at missing CUSTOM_IDs"),
     "functions": (check_documented_functions, "documented functions that no longer exist"),
     "keys": (check_keybinding_help, "keys the help text claims but nothing binds"),
-    "changelog": (check_changelog, "modules staged without a CHANGELOG entry"),
+    "changelog": (check_changelog, "modules staged without a change log entry"),
+    "changelogs": (check_changelog_files, "change log month files: headings, order, the table of months"),
     "coverage": (check_menu_coverage, "menu commands function_helper.org never mentions"),
     "menus": (check_menu_reachability, "documented commands no menu or key reaches"),
     "modules": (check_module_contract, "module contract: headers, provide, declared dependencies"),
