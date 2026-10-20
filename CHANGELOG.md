@@ -21,6 +21,44 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-20i — A first guide in Polish: installing on Fedora and the first day
+
+### Why
+
+Asked 2026-10-20: a first manual for a non-technical person, so that
+she can start testing and reporting while the code is still being
+written -- Fedora first, packages with `dnf`, `git clone`, what the
+first start shows, the commands of every day.
+
+### What
+
+- docs/pl/PIERWSZE-KROKI.md (new, Polish): what this is; opening a
+  terminal; `sudo dnf install` with what each package is for, and the
+  optional ones (PDF viewing -- the build packages pdf-tools' own
+  script asks for on Fedora; ImageMagick; LibreOffice Writer); checking
+  for an old `~/.emacs.d`; `git clone`; the first start (downloads, the
+  DONE reports, the modules off, the dashboard); how to read `C-c n`;
+  the keys of every day; where the notes are and that nothing backs
+  them up yet; turning modules on with `C-c n , m`; updating with `git
+  -C ~/.emacs.d pull`; what to send when something goes wrong
+  (`C-h e`, versions); known limits.
+- README.md: a link to it at the top of *Read this before cloning*.
+- BACKLOG.org: the Polish guide started; the installation guide item.
+
+### Checked, and not
+
+- Package names against packages.fedoraproject.org (hunspell-pl,
+  hunspell-en-GB, glibc-langpack-pl, python3-pyyaml, ripgrep,
+  adobe-source-sans-pro-fonts -- release 3.052, the family Source Sans 3;
+  pandoc is provided by pandoc-cli), and pdf-tools' build packages from
+  its `server/autobuild` script.  JetBrains Mono, the default monospaced
+  font, is in no Fedora repository (only in COPR, as far as searched):
+  the guide says Emacs will use another one.
+- The keys named, against the modules.
+- **Not run on Fedora**: the first start is described from the code.
+  The tester's report is the check.
+
+---
 ## Session 2026-10-20h — Spell checking with whatever Polish and English dictionaries are installed
 
 ### Why

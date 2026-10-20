@@ -127,9 +127,11 @@ settles; a line is a reminder, not the text to paste.
   (Spelling column), the Settings menu (=m= modules, 2026-10-19n), and
   keys that exist only while a module is on.
 
-** The Polish guide (planned, /Polish for non-technical users/)
-- Nothing written yet; when it starts, from function_helper.org as it
-  stands then, not from this list.
+** The Polish guide (/Polish for non-technical users/)
+- Started 2026-10-20i: =docs/pl/PIERWSZE-KROKI.md= -- installation on
+  Fedora and the first day.  A change to the keys it names (section 7),
+  to the first start (section 5) or to the modules off on a new machine
+  (section 9) updates it in the same patch.
 
 * Hardening the core
 From the outside review of 2026-10-16.  Each item is small and touches
@@ -365,7 +367,9 @@ Steps, in order:
    (=~/notes=) are the shared ground; each machine, or each role on
    one machine, has its settings, modules and state in the settings
    folder.
-7. *An installation guide for beginners* (asked 2026-10-19): step by
+7. *An installation guide for beginners* (asked 2026-10-19; Fedora,
+   in Polish, started 2026-10-20i as =docs/pl/PIERWSZE-KROKI.md=, to be
+   tested by a first-time user; Ubuntu and English still to come): step by
    step, for someone who has never used a terminal much, on the Linux
    systems such people are given -- Fedora and Ubuntu first.  Someone
    on Fedora is ready to try it.  What it covers, each step with the

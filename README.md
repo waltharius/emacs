@@ -111,6 +111,10 @@ except a few keywords.
 
 ## Read this before cloning
 
+**Pierwsze kroki po polsku (Fedora):** [docs/pl/PIERWSZE-KROKI.md](docs/pl/PIERWSZE-KROKI.md)
+-- installation and the first day, for someone new to Emacs, in Polish;
+a test version, reports welcome.
+
 **This is not a starter kit, and it is not trying to be one.** It is
 one person's working environment, shaped around one person's habits,
 one language, one machine, and one way of thinking about notes. Several
