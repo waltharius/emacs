@@ -18,10 +18,11 @@
 ;;; Code:
 
 (require 'ert)
+(require 'seq)
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "41-notes-search")
+(my/test-load-modules "12-transient" "41-notes-search")
 
 ;; ============================================================
 ;; TOKENISER
@@ -215,11 +216,20 @@
 ;; MENU
 ;; ============================================================
 
+(defun my/ns-test--suffix-command (menu key)
+  "Return the command KEY runs in MENU.
+The suffix is a list or a vector depending on the version of transient;
+its property list is the one element that is a list."
+  (let ((suffix (transient-get-suffix menu key)))
+    (plist-get (seq-find #'consp (append suffix nil)) :command)))
+
 (ert-deftest my/ns-test-menu-entries-present ()
-  "The Find menu carries the new commands after the module loads."
+  "The Find menu carries the new commands after the module loads.
+Skipped until 2026-10-20 -- the sandbox did not load the menus -- and
+wrong all along: it read the third element of the suffix as the
+command.  Found when the skip was made to count (hooks/check-all)."
   (skip-unless (fboundp 'my/notes-find-menu))
-  (should (equal (nth 2 (transient-get-suffix 'my/notes-find-menu "g"))
-                 'my/notes-grep))
+  (should (eq (my/ns-test--suffix-command 'my/notes-find-menu "g") 'my/notes-grep))
   (should (transient-get-suffix 'my/notes-find-menu "n")))
 
 (provide 'test-notes-search)

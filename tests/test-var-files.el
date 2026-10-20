@@ -134,7 +134,11 @@
          (failed (seq-filter (lambda (l) (string-prefix-p "FAIL " l))
                              (split-string output "\n"))))
     (should (null failed))
-    (should (= passed (if skipped 9 17)))))
+    (should (= passed (if skipped 9 17)))
+    ;; The checks that ran passed; the rest did not run, which a strict
+    ;; run (hooks/check-all, MYPKS_STRICT_TESTS) counts as a failure.
+    (when skipped
+      (ert-skip "no-littering not installed: the package files were not checked"))))
 
 (provide 'test-var-files)
 ;;; test-var-files.el ends here

@@ -517,16 +517,26 @@ def personal_patterns():
     return patterns
 
 
-def repository_files():
-    """Text files git would commit: tracked, plus untracked not ignored."""
+def git_output(args, what):
+    """Output of git ARGS in ROOT; Skip, naming WHAT, when git fails.
+
+    A check whose input could not be listed has checked nothing, and must
+    say so rather than report `ok' (audit of 2026-10-20: three checks
+    returned an empty list here, which read as clean).
+    """
     try:
-        out = subprocess.run(
-            ["git", "-c", "core.quotePath=false", "ls-files", "-z",
-             "--cached", "--others", "--exclude-standard"],
+        return subprocess.run(
+            ["git", "-c", "core.quotePath=false"] + args,
             cwd=ROOT, capture_output=True, text=True, check=True,
         ).stdout
-    except (OSError, subprocess.CalledProcessError):
-        return []
+    except (OSError, subprocess.CalledProcessError) as err:
+        raise Skip(f"could not list {what} (git: {err})") from None
+
+
+def repository_files():
+    """Text files git would commit: tracked, plus untracked not ignored."""
+    out = git_output(["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+                     "the files git would commit")
     files = []
     for path in out.split("\0"):
         if not path or path.startswith(PERSONAL_SKIP):
@@ -557,14 +567,8 @@ def check_code_folder():
     State and data go to the settings folder (`my/var-file',
     `my/etc-file', 00-core.el); a name in the configuration folder that
     git does not track is a file written next to the code."""
-    try:
-        tracked = subprocess.run(
-            ["git", "-c", "core.quotePath=false", "ls-files", "-z"],
-            cwd=ROOT, capture_output=True, text=True, check=True,
-        ).stdout.split("\0")
-    except (OSError, subprocess.CalledProcessError):
-        return []
-    tracked = [t for t in tracked if t]
+    tracked = [t for t in git_output(["ls-files", "-z"], "the tracked files").split("\0")
+               if t]
     problems = []
     for name, text in modules():
         for match in CODE_FOLDER_NAME.finditer(text):
@@ -617,11 +621,14 @@ def check_module_contract():
 
 
 def staged_files():
-    out = subprocess.run(
-        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
-        cwd=ROOT, capture_output=True, text=True,
-    )
-    return [l for l in out.stdout.split("\n") if l]
+    """Files staged for the commit: added, copied, modified, renamed, deleted.
+
+    Deleted too: removing a module is a change the CHANGELOG has to
+    record (until 2026-10-20 the filter left deletions out).
+    """
+    out = git_output(["diff", "--cached", "--name-only", "--diff-filter=ACMRD"],
+                     "the staged files")
+    return [l for l in out.split("\n") if l]
 
 
 def check_changelog():

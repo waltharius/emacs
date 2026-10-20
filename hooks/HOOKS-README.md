@@ -45,7 +45,7 @@ nor anything else that takes time.  After applying patches, or before
 pushing:
 
 ```sh
-bash hooks/check-all            # parens, lint, every tests/test-*.el
+bash hooks/check-all            # parens, lint, hook tests, every tests/test-*.el
 bash hooks/check-all loader     # only the test files whose name has "loader"
 ```
 
@@ -56,8 +56,29 @@ Tests that load modules go through `tests/helper.el`, which loads
 settings folder and `~/.emacs.d` -- so a run neither reads nor writes
 the real notes and settings.  A file that fails prints why: ERT's
 condition, or, when it did not load, its error lines (a missing package
-reads "Cannot load <package>").  Exit status 0 only when everything
-passed; continuous integration runs the same script.
+reads "Cannot load <package>").
+
+What "passed" means, since 2026-10-20 (audit of that date: a selection
+that matched nothing, or a file without tests, passed):
+
+- a name that selects no test file fails -- a typo is not a pass;
+- a test file that runs no test fails;
+- skipped tests are counted, and the last line says `result: passed,
+  nothing skipped`, `result: passed, N test(s) skipped -- not
+  everything was checked`, or `result: FAILED`;
+- with `MYPKS_STRICT_TESTS=1` a skipped test fails the run.  The
+  workflow sets it: every package the tests need is installed there,
+  so a skip can only hide something.  Locally a skip stays a skip --
+  a missing package or program is reported, not counted against the
+  code.
+
+The checkers' own tests (`tests/hooks/test_*.py`, Python unittest) run
+after lint, as "hook tests".  Continuous integration runs the same
+script.
+
+One difference between the two entry points: `pre-commit` skips the
+parens check when no `emacs` is on PATH; `check-all` fails then -- a run
+meant to check everything has not.
 
 ## On GitHub: the workflow
 
@@ -95,6 +116,11 @@ minutes per job.
 | `private` | Is a `--` symbol called from outside its module? | yes (since 2026-10-18) |
 | `personal` | Does a file git would commit contain a string from the private list `private-strings.txt` in the settings folder? | yes; *skipped*, with the path, when the list does not exist |
 | `coverage` | Is every command a menu runs mentioned in `function_helper.org`? | no — advisory |
+
+A check that cannot read its input -- git cannot list the files, outside
+a repository -- raises `Skip` and prints `skipped` with the reason; it
+never prints `ok` for files it did not see (until 2026-10-20 three of
+them returned an empty list there).
 
 Run them by hand at any time:
 

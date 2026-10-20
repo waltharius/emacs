@@ -21,6 +21,53 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-20b — No green without a check: empty selections, empty test files, skips, unreadable inputs
+
+### Why
+
+The audit of 2026-10-20, section 4 and 5: ways to a green result with
+nothing checked.
+
+- `bash hooks/check-all <name>` with a name matching no test file
+  skipped lint and every test, and exited 0;
+- a test file that loads but defines no test passed;
+- skips passed silently -- test-var-files accepted 9 or 17 checks, and
+  the workflow, where every package is installed, could not tell;
+- three lint checks returned an empty problem list when git could not
+  list their input (`repository_files`, `check_code_folder`,
+  `staged_files`), which reads as "clean";
+- `changelog` ignored deleted modules (`--diff-filter=ACMR`).
+
+### What
+
+- hooks/check-all: a selection matching no file fails; a file that runs
+  no test fails; skips are counted, a last line says `result: passed,
+  nothing skipped`, `passed, N test(s) skipped`, or `FAILED`; with
+  `MYPKS_STRICT_TESTS=1` a skipped test fails.
+- .github/workflows/checks.yml: `MYPKS_STRICT_TESTS=1` for the tests.
+- tests/test-var-files.el: when no-littering is missing, the checks
+  that ran are asserted and the test then reports itself skipped,
+  rather than passing.
+- tests/test-notes-search.el: the sandbox loads 12-transient, so the
+  menu test runs instead of skipping.  It had never run, and was wrong:
+  it took the third element of a menu entry for its command.  Now
+  `my/ns-test--suffix-command` reads `:command` from the entry, a list
+  or a vector depending on transient's version.  Found by the first
+  strict run.
+- hooks/lint.py: `git_output` -- git's output, or `Skip` naming what
+  could not be listed; used by `repository_files`, `check_code_folder`,
+  `staged_files`.  `staged_files` counts deletions too.
+- tests/hooks/test_lint.py (new, 6 tests): outside a repository the
+  three raise `Skip` (all three fail with the lint of 2026-10-20a); the
+  changelog check with and without an entry.
+- hooks/HOOKS-README.md: what "passed" means; skips; the pre-commit /
+  check-all difference for a missing Emacs.  TESTPLAN.org: Preparation.
+
+Checked: in strict mode with Denote and no-littering on the load path,
+every test file passes, "result: passed, nothing skipped"; `bash
+hooks/check-all nosuchtest` and an empty test file both fail.
+
+---
 ## Session 2026-10-20a — The dependency reader follows branches; the checkers get tests of their own
 
 ### Why

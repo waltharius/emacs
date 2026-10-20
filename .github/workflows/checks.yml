@@ -56,6 +56,10 @@ jobs:
           emacs -Q --batch -l tests/ci-packages.el
 
       - name: Checks and tests
+        # Every package the tests need is installed here, so a skipped
+        # test is a failure (hooks/check-all).
+        env:
+          MYPKS_STRICT_TESTS: '1'
         run: bash hooks/check-all
 
   secrets:

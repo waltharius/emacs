@@ -12,7 +12,14 @@
 # notes, settings and ~/.emacs.d are neither read nor written.
 #
 # A file that fails prints ERT's report of what went wrong.  The exit
-# status is 0 only when everything passed.
+# status is 0 only when everything selected ran and passed:
+#   - a name that selects no test file fails (a typo is not a pass);
+#   - a test file that runs no test fails;
+#   - skipped tests are counted and named in the last line; with
+#     MYPKS_STRICT_TESTS=1 (set by the workflow, where every package
+#     the tests need is installed) a skipped test fails the run.
+# Locally a skip stays a skip: a missing package or program is reported,
+# not hidden, and not counted as a failure of the code.
 
 set -uo pipefail
 
@@ -20,7 +27,10 @@ root="$(git rev-parse --show-toplevel 2>/dev/null || dirname "$(dirname "$(readl
 cd "$root" || exit 1
 
 only="${1:-}"
+strict="${MYPKS_STRICT_TESTS:-}"
 status=0
+files_run=0
+skipped_total=0
 
 if [ -z "$only" ]; then
   echo "checks:"
@@ -55,11 +65,24 @@ echo "tests:"
 for file in tests/test-*.el; do
   name="$(basename "$file" .el)"
   case "$name" in *"$only"*) ;; *) continue ;; esac
+  files_run=$((files_run + 1))
   output="$(emacs -Q --batch --eval '(package-initialize)' -l ert -l "$file" \
               -f ert-run-tests-batch-and-exit 2>&1)"
   code=$?
   summary="$(grep -E '^Ran ' <<<"$output" | sed -E 's/ \(20[0-9-]+ .*\)$//')"
-  if [ "$code" -eq 0 ]; then
+  ran="$(sed -nE 's/^Ran ([0-9]+) tests?.*/\1/p' <<<"$summary")"
+  skipped="$(sed -nE 's/.* ([0-9]+) skipped.*/\1/p' <<<"$summary")"
+  skipped="${skipped:-0}"
+  skipped_total=$((skipped_total + skipped))
+  if [ "$code" -eq 0 ] && [ "${ran:-0}" -eq 0 ]; then
+    status=1
+    printf '  FAILED   %-28s %s\n' "$name" "no test ran: the file defines none, or none loaded"
+  elif [ "$code" -eq 0 ] && [ -n "$strict" ] && [ "$skipped" -gt 0 ]; then
+    status=1
+    printf '  FAILED   %-28s %s\n' "$name" "$summary -- skipped in a strict run:"
+    grep -E '^ *SKIPPED ' <<<"$output" | sed 's/^ */           /'
+    grep -E -A2 '^Test .* skipped' <<<"$output" | sed 's/^/           /'
+  elif [ "$code" -eq 0 ]; then
     printf '  ok       %-28s %s\n' "$name" "$summary"
   else
     status=1
@@ -77,5 +100,19 @@ for file in tests/test-*.el; do
     fi
   fi
 done
+
+if [ "$files_run" -eq 0 ]; then
+  status=1
+  echo "  FAILED   no test file name contains \"$only\""
+fi
+
+echo
+if [ "$status" -ne 0 ]; then
+  echo "result: FAILED"
+elif [ "$skipped_total" -gt 0 ]; then
+  echo "result: passed, $skipped_total test(s) skipped -- not everything was checked"
+else
+  echo "result: passed, nothing skipped"
+fi
 
 exit "$status"
