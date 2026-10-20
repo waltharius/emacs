@@ -106,8 +106,13 @@
 ;; ============================================================
 
 (ert-deftest my/session-test-old-files-trashed ()
-  "Old files and folders go to the trash; the new ones stay."
+  "Old files and folders go to the trash, whole; the new ones stay.
+Until 2026-10-20 this checked only that the old ones were gone, which a
+plain deletion passes too (audit of that date); now their content must
+be in the trash."
   (let* ((dir (make-temp-file "mypks-old-" t))
+         (trash (make-temp-file "mypks-trash-" t))
+         (trash-directory trash)
          (old (expand-file-name "saveplace" dir))
          (folder (expand-file-name "persist" dir))
          (new (expand-file-name "save-place.el" dir)))
@@ -120,7 +125,12 @@
     (should-not (file-exists-p old))
     (should-not (file-exists-p folder))
     (should (file-exists-p new))
-    (delete-directory dir t)))
+    (with-temp-buffer
+      (insert-file-contents (expand-file-name "saveplace" trash))
+      (should (equal (buffer-string) "old")))
+    (should (file-exists-p (expand-file-name "persist/x" trash)))
+    (delete-directory dir t)
+    (delete-directory trash t)))
 
 (provide 'test-session)
 ;;; test-session.el ends here

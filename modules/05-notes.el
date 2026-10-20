@@ -943,8 +943,8 @@ Names up to three of them; the full list has already gone to
 (defun my/denote-delete-note ()
   "Delete the current note, and offer to delete its attachments with it.
 
-Uses `git rm -f' when a file is tracked, plain deletion otherwise, for
-the note and for every attachment alike.
+Uses `git rm -f' when a file is tracked, the system's trash otherwise
+(`my/denote--delete-file'), for the note and for every attachment alike.
 
 Which files count as the note's attachments, and which are held back
 for being linked from elsewhere, is decided by

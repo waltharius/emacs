@@ -21,6 +21,42 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-20d — SAFETY.org says which clauses are tested; the missing safety tests
+
+### Why
+
+The audit of 2026-10-20, section 3: next to a rule of several clauses
+SAFETY.org named a test file, as if the whole rule were tested, where
+the tests showed one or two clauses.  1.5 (no test of the question or
+of a refusal cancelling the publish command), 2.1 (no test of the
+question or of cancelling), 2.4 (no test of the consent), 3.1 (no test
+of which repositories and remotes).  And the old-files trash test only
+checked that the files were gone, which a plain deletion passes too.
+
+### What
+
+- SAFETY.org: the column "Tested" says, per rule, *partly* with the
+  clauses tested and those not; 5.1 says what the checks can recognise
+  and that personal data in no known pattern is found by none of them.
+- tests/test-safety.el, 6 more tests:
+  - 2.1: answering no leaves the note; yes deletes it to the trash;
+    with the question switched off nothing is asked and it still goes
+    to the trash;
+  - 1.5: the publish command refuses a home folder before exporting;
+    the question names site and server and says "exact copy", no
+    uploads nothing, yes uploads;
+  - 2.4: a leftover old file is kept on /k/ and trashed on /t/.
+- tests/test-session.el: the trashed old file and folder must be in the
+  trash, with their content.
+- Shown to fail with each safeguard taken out (the question skipped,
+  the refusal in `my/blog-publish` removed, the warning removed from
+  the question, the consent ignored, plain deletion in
+  `my/var--trash-old`): the four new safety tests concerned and the
+  session test failed; restored, all pass.
+- 05-notes.el: the docstring of `my/denote-delete-note` said "plain
+  deletion" for untracked files; the trash since 2026-10-19y.
+
+---
 ## Session 2026-10-20c — keys and functions check what they say; smaller lint defects
 
 ### Why
