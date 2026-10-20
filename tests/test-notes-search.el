@@ -221,10 +221,12 @@
 
 (defun my/ns-test--suffix-command (menu key)
   "Return the command KEY runs in MENU.
-The suffix is a list or a vector depending on the version of transient;
-its property list is the one element that is a list."
-  (let ((suffix (transient-get-suffix menu key)))
-    (plist-get (seq-find #'consp (append suffix nil)) :command)))
+The shape of a suffix depends on the version of transient: (CLASS LEVEL
+PLIST) in the one built into Emacs 29, (CLASS . PLIST) in transient
+0.13, a vector in others.  The value after :command, wherever it is.
+\(Until 2026-10-20 only the first shape was read, and the test failed
+with transient 0.13 on the owner's machine.)"
+  (cadr (memq :command (flatten-tree (append (transient-get-suffix menu key) nil)))))
 
 (ert-deftest my/ns-test-menu-entries-present ()
   "The Find menu carries the new commands after the module loads.

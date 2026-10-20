@@ -21,6 +21,34 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-20f — The notes-search menu test reads every shape of a transient entry; CI with the archive transient
+
+### Why
+
+Reported 2026-10-20 after applying 2026-10-20a-e: on the owner's
+machine `my/ns-test-menu-entries-present` failed -- `(eq nil
+my/notes-grep)`.  The fix of 2026-10-20b read the command from the
+first list inside the menu entry, the shape of the transient built into
+Emacs 29.  The owner runs transient 0.13 (it comes with Magit from the
+archives), where an entry is `(transient-suffix :key "g" ... :command
+my/notes-grep)`: no list inside, so nil.  Reproduced here with
+transient 0.13.8 from its repository.  It passed here and in the
+workflow, both with the built-in transient.
+
+### What
+
+- tests/test-notes-search.el: `my/ns-test--suffix-command` takes the
+  value after `:command` wherever it is in the entry (flattened), so
+  it reads (CLASS LEVEL PLIST), (CLASS . PLIST) and vectors alike.
+  Passes with transient 0.13.8 and with Emacs's own.
+- tests/ci-packages.el: transient 0.13 or newer from the archives
+  (`package-install-upgrade-built-in`), as on the owner's machine; the
+  entries are (NAME [MIN-VERSION]).  The cache key follows the file, so
+  the next run installs it.
+- TESTING.org: rule 11, test with the versions really in use.
+  hooks/HOOKS-README.md: the workflow row.
+
+---
 ## Session 2026-10-20e — TESTING.org: the rules the audit taught; which module a test tests
 
 ### Why

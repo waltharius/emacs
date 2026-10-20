@@ -88,7 +88,7 @@ GitHub's machines; the result is the mark next to each commit and the
 
 | Job | What it runs |
 |---|---|
-| `check-all (Emacs 29.1 / 30.2 / 31.1)` | `tests/ci-packages.el` installs the packages the tests load (Denote, no-littering), cached for a week; then `bash hooks/check-all` |
+| `check-all (Emacs 29.1 / 30.2 / 31.1)` | `tests/ci-packages.el` installs the packages the tests load (Denote, no-littering, and transient from the archives rather than the built-in one, as the owner runs it), cached for a week; then `bash hooks/check-all` |
 | `secrets` | Gitleaks over the whole history, all branches (pinned release, checked against its published SHA-256); a false positive goes into `.gitleaksignore` by its fingerprint, with a line saying why |
 | `shell` | ShellCheck on `hooks/pre-commit` and `hooks/check-all` |
 

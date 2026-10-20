@@ -24,18 +24,31 @@
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (package-initialize)
 
-(defconst my/ci-packages '(denote no-littering)
-  "Packages the test files need installed.")
+(defconst my/ci-packages
+  '((denote) (no-littering)
+    ;; Not the transient built into Emacs: the one the configuration
+    ;; really runs with comes from the archives with Magit (0.13 on the
+    ;; owner's machine, 2026-10-20), and its menu entries have another
+    ;; shape -- a test passed here with the built-in one and failed there.
+    (transient (0 13)))
+  "Packages the test files need installed: (NAME [MIN-VERSION]).")
 
-(let ((missing (seq-remove #'package-installed-p my/ci-packages)))
+;; Emacs 29 and later do not replace a built-in package unless told to.
+(setq package-install-upgrade-built-in t)
+
+(defun my/ci-package-ok (entry)
+  "Non-nil when ENTRY, (NAME [MIN-VERSION]), is installed in that version."
+  (package-installed-p (car entry) (cadr entry)))
+
+(let ((missing (seq-remove #'my/ci-package-ok my/ci-packages)))
   (when missing
     (package-refresh-contents)
-    (dolist (package missing)
-      (package-install package)))
+    (dolist (entry missing)
+      (package-install (car entry))))
   (message "Packages for the tests: %s"
-           (mapconcat (lambda (p) (format "%s %s" p (if (package-installed-p p) "ok" "MISSING")))
+           (mapconcat (lambda (e) (format "%s %s" (car e) (if (my/ci-package-ok e) "ok" "MISSING")))
                       my/ci-packages ", "))
-  (unless (seq-every-p #'package-installed-p my/ci-packages)
+  (unless (seq-every-p #'my/ci-package-ok my/ci-packages)
     (kill-emacs 1)))
 
 ;;; ci-packages.el ends here

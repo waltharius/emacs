@@ -61,6 +61,13 @@ says how a test shows it.  Running them: =bash hooks/check-all=
 10. *The checkers have tests too*, in =tests/hooks/=: what a check
     reports is only as good as what it recognises.  (Audit of
     2026-10-20.)
+11. *Test with the versions really in use.*  A test that reads a
+    package's data passed with the transient built into Emacs and
+    failed with transient 0.13, which the owner runs (it comes with
+    Magit): the menu entry had another shape.  The workflow installs
+    the archive transient (=tests/ci-packages.el=); a test reads data
+    of a package through its documented interface, or tolerates every
+    shape it has had.  (2026-10-20f.)
 
 * Which module a test tests
 Every test file starts with a header naming the modules whose
