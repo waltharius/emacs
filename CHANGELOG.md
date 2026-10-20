@@ -21,6 +21,65 @@ Cross-references elsewhere in this file name the full label, letter
 included.
 
 ---
+## Session 2026-10-20a — The dependency reader follows branches; the checkers get tests of their own
+
+### Why
+
+An outside audit of the hooks (2026-10-20, by the owner, with a CSV of
+reproductions) found that the `modules` check -- documented as erring
+towards hard dependencies -- read seven unsafe uses as guarded:
+
+- `(if (fboundp 'f) nil (f))`: the call runs exactly when `f` is
+  missing;
+- `(when (not (fboundp 'f)) (f))`;
+- `(when (or (fboundp 'f) t) (f))`: a test that cannot fail;
+- `(when (fboundp 'a) (b))`: a guard on one name, a call of another;
+- `(unless (fboundp 'f) (message ...)) (f)`: an `unless` that only
+  warns and goes on;
+- `(symbol-value 'v)`: a quoted name handed to what reads it;
+- `(defvar my/path "somewhere")`: the reader dropped strings, so the
+  definition looked like a bare `(defvar my/path)` and its uses were
+  not seen at all.
+
+The cause: a test made a span around its enclosing form, whatever the
+branch, and strings were skipped rather than kept as items.
+
+### What
+
+- hooks/module_contract.py: the reader keeps strings and characters as
+  items; `dependencies` walks each module carrying what the tests
+  around a position have shown -- `facts` gives, for a condition and
+  its truth, the names it shows present (`fboundp` and kin: the name;
+  `featurep`: the module), through `not`, `null`, `and` (true), `or`
+  (false).  `when`/`unless` bodies, `if` THEN and ELSE, `and`/`or`
+  arguments, `cond` clauses, `when-let*`/`if-let*` bindings and bodies,
+  `with-eval-after-load`, and the rest of a body after a `when`/`unless`
+  that ends by leaving (`user-error`, `error`, `signal`, `throw`).  The
+  name a test is given is no use; a quoted variable given to
+  `symbol-value`, `default-value`, `eval` is a read.
+- 24-readwise.el: tests `my/zettel-reparent` as well as
+  `my/zettel-adopt` before calling both -- the only use in the modules
+  the stricter reader found (a guard on one name, a call of another;
+  harmless today, as both come from 22-zettelkasten.el).
+- tests/hooks/test_module_contract.py (new, Python unittest, 31 tests):
+  a provider and a consumer for each case -- 15 guarded, 12 hard, 4 on
+  what counts as a definition; the audit's seven among them.  With the
+  reader of 2026-10-19, 13 of the 31 fail; with this one, none.
+- hooks/check-all: runs `tests/hooks/test_*.py` after lint ("hook
+  tests").
+- function_helper.org (*Dependencies*), hooks/HOOKS-README.md
+  (`modules`): which branch a test guards, and the tests.
+
+### Decisions
+
+- **A test guards the name it tests**, not its module: the audit's
+  expectation, and the only reading that stays right when two
+  functions of one module stop being defined together.  `featurep`
+  still guards a whole module, since that is what it tests.
+- **Tests in Python for checkers in Python**: the checkers are Python;
+  ERT would test them only through a subprocess.
+
+---
 ## Session 2026-10-19y — SAFETY.org accepted; F1-F3: notes to the trash, no upload to a home folder, themes pinned to a commit
 
 ### Why

@@ -557,7 +557,11 @@ before anything is written, and the list offers no zettel button."
           (goto-char (point-max))
           (my/readwise--insert-quote record book t with-note)
           (save-buffer))))
-    (when (and (eq action 'zettel) (fboundp 'my/zettel-adopt))
+    ;; Both tested: a test shows the one function it names (hooks,
+    ;; module contract), and both come from 22-zettelkasten.el.
+    (when (and (eq action 'zettel)
+               (fboundp 'my/zettel-adopt)
+               (fboundp 'my/zettel-reparent))
       (with-current-buffer buffer
         ;; Runs on the finished note, so the sequence commands see a
         ;; real file with front matter already in place.

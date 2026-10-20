@@ -126,7 +126,12 @@ form: the first line, the `MyPKS-Requires` and `MyPKS-Optional`
 headers, a `Docs:` line, `provide`.  The rest reads the code without
 running it: which module defines each function and variable, and which
 uses of them in other modules are not guarded by `fboundp`, `boundp`,
-`featurep` or `with-eval-after-load`.  Those must be declared:
+`featurep` or `with-eval-after-load`.  A guard counts only for the
+branch where its test has shown the name present -- the `when` body,
+the `if` THEN (ELSE when negated), the later `and` arguments; an
+`unless` only when its body leaves (`user-error`, `error`); `fboundp`
+guards the name it tests, `featurep` the whole module.  Those must be
+declared:
 
 ```text
 24-readwise.el: uses my/zettel-adopt (and 1 more) from 22-zettelkasten.el
@@ -136,6 +141,15 @@ without a guard; add 22-zettelkasten to MyPKS-Requires, or test
 
 A pair the reader gets wrong goes into `MODULE_DEPENDENCY_OK` in
 `lint.py`, with its reason.
+
+The reader itself is tested: `tests/hooks/test_module_contract.py`
+holds a provider and a consumer module for each case, guarded and hard,
+among them the seven an audit of 2026-10-20 found read as guarded
+though they were not (an `if` that calls in its ELSE, `(when (not
+(fboundp ...)))`, `(or ... t)`, a guard on one name and a call of
+another, an `unless` that only warns, `symbol-value` of a quoted name,
+a `defvar` with a string value, which the reader took for a bare
+declaration).
 
 ### `personal`: the list is private, the check is public
 

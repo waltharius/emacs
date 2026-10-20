@@ -6785,6 +6785,21 @@ arguments of =my/transient-append=, =my/transient-insert= and
 skip a menu they cannot find, and of =remq=, =memq= and similar, which
 compare a name without calling it, count as guarded too.
 
+*Which branch.*  A test guards only the code that runs when it has
+shown the name present: the body of =when=, the THEN of =if= (the
+ELSE when the test is negated with =not=), the later arguments of
+=and=.  A test that cannot fail shows nothing: =(or (fboundp 'f) t)=.
+An =unless= guards what follows it only when its body leaves --
+=user-error=, =error=, =signal=, =throw=; one that only warns guards
+nothing.  =fboundp=, =boundp= and the like guard the one name they
+test -- testing =my/zettel-adopt= does not make =my/zettel-reparent=
+safe, even from the same module; =featurep= guards everything its
+module defines.  A quoted variable handed to what reads it
+(=symbol-value=, =default-value=, =eval=) is a read, not a name.
+Before 2026-10-20 the reader took all of these as guards (audit of
+that date); the cases are kept as tests in
+=tests/hooks/test_module_contract.py=.
+
 Every other use is /hard/, and the check asks for one of two fixes:
 
 #+begin_example

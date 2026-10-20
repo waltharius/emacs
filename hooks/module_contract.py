@@ -19,15 +19,22 @@ Two parts:
   *hard*.
 
 A use is guarded -- the module still loads and explains itself without
-the other one -- when it is:
+the other one -- when it runs only where a test has shown it present:
 
-- inside a form that tests for it first: `(when (fboundp 'f) ...)',
-  `(if (boundp 'v) ...)', `(and (featurep '05-notes) ...)', and the
-  same through `cond' clauses and `when-let*' bindings;
-- after `(unless (fboundp 'f) (user-error ...))' in the same body;
+- in the branch where the test is true: the body of `(when (fboundp
+  'f) ...)', the THEN of `(if (boundp 'v) THEN ELSE)', the later
+  arguments of `(and (featurep '05-notes) ...)', the body of a `cond'
+  clause, the bindings after it and the body of `when-let*' and kin;
+  and in the branch where a negated test is false: the ELSE of `(if
+  (not (fboundp 'f)) ...)', the later arguments of `(or (not ...) ...)';
+- after `(unless (fboundp 'f) (user-error ...))' in the same body --
+  only when that body ends by leaving (`user-error', `error', `signal',
+  `throw'): an `unless' that only warns and goes on guards nothing;
 - inside `(with-eval-after-load '05-notes ...)';
 - the quoted name of a variable (`add-hook 'my/x-hook',
-  `customize-save-variable 'my/v'): naming a variable does not read it;
+  `customize-save-variable 'my/v'): naming a variable does not read it
+  -- unless the name is handed to what reads it (`symbol-value',
+  `default-value', `eval');
 - a face or a customization group: a missing face is drawn with the
   default face, a missing group leaves an option ungrouped;
 - an argument of `my/transient-append', `my/transient-insert' or
@@ -37,9 +44,17 @@ the other one -- when it is:
   `my/transient-entries', '((insert MENU ANCHOR SUFFIX) ...) or
   (append ...): data handed to the same degrading functions.
 
+What a test shows: `fboundp', `boundp' and the like show that one symbol
+is present -- they guard that symbol, not its neighbours; `featurep'
+shows that a module loaded, and guards everything it defines.  A test
+under `and' counts in the true branch, under `or' in the false one,
+under `not' or `null' the other way round; `(or (fboundp 'f) t)' shows
+nothing.
+
 Everything else is hard.  The reader errs towards hard: a dependency
 declared that is not strictly needed costs a toggle; one missed costs
-an error at run time.
+an error at run time.  The cases the reader once got wrong are kept as
+tests in tests/hooks/test_module_contract.py (audit of 2026-10-20).
 
 00-core.el is loaded first and is never listed: every module may use it.
 """
@@ -65,8 +80,14 @@ VAR_HEADS = {"defvar", "defvar-local", "defcustom", "defconst"}
 SOFT_HEADS = {"defface", "defgroup"}
 GUARD_HEADS = {"fboundp", "boundp", "default-boundp", "facep", "featurep",
                "commandp", "functionp", "custom-variable-p"}
-# Guards inside these are climbed out of: (when (and (fboundp 'a) x) ...)
-CLIMB_HEADS = {"and", "or", "not", "null"}
+# Forms that leave the body they are in, ending what follows them.
+EXIT_HEADS = {"user-error", "error", "signal", "throw"}
+# Forms that read the value of a variable named by a quoted symbol.
+VALUE_HEADS = {"symbol-value", "default-value", "default-toplevel-value",
+               "buffer-local-value", "eval"}
+# Conditional binding forms: each binding must be non-nil to go on.
+LET_GUARD_HEADS = {"when-let*", "if-let*", "and-let*", "when-let", "if-let",
+                   "while-let"}
 # Calls whose quoted argument names a symbol without calling it, or which
 # tolerate a symbol that does not exist.
 DATA_HEADS = {"remq", "remove", "delq", "delete", "memq", "member", "eq",
@@ -108,12 +129,17 @@ def parse(text):
             j = text.find("\n", i)
             i = n if j < 0 else j
         elif c == '"':
+            # A string is an item too: (defvar my/path "somewhere") has
+            # three, and a reader that dropped it took it for a bare
+            # declaration (audit of 2026-10-20).
+            current.items.append(("lit", None))
             i += 1
             while i < n and text[i] != '"':
                 i += 2 if text[i] == "\\" else 1
             i += 1
         elif c == "?":
             # Character literal: ?a ?\( ?\"
+            current.items.append(("lit", None))
             i += 3 if i + 1 < n and text[i + 1] == "\\" else 2
         elif c in "([":
             form = Form(i, current, quote == "'")
@@ -138,8 +164,9 @@ def parse(text):
             while j < n and text[j] not in DELIMITERS:
                 j += 2 if text[j] == "\\" else 1
             name = text[i:j]
-            current.items.append(("sym", name))
-            symbols.append((name, i, current, bool(quote) or current.quoted))
+            quoted = bool(quote) or current.quoted
+            current.items.append(("sym", name, i, quoted))
+            symbols.append((name, i, current, quoted))
             i = j
         quote = None
     top.end = n
@@ -148,10 +175,10 @@ def parse(text):
 
 def walk(form):
     """Every form inside FORM, depth first."""
-    for kind, item in form.items:
-        if kind == "form":
-            yield item
-            yield from walk(item)
+    for entry in form.items:
+        if entry[0] == "form":
+            yield entry[1]
+            yield from walk(entry[1])
 
 
 def defined(form):
@@ -177,6 +204,40 @@ def defined(form):
     return name, "function"
 
 
+def facts(item, truth, owner, by_feature):
+    """What ITEM, a condition, shows to be present when it is TRUTH.
+
+    A set of ('sym', SYMBOL) for `fboundp' and the like, ('mod', FILE)
+    for `featurep'.  Through `not' and `null' the truth flips; `and'
+    shows all its tests when true, `or' all its tests when false; a
+    condition of any other shape shows nothing.
+    """
+    if item[0] != "form":
+        return frozenset()
+    form = item[1]
+    head, args = form.head(), form.items[1:]
+    if head in GUARD_HEADS and args and args[0][0] == "sym":
+        if not truth:
+            return frozenset()
+        arg = args[0][1]
+        if head == "featurep":
+            module = by_feature.get(arg)
+            return frozenset({("mod", module)}) if module else frozenset()
+        return frozenset({("sym", arg)}) if arg in owner else frozenset()
+    if head in ("not", "null") and len(args) == 1:
+        return facts(args[0], not truth, owner, by_feature)
+    if (head == "and" and truth) or (head == "or" and not truth):
+        return frozenset().union(*(facts(a, truth, owner, by_feature) for a in args))
+    if head in ("and", "or") and len(args) == 1:
+        return facts(args[0], truth, owner, by_feature)
+    return frozenset()
+
+
+def leaves(item):
+    """True when ITEM, the last form of a body, leaves that body."""
+    return item[0] == "form" and item[1].head() in EXIT_HEADS
+
+
 def dependencies(files):
     """FILES maps 'NN-name.el' to its text.
 
@@ -194,43 +255,99 @@ def dependencies(files):
 
     hard = defaultdict(lambda: defaultdict(set))
     guarded = defaultdict(lambda: defaultdict(set))
-    for name, (top, symbols) in parsed.items():
-        spans, declarations = [], []
-        for form in walk(top):
-            head = form.head()
-            if head == "declare-function" or (head == "defvar" and len(form.items) == 2):
-                declarations.append((form.start, form.end))
-            if head in GUARD_HEADS and len(form.items) >= 2 and form.items[1][0] == "sym":
-                arg = form.items[1][1]
-                module = by_feature.get(arg) if head == "featurep" else owner.get(arg)
-                guard = form.parent
-                # Never climb to the file itself: a guard covers a form,
-                # not the module.
-                while (guard and guard.parent and guard.parent.parent
-                       and (guard.head() in CLIMB_HEADS or guard.head() is None)):
-                    guard = guard.parent
-                if (guard and guard.parent and guard.parent.parent
-                        and guard.head() == "unless"):
-                    guard = guard.parent
-                if module and guard:
-                    spans.append((guard.start, guard.end, module))
-            if (head in ("with-eval-after-load", "eval-after-load")
-                    and len(form.items) >= 2 and form.items[1][0] == "sym"):
-                module = by_feature.get(form.items[1][1])
-                if module:
-                    spans.append((form.start, form.end, module))
-        for sym, pos, form, quoted in symbols:
-            module = owner.get(sym)
-            if not module or module == name:
-                continue
-            if any(a <= pos <= b for a, b in declarations):
-                continue
-            safe = (kind[sym] == "soft"
-                    or (kind[sym] == "variable" and quoted)
-                    or (quoted and form.head() in DATA_HEADS)
-                    or (quoted and form.head() in MENU_SPEC_HEADS)
-                    or any(a <= pos <= b and m == module for a, b, m in spans))
-            (guarded if safe else hard)[name][module].add(sym)
+
+    def use(name, item, form, known):
+        sym, quoted = item[1], item[3]
+        module = owner.get(sym)
+        if not module or module == name:
+            return
+        safe = (kind[sym] == "soft"
+                or (kind[sym] == "variable" and quoted
+                    and form.head() not in VALUE_HEADS)
+                # The name a test is given is not a use: (fboundp 'f).
+                or (quoted and form.head() in GUARD_HEADS)
+                or (quoted and form.head() in DATA_HEADS)
+                or (quoted and form.head() in MENU_SPEC_HEADS)
+                or ("sym", sym) in known or ("mod", module) in known)
+        (guarded if safe else hard)[name][module].add(sym)
+
+    def visit(name, form, known):
+        """Classify every use in FORM, KNOWN being what tests have shown."""
+        head, items = form.head(), form.items
+        if head == "declare-function" or (head == "defvar" and len(items) == 2):
+            return
+        extra = [frozenset()] * len(items)
+        if head in ("when", "unless") and len(items) >= 2:
+            shown = facts(items[1], head == "when", owner, by_feature)
+            extra[2:] = [shown] * (len(items) - 2)
+        elif head == "if" and len(items) >= 3:
+            extra[2] = facts(items[1], True, owner, by_feature)
+            false = facts(items[1], False, owner, by_feature)
+            extra[3:] = [false] * (len(items) - 3)
+        elif head in ("and", "or"):
+            so_far = frozenset()
+            for k in range(1, len(items)):
+                extra[k] = so_far
+                so_far |= facts(items[k], head == "and", owner, by_feature)
+        elif head in ("with-eval-after-load", "eval-after-load") and len(items) >= 2:
+            module = by_feature.get(items[1][1]) if items[1][0] == "sym" else None
+            if module:
+                extra[2:] = [frozenset({("mod", module)})] * (len(items) - 2)
+        elif head == "cond":
+            for k in range(1, len(items)):
+                if items[k][0] == "form":
+                    clause = items[k][1]
+                    if clause.items:
+                        visit_item(name, clause, clause.items[0], known)
+                        shown = known | facts(clause.items[0], True, owner, by_feature)
+                        visit_body(name, clause, 1, shown)
+            return
+        elif head in LET_GUARD_HEADS and len(items) >= 2 and items[1][0] == "form":
+            shown = frozenset()
+            for binding in items[1][1].items:
+                if binding[0] != "form":
+                    continue
+                parts = binding[1].items
+                # (VAR EXPR) or (EXPR), EXPR a form.
+                expr = parts[-1] if parts else None
+                for part in parts:
+                    visit_item(name, binding[1], part, known | shown)
+                if expr is not None:
+                    shown |= facts(expr, True, owner, by_feature)
+            body_start = 2
+            if head.startswith("if-let"):
+                if len(items) > 2:
+                    visit_item(name, form, items[2], known | shown)
+                visit_body(name, form, 3, known)
+            else:
+                visit_body(name, form, body_start, known | shown)
+            return
+        visit_body(name, form, 0, known, extra)
+
+    def visit_item(name, form, item, known):
+        if item[0] == "sym":
+            use(name, item, form, known)
+        elif item[0] == "form":
+            visit(name, item[1], known)
+
+    def visit_body(name, form, start, known, extra=None):
+        """Visit FORM's items from START on, in order.
+
+        `(unless TEST ... LEAVE)' and `(when TEST ... LEAVE)' guard what
+        follows them in the same body: past them, TEST is true, or false.
+        """
+        after = frozenset()
+        for k in range(start, len(form.items)):
+            item = form.items[k]
+            visit_item(name, form, item,
+                       known | after | (extra[k] if extra else frozenset()))
+            if item[0] == "form" and item[1].head() in ("when", "unless"):
+                sub = item[1].items
+                if len(sub) >= 3 and leaves(sub[-1]):
+                    after |= facts(sub[1], item[1].head() == "unless", owner, by_feature)
+
+    for name, (top, _) in parsed.items():
+        visit_body(name, top, 0, frozenset())
     return hard, guarded
 
 

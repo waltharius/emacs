@@ -32,6 +32,18 @@ if [ -z "$only" ]; then
   fi
   if command -v python3 >/dev/null 2>&1; then
     python3 -B hooks/lint.py || status=1
+    # The checkers' own tests (tests/hooks/test_*.py, unittest): what
+    # the checks above report is only as good as what they recognise.
+    output="$(python3 -B -m unittest discover -s tests/hooks -p 'test_*.py' 2>&1)"
+    code=$?
+    summary="$(grep -E '^Ran ' <<<"$output")"
+    if [ "$code" -eq 0 ]; then
+      printf '  ok       %-12s %s\n' "hook tests" "$summary"
+    else
+      status=1
+      printf '  FAILED   %-12s %s\n' "hook tests" "$summary"
+      grep -E -A12 '^(FAIL|ERROR):' <<<"$output" | sed 's/^/           /'
+    fi
   else
     echo "  FAILED   lint (no python3 on PATH)"
     status=1
