@@ -64,6 +64,17 @@ Programy potrzebne tylko do niektórych rzeczy (możesz je doinstalować późni
 | zmniejszanie wklejanych obrazków | `sudo dnf install -y ImageMagick` |
 | eksport do Worda (DOCX) | `sudo dnf install -y libreoffice-writer` |
 
+**Gdy Emacs sam zapyta o hasło.** Do oglądania PDF Emacs musi raz zbudować mały program pomocniczy. Robi to sam, gdy pierwszy raz go potrzebuje. Najpierw sprawdza, czy są programy z wiersza „oglądanie plików PDF”. Jeśli czegoś brakuje, sam próbuje je zainstalować: w Emacsie otwiera się okno z napisem `dnf install …`, a na dole pojawia się `[sudo] hasło użytkownika …`. Masz wtedy dwie możliwości:
+
+- wpisać swoje hasło i nacisnąć Enter (podczas wpisywania nic się nie pojawia, tak jak w terminalu). Zostanie doinstalowane tylko to, czego brakuje, a potem program się zbuduje;
+- albo nacisnąć `Ctrl+g`, żeby zrezygnować, i później wpisać w terminalu polecenie z wiersza „oglądanie plików PDF”.
+
+Jeśli zapytanie o hasło wraca, choć polecenie z tabeli było już wpisane, to któregoś programu nadal brakuje. Sprawdzisz to w terminalu (wynik prześlij, rozdział 11):
+
+```sh
+for p in libpng glib-2.0 poppler poppler-glib zlib; do pkg-config --exists $p && echo "$p jest" || echo "$p BRAK"; done; for c in pkg-config autoreconf automake make gcc; do command -v $c >/dev/null && echo "$c jest" || echo "$c BRAK"; done
+```
+
 ## 4. Pobierz konfigurację
 
 Emacs szuka swojej konfiguracji w ukrytym folderze `~/.emacs.d` w Twoim katalogu domowym.
