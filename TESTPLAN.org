@@ -230,12 +230,12 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 - [X] Emacs starts as before (headers are comments; 47-repo-docs.el now
       provides =47-repo-docs=): =C-c n x r= opens the repo-docs menu.
 
-** R14. Decoupling 1: Zotero, Readwise [0/5]
-- [ ] =C-c n t=: Spelling on the left; Integrations with =z= Zotero,
+** R14. Decoupling 1: Zotero, Readwise [3/5]
+- [X] =C-c n t=: Spelling on the left; Integrations with =z= Zotero,
       =r= Readwise, =i= Inbox, =m= Markdown, =o= Obsidian import, =q=
       Quit.  Each opens its menu.
-- [ ] =C-c n t z= and =C-c x= open the same Zotero menu.
-- [ ] Remove the line loading =18-zotero-transient.el= from =init.el=
+- [X] =C-c n t z= and =C-c x= open the same Zotero menu.
+- [X] Remove the line loading =18-zotero-transient.el= from =init.el=
       (do not commit), restart: =C-c n t= has no =z=, and =r i m o q=
       are all still there.  Put the line back.
 - [ ] =C-c r r=, a book, the quote list: =z= and =[zettel]= work as
