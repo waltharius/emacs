@@ -260,5 +260,46 @@ Binds `target' and `legacy' to the new and the old file."
       (my/spell--dictionary-sync)
       (should (gethash "beta" my/spell--dictionary-known)))))
 
+;; ============================================================
+;; SETUP AFTER THE START-UP PULL
+;; ============================================================
+;; Until 2026-10-22 the setup stopped a running Hunspell at every start
+;; ("Ispell process killed" in *Messages*, then started again): the
+;; desktop starts it before the pull is done, with the same file.
+
+(ert-deftest my/spell-test-setup-keeps-hunspell-on-the-same-file ()
+  "Same file, nothing imported: Hunspell runs on; a pulled word is passed."
+  (my/spell-test--with-folder
+    (my/spell-test--write target "alfa\n")
+    (my/spell--dictionary-prepare)
+    (let ((ispell-personal-dictionary target)
+          (my/spell--dictionary-known (my/spell--dictionary-table target)))
+      (my/spell-test--with-fake-hunspell
+        (my/spell-test--write target "alfa\nbeta\n")
+        (my/spell--dictionary-setup)
+        (should-not killed)
+        (should (equal sent '("@beta\n")))))))
+
+(ert-deftest my/spell-test-setup-restarts-after-import ()
+  "Words brought in from an old file: Hunspell starts again."
+  (my/spell-test--with-folder
+    (my/spell-test--write legacy "zażółć\n")
+    (let ((ispell-personal-dictionary target)
+          (my/spell--dictionary-known (make-hash-table :test #'equal)))
+      (my/spell-test--with-fake-hunspell
+        (my/spell--dictionary-setup)
+        (should killed)))))
+
+(ert-deftest my/spell-test-setup-restarts-on-another-file ()
+  "Hunspell started with another file: it starts again."
+  (my/spell-test--with-folder
+    (my/spell-test--write target "alfa\n")
+    (my/spell--dictionary-prepare)
+    (let ((ispell-personal-dictionary (expand-file-name "other" dir))
+          (my/spell--dictionary-known (make-hash-table :test #'equal)))
+      (my/spell-test--with-fake-hunspell
+        (my/spell--dictionary-setup)
+        (should killed)))))
+
 (provide 'test-spelling-dictionary)
 ;;; test-spelling-dictionary.el ends here

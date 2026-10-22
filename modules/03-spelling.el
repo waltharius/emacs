@@ -98,8 +98,10 @@
 ;; hands the work to `my/auto-commit-after-startup-pull', which runs it
 ;; when the pull is done -- or at once, without 07-git.el or with
 ;; pulling turned off.  Hunspell may have started by then (the start-up
-;; guard is released at -90): `my/spell--dictionary-setup' stops it, and
-;; it starts again with the dictionary in place.
+;; guard is released at -90): it already uses the file (named at load,
+;; below).  `my/spell--dictionary-setup' stops it only when words were
+;; brought in from an old file or the file is another one; what the pull
+;; changed is passed on as for any change on disk (next paragraph).
 ;;
 ;; A FILE CHANGED ON DISK -- by a pull, or by editing it (`e' in the
 ;; Spelling column) -- is noticed by a file watch on its folder.  New
@@ -365,12 +367,13 @@ words this session added itself come back here too, as already known."
   "Bring the old words in, point Hunspell at the dictionary, report.
 Never signals: a failure is reported, and Hunspell keeps
 ~/.hunspell_personal when the new file cannot be written."
-  (let ((target (expand-file-name my/spell-personal-dictionary)))
-    ;; A Hunspell started before this point read another file.
-    (when (and (boundp 'ispell-process) (process-live-p ispell-process))
-      (ispell-kill-ispell t))
+  (let ((target (expand-file-name my/spell-personal-dictionary))
+        (running-with (and (boundp 'ispell-process) (process-live-p ispell-process)
+                           ispell-personal-dictionary))
+        (imported nil))
     (condition-case err
         (let ((lines (my/spell--dictionary-prepare)))
+          (setq imported lines)
           (when lines
             (push (list 'done
                         (format "Personal dictionary now in %s" (abbreviate-file-name target))
@@ -381,9 +384,21 @@ Never signals: a failure is reported, and Hunspell keeps
                    (list (error-message-string err)
                          (format "Wanted: %s" (abbreviate-file-name target))))
              my/spell--reports)))
-    (my/spell--dictionary-use (if (file-writable-p target)
-                                  target
-                                my/spell--legacy-dictionary))))
+    (let ((file (if (file-writable-p target) target my/spell--legacy-dictionary)))
+      (when running-with
+        (if (or imported (not (equal (expand-file-name running-with) file)))
+            ;; Words were brought in from an old file, or Hunspell read
+            ;; another file: it starts again at the next check.
+            (ispell-kill-ispell t)
+          ;; Same file, and nothing imported: what the start-up pull
+          ;; changed reaches the running Hunspell as any change on disk
+          ;; does -- new words by "@word", a restart only for a removed
+          ;; or flagged entry.  Before the watch is renewed, which
+          ;; takes the file as known.  (Until 2026-10-22 Hunspell was
+          ;; stopped here at every start, after the desktop had started
+          ;; it: "Ispell process killed" in *Messages*.)
+          (my/spell--dictionary-sync)))
+      (my/spell--dictionary-use file))))
 
 (defun my/spell--show-reports ()
   "Show the reports collected by `my/spell--dictionary-setup'."

@@ -2255,8 +2255,12 @@ back from there.  Started by =my/spell--dictionary-startup= from
 without =07-git.el= or with pulling off), so that the second machine
 extends the file the first one pushed rather than creating an untracked
 file of the same name (the pull would refuse to overwrite it).  If
-Hunspell started meanwhile, it is stopped and starts again with the
-dictionary in place.  Until then the file is only named, not created.  A change of the option applies at once
+Hunspell started meanwhile, it already uses the file (named at load):
+it runs on, and what the pull changed reaches it as any change on disk
+does (below).  It is stopped, to start again at the next check, only
+when words were brought in from an old file or the file is another one.
+\(Until 2026-10-22 it was stopped at every start: "Ispell process
+killed" in =*Messages*=.)  Until then the file is only named, not created.  A change of the option applies at once
 (=my/spell--dictionary-apply=).
 
 *A file changed on disk* — by a pull, or by editing it with =e= — is
