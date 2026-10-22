@@ -125,6 +125,11 @@ The same sandbox as check-all: the real notes, settings and
 `~/.emacs.d` are neither read nor written.
 
 The warning list started with the 28 warnings of 2026-10-22 (Emacs 29.3).
+Emacs quotes names in its messages with curved quotes where it can
+show them and with a grave accent and an apostrophe elsewhere; both the
+list and the warnings are compared in the second form, so the same
+warning matches on every machine (on the owner's machine every listed
+warning first came out as NEW for this alone).
 Other versions of Emacs and newer packages warn about other things: a
 warning shown as `NEW` that is not a fault of this configuration goes
 into the list, a line as printed after `NEW`; a fault is fixed.  A

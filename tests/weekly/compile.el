@@ -35,13 +35,23 @@
   (expand-file-name "compile-warnings.txt" my/weekly-directory)
   "The warnings that do not fail the run.")
 
+(defun my/weekly--plain-quotes (text)
+  "TEXT with curved single quotes turned into a grave accent and an apostrophe.
+Emacs quotes names in its messages after `text-quoting-style': curved
+quotes where the display can show them, the grave form in a plain
+terminal or locale.  The same warning then reads differently on two
+machines, so both sides are compared in the grave form.  (2026-10-22:
+every listed warning came out as NEW on the owner's machine.)"
+  (replace-regexp-in-string "\u2019" "'" (replace-regexp-in-string "\u2018" "`" text)))
+
 (defun my/weekly--read-baseline ()
   "The lines of the baseline file, comments and blank lines left out."
   (when (file-exists-p my/weekly-baseline-file)
     (with-temp-buffer
       (insert-file-contents my/weekly-baseline-file)
-      (seq-remove (lambda (l) (or (string-empty-p l) (string-prefix-p "#" l)))
-                  (split-string (buffer-string) "\n")))))
+      (mapcar #'my/weekly--plain-quotes
+              (seq-remove (lambda (l) (or (string-empty-p l) (string-prefix-p "#" l)))
+                          (split-string (buffer-string) "\n"))))))
 
 (defun my/weekly--compile (name output)
   "Compile module NAME into the folder OUTPUT.
@@ -49,9 +59,10 @@ Return (OK . WARNINGS), WARNINGS a list of \"NAME: message\" lines."
   (let* ((warnings nil)
          (byte-compile-log-warning-function
           (lambda (string _position _fill level)
-            (push (format "%s: %s%s" name
-                          (if (eq level :error) "ERROR " "")
-                          (string-trim (replace-regexp-in-string "[ \t\n]+" " " string)))
+            (push (my/weekly--plain-quotes
+                   (format "%s: %s%s" name
+                           (if (eq level :error) "ERROR " "")
+                           (string-trim (replace-regexp-in-string "[ \t\n]+" " " string))))
                   warnings)))
          (byte-compile-dest-file-function
           (lambda (file) (expand-file-name (concat (file-name-base file) ".elc") output)))

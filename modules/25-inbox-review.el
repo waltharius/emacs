@@ -39,6 +39,10 @@
 (require 'denote)
 (require 'seq)
 (require 'subr-x)
+;; Its menu is a transient prefix: the macro must be defined before
+;; this file is read, whatever loaded first (2026-10-22, weekly test
+;; `alone': 'void-function transient-define-prefix' with transient 0.13).
+(require 'transient)
 
 ;; 27-denote-identifiers.el supplies the identifier-uniqueness helpers.
 ;; It cannot be pulled in with `require': modules in this configuration

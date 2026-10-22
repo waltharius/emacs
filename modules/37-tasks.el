@@ -77,6 +77,10 @@
 (require 'org-capture)
 (require 'subr-x)
 (require 'seq)
+;; Its menu is a transient prefix: the macro must be defined before
+;; this file is read, whatever loaded first (2026-10-22, weekly test
+;; `alone': 'void-function transient-define-prefix' with transient 0.13).
+(require 'transient)
 
 ;; ============================================================
 ;; OPTIONS

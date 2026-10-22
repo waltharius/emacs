@@ -1,6 +1,7 @@
 # Byte-compiler warnings that do not fail the weekly check
 # (tests/weekly/compile.el).  One per line, MODULE: message.
 # Written 2026-10-22 with Emacs 29.3; remove a line when its warning is fixed.
+# Some warnings read differently in other versions: both forms are listed.
 01-ui: `org-export-before-processing-hook' is an obsolete variable (as of Org 9.6); use `org-export-before-processing-functions' instead.
 03-spelling: assignment to free variable `ispell-hunspell-dict-paths-alist'
 03-spelling: assignment to free variable `ispell-hunspell-dictionary-alist'
@@ -18,6 +19,7 @@
 11-org-appearance: `font-lock-fontify-buffer' is for interactive use only; use `font-lock-ensure' or `font-lock-flush' instead.
 11-org-appearance: reference to free variable `org-indent-mode'
 13-centered-writing: docstring has wrong usage of unescaped single quotes (use \= or different quoting)
+13-centered-writing: docstring has wrong usage of unescaped single quotes (use \=' or different quoting such as `...')
 15-workspace: `denote-explore-identify-duplicate-notes' is an obsolete function (as of 3.3); use `denote-explore-duplicate-notes' instead.
 22-zettelkasten: docstring wider than 80 characters
 28-writing-projects: assignment to free variable `org-clock-history-length'
