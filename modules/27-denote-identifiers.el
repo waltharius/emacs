@@ -48,6 +48,7 @@
 ;;; Code:
 
 (require 'subr-x)
+(require 'cl-lib)
 (require 'seq)
 
 (defconst my/denote-identifier-regexp "[0-9]\\{8\\}T[0-9]\\{6\\}"
@@ -391,6 +392,157 @@ the old name, which `my/denote-check-identifiers' can still see."
                      (format "; links to %s left on the note that keeps it -- check them" old)
                    ""))
         target))))
+
+;; ============================================================
+;; LINKS THAT MAY POINT AT THE WRONG NOTE
+;; ============================================================
+;; Until 2026-10-22 giving a duplicate identifier to one of its notes
+;; repointed every `denote:' link to it at the note that moved -- also
+;; links meant for the note that kept it (accepting an inbox note
+;; that shared a journal day's identifier, `my/denote-fix-duplicates').
+;; Such a link still opens a note, only another one, and its text --
+;; the label, usually the title of the note it was made for -- now
+;; names a different note than the one it opens.
+;;
+;; A link is suspect when its label is not the title of the note it
+;; opens, and another note of the same day (the first eight digits of
+;; the identifier) has that title: the label then says where it was
+;; meant to go.  A label written freely matches no other note's title
+;; and is not reported.
+
+(defun my/denote--front-matter-title (file)
+  "Return FILE's `#+title:', or nil.  Reads only the start of FILE."
+  (with-temp-buffer
+    (insert-file-contents file nil 0 4000)
+    (goto-char (point-min))
+    (when (re-search-forward "^#\\+title:[ \t]*\\(.*?\\)[ \t]*$" nil t)
+      (match-string-no-properties 1))))
+
+(defun my/denote--title-key (text)
+  "TEXT compared as a title: lower case, spaces collapsed, trimmed."
+  (and text (downcase (string-trim (replace-regexp-in-string "[ \t\n]+" " " text)))))
+
+(defun my/denote-suspect-links (&optional files)
+  "Return the `denote:' links in FILES that may point at the wrong note.
+FILES defaults to every note under `my-notes-dir'.  Each finding is a
+plist: :file :line :pos (of the identifier in the link) :id :label
+:opens (the file the link opens) :meant (the files of the same day
+titled like the label)."
+  (let* ((all (or files (my/denote-all-files)))
+         (by-id (my/denote-identifier-table all))
+         (titles (make-hash-table :test #'equal))
+         (link-re (concat "\\[\\[denote:\\(" my/denote-identifier-regexp
+                          "\\)[^]]*\\]\\[\\([^]]+\\)\\]\\]"))
+         found)
+    (dolist (file all)
+      (puthash file (my/denote--title-key (my/denote--front-matter-title file)) titles))
+    (dolist (file all)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (while (re-search-forward link-re nil t)
+          ;; Positions first: the calls below change the match data.
+          (let* ((start (match-beginning 0))
+                 (id-pos (match-beginning 1))
+                 (id (match-string 1))
+                 (label (match-string 2))
+                 (key (my/denote--title-key label))
+                 (opens (car (gethash id by-id))))
+            (when (and opens (not (equal key (gethash opens titles))))
+              (let ((meant (seq-filter
+                            (lambda (other)
+                              (and (not (equal other opens))
+                                   (string-prefix-p (substring id 0 8)
+                                                    (or (my/denote-file-identifier other) ""))
+                                   (equal key (gethash other titles))))
+                            all)))
+                (when meant
+                  (push (list :file file :line (line-number-at-pos start)
+                              :pos id-pos :id id :label label
+                              :opens opens :meant meant)
+                        found))))))))
+    (nreverse found)))
+
+;;;###autoload
+(defun my/denote-check-suspect-links ()
+  "List the `denote:' links that may point at the wrong note.
+Reads only.  See `my/denote-suspect-links' for what counts; repair with
+`my/denote-repair-suspect-links', which asks about each one."
+  (interactive)
+  (let ((found (my/denote-suspect-links)))
+    (if (null found)
+        (message "No suspect links found")
+      (with-current-buffer (get-buffer-create "*Denote Suspect Links*")
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (setq default-directory (file-name-as-directory my-notes-dir))
+          (insert (format "%d link(s) whose text names another note of the same day than the one they open.\n"
+                          (length found))
+                  "RET on a line opens it.  Repair: M-x my/denote-repair-suspect-links (C-c n ! W).\n\n")
+          (dolist (f found)
+            (insert (format "%s:%d: [[denote:%s][%s]] opens %s; meant: %s\n"
+                            (file-relative-name (plist-get f :file) my-notes-dir)
+                            (plist-get f :line) (plist-get f :id) (plist-get f :label)
+                            (file-name-nondirectory (plist-get f :opens))
+                            (mapconcat #'file-name-nondirectory (plist-get f :meant) ", ")))))
+        (grep-mode)
+        (goto-char (point-min))
+        (display-buffer (current-buffer)))
+      (message "%d suspect link(s)" (length found)))))
+
+;;;###autoload
+(defun my/denote-repair-suspect-links ()
+  "Point each suspect link at the note its text names, after a question.
+One question per link; a link whose text names more than one note of
+that day is left, and counted.  The notes are written as they are
+answered, through an open buffer when there is one."
+  (interactive)
+  (let ((found (my/denote-suspect-links))
+        (fixed 0) (left 0))
+    (if (null found)
+        (message "No suspect links found")
+      ;; From the end of each file backwards, so that an earlier
+      ;; replacement does not move the positions of the later ones
+      ;; (identifiers have one length, but this does not rely on it).
+      (dolist (f (sort found (lambda (a b)
+                               (or (string< (plist-get a :file) (plist-get b :file))
+                                   (and (equal (plist-get a :file) (plist-get b :file))
+                                        (> (plist-get a :pos) (plist-get b :pos)))))))
+        (let ((meant (plist-get f :meant)))
+          (if (cdr meant)
+              (setq left (1+ left))
+            (let ((new (my/denote-file-identifier (car meant))))
+              (when (y-or-n-p
+                     (format "%s, line %d: \"%s\" opens %s.  Point it at %s? "
+                             (file-relative-name (plist-get f :file) my-notes-dir)
+                             (plist-get f :line) (plist-get f :label)
+                             (file-name-nondirectory (plist-get f :opens))
+                             (file-name-nondirectory (car meant))))
+                (my/denote--replace-identifier-at (plist-get f :file) (plist-get f :pos)
+                                                  (plist-get f :id) new)
+                (setq fixed (1+ fixed)))))))
+      (message "%d link(s) repointed%s" fixed
+               (if (> left 0) (format "; %d left: their text names several notes" left) "")))))
+
+(defun my/denote--replace-identifier-at (file pos old new)
+  "In FILE, replace the identifier OLD starting at POS with NEW.
+Through a buffer visiting FILE when there is one (saved), else on disk.
+Signals when OLD is not at POS: the file changed since it was read."
+  (cl-flet ((swap ()
+              (goto-char pos)
+              (unless (looking-at (regexp-quote old))
+                (user-error "%s changed since it was read; run the check again"
+                            (file-name-nondirectory file)))
+              (replace-match new t t)))
+    (let ((buffer (find-buffer-visiting file)))
+      (if buffer
+          (with-current-buffer buffer
+            (save-excursion (save-restriction (widen) (swap)))
+            (save-buffer))
+        (with-temp-buffer
+          (insert-file-contents file)
+          (swap)
+          (write-region (point-min) (point-max) file nil 'quiet))))))
 
 ;;;###autoload
 (defun my/denote-fix-duplicates ()

@@ -769,11 +769,13 @@ leaving part-way through is safe and leaves no modified buffers."
     ("g" "Duplicate signatures"  my/denote-check-signatures)
     ("b" "Broken denote: links"  my/denote-check-broken-links)
     ("l" "Self-links"            my/denote-find-self-links)
+    ("w" "Links to the wrong note?" my/denote-check-suspect-links)
     ("k" "Keyword inventory"     my/maintenance-keyword-inventory)
     ("z" "Notes with no keywords" my/maintenance-notes-without-keywords)]
    ["Repair (renames files)"
     ("R" "Change this note's identifier" my/denote-change-identifier)
     ("I" "Fix duplicate identifiers"     my/denote-fix-duplicates)
+    ("W" "Repoint links to the wrong note" my/denote-repair-suspect-links)
     ("K" "Rename or remove a keyword"    my/maintenance-rename-keyword)]
    [("q" "Quit" transient-quit-one)]])
 

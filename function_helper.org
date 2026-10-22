@@ -7046,10 +7046,12 @@ Module: =modules/26-maintenance.el=
 | =g= | =my/denote-check-signatures= | notes sharing a Folgezettel signature |
 | =b= | =my/denote-check-broken-links= | =denote:= links whose target does not exist |
 | =l= | =my/denote-find-self-links= | notes linking to their own identifier |
+| =w= | =my/denote-check-suspect-links= | =denote:= links whose text names another note of the same day than the one they open |
 | =k= | =my/maintenance-keyword-inventory= | every keyword with a usage count |
 | =z= | =my/maintenance-notes-without-keywords= | notes carrying no keywords |
 | =R= | =my/denote-change-identifier= | change this note's identifier *and repoint every link to it* |
 | =I= | =my/denote-fix-duplicates= | walk duplicate identifier groups, one confirmation each |
+| =W= | =my/denote-repair-suspect-links= | point each link found by =w= at the note its text names, one question each |
 | =K= | =my/maintenance-rename-keyword= | rename or remove one keyword across the collection |
 
 Lower case reads, upper case writes. Anything that renames files across
@@ -7063,6 +7065,18 @@ rewrites =#+identifier:=, renames the file, and *updates every =denote:=
 link pointing at it* across the whole notes tree, inbox included —
 links first, so an interruption leaves links pointing at a file that
 still exists.
+
+*Links that may point at the wrong note* (=w=, =W=, since 2026-10-23).
+Until 2026-10-22 giving a duplicate identifier to one of its notes
+repointed every link to it at the note that moved, also links meant for
+the other one -- see the next paragraph.  Such a link still opens a
+note, only another one.  =w= lists the links whose text (the label) is
+not the title of the note they open while another note of the same day
+-- the first eight digits of the identifier -- has that title: the
+label says where the link was meant to go.  A label written freely
+names no other note and is not listed.  =W= asks about each one and
+points it at that note; a label naming several notes of the day is
+left and counted.  Each line of the =w= list opens the link with RET.
 
 *When another note carries the same identifier* (a duplicate, =I=), no
 link is repointed: each =denote:= link keeps resolving to the note that

@@ -619,6 +619,14 @@ first: on exit it still writes to the old places.
       journal note of the day (T000000): the journal's own links to
       that day still open the journal note.
 
+** R40. Links that may point at the wrong note [0/2]
+- [ ] =C-c n != =w= on the real notes: a list, or "No suspect links
+      found".  For a listed line, RET opens the note at the link; the
+      text names the note in "meant".
+- [ ] =C-c n != =W=: one question per link; answer n to all first --
+      nothing changes; then y where the "meant" note is right, and
+      follow the link afterwards.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

@@ -214,5 +214,101 @@ at the note that moved."
       (should (string-match-p "denote:20261022T000001" (my/ids-test--read draft)))
       (should (string-match-p "denote:20261022T000000" (my/ids-test--read filed))))))
 
+;; ============================================================
+;; LINKS THAT MAY POINT AT THE WRONG NOTE (2026-10-23)
+;; ============================================================
+
+(defun my/ids-test--titled (dir id slug title &optional body)
+  "Write the note ID--SLUG.org titled TITLE in DIR with BODY; return it."
+  (let ((file (expand-file-name (format "%s--%s.org" id slug) dir)))
+    (with-temp-file file
+      (insert (format "#+title:      %s\n#+identifier: %s\n\n%s" title id (or body ""))))
+    file))
+
+(ert-deftest my/ids-test-suspect-link-found ()
+  "A link labelled with one note's title that opens another note of the
+same day is suspect; a matching label, a free label and a title of
+another day are not."
+  (my/ids-test--with-notes
+    (let* ((day (my/ids-test--titled journal "20200301T000000" "2020-03-01" "2020-03-01"))
+           (kant (my/ids-test--titled pks "20200301T000001" "kant" "Kant"))
+           (linker (my/ids-test--titled journal "20200302T000000" "2020-03-02" "2020-03-02"
+                                        (concat "[[denote:20200301T000001][2020-03-01]] "
+                                                "[[denote:20200301T000001][Kant]] "
+                                                "[[denote:20200301T000001][that day]] "
+                                                "[[denote:20200301T000001][2020-03-02]]\n")))
+           (found (my/denote-suspect-links)))
+      (should (= 1 (length found)))
+      (should (equal (plist-get (car found) :file) linker))
+      (should (equal (plist-get (car found) :label) "2020-03-01"))
+      (should (equal (plist-get (car found) :opens) kant))
+      (should (equal (plist-get (car found) :meant) (list day))))))
+
+(ert-deftest my/ids-test-suspect-link-list ()
+  "The list names file and line, as grep does, so RET opens the link."
+  (my/ids-test--with-notes
+    (my/ids-test--titled journal "20200301T000000" "2020-03-01" "2020-03-01")
+    (my/ids-test--titled pks "20200301T000001" "kant" "Kant")
+    (my/ids-test--titled journal "20200302T000000" "2020-03-02" "2020-03-02"
+                         "[[denote:20200301T000001][2020-03-01]]\n")
+    (unwind-protect
+        (progn
+          (my/denote-check-suspect-links)
+          (with-current-buffer "*Denote Suspect Links*"
+            (should (derived-mode-p 'grep-mode))
+            (should (string-match-p
+                     "^journal/20200302T000000--2020-03-02\\.org:4: \\[\\[denote:20200301T000001\\]\\[2020-03-01\\]\\] opens 20200301T000001--kant\\.org; meant: 20200301T000000--2020-03-01\\.org$"
+                     (buffer-string)))))
+      (when (get-buffer "*Denote Suspect Links*") (kill-buffer "*Denote Suspect Links*")))))
+
+(ert-deftest my/ids-test-suspect-link-repaired-on-yes ()
+  "Yes points the link at the note its text names; no leaves it; the
+rest of the note is unchanged."
+  (my/ids-test--with-notes
+    (my/ids-test--titled journal "20200301T000000" "2020-03-01" "2020-03-01")
+    (my/ids-test--titled pks "20200301T000001" "kant" "Kant")
+    (let* ((body "A [[denote:20200301T000001][2020-03-01]] B [[denote:20200301T000001][Kant]] C\n")
+           (linker (my/ids-test--titled journal "20200302T000000" "2020-03-02" "2020-03-02" body))
+           (text (my/ids-test--read linker)))
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) nil)))
+        (my/denote-repair-suspect-links))
+      (should (equal (my/ids-test--read linker) text))
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) t)))
+        (my/denote-repair-suspect-links))
+      (should (equal (my/ids-test--read linker)
+                     (replace-regexp-in-string
+                      "denote:20200301T000001\\]\\[2020-03-01" "denote:20200301T000000][2020-03-01"
+                      text t t)))
+      (should (null (my/denote-suspect-links))))))
+
+(ert-deftest my/ids-test-suspect-link-several-candidates-left ()
+  "A label naming two notes of that day is not guessed: left, no question."
+  (my/ids-test--with-notes
+    (my/ids-test--titled journal "20200301T000000" "2020-03-01" "2020-03-01")
+    (my/ids-test--titled docu "20200301T090000" "2020-03-01-copy" "2020-03-01")
+    (my/ids-test--titled pks "20200301T000001" "kant" "Kant")
+    (let* ((linker (my/ids-test--titled journal "20200302T000000" "2020-03-02" "2020-03-02"
+                                        "[[denote:20200301T000001][2020-03-01]]\n"))
+           (text (my/ids-test--read linker)))
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) (error "Asked"))))
+        (my/denote-repair-suspect-links))
+      (should (equal (my/ids-test--read linker) text)))))
+
+(ert-deftest my/ids-test-suspect-link-repaired-in-open-buffer ()
+  "A note open in a buffer is repaired there and saved, unsaved text kept."
+  (my/ids-test--with-notes
+    (my/ids-test--titled journal "20200301T000000" "2020-03-01" "2020-03-01")
+    (my/ids-test--titled pks "20200301T000001" "kant" "Kant")
+    (let ((linker (my/ids-test--titled journal "20200302T000000" "2020-03-02" "2020-03-02"
+                                       "[[denote:20200301T000001][2020-03-01]]\n")))
+      (with-current-buffer (find-file-noselect linker)
+        (goto-char (point-max))
+        (insert "Typed.\n"))
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) t)))
+        (my/denote-repair-suspect-links))
+      (let ((text (my/ids-test--read linker)))
+        (should (string-match-p "denote:20200301T000000\\]" text))
+        (should (string-match-p "Typed" text))))))
+
 (provide 'test-denote-identifiers)
 ;;; test-denote-identifiers.el ends here
