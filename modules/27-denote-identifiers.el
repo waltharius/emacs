@@ -404,11 +404,13 @@ the old name, which `my/denote-check-identifiers' can still see."
 ;; the label, usually the title of the note it was made for -- now
 ;; names a different note than the one it opens.
 ;;
-;; A link is suspect when its label is not the title of the note it
-;; opens, and another note of the same day (the first eight digits of
-;; the identifier) has that title: the label then says where it was
-;; meant to go.  A label written freely matches no other note's title
-;; and is not reported.
+;; A link is suspect when its identifier belongs to one note only, its
+;; label is not the title of that note, and another note of the same
+;; day (the first eight digits of the identifier) has that title: the
+;; label then says where it was meant to go.  A label written freely
+;; matches no other note's title and is not reported; nor is a link
+;; whose identifier several notes carry -- a duplicate, not a moved
+;; link.
 
 (defun my/denote--front-matter-title (file)
   "Return FILE's `#+title:', or nil.  Reads only the start of FILE."
@@ -448,7 +450,15 @@ titled like the label)."
                  (label (match-string 2))
                  (key (my/denote--title-key label))
                  (opens (car (gethash id by-id))))
-            (when (and opens (not (equal key (gethash opens titles))))
+            ;; An identifier two notes carry (an inbox note sharing a
+            ;; journal day's T000000) is a duplicate, not a moved link:
+            ;; which note it opens is not decided yet, and accepting the
+            ;; inbox note settles it.  Listed by `my/denote-check-
+            ;; identifiers', not here.  (2026-10-23: 18 such links were
+            ;; listed on the owner's notes, all between inbox notes.)
+            (when (and opens
+                       (null (cdr (gethash id by-id)))
+                       (not (equal key (gethash opens titles))))
               (let ((meant (seq-filter
                             (lambda (other)
                               (and (not (equal other opens))

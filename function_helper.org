@@ -7074,7 +7074,10 @@ note, only another one.  =w= lists the links whose text (the label) is
 not the title of the note they open while another note of the same day
 -- the first eight digits of the identifier -- has that title: the
 label says where the link was meant to go.  A label written freely
-names no other note and is not listed.  =W= asks about each one and
+names no other note and is not listed; nor is a link whose identifier
+two notes carry (an inbox note and the journal note of its day, both
+T000000): that is a duplicate, settled when the inbox note is accepted,
+and =i= lists it.  =W= asks about each one and
 points it at that note; a label naming several notes of the day is
 left and counted.  Each line of the =w= list opens the link with RET.
 

@@ -244,6 +244,18 @@ another day are not."
       (should (equal (plist-get (car found) :opens) kant))
       (should (equal (plist-get (car found) :meant) (list day))))))
 
+(ert-deftest my/ids-test-suspect-link-shared-identifier-not-listed ()
+  "A link whose identifier two notes carry is a duplicate, not a moved
+link: an inbox note linking to another inbox note that shares a journal
+day's identifier.  Not listed (2026-10-23: 18 such links on the owner's
+notes were listed as suspect)."
+  (my/ids-test--with-notes
+    (my/ids-test--titled journal "20231227T000000" "2023-12-27" "2023-12-27")
+    (my/ids-test--titled inbox "20231227T000000" "cytaty" "Cytaty")
+    (my/ids-test--titled inbox "20231229T000000" "linki" "Linki"
+                         "[[denote:20231227T000000][Cytaty]]\n")
+    (should (null (my/denote-suspect-links)))))
+
 (ert-deftest my/ids-test-suspect-link-list ()
   "The list names file and line, as grep does, so RET opens the link."
   (my/ids-test--with-notes
