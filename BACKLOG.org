@@ -37,7 +37,7 @@ says why and how.
    2026-10-22a.  Left: the function tests of the modules that touch
    data (/Module tests/), the compiler warnings (/Compiler warnings/);
    then the /Module map/ (agreed 2026-10-22), so that those tests
-   check the move.
+   check the move; then /Templates as files/ (asked 2026-10-22).
 6. /A public repository/: portable defaults and the privacy model in
    the README, the welcome screen; then the installation guide for
    beginners, the tutorial with exercises and the Polish guide.
@@ -571,6 +571,64 @@ module of the group); 09, 10, 11 with the look; 17 and 18 one module
 keys); 03 stays separate so that a jinx module can replace it -- which
 needs a way to say two modules fill the same place; 01 split into Pure
 Emacs (sessions) and the look; 08 and 12 Must have.
+
+* Templates as files
+Asked 2026-10-22: templates kept as files that modules use when they
+need them, instead of text written into the code -- one template may
+serve several modules; a command that lists the templates, opens the
+chosen one for editing, and the next use of the function takes the
+edited version, as Obsidian's templates folder does; a module of its
+own, with its options and a menu.
+
+Not quick: the templates are spread over seven modules today, each
+inserted in its own way.  Where they are on 2026-10-22:
+- org-capture templates: Ideas =j= (06-capture), tasks =t= (37-tasks),
+  habits =h= (38-habits);
+- the front matter and first heading of a journal note, today's and a
+  backdated one (05-notes), and the metrics keywords (05b);
+- the bodies of the philosophy note types (19-philosophy-notes);
+- the Denote template of a bibliography note (17-bibliography,
+  =denote-templates=);
+- report and export skeletons (36-notes-stats and others) -- probably
+  left in the code: they are output, not notes.
+
+What exists already, so nothing new has to be invented for reading a
+template from a file:
+- Org capture takes a template from a file: =(file "/path/to/template")=
+  in place of the template string (Org manual, /Template elements/,
+  https://orgmode.org/manual/Template-elements.html).  The %-escapes
+  (=%U=, =%^{prompt}=, =%(sexp)=) work in the file as in the string.
+- Denote's =denote-templates=: each value a string, or a function
+  called without arguments that returns one (Denote manual,
+  https://protesilaos.com/emacs/denote) -- a function reading the file.
+So no snippet package (yasnippet, tempel) is needed for this; whether
+one is wanted later for templates typed into a note is a separate
+question.
+
+Proposed shape, to decide before building:
+1. A module (group 3 or 4 of the /Module map/), =my/templates-...=:
+   a registry where each module declares its templates -- name,
+   description, the file shipped in this repository
+   (=templates/<name>.org=) and the modules using it.
+2. The file used is the user's copy in the settings folder
+   (=<settings>/templates/<name>.org=, so every machine shares it
+   through git) when there is one, else the shipped default.  A
+   module asks the registry for the file at the moment of use, so an
+   edit applies at the next use without a restart.
+3. A command (menu entry in Settings, and its own key) listing the
+   templates with their descriptions and users: open one -- the first
+   edit makes the user's copy from the default --; show the
+   difference from the default; go back to the default.
+4. Options: the templates folder; per template, which file.
+5. Placeholders: Org capture's %-escapes for capture templates; for
+   the others (journal, note types) the same escapes where they make
+   sense, filled by =org-capture-fill-template=, which Org offers for
+   exactly that, so one syntax serves every template.  To check before
+   building: that it works outside a capture.
+6. Moved one template at a time, each with a test that the file is
+   used and that an edited copy wins, starting with the capture
+   templates (Org reads the file itself).
+Placed after the /Module map/, so that the module is born in its group.
 
 * Checks by tools made by others
 Asked 2026-10-19, after an outside answer on checking code one does not
