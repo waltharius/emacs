@@ -319,12 +319,24 @@ uses a live buffer when one exists so unsaved edits are not lost."
       (rename-file file target))
     target))
 
-(defun my/denote-change-identifier (file new-id)
-  "Give FILE the identifier NEW-ID and repoint every link to it.
+(defun my/denote-change-identifier (file new-id &optional link-files)
+  "Give FILE the identifier NEW-ID and repoint the links to it.
 
 Interactively, FILE is the current buffer's file (or the file at point
 in Dired), and NEW-ID defaults to the first free identifier at or after
 the current one - normally the same timestamp bumped by a second.
+
+Which links are repointed:
+- LINK-FILES given: the `denote:OLD' links in those files only.
+- FILE alone carries OLD: every `denote:OLD' link in the notes folder,
+  since all of them mean FILE.
+- Another note carries OLD too (a duplicate): none.  Those links keep
+  resolving to the note that keeps OLD, which is what they did before;
+  repointing them all at FILE took every link away from the other note.
+  Until 2026-10-22 they were all repointed, so accepting an inbox note
+  that shared a journal note's identifier moved the journal's links to
+  it (found by tests/test-inbox-review.el).  The message says how many
+  were left, to be checked by hand.
 
 The order matters: links are rewritten BEFORE the file is renamed, so
 an interruption leaves links pointing at a file that still exists under
@@ -354,18 +366,30 @@ the old name, which `my/denote-check-identifiers' can still see."
       (user-error "Identifier %s is already used in a silo by: %s" new-id
                   (mapconcat (lambda (f) (file-relative-name f my-notes-dir))
                              (gethash new-id table) ", ")))
-    (let ((files 0) (links 0))
-      (dolist (other (my/denote-all-files))
-        ;; The file's own `denote:OLD' links are self-links created by
-        ;; an earlier bad resolution; they are rewritten too, and
-        ;; `my/denote-find-self-links' will show whether any remain.
+    (let* ((all (my/denote-all-files))
+           (shared (seq-some (lambda (other)
+                               (and (not (file-equal-p other file))
+                                    (equal (my/denote-file-identifier other) old)))
+                             all))
+           (scope (cond (link-files link-files)
+                        (shared nil)
+                        (t all)))
+           (files 0) (links 0))
+      (dolist (other scope)
+        ;; The file's own `denote:OLD' links, when it is in the scope,
+        ;; are self-links created by an earlier bad resolution; they
+        ;; are rewritten too, and `my/denote-find-self-links' will show
+        ;; whether any remain.
         (let ((n (my/denote--replace-in-file other old new-id)))
           (when (> n 0)
             (setq files (1+ files) links (+ links n)))))
       (my/denote--set-front-matter-identifier file new-id)
       (let ((target (my/denote--rename-with-identifier file new-id)))
-        (message "%s -> %s (%d link(s) in %d file(s) updated)"
-                 old new-id links files)
+        (message "%s -> %s (%d link(s) in %d file(s) updated)%s"
+                 old new-id links files
+                 (if (and shared (not link-files))
+                     (format "; links to %s left on the note that keeps it -- check them" old)
+                   ""))
         target))))
 
 ;;;###autoload

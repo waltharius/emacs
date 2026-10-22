@@ -611,6 +611,14 @@ first: on exit it still writes to the old places.
 - [ ] =C-c c= lists the templates of tasks (=t=) and habits (=h=)
       beside =j=, as before.
 
+** R39. Identifiers: links of a duplicate stay where they were [0/2]
+- [ ] =C-c n != =i=: if duplicates are listed, =I=, answer y for one:
+      the message ends "links to ... left on the note that keeps it --
+      check them"; =C-c n != =b= reports no broken link.
+- [ ] Inbox (=C-c n t i=): accept (=p=) a note whose date matches a
+      journal note of the day (T000000): the journal's own links to
+      that day still open the journal note.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

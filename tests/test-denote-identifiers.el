@@ -191,5 +191,28 @@ nothing; yes moves it, and the first keeps the identifier."
       (should (file-exists-p a))
       (should (file-exists-p (expand-file-name "20261022T000001--b.org" pks))))))
 
+(ert-deftest my/ids-test-duplicate-links-stay-on-the-keeper ()
+  "Fixing a duplicate does not take the links away from the note that
+keeps the identifier.  Until 2026-10-22 every link to it was repointed
+at the note that moved."
+  (my/ids-test--with-notes
+    (my/ids-test--note journal "20261022T000000" "a")
+    (let ((b (my/ids-test--note pks "20261022T000000" "b"))
+          (linker (my/ids-test--note docu "20261023T090000" "linker"
+                                     "[[denote:20261022T000000][the day]]\n")))
+      (my/denote-change-identifier b "20261022T000001")
+      (should (string-match-p "denote:20261022T000000\\]" (my/ids-test--read linker))))))
+
+(ert-deftest my/ids-test-link-files-given ()
+  "With the files named, only their links follow the note."
+  (my/ids-test--with-notes
+    (my/ids-test--note journal "20261022T000000" "a")
+    (let* ((b (my/ids-test--note inbox "20261022T000000" "b"))
+           (draft (my/ids-test--note inbox "20261024T000000" "draft" "[[denote:20261022T000000][b]]\n"))
+           (filed (my/ids-test--note docu "20261023T090000" "filed" "[[denote:20261022T000000][a]]\n")))
+      (my/denote-change-identifier b "20261022T000001" (list draft))
+      (should (string-match-p "denote:20261022T000001" (my/ids-test--read draft)))
+      (should (string-match-p "denote:20261022T000000" (my/ids-test--read filed))))))
+
 (provide 'test-denote-identifiers)
 ;;; test-denote-identifiers.el ends here

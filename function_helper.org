@@ -7064,6 +7064,15 @@ link pointing at it* across the whole notes tree, inbox included —
 links first, so an interruption leaves links pointing at a file that
 still exists.
 
+*When another note carries the same identifier* (a duplicate, =I=), no
+link is repointed: each =denote:= link keeps resolving to the note that
+keeps the identifier, as it did before; the message says that links
+were left, to be checked by hand.  Until 2026-10-22 every link was
+repointed at the note that moved, which took them all away from the
+other note.  Accepting an inbox note whose identifier a filed note
+already has (=p= or =d= in the inbox review list) repoints only the
+links inside the inbox, where notes under review link to each other.
+
 It accepts any valid identifier, not only the suggested next free one,
 so the remembered time can be typed directly.
 

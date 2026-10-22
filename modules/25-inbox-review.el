@@ -420,7 +420,10 @@ cannot check identifier uniqueness"))
       (let ((new-id (my/denote-next-free-identifier id table)))
         (message "%s is taken by %s - this note becomes %s"
                  id (file-relative-name clash my-notes-dir) new-id)
-        (my/denote-change-identifier file new-id)))))
+        ;; Only links inside the inbox follow the note: there, notes
+        ;; still under review link to each other.  A filed note's
+        ;; `denote:' link to this identifier means the filed note.
+        (my/denote-change-identifier file new-id (my/inbox--files))))))
 
 (defun my/inbox--move (file dir)
   "Move FILE into DIR, return the new path."
