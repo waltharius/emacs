@@ -301,6 +301,81 @@
     (should-not started)))
 
 ;; ============================================================
+;; WHAT IS COMMITTED AND WHERE IT GOES (SAFETY.org 3.1)
+;; ============================================================
+
+(defun my/ac-test--refs (repo)
+  "Return the branches REPO (a bare repository) holds."
+  (let ((default-directory (file-name-as-directory repo)))
+    (process-lines "git" "for-each-ref" "--format=%(refname)" "refs/heads")))
+
+(ert-deftest my/ac-test-config-repository-off-by-default ()
+  "This repository is not committed automatically unless asked for."
+  (should-not (eval (car (get 'my/auto-commit-config-enabled 'standard-value)) t)))
+
+(ert-deftest my/ac-test-directories-are-the-sources ()
+  "Only the folders the sources name are committed; the configuration
+repository only when turned on."
+  (my/ac-test--with-repos
+    (should (equal (my/auto-commit-directories) (list here)))
+    (let ((my/auto-commit-config-enabled t))
+      (should (equal (my/auto-commit-directories)
+                     (list here (expand-file-name user-emacs-directory)))))))
+
+(ert-deftest my/ac-test-push-only-to-upstream-remotes-unchanged ()
+  "With a second remote, the push goes to the upstream only, and the
+remotes are the same afterwards."
+  (my/ac-test--with-repos
+    (let ((backup (expand-file-name "backup.git" (file-name-directory (directory-file-name here)))))
+      (my/ac-test--git (file-name-directory (directory-file-name here))
+                       "init" "-q" "--bare" "-b" "main" "backup.git")
+      (my/ac-test--git here "remote" "add" "backup" backup)
+      (let ((remotes (let ((default-directory here)) (process-lines "git" "remote" "-v"))))
+        (my/ac-test--write (expand-file-name "f.org" here) "f\n")
+        (should (equal (my/ac-test--cycle) '("here: committed, pushed")))
+        (should (null (my/ac-test--refs backup)))
+        (should (equal (let ((default-directory here)) (process-lines "git" "remote" "-v"))
+                       remotes))))))
+
+(ert-deftest my/ac-test-no-push-directory-committed-not-pushed ()
+  "A folder kept from pushing is committed here; the server is untouched."
+  (my/ac-test--with-repos
+    (let ((my/auto-commit-no-push-directories (list here))
+          (before (my/ac-test--server-subject server)))
+      (my/ac-test--write (expand-file-name "g.org" here) "g\n")
+      (should (equal (my/ac-test--cycle) '("here: committed")))
+      (should (equal (my/ac-test--server-subject server) before)))))
+
+(ert-deftest my/ac-test-push-off-committed-not-pushed ()
+  "Pushing turned off: committed here, nothing on the server."
+  (my/ac-test--with-repos
+    (let ((my/auto-commit-push nil)
+          (before (my/ac-test--server-subject server)))
+      (my/ac-test--write (expand-file-name "h.org" here) "h\n")
+      (should (equal (my/ac-test--cycle) '("here: committed")))
+      (should (equal (my/ac-test--server-subject server) before)))))
+
+(ert-deftest my/ac-test-folder-without-repository-left-alone ()
+  "A source folder that is no git repository is skipped: no repository
+is created, nothing is run."
+  (my/ac-test--with-repos
+    (let* ((plain (file-name-as-directory
+                   (expand-file-name "plain" (file-name-directory (directory-file-name here)))))
+           (my/auto-commit-repository-sources (list (lambda () (list plain)))))
+      (make-directory plain t)
+      (my/ac-test--write (expand-file-name "i.org" plain) "i\n")
+      (should (null (my/ac-test--cycle)))
+      (should-not (file-exists-p (expand-file-name ".git" plain))))))
+
+(ert-deftest my/ac-test-rebase-in-progress-left-alone ()
+  "A repository in the middle of a rebase is not committed."
+  (my/ac-test--with-repos
+    (make-directory (expand-file-name ".git/rebase-merge" here) t)
+    (my/ac-test--write (expand-file-name "j.org" here) "j\n")
+    (should (null (my/ac-test--cycle)))
+    (should (my/auto-commit--dirty-p here))))
+
+;; ============================================================
 ;; A COMMIT MESSAGE BEING WRITTEN
 ;; ============================================================
 ;; 2026-10-22: with C-c v c working, git waits for the message in a
