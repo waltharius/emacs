@@ -4617,6 +4617,14 @@ the origin window and places the capture buffer on the right. This
 only fires when capture is started via =my/capture-idea=; generic
 =org-capture= is unaffected.
 
+*On and off* (since 2026-10-22): =my/capture-mode= ([[#module-switch][A module's switch]])
+adds the template =j=, =C-c c=, the Capture column of =C-c n c=, the
+right-hand window and the two questions at =C-c C-c=, and removes them
+when turned off -- at once, without a restart.  The captures file and
+the commands stay.  The template is added to =org-capture-templates=
+rather than set as the whole list, as it was until then: templates of
+other modules or of Customize are kept.
+
 Module: =modules/06-capture.el=
 
 * Session Management (desktop)
@@ -6724,6 +6732,7 @@ module's loading together.
 | =my/zettelkasten-mode=    | =22-zettelkasten.el=    | =C-c n z= |
 | =my/maintenance-mode=     | =26-maintenance.el=     | =C-c n != |
 | =my/web-links-mode=       | =32-web-links.el=       | Insert → =u= |
+| =my/capture-mode=         | =06-capture.el=         | the Ideas template (=j=), =C-c c=, Create → Capture column, the right-hand window and the questions at =C-c C-c= |
 | =my/journal-gaps-module-mode= | =35-journal-gaps.el= | Find → =j= |
 | =my/notes-stats-module-mode= | =36-notes-stats.el=  | Find → =s=, =C-c w s= |
 | =my/image-display-mode=   | =44-image-display.el=   | View → =m=, =C-c u i= |

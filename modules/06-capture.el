@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires: 05-notes
 ;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/capture-mode
 ;; Docs: ~/.emacs.d/function_helper.org::#capture-system
 
 ;;; Commentary:
@@ -82,7 +83,7 @@ started via `my/capture-idea', not the generic org-capture menu)."
         (select-window right-win))
       (setq my/capture-origin-window nil))))
 
-(add-hook 'org-capture-mode-hook #'my/capture--show-right)
+;; Added and removed by `my/capture-mode' (ON AND OFF, at the end).
 
 ;; ============================================================
 ;; HELPER: Get #+title: from ORIGINAL buffer
@@ -141,18 +142,15 @@ the file is made by the first capture instead."
         (insert "#+filetags: :captures:\n\n")
         (insert "* Ideas\n\n")))))
 
-(use-package org-capture
-  :ensure nil
-  :config
-
-  (my/capture--ensure-captures-file t)
-
-  (setq org-capture-templates
-        '(("j" "Ideas capture" entry
-           (file+headline my-journal-captures "Ideas")
-           "* \n:PROPERTIES:\n:SOURCE: [[%(my/get-capture-origin-id)][%(my/get-capture-origin-title)]]\n:CAPTURED: %U\n:END:\n\n%?"
-           :empty-lines 1
-           :prepend nil))))
+(defconst my/capture--template
+  '("j" "Ideas capture" entry
+    (file+headline my-journal-captures "Ideas")
+    "* \n:PROPERTIES:\n:SOURCE: [[%(my/get-capture-origin-id)][%(my/get-capture-origin-title)]]\n:CAPTURED: %U\n:END:\n\n%?"
+    :empty-lines 1
+    :prepend nil)
+  "The Ideas capture template, added and removed by `my/capture-mode'.
+Until 2026-10-22 it was set as the whole of `org-capture-templates' at
+load, which also dropped any template added before this module.")
 
 ;; ============================================================
 ;; DIRECT CAPTURE: C-c n c fires template "j" without menu
@@ -557,11 +555,10 @@ where org-capture put it."
                    (set-marker destination nil)
                    (message "✓ Filed under \"%s\"" target))))))))))))))
 
-(add-hook 'org-capture-prepare-finalize-hook #'my/capture--ask-target)
-;; Depth -10: the link question comes first, so that by the time a
-;; destination is chosen the entry already has, or lacks, its SOURCE.
-(add-hook 'org-capture-prepare-finalize-hook #'my/capture--ask-source -10)
-(add-hook 'org-capture-after-finalize-hook #'my/capture--attach-last-entry)
+;; The three hooks of a capture's end are added by `my/capture-mode'
+;; (ON AND OFF, at the end): the link question at depth -10, so that by
+;; the time a destination is chosen the entry already has, or lacks,
+;; its SOURCE.
 
 (defun my/capture-idea ()
   "Directly invoke Ideas capture (template j) — no menu shown.
@@ -909,28 +906,61 @@ had."
       (message "✓ Note created: \"%s\" → %s/" title silo)))))
 
 ;; ============================================================
-;; KEYBINDINGS
+;; ON AND OFF
 ;; ============================================================
+;; `my/capture-mode' is this module's switch (module contract, rule 12;
+;; since 2026-10-22 -- asked after turning the module off left its
+;; templates until a restart).  On: the Ideas template, C-c c, the
+;; Capture column of the Create menu (C-c n c), the right-hand window and
+;; the questions at C-c C-c, and the captures file when the journal
+;; folder exists.  Off: none of them; the commands remain for M-x and
+;; the captures file stays as it is.  Customize saves the position in
+;; this machine's settings (M-x customize-option RET my/capture-mode).
+;;
+;; The Capture column is inserted before the Quit column, coordinate
+;; (0 1): the Create column is (0 0).  This module loads before
+;; 12-transient.el, hence the wait for it.
 
-(global-set-key (kbd "C-c c") 'org-capture)
+(defconst my/capture--menu-entries
+  '((insert my/notes-create-menu (0 1)
+            ["Capture"
+             ("i" "Ideas capture"   my/capture-idea)
+             ("c" "Capture menu"    org-capture)
+             ("m" "Promote to note" my/capture-promote-to-note)]))
+  "Menu entries of this module, for `my/transient-entries'.")
 
-;; ============================================================
-;; MENU
-;; ============================================================
-;; The Capture column of the Create menu (C-c n c), inserted from here
-;; rather than declared in 12-transient.el, so that without this module
-;; the Create menu has no Capture column and nothing else changes.
-;; Before the Quit column, coordinate (0 1): the Create column is (0 0).
-;; This module loads before 12-transient.el, hence the wait for it.
+(defconst my/capture--keys
+  '(("C-c c" . org-capture))
+  "Global keys of this module, for `my/module-keys'.")
 
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-insert)
-    (my/transient-insert
-     'my/notes-create-menu '(0 1)
-     ["Capture"
-      ("i" "Ideas capture"   my/capture-idea)
-      ("c" "Capture menu"    org-capture)
-      ("m" "Promote to note" my/capture-promote-to-note)])))
+(define-minor-mode my/capture-mode
+  "Org capture as a module, switched on and off.
+On: the Ideas template, C-c c, the Capture column of C-c n c, the
+capture window to the right and the questions when a capture is
+finished.  Off: none of them; the commands remain for M-x.  Customize
+saves the position in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/capture
+  (if my/capture-mode
+      (progn
+        (my/capture--ensure-captures-file t)
+        (my/settings-capture-template my/capture--template)
+        (add-hook 'org-capture-mode-hook #'my/capture--show-right)
+        (add-hook 'org-capture-prepare-finalize-hook #'my/capture--ask-target)
+        (add-hook 'org-capture-prepare-finalize-hook #'my/capture--ask-source -10)
+        (add-hook 'org-capture-after-finalize-hook #'my/capture--attach-last-entry))
+    (my/settings-capture-template-remove (nth 3 my/capture--template))
+    (remove-hook 'org-capture-mode-hook #'my/capture--show-right)
+    (remove-hook 'org-capture-prepare-finalize-hook #'my/capture--ask-target)
+    (remove-hook 'org-capture-prepare-finalize-hook #'my/capture--ask-source)
+    (remove-hook 'org-capture-after-finalize-hook #'my/capture--attach-last-entry))
+  (my/module-keys my/capture-mode my/capture--keys)
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/capture-mode my/capture--menu-entries))))
+
+(my/capture-mode (if my/capture-mode 1 -1))
 
 (provide '06-capture)
 ;;; 06-capture.el ends here

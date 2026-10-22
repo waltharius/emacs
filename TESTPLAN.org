@@ -601,6 +601,16 @@ first: on exit it still writes to the old places.
       =ps -o pid,etime,args -C git= and =ps -o pid,args -C emacsclient=,
       and note the output for the report.
 
+** R38. Capture on and off without a restart [0/3]
+- [ ] =C-c n , m=, turn /06-capture/ off: =C-c c= does nothing (or
+      something else), =C-c n c= has no Capture column, =M-x
+      org-capture= has no =j=.  No restart.
+- [ ] Turn it on again: all three are back; =C-c n c i= opens the
+      capture on the right, =C-c C-c= asks about the source link and
+      the heading as before.
+- [ ] =C-c c= lists the templates of tasks (=t=) and habits (=h=)
+      beside =j=, as before.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

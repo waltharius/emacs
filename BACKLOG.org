@@ -19,9 +19,9 @@ says why and how.
 3. /Settings: core plus user layer/, step 5 -- decoupling, skipped
    menu entries, switches for 17 modules, the loader: done 2026-10-19.
    Left: hint texts from what loaded; the other modules' switches, one
-   per session, each rethought first -- 06-capture first (asked
-   2026-10-22: turned off, its templates stayed until a restart; the
-   weekly switch test checks each new switch); own modules in the settings
+   per session, each rethought first -- 06-capture done 2026-10-22i
+   (asked: turned off, its templates stayed until a restart); the
+   weekly switch test checks each new switch; own modules in the settings
    folder; /Start-up: early-init.el, compilation, lazy loading/.
 4. /Files the modules write/: no-littering, the state of Emacs and its
    packages in =hosts/<host>/var/=, the old files moved -- done
