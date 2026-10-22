@@ -140,11 +140,12 @@ them through the basics; until then the =tests= check reminds;
 3. *Modules that touch data get tests of their functions first*, in
    this order -- the order of SAFETY.org's risks: 05-notes (moving,
    renaming; done 2026-10-22h, =tests/test-notes.el=), 07-git (done
-   2026-10-22j, =tests/test-auto-commit.el=), 27-denote-identifiers, 25-inbox-review,
+   2026-10-22j, =tests/test-auto-commit.el=), 27-denote-identifiers
+   (done 2026-10-22k, =tests/test-denote-identifiers.el=), 25-inbox-review,
    26-maintenance, 31-org-images, 39-project-git, 46-blog (the rest of
    SAFETY.org 1.x), 47-repo-docs, 42-obsidian-import, 24-readwise; then
    the others, a few per session, as each is next changed.
 
-On 2026-10-22, 12 of 52 modules are named by a test file
+On 2026-10-22, 13 of 52 modules are named by a test file
 (=python3 hooks/lint.py tests= lists the others); every module has the
 weekly load tests of part 2.
