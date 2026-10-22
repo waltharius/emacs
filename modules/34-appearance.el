@@ -165,7 +165,9 @@ Inherits `link' because that is what it is -- clicking opens the note."
   ;; `my/theme-load' (09-theme.el) additionally disables this mode
   ;; across a theme load, so nothing here computes from a palette that
   ;; is only half in place.
-  (setq spacious-padding-subtle-mode-line t)
+  ;; Named `spacious-padding-subtle-mode-line' until 0.8, an obsolete
+  ;; alias of this one since (2026-10-23, weekly compilation).
+  (setq spacious-padding-subtle-frame-lines t)
 
   (spacious-padding-mode 1))
 
@@ -228,8 +230,9 @@ text column then has to give back."
 (use-package pulsar
   :ensure t
   :config
-  (setq pulsar-pulse t
-        pulsar-delay 0.055
+  ;; `pulsar-pulse' was set to t here too; obsolete since pulsar 1.3,
+  ;; where a pulse is always a pulse (2026-10-23, weekly compilation).
+  (setq pulsar-delay 0.055
         pulsar-iterations 8
         pulsar-face 'pulsar-cyan
         pulsar-highlight-face 'pulsar-yellow)

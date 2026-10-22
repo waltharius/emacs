@@ -516,13 +516,16 @@ The weekly byte compilation began with 28 warnings, listed in
 =tests/weekly/compile-warnings.txt= so that only new ones fail.  Each is
 fixed in the module's next patch and its line removed; a new warning is
 fixed at once, not listed (decided 2026-10-22).  Fixed so far: the
-docstring of 13-centered-writing (2026-10-22g).  Worth doing
-first, because a setting may silently do nothing:
-- obsolete variables still set: =denote-link-button-action= (Denote
-  4.0, 04-denote.el), =org-confirm-elisp-link-function= (Org 9.3,
-  04-denote.el), =pulsar-pulse= (pulsar 1.3, 34-appearance.el),
-  =spacious-padding-subtle-mode-line= (0.8, 34-appearance.el),
-  =org-export-before-processing-hook= (Org 9.6, 01-ui.el);
+docstring of 13-centered-writing (2026-10-22g); the five obsolete
+option names -- =denote-link-button-action=,
+=org-confirm-elisp-link-function=, =spacious-padding-subtle-mode-line=,
+=org-export-before-processing-hook= set under their new names,
+=pulsar-pulse= dropped (2026-10-23a).  These had been thought settings
+that silently did nothing; checked in the packages' sources, the first
+four are obsolete /aliases/ of the new names, so they worked all along,
+and =pulsar-pulse= has no effect since pulsar 1.3 because pulsing is
+always on.  Renamed so that they keep working when the aliases go.
+Left:
 - an obsolete function: =denote-explore-identify-duplicate-notes=
   (15-workspace.el);
 - =org-emacs-idle-seconds= and =dbus-call-method= not known where

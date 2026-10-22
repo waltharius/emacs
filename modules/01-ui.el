@@ -1028,7 +1028,9 @@ it."
         (kill-buffer buf)))))
 
 (add-hook 'emacs-startup-hook 'my/kill-auxiliary-buffers)
-(add-hook 'org-export-before-processing-hook 'my/kill-auxiliary-buffers)
+;; The -functions name since Org 9.6 (Emacs 29); the -hook name is an
+;; obsolete alias of it (2026-10-23, weekly compilation).
+(add-hook 'org-export-before-processing-functions #'my/kill-auxiliary-buffers)
 
 (provide '01-ui)
 ;;; 01-ui.el ends here

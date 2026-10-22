@@ -65,7 +65,9 @@
 ;; note created in a session, and the hook re-ran the mode function on
 ;; every subsequent note.  Enabling it here is the intended usage.
 (denote-rename-buffer-mode 1)
-(setq denote-link-button-action 'find-file)
+;; Named `denote-link-button-action' until Denote 4.0, an obsolete alias
+;; of this one since (2026-10-23, weekly compilation).
+(setq denote-open-link-function #'find-file)
 
 ;; ============================================================
 ;; ORG-MODE SETTINGS FOR DENOTE
@@ -86,7 +88,7 @@
 (setq org-mouse-1-follows-link t)
 
 ;; Confirm before executing elisp links (security: external .org files)
-(setq org-confirm-elisp-link-function #'y-or-n-p)
+(setq org-link-elisp-confirm-function #'y-or-n-p)   ; renamed in Org 9.3
 
 ;; ============================================================
 ;; E4 — ORG-CLOCK PERSISTENCE IS OWNED BY 28-writing-projects.el
