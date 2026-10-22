@@ -251,7 +251,7 @@ This is a SIMPLE, RELIABLE implementation that:
 - Works when editing anywhere in document
 
 When enabled:
-- Shows 'W' in mode line (next to word count)
+- Shows \"W\" in mode line (next to word count)
 - Cursor centers after typing
 - All scrolling and navigation work normally
 

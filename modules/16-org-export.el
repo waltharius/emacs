@@ -363,38 +363,44 @@ Returns destination path on success, nil on failure or cancel."
          (dest-dir    (my/--pdf-dest-dir org-file))
          (pdf-dest    (expand-file-name (concat pdf-name ".pdf") dest-dir))
          (pdf-dest    (my/org-export-resolve-destination pdf-dest)))
-    (unless pdf-dest
-      (message "Export cancelled: %s" (file-name-nondirectory org-file))
-      (cl-return-from my/--export-file-to-pdf nil))
-    (let* ((latex-class (my/--org-latex-class org-file))
-           (build-dir   (make-temp-file "org-latex-" t))
-           (tex-file    (expand-file-name (concat pdf-name ".tex") build-dir))
-           (pdf-src     (expand-file-name (concat pdf-name ".pdf") build-dir))
-           (result      nil))
-      (unwind-protect
-          (progn
-            (with-current-buffer (find-file-noselect org-file)
-              (let ((org-latex-default-class latex-class))
-                (org-export-to-file 'latex tex-file)))
-            (let ((exit-code
-                   (call-process
-                    "latexmk" nil
-                    (get-buffer-create "*org-pdf-build-log*")
-                    nil
-                    "-lualatex"
-                    "-interaction=nonstopmode"
-                    (concat "-output-directory=" build-dir)
-                    "-f"
-                    tex-file)))
-              (if (and (zerop exit-code) (file-exists-p pdf-src))
-                  (progn
-                    (rename-file pdf-src pdf-dest t)
-                    (setq result pdf-dest))
-                (message "Build failed for %s (exit %s) - see *org-pdf-build-log*"
-                         (file-name-nondirectory org-file) exit-code))))
-        (when (file-exists-p build-dir)
-          (delete-directory build-dir t)))
-      result)))
+    ;; Cancelled: a message and nil.  Until 2026-10-22 this was a
+    ;; `cl-return-from' in a plain `defun', which has no block to return
+    ;; from: cancelling stopped with "No catch for tag" instead (a batch
+    ;; export listed the file with that error).  Only the compiler of
+    ;; Emacs 31 says so (weekly check, tests/weekly/compile.el).
+    (if (not pdf-dest)
+        (progn
+          (message "Export cancelled: %s" (file-name-nondirectory org-file))
+          nil)
+      (let* ((latex-class (my/--org-latex-class org-file))
+             (build-dir   (make-temp-file "org-latex-" t))
+             (tex-file    (expand-file-name (concat pdf-name ".tex") build-dir))
+             (pdf-src     (expand-file-name (concat pdf-name ".pdf") build-dir))
+             (result      nil))
+	(unwind-protect
+            (progn
+              (with-current-buffer (find-file-noselect org-file)
+		(let ((org-latex-default-class latex-class))
+                  (org-export-to-file 'latex tex-file)))
+              (let ((exit-code
+                     (call-process
+                      "latexmk" nil
+                      (get-buffer-create "*org-pdf-build-log*")
+                      nil
+                      "-lualatex"
+                      "-interaction=nonstopmode"
+                      (concat "-output-directory=" build-dir)
+                      "-f"
+                      tex-file)))
+		(if (and (zerop exit-code) (file-exists-p pdf-src))
+                    (progn
+                      (rename-file pdf-src pdf-dest t)
+                      (setq result pdf-dest))
+                  (message "Build failed for %s (exit %s) - see *org-pdf-build-log*"
+                           (file-name-nondirectory org-file) exit-code))))
+          (when (file-exists-p build-dir)
+            (delete-directory build-dir t)))
+	result))))
 
 ;; ============================================================
 ;; SINGLE FILE EXPORT  (C-c p)

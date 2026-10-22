@@ -280,7 +280,7 @@ membership scans needlessly slow."
 
 (defun my/writing-file-projects (file)
   "Return the list of project slugs FILE declares membership in."
-  (when-let ((value (my/writing--read-keyword file "project")))
+  (when-let* ((value (my/writing--read-keyword file "project")))
     (split-string value "[ \t]+" t)))
 
 (defun my/writing--set-file-projects (slugs)
@@ -502,7 +502,7 @@ END is the next heading at the same or a shallower level."
 
 (defun my/writing--links-in-section (heading)
   "Return the Denote identifiers linked under HEADING in this buffer."
-  (when-let ((bounds (my/writing--section-bounds heading)))
+  (when-let* ((bounds (my/writing--section-bounds heading)))
     (save-excursion
       (goto-char (car bounds))
       (let (ids)

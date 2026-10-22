@@ -176,7 +176,9 @@
   :config
   (setq uniquify-buffer-name-style 'forward)
   (setq uniquify-separator "/")
-  (setq uniquify-after-kill-buffer-p t)
+  ;; Buffer names are made unique again after a kill: Emacs's default
+  ;; for a long time.  The line setting it went 2026-10-22 -- Emacs 31
+  ;; renamed the option (`uniquify-after-kill-buffer-flag').
   (setq uniquify-ignore-buffers-re "^\\*"))
 
 ;; ============================================================

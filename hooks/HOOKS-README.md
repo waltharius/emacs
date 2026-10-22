@@ -130,9 +130,13 @@ show them and with a grave accent and an apostrophe elsewhere; both the
 list and the warnings are compared in the second form, so the same
 warning matches on every machine (on the owner's machine every listed
 warning first came out as NEW for this alone).
-Other versions of Emacs and newer packages warn about other things: a
-warning shown as `NEW` that is not a fault of this configuration goes
-into the list, a line as printed after `NEW`; a fault is fixed.  A
+A warning shown as `NEW` is fixed in the module, not listed: an
+obsolete name replaced, a missing `require` added, a fault fixed.  The
+list is not a way to quiet a warning; a line goes into it only when the
+fix has to wait, with the reason in BACKLOG.org (*Compiler warnings*).
+Decided 2026-10-22, at the first NEW warnings of Emacs 31.1: one of the
+three was a real fault in every version (a `cl-return-from` with no
+block to return from), which only that compiler sees.  A
 listed warning no longer seen is reported as `gone` and does not fail
 the run -- the versions differ; its line is removed when the warning
 was fixed.  `MYPKS_COMPILE_BASELINE=write bash hooks/check-weekly

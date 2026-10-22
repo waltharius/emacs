@@ -514,7 +514,9 @@ a first-time user; (2) in the weekly job; (3) yes.  (2) done
 * Compiler warnings
 The weekly byte compilation began with 28 warnings, listed in
 =tests/weekly/compile-warnings.txt= so that only new ones fail.  Each is
-fixed in the module's next patch and its line removed.  Worth doing
+fixed in the module's next patch and its line removed; a new warning is
+fixed at once, not listed (decided 2026-10-22).  Fixed so far: the
+docstring of 13-centered-writing (2026-10-22g).  Worth doing
 first, because a setting may silently do nothing:
 - obsolete variables still set: =denote-link-button-action= (Denote
   4.0, 04-denote.el), =org-confirm-elisp-link-function= (Org 9.3,
