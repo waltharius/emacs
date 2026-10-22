@@ -2541,8 +2541,15 @@ requires must already be loaded."
       (`(failed . ,msg) (format "%s: FAILED while loading -- %s" name msg)))))
 
 (defun my/modules--warn ()
-  "After start-up, warn about modules that failed or could not be loaded.
-A module turned off on purpose is not mentioned."
+  "After start-up, say how many modules loaded; warn about those that failed.
+A module turned off on purpose is counted, not warned about.  The
+modules themselves load without a \"Loading ...\" line each (only
+00-core.el, loaded by init.el, shows one), so this line in *Messages*
+is where a start says what it loaded (asked 2026-10-22)."
+  (message "Modules: %d loaded, %d off on this machine, %d not loaded -- C-c n , m lists them"
+           (length my/modules-loaded)
+           (seq-count (lambda (e) (eq (cdr e) 'off)) my/modules--skipped)
+           (seq-count (lambda (e) (not (eq (cdr e) 'off))) my/modules--skipped))
   (let ((problems (seq-remove (lambda (e) (eq (cdr e) 'off)) my/modules--skipped)))
     (when problems
       (display-warning

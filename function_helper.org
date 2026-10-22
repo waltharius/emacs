@@ -6629,8 +6629,10 @@ module's header and leaves out:
 | an optional module needing one that is left out, or not in the list (repeated until nothing changes) | yes |
 | a name without a file                                | yes                     |
 
-Then the rest load in the order of =init.el=.  A core module loads as
-before: an error in it stops start-up, since nothing works without it.
+Then the rest load in the order of =init.el=, without a "Loading ..."
+line each; after start-up one line in =*Messages*= counts them --
+"Modules: N loaded, N off on this machine, N not loaded" (since
+2026-10-22).  A core module loads as before: an error in it stops start-up, since nothing works without it.
 An optional module loads inside a guard: an error in it is recorded,
 start-up goes on with the next module, and after start-up one warning
 (type =modules=) lists what failed or was left out, with the error.

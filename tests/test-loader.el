@@ -56,9 +56,11 @@
 (check \"reasons\" (equal (mapcar (lambda (e) (cons (car e) (if (consp (cdr e)) (cadr e) (cdr e)))) my/modules--skipped)
                         '((\"04-d\" . off) (\"05-e\" . needs) (\"06-f\" . needs) (\"07-g\" . failed) (\"09-i\" . needs))))
 (check \"failed message kept\" (equal (cddr (assoc \"07-g\" my/modules--skipped)) \"boom in g\"))
-(let ((warned nil))
-  (cl-letf (((symbol-function 'display-warning) (lambda (_ m &rest _) (setq warned m))))
+(let ((warned nil) (said nil))
+  (cl-letf (((symbol-function 'display-warning) (lambda (_ m &rest _) (setq warned m)))
+            ((symbol-function 'message) (lambda (f &rest a) (setq said (apply #'format f a)))))
     (my/modules--warn))
+  (check \"start-up line counts loaded, off, not loaded\" (equal said \"Modules: 5 loaded, 1 off on this machine, 4 not loaded -- C-c n , m lists them\"))
   (check \"warning lists failed and needs, not off\" (and (string-match-p \"07-g: FAILED.*boom\" warned) (string-match-p \"05-e: not loaded, needs 04-d\" warned) (not (string-match-p \"04-d: turned off\" warned)))))
 (check \"states\" (equal (mapcar #'my/modules--state '(\"01-a\" \"04-d\" \"05-e\" \"07-g\" \"08-h\")) '(\"core\" \"off\" \"not loaded: needs a module that is off\" \"FAILED at start-up\" \"on\")))
 (check \"dependants of 04-d\" (equal (my/modules--dependants \"04-d\" my/modules-order) '(\"05-e\" \"06-f\")))
@@ -135,7 +137,7 @@
          (failed (seq-filter (lambda (l) (string-prefix-p "FAIL " l))
                              (split-string output "\n"))))
     (should (null failed))
-    (should (= passed 13))))
+    (should (= passed 14))))
 
 (provide 'test-loader)
 ;;; test-loader.el ends here
