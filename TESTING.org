@@ -14,6 +14,7 @@ says how a test shows it.  Running them: =bash hooks/check-all=
 | Tests of the checkers        | =tests/hooks/test_*.py=  | =hooks/check-all= ("hook tests"), Python unittest |
 | Sandbox for module tests     | =tests/helper.el=        | =my/test-load-modules=: temporary HOME, settings, =~/.emacs.d= |
 | Packages for the workflow    | =tests/ci-packages.el=   | the workflow, before the tests                  |
+| Weekly: every package needed | =tests/weekly/=          | =hooks/check-weekly=, and the workflow =weekly.yml= once a week |
 | What only a person can check | =TESTPLAN.org=           | by hand, on the real machine                    |
 
 * The rules
@@ -67,7 +68,10 @@ says how a test shows it.  Running them: =bash hooks/check-all=
     Magit): the menu entry had another shape.  The workflow installs
     the archive transient (=tests/ci-packages.el=); a test reads data
     of a package through its documented interface, or tolerates every
-    shape it has had.  (2026-10-20f.)
+    shape it has had.  (2026-10-20f.)  Again 2026-10-22: 12-transient's
+    own reader of a menu entry knew only the built-in shape, so with
+    0.13 a module switched off kept its menu entries; found by the
+    weekly switch test, not by a test of 12-transient -- it had none.
 
 * Which module a test tests
 Every test file starts with a header naming the modules whose
@@ -110,8 +114,29 @@ them through the basics; until then the =tests= check reminds;
    with all its packages, its switch goes off and on again without an
    error, its keys and menu entries come and go with the switch.  One
    test file for all modules, so a module that breaks is named by the
-   test.  Needs every package of the configuration installed in the
-   workflow -- the weekly job planned for byte compilation (BACKLOG).
+   test.  *Done 2026-10-22* (=tests/weekly/test-modules.el=, run by
+   =hooks/check-weekly= and the weekly workflow): for each module of
+   init.el's list, made from the list and the headers -- a module
+   renamed, merged or split needs no change to the tests:
+   - =alone=: 00-core, what the module declares, the module; nothing
+     else.  A use of another module neither declared nor guarded
+     fails.
+   - =without= (optional modules): every other module but those
+     requiring it loads.
+   - =switch= (modules with a switch): loaded last, switched off and
+     on.  Off, nothing of its own left -- hooks, advice, key bindings,
+     menu entries, repeating timers, mode lists, capture templates,
+     global minor modes -- and nothing of another module taken; on
+     again, nothing doubled.  What the module's packages bring by
+     being loaded is not counted (Emacs cannot unload a package), nor
+     what the module defines (its own menus and keymaps stay, like its
+     commands); =tests/weekly/lib.el= says how each is told apart.
+   Shown to fail, one fault put in at a time: a hook added at load, a
+   nameless hook, a timer started at each switch-on, another module's
+   hook removed at switch-off, an undeclared call at load, the old
+   menu-entry reader.  Known failures go in
+   =tests/weekly/expected-failures.txt= with their reason; empty on
+   2026-10-22.
 3. *Modules that touch data get tests of their functions first*, in
    this order -- the order of SAFETY.org's risks: 05-notes (moving,
    renaming), 07-git, 27-denote-identifiers, 25-inbox-review,
@@ -119,5 +144,6 @@ them through the basics; until then the =tests= check reminds;
    SAFETY.org 1.x), 47-repo-docs, 42-obsidian-import, 24-readwise; then
    the others, a few per session, as each is next changed.
 
-On 2026-10-20, 9 of 52 modules are named by a test file
-(=python3 hooks/lint.py tests= lists the others).
+On 2026-10-22, 11 of 52 modules are named by a test file
+(=python3 hooks/lint.py tests= lists the others); every module has the
+weekly load tests of part 2.

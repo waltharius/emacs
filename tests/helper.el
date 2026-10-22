@@ -27,6 +27,11 @@
 (defvar my/test-sandbox nil
   "Temporary folder standing in for HOME, or nil before the first load.")
 
+(defvar my/test-allow-install nil
+  "Non-nil: use-package may install missing packages in the sandbox.
+Only tests/weekly/install.el sets it -- the first start on a clean
+machine; a test installs nothing (TESTING.org, rule 9).")
+
 (defun my/test--enter-sandbox ()
   "Point HOME, the settings folder and ~/.emacs.d into a temporary folder."
   ;; The real package folder and current folder, taken before HOME
@@ -44,7 +49,8 @@
     (make-directory (expand-file-name "modules" user-emacs-directory) t)
     (setq package-user-dir elpa)
     ;; A test installs nothing.
-    (setq use-package-ensure-function #'ignore)
+    (unless my/test-allow-install
+      (setq use-package-ensure-function #'ignore))
     (add-hook 'kill-emacs-hook
               (lambda () (ignore-errors (delete-directory my/test-sandbox t))))))
 

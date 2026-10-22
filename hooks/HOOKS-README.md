@@ -90,13 +90,48 @@ GitHub's machines; the result is the mark next to each commit and the
 |---|---|
 | `check-all (Emacs 29.1 / 30.2 / 31.1)` | `tests/ci-packages.el` installs the packages the tests load (Denote, no-littering, and transient from the archives rather than the built-in one, as the owner runs it), cached for a week; then `bash hooks/check-all` |
 | `secrets` | Gitleaks over the whole history, all branches (pinned release, checked against its published SHA-256); a false positive goes into `.gitleaksignore` by its fingerprint, with a line saying why |
-| `shell` | ShellCheck on `hooks/pre-commit` and `hooks/check-all` |
+| `shell` | ShellCheck on `hooks/pre-commit`, `hooks/check-all` and `hooks/check-weekly` |
 
 The actions it uses are pinned to the commit of a release, so a moved
 tag cannot change what runs.  The workflow file itself is checked with
 actionlint before delivery.  On a private repository GitHub counts the
 minutes against the account's free monthly allowance; a run takes a few
 minutes per job.
+
+## Once a week: check-weekly
+
+The checks above install only the packages their tests need.  Some
+checks need every package of the configuration, and take longer; they
+run once a week, Mondays 04:17 UTC, in `.github/workflows/weekly.yml`,
+and by hand from *Actions → weekly → Run workflow*:
+
+| Step | What it shows |
+|---|---|
+| First start on a clean machine (`tests/weekly/install.el`) | every module loads and every package installs from the archives, as at a new user's first start; nothing is cached, so a package withdrawn or renamed in the archives shows here |
+| Byte compilation (`tests/weekly/compile.el`) | every module compiled after the whole configuration loaded; a warning not listed in `tests/weekly/compile-warnings.txt` fails -- a misspelt function, a wrong number of arguments, a variable never defined, something obsolete |
+| Module tests (`tests/weekly/test-modules.el`) | for every module: it loads alone with what it declares; the others load without it; its switch goes off and on leaving nothing behind and doubling nothing (TESTING.org, *Every module tested*, part 2) |
+
+On a machine where the configuration runs, every package is installed
+already, so the last two run by hand too (the first installs, so it is
+left to the workflow):
+
+```sh
+bash hooks/check-weekly             # byte compilation and module tests, about 3 minutes
+bash hooks/check-weekly compile     # only the byte compilation
+bash hooks/check-weekly 24-readwise # the module tests of one module
+```
+
+The same sandbox as check-all: the real notes, settings and
+`~/.emacs.d` are neither read nor written.
+
+The warning list started with the 28 warnings of 2026-10-22 (Emacs 29.3).
+Other versions of Emacs and newer packages warn about other things: a
+warning shown as `NEW` that is not a fault of this configuration goes
+into the list, a line as printed after `NEW`; a fault is fixed.  A
+listed warning no longer seen is reported as `gone` and does not fail
+the run -- the versions differ; its line is removed when the warning
+was fixed.  `MYPKS_COMPILE_BASELINE=write bash hooks/check-weekly
+compile` adds every warning of this Emacs to the list.
 
 ## The checks
 

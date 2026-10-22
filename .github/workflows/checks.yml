@@ -94,4 +94,4 @@ jobs:
         run: |
           command -v shellcheck || sudo apt-get install -y shellcheck
           shellcheck --version
-          shellcheck hooks/pre-commit hooks/check-all
+          shellcheck hooks/pre-commit hooks/check-all hooks/check-weekly

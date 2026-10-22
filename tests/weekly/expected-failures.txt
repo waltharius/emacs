@@ -1,0 +1,9 @@
+# Weekly module tests known to fail, each with its reason
+# (tests/weekly/test-modules.el).  One per line:
+#
+#   my/weekly-test-KIND-MODULE   why it fails, and where it is tracked
+#
+# A test listed here is marked as expected to fail: it is reported, and
+# it fails the run when it starts passing, so that its line is removed.
+# Empty on 2026-10-22: every module passed on Emacs 29.3 with the
+# packages of that day.

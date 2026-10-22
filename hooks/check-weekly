@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# The weekly checks: the ones that need every package of the
+# configuration installed (tests/weekly/).  Run by the workflow
+# .github/workflows/weekly.yml once a week, and by hand on a machine
+# where the configuration runs:
+#
+#     bash hooks/check-weekly             # compilation and module tests
+#     bash hooks/check-weekly compile     # only the byte compilation
+#     bash hooks/check-weekly modules     # only the module tests
+#     bash hooks/check-weekly 24-readwise # the module tests of one module
+#
+# compile   every module byte-compiled after the whole configuration has
+#           loaded; a warning not in tests/weekly/compile-warnings.txt
+#           fails (tests/weekly/compile.el).
+# modules   for every module of init.el's list: it loads alone with what
+#           it declares, the others load without it, its switch goes
+#           off and on without leaving anything behind
+#           (tests/weekly/test-modules.el).
+#
+# Everything runs in the sandbox of tests/helper.el: the real notes,
+# settings and ~/.emacs.d are neither read nor written; the packages
+# are the ones installed for this user.  Nothing is installed: the
+# workflow installs first (tests/weekly/install.el).  The exit status is
+# 0 only when every part selected ran and passed.
+
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel 2>/dev/null || dirname "$(dirname "$(readlink -f "$0")")")"
+cd "$root" || exit 1
+
+what="${1:-all}"
+status=0
+ran=0
+
+run_compile() {
+  ran=$((ran + 1))
+  echo "compile:"
+  output="$(emacs -Q --batch --eval '(package-initialize)' \
+              -l tests/weekly/compile.el -f my/weekly-compile-all 2>&1)"
+  code=$?
+  grep -E '^(NEW|gone|FAILED|compiled) ' <<<"$output" | sed 's/^/  /'
+  if [ "$code" -ne 0 ]; then
+    status=1
+    grep -qE '^compiled ' <<<"$output" || tail -n 15 <<<"$output" | sed 's/^/  /'
+    echo "  FAILED   compile"
+  else
+    echo "  ok       compile"
+  fi
+  echo
+}
+
+run_modules() {
+  # $1: an ERT selector (a regexp of test names), or t for all.
+  ran=$((ran + 1))
+  echo "modules:"
+  output="$(emacs -Q --batch --eval '(package-initialize)' -l ert \
+              -l tests/weekly/test-modules.el \
+              --eval "(ert-run-tests-batch-and-exit $1)" 2>&1)"
+  code=$?
+  summary="$(grep -E '^Ran ' <<<"$output" | sed -E 's/ \(20[0-9-]+ .*\)$//')"
+  # Expected failures, listed with their reason in expected-failures.txt.
+  grep -E '^ +failed +[0-9]+/[0-9]+ ' <<<"$output" | sed -E 's/^ +failed +[0-9]+\/[0-9]+ +/  expected failure  /; s/ \([0-9.]+ sec\)$//'
+  if [ "$code" -eq 0 ] && grep -qE '^Ran [1-9]' <<<"$output"; then
+    echo "  ok       $summary"
+  else
+    status=1
+    echo "  FAILED   ${summary:-did not run to the end}"
+    if grep -qE '^Test .* condition:' <<<"$output"; then
+      grep -E -A12 '^Test .* condition:' <<<"$output" | sed 's/^/           /'
+    else
+      tail -n 15 <<<"$output" | sed 's/^/           /'
+    fi
+  fi
+  echo
+}
+
+case "$what" in
+  all)     run_compile; run_modules t ;;
+  compile) run_compile ;;
+  modules) run_modules t ;;
+  *)       run_modules "\"-$what\\\\'\"" ;;
+esac
+
+if [ "$ran" -eq 0 ]; then
+  status=1
+fi
+
+if [ "$status" -ne 0 ]; then
+  echo "result: FAILED"
+else
+  echo "result: passed"
+fi
+exit "$status"

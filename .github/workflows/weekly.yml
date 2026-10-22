@@ -1,0 +1,55 @@
+# The checks that need every package of the configuration, once a week
+# and by hand (Actions, "weekly", Run workflow).  hooks/check-all runs on
+# every push with only the packages its tests need; this installs all of
+# them, as a new user's first start does, and then:
+#
+# - install: every module loads on a clean machine and every package
+#   installs from the archives (tests/weekly/install.el);
+# - compile: every module byte-compiled, a warning not listed in
+#   tests/weekly/compile-warnings.txt fails (tests/weekly/compile.el);
+# - modules: every module loads alone with what it declares, the others
+#   load without it, its switch goes off and on leaving nothing behind
+#   (tests/weekly/test-modules.el).
+#
+# Nothing is cached: the packages are installed afresh each week, which
+# is the point of the first step -- the archives change under a
+# configuration that does not.  Actions pinned as in checks.yml.
+
+name: weekly
+
+on:
+  schedule:
+    # Mondays, 04:17 UTC: off the hour, when the scheduler is busy.
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  weekly:
+    name: weekly (Emacs ${{ matrix.emacs }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest supported release and the current ones, as checks.yml.
+        emacs: ['29.1', '30.2', '31.1']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: purcell/setup-emacs@bdc64dc730ae1fcba200bfd52cb1b4cf6159cbe5 # v8.0
+        with:
+          version: ${{ matrix.emacs }}
+
+      - name: Hunspell and its dictionaries
+        run: sudo apt-get install -y hunspell hunspell-pl hunspell-en-gb
+
+      - name: First start on a clean machine (installs every package)
+        run: |
+          mkdir -p ~/.emacs.d/elpa
+          emacs -Q --batch -l tests/weekly/install.el -f my/weekly-install-all
+
+      - name: Byte compilation and module tests
+        run: bash hooks/check-weekly

@@ -6590,7 +6590,11 @@ Not checked yet -- the target, reached module by module (BACKLOG.org,
     global minor mode =my/<name>-mode= and undone when the mode is
     turned off, as =onload= and =onunload= do for an Obsidian plugin.
     =unload-feature= is not relied on.  Reached for the first modules
-    on 2026-10-19h: [[#module-switch][A module's switch]].
+    on 2026-10-19h: [[#module-switch][A module's switch]].  Checked
+    once a week since 2026-10-22 for every module with a switch
+    (=hooks/check-weekly=, =tests/weekly/test-modules.el=): switched
+    off, nothing of its own is left and nothing of another module is
+    taken; on again, nothing is doubled.
 13. Contributions to lists other modules own go through the hooks those
     modules offer (=my/auto-commit-repository-sources=,
     =my/tasks-extra-agenda-files=), never by editing the other module.
