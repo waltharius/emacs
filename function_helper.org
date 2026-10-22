@@ -3826,6 +3826,14 @@ Function: =my/auto-commit-now=, =my/auto-commit-repository-async=, =my/auto-comm
 =C-c v ?= (=my/auto-commit-status=) says, for every repository, whether
 its work is on the server.
 
+*A commit message being written* (Magit's =c c=, =C-c v c=): git waits
+until it is finished (=C-c C-c=) or cancelled (=C-c C-k=).  Meanwhile the
+automatic commits leave that repository alone -- a commit made then
+would move HEAD under the waiting git, whose commit would fail
+(=my/auto-commit--busy-p=, since 2026-10-22).  Quitting with such a
+buffer open asks first, before Emacs asks about active processes: no
+shows the buffer and stays (=my/auto-commit--message-before-quit=).
+
 *Before quitting* (=kill-emacs-query-functions=), after the buffers are
 saved: one more cycle, then, if any repository still has work only on
 this machine, the question "Not on the server: ... Quit anyway?".  No

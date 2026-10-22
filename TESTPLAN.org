@@ -581,6 +581,26 @@ first: on exit it still writes to the old places.
       call is skipped only where no scroll bars exist, e.g. Fedora's
       =emacs-nox=).
 
+** R37. Weekly check on this machine, git at quitting, spelling at start [0/6]
+- [ ] =bash hooks/check-weekly= ends with =result: passed=: no =NEW=
+      for warnings that differ only in their quotes (curved here), no
+      =alone= failure for 25, 28, 29, 37, 38, 39.
+- [ ] =C-c v c=, leave the message buffer without finishing, =C-x C-c=:
+      the first question is "A commit message is still open ...".  No:
+      the message buffer is shown, Emacs stays.  =C-c C-k= there, quit
+      again: no question about active processes or other clients.
+- [ ] =C-c v c=, write nothing, wait longer than the idle time of the
+      automatic commits (=my/auto-commit-idle-seconds=): =C-c v l= (or
+      the =*auto-commit*= log) shows no commit in the notes meanwhile;
+      =C-c C-c= then commits with the message written.
+- [ ] Start Emacs: =*Messages*= has "Modules: N loaded, N off on this
+      machine, N not loaded".
+- [ ] Start Emacs: no "Ispell process killed" right after the start
+      (unless words were brought in from an old dictionary file).
+- [ ] If quitting ever hangs again: before =killall=, in a terminal,
+      =ps -o pid,etime,args -C git= and =ps -o pid,args -C emacsclient=,
+      and note the output for the report.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

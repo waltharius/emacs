@@ -300,5 +300,63 @@
       (my/auto-commit--on-last-client-frame (selected-frame)))
     (should-not started)))
 
+;; ============================================================
+;; A COMMIT MESSAGE BEING WRITTEN
+;; ============================================================
+;; 2026-10-22: with C-c v c working, git waits for the message in a
+;; buffer of with-editor.  A commit made meanwhile moves HEAD, and the
+;; waiting commit then fails; quitting with the buffer out of sight
+;; asked about active processes and other clients.
+
+(defvar with-editor-mode nil
+  "Stand-in for with-editor's buffer-local mode variable (no Magit here).")
+(make-variable-buffer-local 'with-editor-mode)
+
+(defmacro my/ac-test--with-message-buffer (dir &rest body)
+  "Run BODY with a commit message buffer of with-editor open for DIR."
+  (declare (indent 1))
+  `(let ((buffer (generate-new-buffer "COMMIT_EDITMSG")))
+     (unwind-protect
+         (progn
+           (with-current-buffer buffer
+             (setq buffer-file-name (expand-file-name ".git/COMMIT_EDITMSG" ,dir))
+             (setq with-editor-mode t))
+           ,@body)
+       (with-current-buffer buffer (set-buffer-modified-p nil))
+       (kill-buffer buffer))))
+
+(ert-deftest my/ac-test-open-message-skips-repository ()
+  "While a commit message is written for a repository, no automatic
+commit is made there; once it is closed, the next cycle commits."
+  (my/ac-test--with-repos
+    (my/ac-test--write (expand-file-name "m.org" here) "m\n")
+    (my/ac-test--with-message-buffer here
+      (should (my/auto-commit--busy-p here))
+      (should (null (my/ac-test--cycle)))
+      (should (my/auto-commit--dirty-p here)))
+    (should-not (my/auto-commit--busy-p here))
+    (should (equal (my/ac-test--cycle) '("here: committed, pushed")))))
+
+(ert-deftest my/ac-test-open-message-elsewhere-ignored ()
+  "A message buffer of another repository does not hold this one back."
+  (my/ac-test--with-repos
+    (my/ac-test--with-message-buffer there
+      (should-not (my/auto-commit--busy-p here)))))
+
+(ert-deftest my/ac-test-quit-asks-about-open-message ()
+  "Quitting with a message open asks first; no stops the quit."
+  (my/ac-test--with-repos
+    (my/ac-test--with-message-buffer here
+      (let ((asked 0) (noninteractive nil))
+        (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) (cl-incf asked) nil))
+                  ((symbol-function 'pop-to-buffer) #'ignore))
+          (should-error (my/auto-commit--message-before-quit) :type 'user-error))
+        (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) (cl-incf asked) t)))
+          (should-not (my/auto-commit--message-before-quit)))
+        (should (= asked 2))))
+    (let ((noninteractive nil))
+      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) (error "Asked"))))
+        (should-not (my/auto-commit--message-before-quit))))))
+
 (provide 'test-auto-commit)
 ;;; test-auto-commit.el ends here

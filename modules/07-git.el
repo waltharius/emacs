@@ -283,11 +283,32 @@ milliseconds; anything that may reach the network goes through
                         (concat ".git/" path))
                     (file-name-as-directory dir)))
 
+(defun my/auto-commit--message-buffers (&optional dir)
+  "Return the buffers where git waits for a commit message, in DIR if given.
+A buffer of with-editor (Magit's `c c', C-c v c) visiting a file in a
+.git folder: git started, opened the message and waits until it is
+finished (C-c C-c) or cancelled (C-c C-k)."
+  (seq-filter
+   (lambda (buffer)
+     (let ((file (buffer-file-name buffer)))
+       (and file
+            (buffer-local-value 'with-editor-mode buffer)
+            (string-match-p "/\\.git/" file)
+            (or (null dir)
+                (string-prefix-p (file-name-as-directory (expand-file-name ".git" dir))
+                                 (expand-file-name file))))))
+   (seq-filter (lambda (b) (local-variable-p 'with-editor-mode b)) (buffer-list))))
+
 (defun my/auto-commit--busy-p (dir)
-  "Return non-nil when a rebase or merge is in progress in DIR."
-  (seq-some (lambda (path)
-              (file-exists-p (my/auto-commit--git-path dir path)))
-            '("rebase-merge" "rebase-apply" "MERGE_HEAD")))
+  "Return non-nil when DIR must be left alone for now.
+A rebase or merge in progress, or a commit message being written there.
+In the last case a commit made meanwhile moves HEAD under the waiting
+git, whose own commit then fails (git: cannot lock ref HEAD); found
+2026-10-22 when C-c v c began to work."
+  (or (seq-some (lambda (path)
+                  (file-exists-p (my/auto-commit--git-path dir path)))
+                '("rebase-merge" "rebase-apply" "MERGE_HEAD"))
+      (my/auto-commit--message-buffers dir)))
 
 (defun my/auto-commit--has-upstream-p (dir)
   "Return non-nil when DIR's current branch tracks an upstream branch."
@@ -984,6 +1005,25 @@ it anyway.  No git here; the commit follows in
     (error (message "Saving before quitting: %s" (error-message-string err)))))
 
 (advice-add 'save-buffers-kill-emacs :before #'my/auto-commit--save-before-quit)
+
+;; A commit message still open when quitting: git waits for it, so Emacs
+;; asks about "active processes" and "other clients" (the message
+;; buffer is one), and the commit is lost with the message.  Asked
+;; first, before those questions, and the quit stops unless the answer
+;; is to drop the commit.  (2026-10-22: a message buffer from C-c v c
+;; left out of sight did exactly that.)
+(defun my/auto-commit--message-before-quit (&rest _)
+  "Stop quitting while a commit message is open, unless told to drop it."
+  (let ((open (my/auto-commit--message-buffers)))
+    (when (and open
+               (not noninteractive)
+               (not (yes-or-no-p
+                     (format "A commit message is still open (%s); git waits for it.  Quit anyway, without that commit? "
+                             (mapconcat #'buffer-name open ", ")))))
+      (pop-to-buffer (car open))
+      (user-error "Not quitting: finish the commit with C-c C-c or cancel it with C-c C-k, then quit"))))
+
+(advice-add 'save-buffers-kill-emacs :before #'my/auto-commit--message-before-quit)
 
 (defun my/auto-commit--on-last-client-frame (frame)
   "In a daemon, start a background cycle when FRAME is the last client frame.
