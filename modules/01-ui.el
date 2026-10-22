@@ -35,7 +35,11 @@
 ;; with `M-x tool-bar-mode' / `M-x scroll-bar-mode'.
 (tool-bar-mode -1)
 (menu-bar-mode 1)
-(scroll-bar-mode -1)
+;; An Emacs built without a window system (Fedora's emacs-nox, a
+;; terminal-only build) has no scroll bars and no `scroll-bar-mode':
+;; calling it stopped the start-up there (found 2026-10-22 by loading
+;; every module in such a build).
+(when (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
 
 ;; Set locale for Polish time/date formatting
 (setq system-time-locale "pl_PL.UTF-8")
@@ -484,7 +488,7 @@ Use \\[my/desktop-show-protected] to see the outcome before it happens."
 Run from `desktop-after-read-hook'; a no-op when the modes are already
 off, so it is safe to call at any time."
   (tool-bar-mode -1)
-  (scroll-bar-mode -1))
+  (when (fboundp 'scroll-bar-mode) (scroll-bar-mode -1)))
 
 (use-package desktop
   :ensure nil

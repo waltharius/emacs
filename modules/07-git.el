@@ -1041,10 +1041,15 @@ question is turned on (`my/auto-commit-confirm-exit')."
 ;; ============================================================
 
 (defun my/commit-notes-now ()
-  "Manually commit notes changes."
+  "Manually commit notes changes: stage every change, new files too, and
+open the commit message buffer."
   (interactive)
   (let ((default-directory (expand-file-name my-notes-dir)))
-    (magit-stage-all)
+    ;; `magit-stage-modified' with ALL is `git add --all .'.  Until
+    ;; 2026-10-22 this called `magit-stage-all', which Magit does not
+    ;; define: C-c v c stopped with "void-function" (found by the
+    ;; weekly byte compilation, tests/weekly/compile.el).
+    (magit-stage-modified t)
     (magit-commit-create)))
 
 (defun my/commit-config-now ()

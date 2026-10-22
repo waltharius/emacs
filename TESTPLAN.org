@@ -565,6 +565,22 @@ first: on exit it still writes to the old places.
       =~/.config/mypks/hosts/newtest/=.
 - [ ] A normal start on this machine: those modules are still on.
 
+** R36. Faults found by the weekly checks, 2026-10-22 [0/4]
+- [ ] =C-c h k= opens =*Keybindings Help*= (it stopped with an error
+      from 2026-09-12); near "Find", the line reads
+      =g takes a query: "quoted phrase", plain words (AND)=.
+- [ ] =C-c v c= in a notes repository with a new note not yet in git:
+      the commit message buffer opens with the new note staged
+      (until now: "void-function magit-stage-all").  Abort the commit
+      with =C-c C-k= if nothing is meant to be committed.
+- [ ] =C-c n , m=, turn /32-web-links/ off: =C-c n i= has no =u Web
+      link= any more (until now it stayed, with transient 0.13).  Turn
+      it on again: =u= is back.  The same with any module that has
+      entries in a shared menu, e.g. /43-drill/ and =C-c n t=.
+- [ ] In a terminal: =emacs -nw= starts as before (the scroll-bar
+      call is skipped only where no scroll bars exist, e.g. Fedora's
+      =emacs-nox=).
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

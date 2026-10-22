@@ -218,12 +218,28 @@ SUFFIX is a specification as passed to `my/transient-append':
 
 (defun my/transient--layout-command (layout-entry)
   "Return the command of LAYOUT-ENTRY, as `transient-get-suffix' gives it.
-Nil when the format is not the known (LEVEL CLASS PLIST) list: transient
-has changed its layout format between versions, and an unknown format
-must not pass for a different command."
-  (and (consp layout-entry)
-       (listp (nth 2 layout-entry))
-       (plist-get (nth 2 layout-entry) :command)))
+Transient has changed the shape between versions: (LEVEL CLASS PLIST)
+in the one built into Emacs 29, (CLASS . PLIST) in transient 0.13 (which
+comes with Magit), vectors in others.  The value after the first
+:command, wherever it is; nil when there is none.
+
+Until 2026-10-22 only the first shape was read.  With transient 0.13
+this returned nil, so a module switched off kept its menu entries
+\(`my/transient-remove' saw another command on the key) -- found by the
+weekly switch test (tests/weekly/)."
+  (let ((todo (list layout-entry)) (found nil))
+    (while (and todo (not found))
+      (let ((x (pop todo)))
+        (when (vectorp x) (setq x (append x nil)))
+        (when (consp x)
+          (let ((tail (and (proper-list-p x) (memq :command x))))
+            (if (and tail (cdr tail))
+                (setq found (cadr tail))
+              ;; Depth first, in order: the entry's own plist comes
+              ;; before anything nested in it.
+              (setq todo (append (if (proper-list-p x) x (list (car x) (cdr x)))
+                                 todo)))))))
+    found))
 
 (defun my/transient--record-skip (menu key suffix reason &rest more)
   "Record that SUFFIX was not added to MENU under KEY, for REASON.
