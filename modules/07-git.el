@@ -257,8 +257,14 @@ milliseconds; anything that may reach the network goes through
 ;; ============================================================
 ;; PULL: KEEPING SEVERAL MACHINES IN STEP
 ;; ============================================================
-;; `git pull --rebase --autostash' replays this machine's commits on
-;; top of the upstream.  Three outcomes:
+;; `git pull --rebase' replays this machine's commits on top of the
+;; upstream.  It runs on a committed tree only: with changes not yet
+;; committed the result is `dirty' and nothing is pulled until the next
+;; cycle has committed them (`--autostash', used until 2026-10-24, could
+;; leave conflict markers in a file after a pull that exited 0).  Files
+;; with markers, from that or from any other git command, keep the
+;; repository from being committed or pushed (`my/auto-commit--busy-p').
+;; Three outcomes of a pull:
 ;;
 ;;   ok        up to date; buffers visiting changed files are reloaded
 ;;             by `global-auto-revert-mode' (02-editing.el)
@@ -301,15 +307,27 @@ finished (C-c C-c) or cancelled (C-c C-k)."
                                  (expand-file-name file))))))
    (seq-filter (lambda (b) (local-variable-p 'with-editor-mode b)) (buffer-list))))
 
+(defun my/auto-commit--unmerged-p (dir)
+  "Return the files of DIR that hold an unresolved conflict, or nil.
+Git's own list of unmerged paths.  A pull can leave them without any
+rebase or merge in progress: `--autostash' re-applies the local
+changes after a successful rebase, and when they touch the lines just
+pulled, git writes conflict markers into the file and still exits 0
+(found 2026-10-24 by the outside audits; reproduced with git 2.43).
+`git add -A' would then commit the markers and push them."
+  (my/auto-commit--query dir "diff" "--name-only" "--diff-filter=U"))
+
 (defun my/auto-commit--busy-p (dir)
   "Return non-nil when DIR must be left alone for now.
-A rebase or merge in progress, or a commit message being written there.
+A rebase or merge in progress, files with an unresolved conflict
+\(`my/auto-commit--unmerged-p'), or a commit message being written there.
 In the last case a commit made meanwhile moves HEAD under the waiting
 git, whose own commit then fails (git: cannot lock ref HEAD); found
 2026-10-22 when C-c v c began to work."
   (or (seq-some (lambda (path)
                   (file-exists-p (my/auto-commit--git-path dir path)))
                 '("rebase-merge" "rebase-apply" "MERGE_HEAD"))
+      (my/auto-commit--unmerged-p dir)
       (my/auto-commit--message-buffers dir)))
 
 (defun my/auto-commit--has-upstream-p (dir)
@@ -344,18 +362,32 @@ Details: M-x my/auto-commit-show-log"
 (defun my/auto-commit--pull (dir)
   "Rebase DIR's local commits onto its upstream.
 
-Return `ok', `offline', `conflict', `busy' or `no-upstream'.  On a
-conflict the rebase is aborted, leaving DIR exactly as it was."
+Return `ok', `offline', `conflict', `busy', `dirty' or `no-upstream'.
+On a conflict the rebase is aborted, leaving DIR exactly as it was.
+
+`dirty': DIR has changes not committed yet, so it is not pulled.  The
+pull used `--autostash' until 2026-10-24, which can write conflict
+markers into a file and exit 0 (`my/auto-commit--unmerged-p'); without
+it git itself refuses to rebase a dirty tree, which is the guard when a
+file is saved between the check and the pull.  The next cycle commits
+the changes first, then pulls."
   (cond
    ((my/auto-commit--busy-p dir) 'busy)
    ((not (my/auto-commit--has-upstream-p dir)) 'no-upstream)
-   ((eq 0 (my/auto-commit--git dir "pull" "--rebase" "--autostash"))
+   ((my/auto-commit--dirty-p dir) 'dirty)
+   ((eq 0 (my/auto-commit--git dir "pull" "--rebase"))
     (setq my/auto-commit--conflicts (delete dir my/auto-commit--conflicts))
     'ok)
+   (t (my/auto-commit--pull-failed dir))))
+
+(defun my/auto-commit--pull-failed (dir)
+  "Return what a failed pull of DIR means; undo a conflicting rebase."
+  (cond
    ((my/auto-commit--busy-p dir)
     (my/auto-commit--git dir "rebase" "--abort")
     (my/auto-commit--warn-conflict dir)
     'conflict)
+   ((my/auto-commit--dirty-p dir) 'dirty)
    (t 'offline)))
 
 (defun my/auto-commit--pull-async (dir callback)
@@ -366,20 +398,17 @@ rebase after it take milliseconds and stay synchronous."
   (cond
    ((my/auto-commit--busy-p dir) (funcall callback 'busy))
    ((not (my/auto-commit--has-upstream-p dir)) (funcall callback 'no-upstream))
+   ((my/auto-commit--dirty-p dir) (funcall callback 'dirty))
    (t
     (my/auto-commit--git-async
-     dir '("pull" "--rebase" "--autostash")
+     dir '("pull" "--rebase")
      (lambda (status)
        (funcall callback
                 (cond
                  ((eq status 0)
                   (setq my/auto-commit--conflicts (delete dir my/auto-commit--conflicts))
                   'ok)
-                 ((my/auto-commit--busy-p dir)
-                  (my/auto-commit--git dir "rebase" "--abort")
-                  (my/auto-commit--warn-conflict dir)
-                  'conflict)
-                 (t 'offline))))))))
+                 (t (my/auto-commit--pull-failed dir)))))))))
 
 (defun my/auto-commit--pull-line (dir result updated)
   "Return the message line for pulling DIR with RESULT, or nil for none.
@@ -389,7 +418,10 @@ UPDATED is non-nil when HEAD moved."
       ('ok (when updated (format "%s: updated from the server" name)))
       ('offline (format "%s: server unreachable, working offline" name))
       ('conflict (format "%s: CONFLICT, see *Warnings*" name))
-      ('busy (format "%s: rebase or merge in progress" name))
+      ('busy (if (my/auto-commit--unmerged-p dir)
+                 (format "%s: CONFLICT markers in files, see *Warnings*" name)
+               (format "%s: rebase or merge in progress" name)))
+      ('dirty (format "%s: changes not committed yet, not pulled" name))
       (_ nil))))
 
 ;; ============================================================
@@ -426,6 +458,7 @@ looks exactly like a push that silently stopped."
   (setq dir (expand-file-name dir))
   (when (file-directory-p (expand-file-name ".git" dir))
     (cond
+     ((my/auto-commit--unmerged-p dir) "files hold conflict markers")
      ((my/auto-commit--busy-p dir) "a rebase or merge is in progress")
      ((my/auto-commit--locked-p dir) "git is locked (.git/index.lock)")
      ((my/auto-commit--dirty-p dir) "changes not committed")
@@ -442,6 +475,14 @@ looks exactly like a push that silently stopped."
       ("git is locked (.git/index.lock)"
        (format "  A git command was interrupted and left its lock.  If no git
   is running now, remove it:  rm %s/index.lock" git))
+      ("files hold conflict markers"
+       (format "  A pull left both versions in files, between <<<<<<< and >>>>>>>:
+  %s
+  Nothing is committed or pushed until they are resolved.  Open them
+  with M-x my/auto-commit-resolve (Magit), keep the right text (C-c ^
+  in the file), stage each file; the local version is also kept by git
+  in its stash list."
+               (string-join (my/auto-commit--unmerged-p dir) ", ")))
       ("a rebase or merge is in progress"
        "  Finish or abort it: M-x my/auto-commit-resolve, or in Magit
   `r r' (continue) / `r a' (abort).")
@@ -555,7 +596,9 @@ CALLBACK is always called, exactly once."
                                           (and (eq pull-result 'offline)
                                                "server unreachable")
                                           (and (eq pull-result 'conflict)
-                                               "CONFLICT, not pushed")))))
+                                               "CONFLICT, not pushed")
+                                          (and (eq pull-result 'dirty)
+                                               "not pulled: changes not committed")))))
                (done (and parts (format "%s: %s" name (string-join parts ", "))))))
            (push-step ()
              (if (and (my/auto-commit--push-p dir)
@@ -588,9 +631,14 @@ CALLBACK is always called, exactly once."
                ;; titles has plenty -- are never interpreted.
                (my/auto-commit--git-async
                 dir '("add" "-A")
-                (lambda (_status)
+                (lambda (status)
                   (safely
                    (lambda ()
+                     ;; A failed add (a lock left by an interrupted git)
+                     ;; stops the chain: no commit, pull or push on a
+                     ;; half-staged tree.
+                     (unless (eq status 0)
+                       (error "git add failed (C-c v l shows why)"))
                      ;; Listed AFTER staging, from the index: new files
                      ;; included, and no HEAD needed.
                      (my/auto-commit--git-async

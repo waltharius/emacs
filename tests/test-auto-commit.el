@@ -59,6 +59,11 @@
   (let ((default-directory (file-name-as-directory dir)))
     (apply #'call-process "git" nil nil nil args)))
 
+(defun my/ac-test--git-lines (dir &rest args)
+  "Run git ARGS in DIR; return its output lines."
+  (let ((default-directory (file-name-as-directory dir)))
+    (apply #'process-lines "git" args)))
+
 (defun my/ac-test--write (file text)
   "Write TEXT to FILE."
   (let ((coding-system-for-write 'utf-8-unix))
@@ -177,6 +182,58 @@
                        (buffer-string))
                      "here's version\n")))))
 
+;; Fixed 2026-10-24 (outside audits): the pull used --autostash, which
+;; can write conflict markers into a file and exit 0.
+(ert-deftest my/ac-test-startup-pull-with-uncommitted-change ()
+  "A change saved but not committed, on a line the other machine changed
+too: the start-up pull does not run, the file keeps exactly what was
+written here -- no conflict markers -- and the line says why."
+  (my/ac-test--with-repos
+    (my/ac-test--other-machine-commits there "a.org" "there's version\n")
+    (my/ac-test--write (expand-file-name "a.org" here) "here, not committed\n")
+    (let ((lines 'none) (my/auto-commit-pull-done-hook nil))
+      (add-hook 'my/auto-commit-pull-done-hook (lambda (l) (setq lines l)))
+      (my/auto-commit--startup-pull)
+      (my/ac-test--wait)
+      (should (equal lines '("here: changes not committed yet, not pulled"))))
+    (should (equal (with-temp-buffer
+                     (insert-file-contents (expand-file-name "a.org" here))
+                     (buffer-string))
+                   "here, not committed\n"))
+    (should-not (my/auto-commit--unmerged-p here))
+    (should-not (my/ac-test--git-lines here "stash" "list"))))
+
+(ert-deftest my/ac-test-conflict-markers-stop-the-cycle ()
+  "Files left with an unresolved conflict -- as `git pull --autostash'
+leaves them, exiting 0 -- are neither committed nor pushed; the
+repository is reported, with the files named."
+  (my/ac-test--with-repos
+    (my/ac-test--other-machine-commits there "a.org" "there's version\n")
+    (my/ac-test--write (expand-file-name "a.org" here) "here, not committed\n")
+    (should (= 0 (my/ac-test--git here "pull" "-q" "--rebase" "--autostash")))
+    (should (equal (my/auto-commit--unmerged-p here) '("a.org")))
+    (let ((head (my/ac-test--git-lines here "rev-parse" "HEAD"))
+          (on-server (my/ac-test--server-subject server)))
+      (should-not (my/ac-test--cycle))
+      (should (equal (my/ac-test--git-lines here "rev-parse" "HEAD") head))
+      (should (equal (my/ac-test--server-subject server) on-server)))
+    (should (my/auto-commit--busy-p here))
+    (should (equal (my/auto-commit-pending here) "files hold conflict markers"))
+    (should (string-search "a.org" (my/auto-commit--advice here "files hold conflict markers")))))
+
+(ert-deftest my/ac-test-failed-add-stops-the-cycle ()
+  "When `git add' fails -- a lock left by an interrupted git -- the cycle
+stops there with an error: nothing is committed, pulled or pushed."
+  (my/ac-test--with-repos
+    (my/ac-test--other-machine-commits there "b.org" "from there\n")
+    (my/ac-test--write (expand-file-name "c.org" here) "new here\n")
+    (my/ac-test--write (expand-file-name ".git/index.lock" here) "")
+    (let ((result (my/ac-test--cycle)))
+      (should (equal (length result) 1))
+      (should (string-match-p "\\`here: ERROR git add failed" (car result))))
+    (should-not (file-exists-p (expand-file-name "b.org" here)))
+    (should (equal (my/ac-test--server-subject server) "other machine"))))
+
 ;; ============================================================
 ;; THE COMMIT CYCLE
 ;; ============================================================
@@ -225,11 +282,13 @@
     (should-not my/auto-commit--cycle-running)))
 
 (ert-deftest my/ac-test-commit-waits-for-startup-pull ()
-  "A blocking commit started during the start-up pull runs after it."
+  "A blocking commit started during the start-up pull runs after it.
+The note is written once the pull runs: a tree with changes not
+committed is not pulled at all (since 2026-10-24)."
   (my/ac-test--with-repos
-    (my/ac-test--write (expand-file-name "d.org" here) "d\n")
     (my/auto-commit--startup-pull)
     (should my/auto-commit--startup-pull-running)
+    (my/ac-test--write (expand-file-name "d.org" here) "d\n")
     (should (equal (my/auto-commit-all) '("here: committed, pushed")))
     (should-not my/auto-commit--startup-pull-running)))
 

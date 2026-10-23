@@ -3928,7 +3928,10 @@ also copy =.git/= while git is writing to it, and leaves
 exact lines.
 
 =my/auto-commit-pull= is =t=. Each repository is brought up to date
-with =git pull --rebase --autostash=:
+with =git pull --rebase=, on a committed tree only (a repository with
+changes not committed yet is not pulled until the next cycle has
+committed them; =--autostash=, used until 2026-10-24, could leave
+conflict markers in a file after a pull that reported success):
 
 - *when Emacs starts*, in the background (since 2026-10-19), one
   repository after another;
@@ -3963,6 +3966,9 @@ Function: =my/auto-commit-after-startup-pull= | Variable: =my/auto-commit-pull-d
 | =pulled=, =updated from the server= | the other machine's work is here now      |
 | =server unreachable=      | away from home or GitLab down; work goes on locally and is pushed later |
 | =CONFLICT, not pushed=    | the same lines changed here and on the server        |
+| =changes not committed yet, not pulled= | the start-up pull found uncommitted changes (Emacs closed before its exit commit, say); the first cycle commits them, then pulls |
+| =CONFLICT markers in files= | files hold =<<<<<<<= from an earlier git command; nothing is committed or pushed until they are resolved |
+| =ERROR git add failed=    | the cycle stopped before committing (a =.git/index.lock= left behind, usually); nothing pulled or pushed |
 
 A conflict is never resolved automatically. The pull is undone at once
 (=git rebase --abort=), so no file contains conflict markers, nothing is
@@ -3970,8 +3976,11 @@ pushed, and a warning appears once in =*Warnings*=. Local auto-commits
 continue. To merge: =M-x my/auto-commit-resolve= pulls again by hand and
 opens Magit on the conflict; resolve inside the file with smerge
 (=C-c ^ ...=), then =r r= in Magit. The next cycle pushes the result.
-While a rebase or merge is in progress the repository is left alone, so
-an automatic =git add -A= can never commit conflict markers.
+While a rebase or merge is in progress, or while files hold an
+unresolved conflict (git's list of unmerged paths), the repository is
+left alone, so an automatic =git add -A= can never commit conflict
+markers; the warning names the files.  A failed =git add= stops the
+cycle there: nothing is committed, pulled or pushed.
 
 Working on one machine and then going straight to the other: wait for
 the "pushed" message on the first (or press =C-c v a=) before starting
