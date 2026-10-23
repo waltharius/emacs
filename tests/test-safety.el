@@ -521,6 +521,83 @@ export of its links writes the file name; the site's replaces it."
                           "denote" ".org" (directory-file-name root)))
         (should-not (string-match-p (regexp-quote leak) page))))))
 
+(ert-deftest my/safety-test-1.4-file-link-to-note-is-its-text ()
+  "1.4: a `file:' link to a note -- Org, Markdown, text, encrypted -- is
+exported like a `denote:' link to the identifier in its name: the
+description, or a link to the note's page; another file is left to
+ox-hugo (found 2026-10-23g: ox-hugo wrote the file name)."
+  (let* ((targets (make-hash-table :test #'equal))
+         (export (progn (puthash "20261023T100000" '("posts" "kant" nil) targets)
+                        (my/blog--file-link-export-function targets))))
+    (dolist (path '("../pks/20261023T110000--hegel.org" "20261023T110000--hegel.md"
+                    "/n/pks/20261023T110000--hegel.txt" "20261023T110000--hegel.org.gpg"
+                    "../misc/plain.org"))
+      (should (equal (funcall export path "the other one" 'md nil) "the other one"))
+      (should (equal (funcall export path nil 'md nil) "")))
+    (should (equal (funcall export "20261023T100000--kant__blog.org" "Kant" 'md nil)
+                   "[Kant](/posts/kant/)"))
+    (dolist (path '("../attachments/20261023T110000--hegel-0.png" "paper.pdf"))
+      (should-not (funcall export path "x" 'md nil)))))
+
+(ert-deftest my/safety-test-1.4-page-file-links-name-no-note ()
+  "1.4: the page ox-hugo writes for a note with `file:' links to notes
+off the site names none of them, asks nothing -- a heading search in a
+missing heading made Org offer to create it in the other note -- and
+leaves those notes as they were; a `file:' link to a published note
+links its page; an image and a PDF are still copied and linked."
+  (skip-unless (require 'ox-hugo nil t))
+  (my/safety-test--with-site my/safety-test--server
+    (let ((hegel (my/safety-test--note "pks" "20261023T110000" "Hegel" nil)))
+      (make-directory (expand-file-name "attachments" root))
+      (dolist (file '("attachments/paper.pdf" "attachments/20261023T100000--kant-0.png"
+                      "pks/20261023T120000--fichte.md" "pks/20261023T130000--schelling.txt"))
+        (with-temp-file (expand-file-name file root) (insert "Private.\n")))
+      (my/safety-test--note "pks" "20261023T140000" "Spinoza" '("blog"))
+      (my/safety-test--note "pks" "20261023T100000" "Kant" '("blog")
+                            (concat "A [[file:20261023T110000--hegel.org::*Missing][one]], "
+                                    "B [[file:20261023T120000--fichte.md][two]], "
+                                    "C [[file:20261023T130000--schelling.txt][three]], "
+                                    "D [[file:20261023T140000--spinoza__blog.org][four]], "
+                                    "E [[file:../attachments/paper.pdf][paper]].\n\n"
+                                    "[[file:../attachments/20261023T100000--kant-0.png]]\n"))
+      (let ((text (my/safety-test--read hegel)))
+        (cl-letf (((symbol-function 'yes-or-no-p)
+                   (lambda (prompt) (error "Asked: %s" prompt))))
+          (my/blog--start "s" '(:write t)))
+        (should (equal (my/safety-test--read hegel) text)))
+      (let ((page (my/safety-test--read (expand-file-name "kant.md" posts))))
+        (should (string-match-p (regexp-quote "A one, B two, C three, D [four](/posts/spinoza/), E [paper](/ox-hugo/paper.pdf).")
+                                page))
+        (should (string-match-p (regexp-quote "/ox-hugo/20261023T100000--kant-0.png") page))
+        (dolist (leak '("20261023T110000" "20261023T120000" "20261023T130000" "relref"))
+          (should-not (string-match-p (regexp-quote leak) page))))
+      (should (file-exists-p (expand-file-name "static/ox-hugo/paper.pdf" site))))))
+
+(ert-deftest my/safety-test-1.4-page-redone-when-linked-note-leaves ()
+  "1.4: when a note leaves the site, the pages linking to it -- by a
+`denote:' or a `file:' link -- are exported again, so that the link
+becomes its text; otherwise they would keep a link naming the page of
+a note no longer published."
+  (my/safety-test--with-site nil
+    (let ((spinoza (my/safety-test--note "pks" "20261023T140000" "Spinoza" '("blog")))
+          (exported '()))
+      (my/safety-test--note "pks" "20261023T100000" "Kant" '("blog")
+                            "See [[denote:20261023T140000][him]].\n")
+      (my/safety-test--note "pks" "20261023T110000" "Hegel" '("blog")
+                            "See [[file:20261023T140000--spinoza__blog.org][him]].\n")
+      (cl-letf (((symbol-function 'my/blog--require-ox-hugo) #'ignore)
+                ((symbol-function 'my/blog--export-file)
+                 (lambda (site file section slug _targets)
+                   (push (file-name-nondirectory file) exported)
+                   (with-temp-file (my/blog--page-file site section slug) (insert "page")))))
+        (make-directory posts t)
+        (my/blog--start "s" '(:write t :quiet t))
+        (setq exported '())
+        (rename-file spinoza (replace-regexp-in-string "__blog" "" spinoza))
+        (my/blog--start "s" '(:write t :quiet t))
+        (should (equal (sort exported #'string<)
+                       '("20261023T100000--kant__blog.org" "20261023T110000--hegel__blog.org")))))))
+
 (ert-deftest my/safety-test-1.4-backlinks-name-only-pages ()
   "1.4: the backlinks the site's pages show name only pages of the site:
 not a note off the site, nor a note of the site that was refused, that

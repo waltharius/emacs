@@ -75,7 +75,11 @@
 ;;   - a link to any other note becomes its description, as plain text.
 ;; Both are done by a replacement `:export' function for the `denote'
 ;; link type, let-bound around the export, so exports started any
-;; other way (PDF, ODT, `C-c C-e') are untouched.
+;; other way (PDF, ODT, `C-c C-e') are untouched.  A `file:' link to a
+;; note (an Org, Markdown or text file) is exported the same way, by
+;; the identifier in its name: left to ox-hugo it would write the
+;; note's file name into the page.  Other `file:' links -- images,
+;; PDFs -- are ox-hugo's, which copies the file into the site.
 ;;
 ;; `my/latex-filter-denote-link' from 16-org-export.el is removed from
 ;; `org-export-filter-link-functions' for the duration of the export,
@@ -416,7 +420,7 @@ longer exported on save, and its running server is left to `s'."
 (defconst my/blog--state-file ".blog-state.eld"
   "Name of the state file kept in the root of each site.")
 
-(defconst my/blog--state-format 2
+(defconst my/blog--state-format 3
   "Version of the state file and of the export rules.
 Part of the fingerprint: raising it makes every site export in full
 once, which is what a change in how pages are produced requires.")
@@ -882,7 +886,8 @@ its name; its whole base name, transliterated, is the slug."
 (defun my/blog--read-refs (file)
   "Return (INCLUDES LINKS) of FILE.
 INCLUDES are the absolute paths FILE pulls in with #+INCLUDE; LINKS
-the identifiers of its `denote:' links."
+the identifiers of its `denote:' links and of the notes its `file:'
+links point at."
   (let ((dir (file-name-directory (expand-file-name file)))
         (includes '())
         (links '())
@@ -898,7 +903,15 @@ the identifiers of its `denote:' links."
           (push (expand-file-name (car (split-string target "::")) dir) includes)))
       (goto-char (point-min))
       (while (re-search-forward "\\[\\[denote:\\([^]:]+\\)" nil t)
-        (push (match-string-no-properties 1) links)))
+        (push (match-string-no-properties 1) links))
+      ;; A file: link to a note is exported like a denote: link to its
+      ;; identifier (`my/blog--file-link-export-function').
+      (goto-char (point-min))
+      (while (re-search-forward "\\[\\[file:\\([^]:\n]+\\)" nil t)
+        (let ((name (file-name-nondirectory (match-string-no-properties 1))))
+          (when-let* (((my/blog--note-file-p name))
+                      (id (denote-retrieve-filename-identifier name)))
+            (push id links)))))
     (list (nreverse includes) (delete-dups (nreverse links)))))
 
 (defun my/blog--refs (file cache)
@@ -1126,13 +1139,47 @@ function is only installed for Hugo exports."
              (t (format "[%s](/%s/%s/%s)" label section slug anchor))))
         text))))
 
+(defconst my/blog--note-file-regexp
+  "\\.\\(?:org\\|md\\|txt\\)\\(?:\\.gpg\\|\\.age\\)?\\'"
+  "Extensions of the files Denote keeps notes in, encrypted or not.")
+
+(defun my/blog--note-file-p (path)
+  "Non-nil when PATH names a file of a type Denote keeps notes in.
+Org, Markdown and plain text, encrypted or not, and whatever other
+type `denote-file-type' knows."
+  (or (string-match-p my/blog--note-file-regexp path)
+      (and (fboundp 'denote-file-has-supported-extension-p)
+           (denote-file-has-supported-extension-p path))))
+
+(defun my/blog--file-link-export-function (targets)
+  "Return an `:export' function for `file:' links to notes, by TARGETS.
+A link to a file of a note type (`my/blog--note-file-p') is exported as
+a `denote:' link to the identifier in its name would be: a link to the
+note's page when a site has one, its description otherwise -- empty
+without one.  Left to ox-hugo, such a link would put the note's file
+name into the page (a relref, or a plain link for Markdown and text),
+and a link with a heading search would make Org offer to create the
+heading in the other note when it is missing.  A search in the file is
+dropped: the export function receives the path alone.  Any other file
+-- an image, a PDF -- gives nil, and ox-hugo copies it into the site as
+before."
+  (let ((denote-export (my/blog--link-export-function targets)))
+    (lambda (path description format &optional _info)
+      (when (my/blog--note-file-p path)
+        (funcall denote-export
+                 (or (denote-retrieve-filename-identifier (file-name-nondirectory path)) "")
+                 description format)))))
+
 (defun my/blog--link-parameters (targets)
-  "Return `org-link-parameters' with the site's export for `denote'."
+  "Return `org-link-parameters' with the site's export for `denote' and `file'."
   (let* ((params (copy-alist org-link-parameters))
-         (denote-params (copy-sequence (cdr (assoc "denote" params)))))
-    (cons (cons "denote" (plist-put denote-params :export
-                                    (my/blog--link-export-function targets)))
-          (assoc-delete-all "denote" params))))
+         (denote-params (copy-sequence (cdr (assoc "denote" params))))
+         (file-params (copy-sequence (cdr (assoc "file" params)))))
+    (append (list (cons "denote" (plist-put denote-params :export
+                                            (my/blog--link-export-function targets)))
+                  (cons "file" (plist-put file-params :export
+                                          (my/blog--file-link-export-function targets))))
+            (assoc-delete-all "file" (assoc-delete-all "denote" params)))))
 
 (defun my/blog--export-file (site file section slug targets)
   "Export FILE to SECTION of SITE as SLUG, resolving links through TARGETS.

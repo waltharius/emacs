@@ -8368,11 +8368,18 @@ would repeat it.
 | =denote:= link to a note on the same site      | link to =/<section>/<slug>/=, in whichever section |
 | =denote:ID::#custom-id=                        | link to that heading of the page               |
 | =denote:= link to a private note or another site | the link description, as plain text          |
+| =file:= link to a note (=.org=, =.md=, =.txt=)   | as a =denote:= link to the identifier in its name; a =::= search is dropped |
 | image under =~/notes/attachments/=             | copied by ox-hugo to =static/ox-hugo/=         |
 | =#+INCLUDE:= of a note on the same site        | included text, links resolved as above         |
 | =#+INCLUDE:= of any other note                 | the whole note is refused                      |
 
 Links between sections of one site work in both directions.
+
+A =file:= link to a note goes the same way as a =denote:= link: left to
+ox-hugo, it would write the note's file name into the page, and a
+heading search missing in the target made Org ask, during the export,
+whether to create that heading in the other note.  Other =file:= links
+(images, PDFs) are still copied into the site by ox-hugo.
 
 Links between sites: a link to a note that is not on the same site but
 is on another one becomes an absolute link to that site's page, below
