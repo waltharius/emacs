@@ -6738,6 +6738,7 @@ module's loading together.
 | =my/image-display-mode=   | =44-image-display.el=   | View → =m=, =C-c u i= |
 | =my/blog-mode=            | =46-blog.el=            | export on save, the autostart sites (after start-up, or at once when turned on later), Export → =b=, Settings → =b=; off also cancels pending exports and stops its Hugo servers |
 | =my/repo-docs-mode=       | =47-repo-docs.el=       | regeneration on save while the preview runs, Export → =r=; off also stops the preview server |
+| =my/packages-mode=        | =49-packages.el=        | Maintenance → the Emacs packages column (=U=, =B=, =L=) |
 
 How a module writes one, with two helpers:
 
@@ -6921,6 +6922,7 @@ Optional (43):
 | =46-blog= | Publish selected notes as Hugo sites | -- |
 | =47-repo-docs= | Documentation of git repositories as one Hugo site | -- |
 | =48-settings-tools= | Favourite and recently changed settings | -- |
+| =49-packages= | Upgrade the installed packages, with a copy to go back to | -- |
 
 * One symbol, one owner
 :PROPERTIES:
@@ -7054,6 +7056,9 @@ Module: =modules/26-maintenance.el=
 | =I= | =my/denote-fix-duplicates= | walk duplicate identifier groups, one confirmation each |
 | =W= | =my/denote-repair-suspect-links= | point each link found by =w= at the note its text names, one question each |
 | =K= | =my/maintenance-rename-keyword= | rename or remove one keyword across the collection |
+| =U= | =my/packages-upgrade= | upgrade the installed Emacs packages, the package folder copied first ([[#packages-upgrade][Package upgrades]], 49-packages.el) |
+| =B= | =my/packages-restore= | put the packages back as in a copy |
+| =L= | =my/packages-list-backups= | the copies, with their size |
 
 Lower case reads, upper case writes. Anything that renames files across
 the collection is on a capital so a mistyped key cannot start it.
@@ -7217,6 +7222,76 @@ already in use.
 Keyword sorting is not lost with =denote-explore-sort-keywords= gone:
 Denote sorts keywords on every rename while =denote-sort-keywords= is
 non-nil, so the commands above maintain it note by note.
+
+* Package upgrades (C-c n ! U)
+:PROPERTIES:
+:CUSTOM_ID: packages-upgrade
+:END:
+
+package.el installs whatever the archives hold at the time and has no
+way back: an upgrade that breaks something cannot be undone from
+within it.  This module upgrades the installed packages with that way
+back.  It is no lock file -- pinned versions are a separate decision
+(BACKLOG.org, /Packages pinned/).
+
+Module: =modules/49-packages.el=, switch =my/packages-mode=.  Its
+column, Emacs packages, is in the Maintenance menu of
+=26-maintenance.el=; without that module the commands remain for M-x.
+
+*** U — Upgrade (copy first)
+:PROPERTIES:
+:CUSTOM_ID: fn-my-packages-upgrade
+:END:
+
+1. Refreshes the package list and lists the installed packages that
+   have a newer version in an archive, with both versions; built-in
+   packages and packages installed from version control are left out.
+2. Asks.  On yes, copies the whole package folder (=~/.emacs.d/elpa=)
+   to =my/packages-backup-directory= (=~/.emacs.d/elpa-backups/=, left
+   out of git), a folder per upgrade, =elpa-YYYY-MM-DD-HHMMSS=; beside
+   it a file of the same name ending in =-RESTORE.txt= says how to go
+   back, also from a shell when Emacs no longer starts.
+3. Upgrades each package with package.el's own =package-upgrade=; one
+   that fails does not stop the others.  =package-upgrade= deletes the
+   old version before installing the new one, so a package whose
+   install failed may be gone: the report says so, and the copy has it.
+4. Shows =*Package upgrade*=: what changed, what failed, where the copy
+   is, how to go back, and the next steps -- restart Emacs, then
+   =bash hooks/check-weekly= in the configuration folder.
+
+The weekly workflow installs the newest packages every Monday on a
+clean machine: when it is green, an upgrade here is likely to go well.
+
+Function: =my/packages-upgrade= | Module: =modules/49-packages.el=
+
+*** B — Go back to a copy
+:PROPERTIES:
+:CUSTOM_ID: fn-my-packages-restore
+:END:
+
+Chooses one of the copies (newest first) and asks; the current package
+folder is then /moved/ aside to =elpa-replaced-YYYY-MM-DD-HHMMSS= beside
+it -- never deleted -- and the copy copied into its place.  Restart
+Emacs afterwards.  Only folders the module made are accepted.  From a
+shell, when Emacs does not start (Emacs closed first):
+
+#+begin_src sh
+mv ~/.emacs.d/elpa ~/.emacs.d/elpa-replaced-$(date +%F-%H%M%S)
+cp -a ~/.emacs.d/elpa-backups/elpa-YYYY-MM-DD-HHMMSS ~/.emacs.d/elpa
+#+end_src
+
+Function: =my/packages-restore= | Module: =modules/49-packages.el=
+
+*** L — List the copies
+:PROPERTIES:
+:CUSTOM_ID: fn-my-packages-list-backups
+:END:
+
+The copies, newest first, with their size.  Nothing deletes them: a
+copy is as large as the package folder, removed by hand (with the
+replaced folders) when no longer wanted.
+
+Function: =my/packages-list-backups= | Module: =modules/49-packages.el=
 
 * Standard Pages
 :PROPERTIES:

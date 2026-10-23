@@ -921,6 +921,11 @@ the decision, to be checked before it:
   package's repository and on emacs-devel for Emacs itself.  A short
   list of the packages that touch the network or run programs (magit,
   pdf-tools, request, ...) to watch by hand may be what is realistic.
+- Asked again 2026-10-23 (regular updates, like the weekly flake
+  update).  Meanwhile: 49-packages.el (2026-10-23p) upgrades with a
+  copy of the package folder and a way back -- no lock, but no upgrade
+  without a return.  Next: Elpaca or straight.el compared, to be
+  discussed with the owner.
 
 ** TODO Names: one prefix (B1)
 *Why*: variables are split between =my-= and =my/=.  *Why later*: a

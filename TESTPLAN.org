@@ -644,6 +644,20 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R45. Package upgrades with a copy [0/4]
+- [ ] =C-c n != shows the column Emacs packages (=U=, =B=, =L=) beside
+      Quit, and the menu looks as before otherwise.
+- [ ] =U=: the question lists the packages with old and new versions
+      and names =~/.emacs.d/elpa-backups/=; answer no -- nothing in that
+      folder.  =U= again, yes: a folder =elpa-DATE= and a file
+      =elpa-DATE-RESTORE.txt= beside it; =*Package upgrade*= lists the
+      upgrades and how to go back.
+- [ ] Restart; =bash hooks/check-weekly= passes.  =L= lists the copy
+      with its size.
+- [ ] =B=, choose the copy, yes; restart: the packages are the old
+      versions (=M-x list-packages=); =~/.emacs.d/elpa-replaced-DATE=
+      holds the upgraded ones.  =U= again to come back to the new ones.
+
 ** R44. PDF viewer built on first use [0/2]
 - [ ] Start Emacs: no build, no password question at start-up -- also
       the first start after pdf-tools is installed (e.g. after deleting

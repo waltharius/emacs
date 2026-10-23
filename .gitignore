@@ -66,6 +66,8 @@ keys
 
 elpa/
 elpa.backup/
+elpa-backups/
+elpa-replaced-*/
 elpaca/
 straight/
 quelpa/

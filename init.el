@@ -186,6 +186,11 @@
    ;; and after 00-core.el, whose settings folder keeps its record.
    ;; Without this file Customize works as before.
    "48-settings-tools"       ; Settings tools (C-c n , * r z)
+   ;; Optional: upgrade the installed packages after copying the
+   ;; package folder, and go back to such a copy.  Loaded after
+   ;; 26-maintenance.el, whose Maintenance menu it adds a column to;
+   ;; without that module the commands remain for M-x.
+   "49-packages"             ; Package upgrades (C-c n ! U B L)
    ))
 
 (add-hook 'emacs-startup-hook

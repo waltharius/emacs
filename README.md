@@ -356,6 +356,7 @@ startup. Optional ones can be removed.
 | `42-obsidian-import.el` | optional | Front end for `tools/obsidian_import.py`: dry run, import, report (`C-c n t o`). |
 | `26-maintenance.el` | required | Integrity checks, keyword inventory, keyword renames. |
 | `27-denote-identifiers.el` | required | Duplicate identifiers, broken links, self-links. |
+| `49-packages.el` | optional | Upgrade the installed packages after copying the package folder; go back to a copy (`C-c n !`, `U` `B` `L`). |
 
 ### Reports
 
