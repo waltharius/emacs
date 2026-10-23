@@ -644,6 +644,12 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R44. PDF viewer built on first use [0/2]
+- [ ] Start Emacs: no build, no password question at start-up.
+- [ ] Open a PDF (=C-x C-f= any .pdf): where the viewer was never
+      built, the question /Need to (re)build the epdfinfo program/;
+      where it was (this laptop), the PDF opens at once in the viewer.
+
 ** R43. Repository docs: network, server, publishing [0/4]
 - [ ] =C-c n , ,= → =my/repo-docs-lan-host= = this laptop's name in the
       network (or its address); =C-c n x r s=, then =v=.  From another

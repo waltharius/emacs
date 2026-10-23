@@ -152,6 +152,6 @@ them through the basics; until then the =tests= check reminds;
    42-obsidian-import, 24-readwise; then the others, a few per session,
    as each is next changed.
 
-On 2026-10-23, 18 of 52 modules are named by a test file
+On 2026-10-23, 19 of 52 modules are named by a test file
 (=python3 hooks/lint.py tests= lists the others); every module has the
 weekly load tests of part 2.

@@ -64,7 +64,7 @@ Programy potrzebne tylko do niektórych rzeczy (możesz je doinstalować późni
 | zmniejszanie wklejanych obrazków | `sudo dnf install -y ImageMagick` |
 | eksport do Worda (DOCX) | `sudo dnf install -y libreoffice-writer` |
 
-**Gdy Emacs sam zapyta o hasło.** Do oglądania PDF Emacs musi raz zbudować mały program pomocniczy. Robi to sam, gdy pierwszy raz go potrzebuje. Najpierw sprawdza, czy są programy z wiersza „oglądanie plików PDF”. Jeśli czegoś brakuje, sam próbuje je zainstalować: w Emacsie otwiera się okno z napisem `dnf install …`, a na dole pojawia się `[sudo] hasło użytkownika …`. Masz wtedy dwie możliwości:
+**Gdy Emacs sam zapyta o hasło.** Do oglądania PDF Emacs musi raz zbudować mały program pomocniczy. Robi to przy pierwszym otwarciu pliku PDF, nie wcześniej, i najpierw pyta: `Need to (re)build the epdfinfo program, do it now ? (y or n)`. Odpowiedź `n` odkłada budowę do następnego otwarcia PDF. Po `y` sprawdza, czy są programy z wiersza „oglądanie plików PDF”. Jeśli czegoś brakuje, sam próbuje je zainstalować: w Emacsie otwiera się okno z napisem `dnf install …`, a na dole pojawia się `[sudo] hasło użytkownika …`. Masz wtedy dwie możliwości:
 
 - wpisać swoje hasło i nacisnąć Enter (podczas wpisywania nic się nie pojawia, tak jak w terminalu). Zostanie doinstalowane tylko to, czego brakuje, a potem program się zbuduje;
 - albo nacisnąć `Ctrl+g`, żeby zrezygnować, i później wpisać w terminalu polecenie z wiersza „oglądanie plików PDF”.

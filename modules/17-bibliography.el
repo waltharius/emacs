@@ -481,11 +481,19 @@ present, and the report says when they are the ones in use."
 ;; PDF-TOOLS — native PDF viewer
 ;; ============================================================
 
+;; `pdf-loader-install', pdf-tools' own on-demand setup, not
+;; `pdf-tools-install' in :config: that ran whenever pdf-tools was
+;; loaded -- also by the byte compilation of its own files during the
+;; first install -- and built the epdfinfo server then, unasked (the
+;; build may ask for the sudo password to install libraries).  Now
+;; the first PDF opened loads pdf-tools, which asks before building.
 (use-package pdf-tools
   :ensure t
-  :magic ("%PDF" . pdf-view-mode)
+  :defer t
+  :init
+  (when (fboundp 'pdf-loader-install)
+    (pdf-loader-install))
   :config
-  (pdf-tools-install :no-query)
   (add-hook 'pdf-view-mode-hook
             (lambda () (display-line-numbers-mode -1))))
 
