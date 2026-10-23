@@ -199,7 +199,7 @@ it is kept outside the notes tree and outside any repository."
 (defcustom my/repo-docs-lan-host nil
   "Name or address of this machine in the local network, or nil.
 Nil: the preview server listens on this machine only.  A name such as
-\"laptop.lan\" or an address such as \"192.168.1.20\": it listens
+\"laptop.lan\" or an address such as \"192.0.2.20\": it listens
 on every network interface, its pages addressed as
 http://HOST:PORT/, so other machines of the network can read the site
 -- anyone in that network, as far as this machine's firewall lets
