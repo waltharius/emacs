@@ -644,6 +644,17 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R42. Repository docs: Org files [0/3]
+- [ ] Under =emacs=: BACKLOG, function_helper, SAFETY, TESTING,
+      TESTPLAN as pages with their titles; tables and code blocks
+      readable; the page's table of contents above the text, not a
+      second one from the file.
+- [ ] In =function_helper=, a link to a heading (e.g. =#repo-docs=)
+      jumps to it.
+- [ ] Edit =TESTING.org= with the preview running, save: the page
+      changes within a few seconds; saving a Markdown file afterwards
+      does not take the two seconds of =function_helper= again.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply

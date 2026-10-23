@@ -8811,7 +8811,7 @@ Site properties: =:directory=, =:remote=, =:url=, =:port=, =:theme=,
 :CUSTOM_ID: repo-docs
 :END:
 
-The documents (Markdown and plain text) of several git repositories —
+The documents (Markdown, plain text and Org) of several git repositories —
 by default the NixOS configuration in =~/nixos= and this configuration
 in =~/.emacs.d= — read as one Hugo site with the Geekdoc theme
 ([[https://github.com/thegeeklab/hugo-geekdoc]]).  Each repository is a
@@ -8847,7 +8847,7 @@ URL, its digest (=sha256sum= on a copy downloaded by hand), then delete
 | Option | Default | Meaning |
 |--------+---------+---------|
 | =my/repo-docs-repositories= | =nixos= (=~/nixos/=), =emacs= (=~/.emacs.d/=, without =hugo/= and =tests/=) | repositories shown, in this order; see below |
-| =my/repo-docs-default-include= | =*.md=, =*.txt= | files taken from a repository without =:include= |
+| =my/repo-docs-default-include= | =*.md=, =*.txt=, =*.org= | files taken from a repository without =:include= |
 | =my/repo-docs-site-directory= | =~/projects/nixos-docs-site/= | generated site |
 | =my/repo-docs-title= | =Repositories= | title in the site header and on the home page |
 | =my/repo-docs-port= | 1316 | port of =hugo server= (1313–1315 belong to the blog sites) |
@@ -8870,8 +8870,9 @@ laptop lists the repositories it has.  Each entry is
 | =:exclude= | git pathspecs left out, e.g. =hugo/= for a folder |
 
 The pathspecs are git's own ([[https://git-scm.com/docs/gitglossary#Documentation/gitglossary.txt-aiddefpathspecapathspec][gitglossary: pathspec]]), matched
-ignoring letter case.  Whatever they take, only Markdown and plain-text
-files are shown.  A repository missing on the machine is left out and
+ignoring letter case.  Whatever they take, only Markdown, plain-text and
+Org files are shown; Org files only when ox-hugo is installed (the
+summary says when they were left out).  A repository missing on the machine is left out and
 named in the report; with none present, nothing is generated.
 
 #+begin_src emacs-lisp
@@ -8916,6 +8917,9 @@ Examples from the =nixos= repository:
 | a folder without a page of its own (=docs/guide/=) | a page titled =guide/= listing its contents (Geekdoc's =toc-tree=) |
 | any other Markdown file | a page titled with its first H1, which is removed from the text; no H1 → the file name |
 | a plain-text file (=notes.txt=) | a page titled with the file name, the text as it is in a preformatted block |
+| an Org file (=TESTING.org=) | a page exported by ox-hugo, titled with its =#+title= (no title → the file name); a =README.org= is its folder's page, the title as an H2 under it unless it repeats the folder's name |
+| =[[file:SAFETY.org::*Publishing][x]]= in an Org file | =[x](/emacs/safety/#publishing)=: the heading's =CUSTOM_ID= if it has one, otherwise its slug as ox-hugo makes it; a heading the file lacks → the page without an anchor |
+| =[[denote:…][a note]]= in an Org file | =a note=: notes are no documents of a repository |
 | =[x](../BACKUPS.md#tests)= | =[x](/nixos/docs/backups/#tests)= |
 
 - *Order:* the repositories as listed; within a folder, subfolders
@@ -8933,6 +8937,23 @@ Examples from the =nixos= repository:
   =my/repo-docs-report=.
 - *Files* are those git would commit: tracked, plus untracked but not
   ignored, so a new document shows up before its first =git add=.
+- *Org files* go through ox-hugo, as on the blog, with a backend derived
+  from it that handles links to files: another document of the
+  repository → its page; a document the site lacks, or one in another
+  repository → its description, reported; an image or other file →
+  ox-hugo's own handling, which copies it into the site's =static/=.
+  ox-hugo's front matter and table of contents are replaced by the
+  module's.  An export that fails gives a page saying so and a line in
+  the report; the run goes on.  Exports are cached for the session by
+  modification time, size and the set of pages — =function_helper.org=
+  takes about two seconds, and the site is regenerated on every save
+  while the preview runs.
+- *Hugo shortcodes written in a document* (=[x]({{< relref "y" >}})= in
+  the change log) are shown as written: Hugo runs shortcodes even in
+  code, and an unknown page in a relref fails the whole build.  They are
+  escaped (={{</* … */>}}=, Hugo's own escape) in Markdown and plain
+  text, and in an Org file's text before the export, so the figure
+  shortcode ox-hugo writes for an image still runs.
 - *Two files that would make one page* — names differing only in letter
   case, one name in two kinds (=notes.md=, =notes.txt=), two pages for
   one folder (=README.md= and =README.txt=, or =CHANGELOG.md= beside

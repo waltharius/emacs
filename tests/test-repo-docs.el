@@ -8,7 +8,8 @@
 ;; the content of one Hugo site, a section per repository: the eighth
 ;; module of TESTING.org, *Every module tested*, part 3.  With real git:
 ;; two repositories and a site folder made for each test.  Hugo is not
-;; run -- the tests read what the module writes into the site.
+;; run -- the tests read what the module writes into the site.  The Org
+;; tests need ox-hugo (installed for the workflow by ci-packages.el).
 ;;
 ;;   emacs -Q --batch --eval '(package-initialize)' -l ert \
 ;;     -l tests/test-repo-docs.el -f ert-run-tests-batch-and-exit
@@ -100,18 +101,20 @@ and `content'."
 
 (ert-deftest my/rd-test-files-from-git-and-pathspecs ()
   "Files are those git would commit -- tracked, or new and not ignored
--- that the pathspecs take and do not leave out, Markdown and plain text
-only, whatever the letter case of the extension."
+-- that the pathspecs take and do not leave out, Markdown, plain text
+and Org only, whatever the letter case of the extension."
   (my/rd-test--with-repos
-      '(("emacs" (("README.md" . "# E\n") ("NOTES.TXT" . "n\n") ("x.org" . "* x\n")
+      '(("emacs" (("README.md" . "# E\n") ("NOTES.TXT" . "n\n") ("x.org" . "* x\n") ("y.nix" . "{}\n")
                   ("hugo/theme/a.md" . "a\n") ("tests/t.md" . "t\n")
                   ("doc/b.md" . "b\n") (".gitignore" . "ignored.md\n"))
          :exclude ("hugo/" "tests/")))
     (let ((dir (expand-file-name "emacs" root)))
       (my/rd-test--write dir "new.md" "new\n")
       (my/rd-test--write dir "ignored.md" "secret\n"))
-    (should (equal (mapcar #'car (plist-get (my/repo-docs--files) :files))
-                   '("emacs/NOTES.TXT" "emacs/README.md" "emacs/doc/b.md" "emacs/new.md")))))
+    (cl-letf (((symbol-function 'my/repo-docs--ox-hugo-p) (lambda () t)))
+      (should (equal (mapcar #'car (plist-get (my/repo-docs--files) :files))
+                     '("emacs/NOTES.TXT" "emacs/README.md" "emacs/doc/b.md" "emacs/new.md"
+                       "emacs/x.org"))))))
 
 (ert-deftest my/rd-test-include-narrows ()
   "`:include' replaces the default: only what it names is taken."
@@ -342,6 +345,156 @@ runs; a file outside the repositories never."
         (let ((buffer-file-name (expand-file-name "elsewhere.md" site)))
           (my/repo-docs--after-save)
           (should (= runs 1)))))))
+
+;; ============================================================
+;; ORG FILES
+;; ============================================================
+
+(defmacro my/rd-test--with-org (files &rest body)
+  "Run BODY with a repository \"emacs\" holding FILES, Org included.
+A second repository, \"nixos\", holds a README.md beside it.  Skipped
+without ox-hugo.  The cache of Org exports starts empty."
+  (declare (indent 1))
+  `(progn
+     (skip-unless (require 'ox-hugo nil t))
+     (let ((my/repo-docs--org-cache (make-hash-table :test #'equal)))
+       (my/rd-test--with-repos (list (list "emacs" ,files)
+                                     (list "nixos" '(("README.md" . "# nixos\n"))))
+         ,@body))))
+
+(ert-deftest my/rd-test-org-page-title-and-text ()
+  "An Org file becomes a page titled with its #+title, its headings one
+level down (the title is the H1), without ox-hugo's front matter or its
+own table of contents; without a title, the file name."
+  (my/rd-test--with-org
+      '(("TESTING.org" . "#+title: Testing rules\n#+options: toc:t\n\nIntro.\n\n* Where\nText.\n")
+        ("notes.org" . "Just text.\n"))
+    (my/repo-docs-generate)
+    (let ((page (my/rd-test--page content "emacs/testing.md")))
+      (should (string-match-p "\\`---\ntitle: \"Testing rules\"" page))
+      (should (string-match-p "url: \"/emacs/testing/\"" page))
+      (should (string-match-p "^## Where" page))
+      (should-not (string-match-p "+++\\|Table of Contents\\|author" page)))
+    (should (string-match-p "title: \"notes\""
+                            (my/rd-test--page content "emacs/notes.md")))))
+
+(ert-deftest my/rd-test-org-links ()
+  "Links in an Org file: to another document of the repository, its
+page, with the heading's custom id or slug; a missing heading, the page
+without an anchor and no question; a document the site lacks, or out of
+the repository, its description, reported; a `denote:' link, its
+description only; an image, ox-hugo's, copied into the site.  A
+document of another repository is out of the repository too."
+  (my/rd-test--with-org
+      '(("SAFETY.org" . "#+title: Safety\n\n* Publishing rules\nx\n* With id\n:PROPERTIES:\n:CUSTOM_ID: pub\n:END:\ny\n")
+        ("README.md" . "# emacs\n\n[t](TESTING.org#where)\n")
+        ("img/a.png" . "png")
+        ("TESTING.org" . "#+title: Testing\n\n* Where\n[[file:SAFETY.org::*Publishing rules][s]] [[file:SAFETY.org::*With id][i]] [[file:SAFETY.org::#pub][c]] [[file:SAFETY.org::*Missing][m]] [[file:README.md][r]] [[file:GONE.org][g]] [[file:../other/x.org][o]] [[file:../nixos/README.md][n]] [[denote:20261023T100000][a note]]\n\n[[file:img/a.png]]\n"))
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (p) (error "Asked: %s" p))))
+      (let ((report (my/repo-docs-generate))
+            (page (my/rd-test--page content "emacs/testing.md")))
+        (dolist (expected '("[s](/emacs/safety/#publishing-rules)" "[i](/emacs/safety/#pub)"
+                            "[c](/emacs/safety/#pub)" "[m](/emacs/safety/)" "[r](/emacs/)"))
+          (should (string-match-p (regexp-quote expected) page)))
+        (should (string-match-p " g o n a note" page))
+        (should-not (string-match-p "20261023T100000\\|GONE\\|other/x\\|/nixos/" page))
+        (should (string-match-p "/ox-hugo/a.png" page))
+        (should (file-exists-p (expand-file-name "static/ox-hugo/a.png" site)))
+        (should (equal (plist-get report :unresolved)
+                       '(("emacs/TESTING.org" . "GONE.org")
+                         ("emacs/TESTING.org" . "../other/x.org")
+                         ("emacs/TESTING.org" . "../nixos/README.md"))))
+        (should (string-match-p (regexp-quote "[t](/emacs/testing/#where)")
+                                (my/rd-test--page content "emacs/_index.md")))))))
+
+(ert-deftest my/rd-test-org-denote-links-text-only ()
+  "A `denote:' link in an Org document is its description only, whether
+Denote is loaded (its own link type) or not (Org reads a fuzzy link)."
+  (let ((before (assoc "denote" org-link-parameters)))
+    (unwind-protect
+        (dolist (known '(nil t))
+          ;; The link type must be registered for Org's parser, not
+          ;; only bound: the parser reads a regexp made from the types.
+          (setq org-link-parameters (assoc-delete-all "denote" org-link-parameters))
+          (if known (org-link-set-parameters "denote") (org-link-make-regexps))
+          (my/rd-test--with-org
+              '(("A.org" . "#+title: A\n\nSee [[denote:20261023T100000][a note]] and [[denote:20261023T110000]].\n"))
+            (my/repo-docs-generate)
+            (let ((page (my/rd-test--page content "emacs/a.md")))
+              (should (string-match-p "See a note and \\." page))
+              (should-not (string-match-p "2026102\\|denote\\|BROKEN" page)))))
+      (setq org-link-parameters (assoc-delete-all "denote" org-link-parameters))
+      (when before (push before org-link-parameters))
+      (org-link-make-regexps))))
+
+(ert-deftest my/rd-test-org-shortcodes ()
+  "In an Org document, a shortcode written in the text is shown as
+written; the figure shortcode ox-hugo writes for an image runs."
+  (my/rd-test--with-org
+      '(("A.org" . "#+title: A\n\nWrite =[x]({{< relref \"y\" >}})=.\n\n[[file:a.png]]\n")
+        ("a.png" . "png"))
+    (my/repo-docs-generate)
+    (let ((page (my/rd-test--page content "emacs/a.md")))
+      (should (string-match-p (regexp-quote "{{</* relref \"y\" */>}}") page))
+      (should (string-match-p (regexp-quote "{{< figure src=\"/ox-hugo/a.png\" >}}") page)))))
+
+(ert-deftest my/rd-test-org-readme-is-folder-page ()
+  "A README.org is its folder's page; its title stays in the text as an
+H2 unless it only repeats the folder's name."
+  (my/rd-test--with-org
+      '(("docs/README.org" . "#+title: About the documents\n\nText.\n")
+        ("guide/README.org" . "#+title: guide\n\nText.\n"))
+    (my/repo-docs-generate)
+    (let ((docs (my/rd-test--page content "emacs/docs/_index.md")))
+      (should (string-match-p "title: \"docs/\"" docs))
+      (should (string-match-p "^## About the documents$" docs)))
+    (should-not (string-match-p "^##" (my/rd-test--page content "emacs/guide/_index.md")))))
+
+(ert-deftest my/rd-test-org-export-cached ()
+  "An Org file is exported again only when it changed or the set of
+pages did; otherwise the session's cache serves it."
+  (my/rd-test--with-org '(("A.org" . "#+title: A\n\nText.\n"))
+    (let ((exports 0)
+          (real (symbol-function 'my/repo-docs--org-export)))
+      (cl-letf (((symbol-function 'my/repo-docs--org-export)
+                 (lambda (&rest args) (setq exports (1+ exports)) (apply real args))))
+        (my/repo-docs-generate)
+        (my/repo-docs-generate)
+        (should (= exports 1))
+        (let ((file (expand-file-name "emacs/A.org" root)))
+          (my/rd-test--write (file-name-directory file) "A.org" "#+title: A\n\nChanged text.\n")
+          (set-file-times file (time-add (current-time) 10)))
+        (my/repo-docs-generate)
+        (should (= exports 2))
+        (should (string-match-p "Changed text" (my/rd-test--page content "emacs/a.md")))
+        (my/rd-test--write (expand-file-name "emacs" root) "B.md" "b\n")
+        (my/repo-docs-generate)
+        (should (= exports 3))))))
+
+(ert-deftest my/rd-test-org-export-failure-reported ()
+  "An Org file whose export fails gets a page saying so and is reported;
+the other pages are written."
+  (my/rd-test--with-org '(("A.org" . "#+title: A\n") ("B.md" . "# B\n"))
+    (let ((real (symbol-function 'org-export-as)))
+      (cl-letf (((symbol-function 'org-export-as)
+                 (lambda (&rest _) (error "Broken table"))))
+        (let ((report (my/repo-docs-generate)))
+          (should (string-match-p "Export of emacs/A.org failed: Broken table"
+                                  (my/rd-test--page content "emacs/a.md")))
+          (should (assoc "emacs/A.org" (plist-get report :unresolved)))
+          (should (file-exists-p (expand-file-name "emacs/b.md" content)))))
+      (ignore real))))
+
+(ert-deftest my/rd-test-org-left-out-without-ox-hugo ()
+  "Without ox-hugo, Org files are left out and the summary says so; the
+other documents are there."
+  (my/rd-test--with-repos '(("emacs" (("A.org" . "* a\n") ("B.md" . "# B\n"))))
+    (cl-letf (((symbol-function 'my/repo-docs--ox-hugo-p) #'ignore))
+      (let ((report (my/repo-docs-generate)))
+        (should (plist-get report :no-org))
+        (should (string-match-p "ox-hugo is not installed" (my/repo-docs--summary report)))
+        (should (equal (my/rd-test--pages content)
+                       '("_index.md" "emacs/_index.md" "emacs/b.md")))))))
 
 (provide 'test-repo-docs)
 ;;; test-repo-docs.el ends here

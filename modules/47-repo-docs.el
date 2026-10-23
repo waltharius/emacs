@@ -146,8 +146,9 @@ Each entry is (NAME . PROPERTIES):
               any depth); `my/repo-docs-default-include' when absent
   :exclude    git pathspecs of files left out, e.g. \"hugo/\" for a
               folder
-Letter case does not matter in the pathspecs.  Only Markdown and
-plain-text files are shown, whatever the pathspecs take.  A repository
+Letter case does not matter in the pathspecs.  Only Markdown, plain-text
+and Org files are shown, whatever the pathspecs take; Org files only
+when ox-hugo is installed.  A repository
 missing on this machine is left out and named in the report.  Saved in
 this machine's settings, so each machine can list its own."
   :type '(repeat
@@ -160,7 +161,7 @@ this machine's settings, so each machine can list its own."
                                  (:exclude (repeat string))))))
   :group 'my/repo-docs)
 
-(defcustom my/repo-docs-default-include '("*.md" "*.txt")
+(defcustom my/repo-docs-default-include '("*.md" "*.txt" "*.org")
   "Git pathspecs of the files taken from a repository without `:include'."
   :type '(repeat string)
   :group 'my/repo-docs)
@@ -257,7 +258,7 @@ saved while the preview server runs."
 
 (defun my/repo-docs--readme-p (rel)
   "Non-nil when path REL is a README the site shows."
-  (and (my/repo-docs--document-p rel)
+  (and (my/repo-docs--known-document-p rel)
        (string-equal-ignore-case
         (file-name-sans-extension (file-name-nondirectory rel)) "README")))
 
@@ -291,13 +292,14 @@ saved while the preview server runs."
         (unless (stringp (plist-get (cdr repo) :directory))
           (user-error "Repository %s has no :directory" name))))))
 
-(defun my/repo-docs--repo-files (repo)
+(defun my/repo-docs--repo-files (repo &optional org)
   "Return the documents of REPO, relative to it, as git sees them.
 
 The files git would commit -- tracked, plus untracked but not ignored,
 so that a new document shows up before its first `git add' -- taken by
 the `:include' pathspecs and not left out by the `:exclude' ones, of
-the kinds the site shows.  Signals a `user-error' when git fails."
+the kinds the site shows -- Org files only when ORG is non-nil.
+Signals a `user-error' when git fails."
   (let* ((dir (my/repo-docs--repo-dir repo))
          (props (cdr repo))
          (pathspecs (append (or (plist-get props :include) my/repo-docs-default-include)
@@ -315,7 +317,8 @@ the kinds the site shows.  Signals a `user-error' when git fails."
                       dir (string-trim (buffer-string))))
         (sort (seq-filter
                (lambda (rel)
-                 (and (my/repo-docs--document-p rel)
+                 (and (or (my/repo-docs--document-p rel)
+                          (and org (my/repo-docs--org-p rel)))
                       (file-regular-p (expand-file-name rel dir))))
                (delete-dups (split-string (buffer-string) "\0" t)))
               #'string<)))))
@@ -324,30 +327,33 @@ the kinds the site shows.  Signals a `user-error' when git fails."
   "Return the documents of every repository on this machine.
 A plist: :files is a list of (SITE-PATH . ABSOLUTE-PATH), sorted by
 site path; :missing the names of the repositories whose folder this
-machine lacks.  Stops when none is there: an empty site would look
+machine lacks; :no-org non-nil when ox-hugo is missing, so that Org
+files were left out.  Stops when none is there: an empty site would look
 like deleted documentation."
   (my/repo-docs--check-repositories)
   (let ((files '())
-        (missing '()))
+        (missing '())
+        (org (my/repo-docs--ox-hugo-p)))
     (dolist (repo my/repo-docs-repositories)
       (let ((dir (my/repo-docs--repo-dir repo)))
         (if (not (file-directory-p dir))
             (push (car repo) missing)
-          (dolist (rel (my/repo-docs--repo-files repo))
+          (dolist (rel (my/repo-docs--repo-files repo org))
             (push (cons (concat (car repo) "/" rel) (expand-file-name rel dir))
                   files)))))
     (when (= (length missing) (length my/repo-docs-repositories))
       (user-error "No repository of `my/repo-docs-repositories' is on this machine: %s"
                   (string-join (nreverse missing) ", ")))
     (list :files (sort files (lambda (a b) (string< (car a) (car b))))
-          :missing (nreverse missing))))
+          :missing (nreverse missing)
+          :no-org (not org))))
 
 (defun my/repo-docs--site-path-of (file)
   "Return the site path of FILE, an absolute path, or nil.
 Nil when FILE is no document in a repository of
 `my/repo-docs-repositories'; whether its pathspecs take it is not
 checked."
-  (when (and file (my/repo-docs--document-p file))
+  (when (and file (my/repo-docs--known-document-p file))
     (let ((path (expand-file-name file)))
       (seq-some (lambda (repo)
                   (let ((dir (my/repo-docs--repo-dir repo)))
@@ -517,7 +523,7 @@ as (SOURCE-REL . TARGET)."
                  (when (and (not (string-match-p
                                   "\\`\\([a-zA-Z][a-zA-Z0-9+.-]*:\\|#\\|/\\)"
                                   target))
-                            (my/repo-docs--document-p
+                            (my/repo-docs--known-document-p
                              (car (split-string target "#"))))
                    (push (cons source-rel target) (cdr unresolved)))
                  target)))))
@@ -581,6 +587,178 @@ Links are rewritten line by line outside fenced code blocks; see
               out))))
     (cons title
           (string-trim-left (string-join (nreverse out) "\n") "\n+"))))
+
+;; ============================================================
+;; ORG FILES: through ox-hugo
+;; ============================================================
+;; An Org file is exported to Markdown by ox-hugo, the exporter 46-blog
+;; uses, through a backend derived from it that differs in one thing:
+;; links to files.  A link to another document of the site leads to its
+;; page (with the heading or custom id it names); a link to a document
+;; the site lacks becomes its description, reported; a `denote:' link
+;; -- a note, which is no document of a repository -- becomes its
+;; description; anything else (images, other files) is ox-hugo's, which
+;; copies the file into the site's static/.  The front matter ox-hugo
+;; writes is replaced by the module's own.  Shortcodes written in the
+;; file are escaped before the export, not after: an image's figure,
+;; which ox-hugo writes as a shortcode, must run.  An export is cached for the
+;; session by the file's modification time, size and the set of pages:
+;; function_helper.org takes seconds, and the site is regenerated on
+;; every save while the preview runs.
+
+(defvar org-hugo-base-dir)
+(defvar org-export-filter-link-functions)
+(declare-function org-hugo-link "ox-hugo" (link desc info))
+(declare-function org-hugo-slug "ox-hugo" (str &optional allow-double-hyphens))
+(declare-function org-export-define-derived-backend "ox")
+(declare-function org-export-get-backend "ox" (name))
+(declare-function org-export-as "ox")
+(declare-function org-find-exact-headline-in-buffer "org")
+(declare-function org-entry-get "org")
+(declare-function org-element-property "org-element")
+
+(defun my/repo-docs--org-p (path)
+  "Non-nil when PATH names an Org file."
+  (let ((case-fold-search t))
+    (string-match-p "\\.org\\'" path)))
+
+(defun my/repo-docs--ox-hugo-p ()
+  "Load ox-hugo; non-nil when it is installed."
+  (require 'ox-hugo nil t))
+
+(defvar my/repo-docs--org-context nil
+  "During the export of an Org file: (SITE-PATH MAP UNRESOLVED).")
+
+(defvar my/repo-docs--org-cache (make-hash-table :test #'equal)
+  "Absolute path -> (STAMP REPORTED (TITLE . BODY)) of this session's
+Org exports; REPORTED is what the export added to the report.")
+
+(defun my/repo-docs--org-anchor (file search)
+  "Return the page anchor for SEARCH, the `::' part of a link to FILE.
+\"#id\" is a custom id; \"*Heading\" the heading's custom id when it has
+one, otherwise its slug, as ox-hugo makes them.  Nil for anything else,
+and for a heading FILE does not have."
+  (cond
+   ((null search) nil)
+   ((string-prefix-p "#" search) search)
+   ((and (string-prefix-p "*" search) (my/repo-docs--org-p file) (file-readable-p file))
+    (let ((heading (string-trim (substring search 1))))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (delay-mode-hooks (org-mode))
+        (let ((marker (org-find-exact-headline-in-buffer heading)))
+          (when marker
+            (goto-char marker)
+            (concat "#" (or (org-entry-get nil "CUSTOM_ID")
+                            (org-hugo-slug heading))))))))))
+
+(defun my/repo-docs--org-link (link desc info)
+  "Transcode LINK, with description DESC, for a page of the site.
+INFO is the export's communication channel.  See the section's
+comment for what becomes of which link."
+  (let ((type (org-element-property :type link))
+        (path (org-element-property :path link)))
+    (cond
+     ;; Without Denote loaded, Org reads a denote: link as a fuzzy one,
+     ;; which the export would mark as broken, identifier and all.
+     ((or (equal type "denote")
+          (and (equal type "fuzzy") (string-prefix-p "denote:" path)))
+      (or desc ""))
+     ((and (equal type "file") (my/repo-docs--known-document-p path))
+      (pcase-let* ((`(,source ,map ,unresolved) my/repo-docs--org-context)
+                   (file (expand-file-name path))
+                   (target (my/repo-docs--site-path-of file))
+                   (entry (and target
+                               ;; Within the repository of the source only.
+                               (equal (car (split-string source "/"))
+                                      (car (split-string target "/")))
+                               (gethash target map))))
+        (if entry
+            (let ((url (concat (plist-get entry :url)
+                               (or (my/repo-docs--org-anchor
+                                    file (org-element-property :search-option link))
+                                   ""))))
+              (format "[%s](%s)" (or desc url) url))
+          (push (cons source path) (cdr unresolved))
+          (or desc path))))
+     (t (org-hugo-link link desc info)))))
+
+(defun my/repo-docs--known-document-p (path)
+  "Non-nil when PATH names a file of a kind the site shows."
+  (or (my/repo-docs--document-p path) (my/repo-docs--org-p path)))
+
+(defun my/repo-docs--org-backend ()
+  "Return the name of the export backend for Org pages, defining it once."
+  (unless (org-export-get-backend 'my/repo-docs)
+    (org-export-define-derived-backend 'my/repo-docs 'hugo
+      :translate-alist '((link . my/repo-docs--org-link))))
+  'my/repo-docs)
+
+(defun my/repo-docs--org-title (text)
+  "Return the #+title of Org TEXT, or nil."
+  (let ((case-fold-search t))
+    (when (string-match "^#\\+title:[ \t]*\\(.*?\\)[ \t]*$" text)
+      (let ((title (match-string 1 text)))
+        (unless (string-empty-p title) title)))))
+
+(defun my/repo-docs--org-export (source text site-path map unresolved)
+  "Return (TITLE . BODY): Org TEXT of SOURCE as Markdown for SITE-PATH.
+MAP resolves links, UNRESOLVED collects those it cannot; see
+`my/repo-docs--org-link'.  An export that fails gives a page saying so,
+and the failure is reported."
+  (let ((title (my/repo-docs--org-title text)))
+    (cons
+     title
+     (condition-case err
+         (let* ((org-hugo-base-dir (my/repo-docs--site))
+                ;; ox-hugo copies images into static/ and refuses a file
+                ;; with an image when the directory is missing.
+                (_ (make-directory (expand-file-name "static" org-hugo-base-dir) t))
+                (org-export-with-broken-links 'mark)
+                (org-export-filter-link-functions
+                 (remq 'my/latex-filter-denote-link org-export-filter-link-functions))
+                (my/repo-docs--org-context (list site-path map unresolved))
+                (inhibit-message t)
+                (message-log-max nil)
+                (out (with-temp-buffer
+                       (insert text)
+                       ;; The theme draws the table of contents; a later
+                       ;; #+options line overrides an earlier one.
+                       (insert "\n#+options: toc:nil\n")
+                       (setq default-directory (file-name-directory source))
+                       (delay-mode-hooks (org-mode))
+                       (org-export-as (my/repo-docs--org-backend)))))
+           ;; ox-hugo's own front matter goes; the module writes its own.
+           (string-trim
+            (replace-regexp-in-string "\\`\\+\\+\\+\n\\(?:.*\n\\)*?\\+\\+\\+\n" "" out)))
+       (error
+        (push (cons site-path (format "export failed: %s" (error-message-string err)))
+              (cdr unresolved))
+        (format "Export of %s failed: %s" site-path (error-message-string err)))))))
+
+(defun my/repo-docs--org-page (source site-path map unresolved signature)
+  "Return (TITLE . BODY) for the Org file SOURCE, from the cache if it holds.
+SITE-PATH, MAP and UNRESOLVED as in `my/repo-docs--org-export';
+SIGNATURE stands for the set of pages, on which the links depend.  A
+cached export repeats what it reported."
+  (let* ((attrs (file-attributes source))
+         (stamp (list (file-attribute-modification-time attrs)
+                      (file-attribute-size attrs)
+                      signature))
+         (hit (gethash source my/repo-docs--org-cache)))
+    (if (and hit (equal (car hit) stamp))
+        (progn
+          (dolist (u (reverse (nth 1 hit))) (push u (cdr unresolved)))
+          (nth 2 hit))
+      (let* ((mine (list 'unresolved))
+             (page (with-temp-buffer
+                     (insert-file-contents source)
+                     (my/repo-docs--org-export
+                      source (my/repo-docs--escape-shortcodes (buffer-string))
+                      site-path map mine))))
+        (puthash source (list stamp (cdr mine) page) my/repo-docs--org-cache)
+        (dolist (u (reverse (cdr mine))) (push u (cdr unresolved)))
+        page))))
 
 ;; ============================================================
 ;; WRITING THE SITE
@@ -656,6 +834,17 @@ can close the block early."
     (let ((fence (make-string (1+ longest) ?`)))
       (cons nil (concat fence "text\n" (string-trim-right text) "\n" fence)))))
 
+(defun my/repo-docs--org-section-page (page label)
+  "Return PAGE, (TITLE . BODY) of an Org export, for a folder titled LABEL.
+Nil LABEL: PAGE as it is.  Otherwise the Org title, unless it only
+repeats LABEL, goes into the text as an H2, as a Markdown file's H1
+does."
+  (if (or (null label) (null (car page))
+          (equal (downcase (string-trim (car page) "[`/ \t]*" "[`/ \t]*"))
+                 (downcase (string-trim label "[`/ \t]*" "[`/ \t]*"))))
+      page
+    (cons (car page) (concat "## " (car page) "\n\n" (cdr page)))))
+
 (defun my/repo-docs--label (key)
   "Return the title of the folder page of KEY.
 The site's title at the root, the repository's at a repository's root,
@@ -666,17 +855,22 @@ the folder name with a trailing slash below."
                                        (list key))))
         (t (concat (file-name-nondirectory key) "/"))))
 
-(defun my/repo-docs--page-text (key entry map weights unresolved)
-  "Return the full text of the generated file for KEY and its ENTRY."
+(defun my/repo-docs--page-text (key entry map weights unresolved &optional signature)
+  "Return the full text of the generated file for KEY and its ENTRY.
+SIGNATURE stands for the set of pages, for the cache of Org exports."
   (let* ((file (plist-get entry :file))
          (source (plist-get entry :source))
          (section (plist-get entry :section))
          (label (and section (my/repo-docs--label key)))
-         (text (and source
+         (org (and source (my/repo-docs--org-p file)))
+         (text (and source (not org)
                     (with-temp-buffer
                       (insert-file-contents source)
                       (buffer-string))))
          (parsed (cond
+                  (org (my/repo-docs--org-section-page
+                        (my/repo-docs--org-page source file map unresolved signature)
+                        label))
                   ((null text) nil)
                   ((my/repo-docs--text-p file) (my/repo-docs--plain-text text))
                   (t (my/repo-docs--transform text file map unresolved label))))
@@ -694,7 +888,9 @@ the folder name with a trailing slash below."
         ("url" . ,(unless section (plist-get entry :url)))
         ("sourcePath" . ,file)))
      (if parsed
-         (my/repo-docs--escape-shortcodes (cdr parsed))
+         ;; An Org page's shortcodes were escaped in its source; what
+         ;; ox-hugo added (an image's figure) must run.
+         (if org (cdr parsed) (my/repo-docs--escape-shortcodes (cdr parsed)))
        ;; A folder without a page of its own: let the theme list its
        ;; contents.
        "{{< toc-tree >}}")
@@ -830,6 +1026,7 @@ files would produce the same page."
            (content (my/repo-docs--content-dir))
            (weights (my/repo-docs--weights map))
            (unresolved (list 'unresolved))
+           (signature (sxhash-equal (sort (hash-table-keys map) #'string<)))
            (keep (make-hash-table :test #'equal))
            (seen (make-hash-table :test #'equal))
            (written 0)
@@ -857,7 +1054,7 @@ files would produce the same page."
                (when (my/repo-docs--write-if-changed
                       target
                       (my/repo-docs--page-text owner entry map weights
-                                               unresolved))
+                                               unresolved signature))
                  (setq written (1+ written)))))))
        map)
       (let ((report (list :pages pages
@@ -865,7 +1062,8 @@ files would produce the same page."
                           :deleted (my/repo-docs--prune content keep)
                           :unresolved (nreverse (cdr unresolved))
                           :collisions nil
-                          :missing (plist-get found :missing))))
+                          :missing (plist-get found :missing)
+                          :no-org (plist-get found :no-org))))
         (setq my/repo-docs--last-report report
               my/repo-docs--last-map map)
         report))))
@@ -959,10 +1157,14 @@ from it."
             (if (zerop n) ""
               (format ", %d unresolved link%s (C-c n x r l)"
                       n (if (= n 1) "" "s"))))
-          (if (plist-get report :missing)
-              (format ", not on this machine: %s"
-                      (string-join (plist-get report :missing) ", "))
-            "")))
+          (concat
+           (if (plist-get report :missing)
+               (format ", not on this machine: %s"
+                       (string-join (plist-get report :missing) ", "))
+             "")
+           (if (plist-get report :no-org)
+               ", Org files left out (ox-hugo is not installed)"
+             ""))))
 
 ;; ============================================================
 ;; COMMANDS
@@ -973,17 +1175,20 @@ from it."
   "Open a document of the repositories, chosen by its site path.
 Candidates are the paths, repository name first, so seven README.md
 files stay seven different choices; the first H1 of each is shown
-beside it."
+beside it (an Org file's #+title)."
   (interactive)
   (let* ((files (plist-get (my/repo-docs--files) :files))
          (titles (make-hash-table :test #'equal)))
     (dolist (file files)
-      (when (my/repo-docs--markdown-p (car file))
+      (unless (my/repo-docs--text-p (car file))
         (with-temp-buffer
           (insert-file-contents (cdr file) nil 0 4096)
-          (goto-char (point-min))
-          (when (re-search-forward my/repo-docs--h1-regexp nil t)
-            (puthash (car file) (match-string 1) titles)))))
+          (let ((title (if (my/repo-docs--org-p (car file))
+                           (my/repo-docs--org-title (buffer-string))
+                         (goto-char (point-min))
+                         (and (re-search-forward my/repo-docs--h1-regexp nil t)
+                              (match-string 1)))))
+            (when title (puthash (car file) title titles))))))
     (let* ((completion-extra-properties
             (list :annotation-function
                   (lambda (rel)
@@ -1051,7 +1256,7 @@ home page otherwise.  The theme is installed on first use."
           (insert (my/repo-docs--summary report) "\n\n")
           (if (plist-get report :unresolved)
               (progn
-                (insert "Links to documents the site has no page for:\n\n")
+                (insert "Links to documents the site has no page for, and failed\nOrg exports:\n\n")
                 (dolist (u (plist-get report :unresolved))
                   (insert (format "  %s  ->  %s\n" (car u) (cdr u)))))
             (insert "Every link to a document was resolved.\n")))))
