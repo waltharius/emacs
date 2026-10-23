@@ -8298,12 +8298,15 @@ command instead of publishing something:
 | Rule                                                             | Why                                                               |
 |------------------------------------------------------------------+-------------------------------------------------------------------|
 | a site with =:remote= takes no notes from a private silo         | =my/blog-private-silos= (=journal=, =inbox=) stay on the laptop    |
-| a site with =:remote= uses no silo name as a section keyword     | every note of a silo carries its name: the whole silo would go    |
+| a site with =:remote= uses no silo name as a section keyword     | every note of a silo carries its keyword: the whole silo would go |
 | two sections of one site do not share a keyword                  | every such note would be ambiguous                                |
 
-A silo name as keyword is exactly what the laptop-only journal site
-wants (=journal= selects the whole journal), hence the rule applies to
-sites with a server only.
+A silo name here is any of: a silo the sites name, a private silo, and
+for every silo of =my/silos= -- disabled ones too -- its key, its
+folder and its =:keyword= (=my/blog--silo-names=).  A silo name as
+keyword is exactly what the laptop-only journal site wants (=journal=
+selects the whole journal), hence the rule applies to sites with a
+server only.
 
 =:broken-links mark= writes =[BROKEN LINK: ...]= for links Org cannot
 resolve instead of failing the note. The migrated journal holds

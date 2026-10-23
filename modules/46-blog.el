@@ -45,10 +45,11 @@
 ;; of publishing something:
 ;;   - a site with an rsync destination may not take notes from a silo in
 ;;     `my/blog-private-silos' (journal, inbox), and may not use a silo
-;;     name as a section keyword.  Every note of a silo carries the
-;;     silo's keyword (`docu', `journal'), so such a keyword selects the
-;;     whole silo -- intended for the laptop-only journal site, fatal
-;;     for a published one;
+;;     name as a section keyword: the key, folder or `:keyword' of any
+;;     silo of `my/silos', or a silo the sites name.  Every note of a
+;;     silo carries the silo's keyword (`docu', `journal'), so such a
+;;     keyword selects the whole silo -- intended for the laptop-only
+;;     journal site, fatal for a published one;
 ;;   - two sections of one site may not share a keyword.
 ;;
 ;; WHY THE EXPORT RUNS ON A COPY
@@ -464,11 +465,29 @@ once, which is what a change in how pages are produced requires.")
   "Return every silo named anywhere in `my/blog-sites'."
   (delete-dups (apply #'append (mapcar #'my/blog--site-silos my/blog-sites))))
 
+(defun my/blog--silo-names ()
+  "Return every word that, as a section keyword, would select a whole silo.
+The silos the sites name and the private ones, and with the registry
+of 00-core.el every silo in it, disabled ones too: its key, its folder
+and the `:keyword' each of its notes carries -- a silo no site names
+yet still has notes that a keyword could select, and its keyword need
+not be its name."
+  (delete-dups
+   (delq nil
+         (append (my/blog--all-silos)
+                 (my/blog--private-silos)
+                 (when (fboundp 'my/silo-keys)
+                   (mapcan (lambda (key)
+                             (list (symbol-name key)
+                                   (my/silo-folder-name key)
+                                   (my/silo-get key :keyword)))
+                           (my/silo-keys nil t)))))))
+
 (defun my/blog--check-config ()
   "Stop with a readable message when `my/blog-sites' breaks a rule."
   (unless my/blog-sites
     (user-error "No sites in `my/blog-sites'"))
-  (let ((silo-names (append (my/blog--all-silos) (my/blog--private-silos))))
+  (let ((silo-names (my/blog--silo-names)))
     (dolist (site my/blog-sites)
       (let ((name (car site))
             (remote (my/blog--prop site :remote))
@@ -489,7 +508,7 @@ once, which is what a change in how pages are produced requires.")
               (user-error "Section %s/%s has no :silos" name (car sec)))
             (when remote
               (when (member keyword silo-names)
-                (user-error "Site %s has a :remote, so section %s may not use the silo name `%s' as keyword: it would publish the whole silo"
+                (user-error "Site %s has a :remote, so section %s may not use `%s', the name or keyword of a silo, as keyword: it would publish the whole silo"
                             name (car sec) keyword))
               (let ((private (seq-intersection silos (my/blog--private-silos))))
                 (when private

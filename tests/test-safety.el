@@ -427,6 +427,25 @@ stops the configuration check: it would select the whole silo."
     (let ((my/blog-sites (my/safety-test--sites nil '("pks") keyword)))
       (my/blog--check-config))))
 
+(ert-deftest my/safety-test-1.2-registry-silo-as-keyword-refused ()
+  "1.2: a silo of `my/silos' that no site names is a silo all the same:
+its key, its folder and its `:keyword' are refused as keywords on a site
+with a server -- a disabled silo's too (found 2026-10-23g: docu
+passed)."
+  (let ((my/silos (append (mapcar (lambda (silo)
+                                    (if (eq (car silo) 'docu)
+                                        (cons 'docu (plist-put (copy-sequence (cdr silo))
+                                                               :keyword "docs"))
+                                      silo))
+                                  my/silos)
+                          (list (list 'archive :directory "old-notes/" :keyword "archived"
+                                      :disabled t)))))
+    (dolist (keyword '("docu" "docs" "archive" "old-notes" "archived"))
+      (let ((my/blog-sites (my/safety-test--sites my/safety-test--server '("pks") keyword)))
+        (should-error (my/blog--check-config) :type 'user-error))
+      (let ((my/blog-sites (my/safety-test--sites nil '("pks") keyword)))
+        (my/blog--check-config)))))
+
 (ert-deftest my/safety-test-1.2-refused-before-anything-is-written ()
   "1.2: an export of a site breaking the rule stops before a page is
 written."
