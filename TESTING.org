@@ -72,6 +72,37 @@ says how a test shows it.  Running them: =bash hooks/check-all=
     own reader of a menu entry knew only the built-in shape, so with
     0.13 a module switched off kept its menu entries; found by the
     weekly switch test, not by a test of 12-transient -- it had none.
+12. *Test the first start, not only the later ones.*  A setup can
+    behave differently in the session that installs a package: there
+    the package is already loaded -- the byte compilation of its own
+    files loads it -- before the module's own setup runs.  The tests
+    of the PDF viewer's on-demand build loaded the module first, the
+    order of every later start, and passed; the weekly first start
+    then stopped on a question nobody could answer.  A setup that
+    depends on what is loaded is tested in both orders.  (2026-10-23m
+    and n.)
+13. *A stand-in must outlive what it stands in for.*  A function
+    replaced with =cl-letf= is replaced again when the file that
+    defines it is loaded inside the test: the test of pdf-tools'
+    loading counted no build because =pdf-tools.el= redefined the
+    function and the real build started instead.  For a function of a
+    package the test loads, the stand-in is advice (=advice-add
+    :override=), which a redefinition keeps.  (2026-10-23m.)
+14. *A tool's exit status, not its silence.*  =hugo --quiet= prints no
+    errors; a build that failed on three relref shortcodes written in
+    the change log looked clean, and was reported clean, until the exit
+    status was read.  A check of an outside program reads its exit status, and
+    says which one it read.  (2026-10-23j.)
+15. *A planted fault nothing catches is a finding about the test as
+    often as about the code.*  Either a second safeguard holds -- then
+    both are taken out together, the test must fail on the pair, and
+    the CHANGELOG says so (=save-match-data= in 47-repo-docs, held by a
+    link check that no longer changed the match data) -- or the test
+    does not reach the code it names: the first test of Denote links
+    in Org pages let-bound =org-link-parameters=, which Org's parser
+    does not read, so it never saw a Denote link at all; taking the
+    branch out changed nothing, and that is how it showed.  The test
+    is fixed before the code is believed.  (2026-10-23j and k.)
 
 * Which module a test tests
 Every test file starts with a header naming the modules whose
