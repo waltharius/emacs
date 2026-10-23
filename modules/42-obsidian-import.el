@@ -136,14 +136,19 @@ the other half.  Zero disables the check."
 
 (defun my/obsidian-import--save-notes ()
   "Save every modified buffer visiting a file in the notes tree.
-Returns the number of buffers saved, for the report."
+Returns the number of buffers saved, for the report.
+
+`file-in-directory-p' decides what is in the tree: it compares true
+names, so a notes folder reached through a symbolic link, or a note
+opened through one, is still recognised, and a folder whose name only
+begins like the notes folder (~/notes-old beside ~/notes) is not."
   (let ((root (my/obsidian-import--notes-root))
         (saved 0))
     (dolist (buf (buffer-list))
       (with-current-buffer buf
         (when (and buffer-file-name
                    (buffer-modified-p)
-                   (string-prefix-p root (expand-file-name buffer-file-name)))
+                   (file-in-directory-p (expand-file-name buffer-file-name) root))
           (save-buffer)
           (setq saved (1+ saved)))))
     saved))
@@ -152,10 +157,14 @@ Returns the number of buffers saved, for the report."
   "Revert buffers visiting PATHS, leaving modified ones alone.
 A modified buffer here would mean something was typed into a note while
 the script was writing to it; reverting would throw that away, so it is
-reported instead."
+reported instead.
+
+The script names files by their true names; `find-buffer-visiting'
+also finds a buffer that visits one through a symbolic link, which
+`get-file-buffer' would miss."
   (let ((skipped '()))
     (dolist (path paths)
-      (let ((buf (get-file-buffer (expand-file-name path))))
+      (let ((buf (find-buffer-visiting (expand-file-name path))))
         (when buf
           (with-current-buffer buf
             (if (buffer-modified-p)
@@ -187,14 +196,15 @@ reported instead."
         (when (fboundp 'org-mode) (org-mode))
         (setq buffer-read-only t))
       (display-buffer my/obsidian-import-buffer)
-      (if (/= status 0)
-          (message "Obsidian import failed (%s) - see %s"
-                   (string-trim event) my/obsidian-import-buffer)
-        (let* ((paths (and write (my/obsidian-import--touched-paths)))
-               (skipped (and paths (my/obsidian-import--revert paths))))
-          (when my/obsidian-import--touched-file
-            (ignore-errors (delete-file my/obsidian-import--touched-file))
-            (setq my/obsidian-import--touched-file nil))
+      (let* ((paths (and write (= status 0) (my/obsidian-import--touched-paths)))
+             (skipped (and paths (my/obsidian-import--revert paths))))
+        ;; The temporary list goes in every case, a failed run included.
+        (when my/obsidian-import--touched-file
+          (ignore-errors (delete-file my/obsidian-import--touched-file))
+          (setq my/obsidian-import--touched-file nil))
+        (if (/= status 0)
+            (message "Obsidian import failed (%s) - see %s"
+                     (string-trim event) my/obsidian-import-buffer)
           (cond
            (skipped
             (message "Import done; %d note(s) reverted, modified buffers left alone: %s"

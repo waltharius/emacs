@@ -382,10 +382,20 @@ def find_journal(journal_dir, date):
 
 
 def existing_identifiers(notes_dir):
-    """Return every Denote identifier currently used in the notes tree."""
+    """Return every Denote identifier currently used in the notes tree.
+
+    Every file counts, whatever its extension: a Markdown or text note
+    (40-markdown.el) is a Denote note too, and an attachment named for
+    a note that was deleted since would otherwise be taken for the new
+    note's own.  Dot folders are skipped by their path inside the
+    tree, so a notes tree that itself lies under a dot folder is read.
+    """
     idents = set()
-    for path in notes_dir.rglob("*.org"):
-        if "/." in str(path):
+    for path in notes_dir.rglob("*"):
+        if any(part.startswith(".")
+               for part in path.relative_to(notes_dir).parts):
+            continue
+        if not path.is_file():
             continue
         match = re.match(r"^(\d{8}T\d{6})", path.name)
         if match:
@@ -508,7 +518,11 @@ def collect_sources(inbox_dir, settle):
     for path in sorted(inbox_dir.rglob("*.md")):
         if CONFLICT_RE.search(path.name):
             continue
-        if any(part.startswith(".") for part in path.parts):
+        # Dot folders inside the inbox (a trash, Obsidian's own); the
+        # path is taken relative to the inbox, so a vault that itself
+        # lies under a dot folder is still read.
+        if any(part.startswith(".")
+               for part in path.relative_to(inbox_dir).parts):
             continue
         if settle and now - path.stat().st_mtime < settle:
             continue

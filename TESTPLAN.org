@@ -644,6 +644,22 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R46. Obsidian import on the real vault [0/3]
+The tests run the script with pandoc 3.1.3 (Ubuntu's); this checks the
+pandoc and vault of this machine.
+- [ ] A daily note written on the phone, synced: =C-c n t o d= (dry
+      run) lists it as =journal-merge= or =journal-new=; the journal
+      folder and the vault's inbox are unchanged (=git status= in the
+      notes, the file still in =10 Emacs Inbox=).
+- [ ] Today's journal note open with a line typed and not saved;
+      =C-c n t o i=: the typed line and the imported entry are both in
+      the file and in the buffer, under =* Obsidian= as =** HH:MM=; the
+      buffer is not marked modified; the Markdown is in
+      =Imported2Emacs/<year>=.
+- [ ] A second daily note of the same day, imported: one =* Obsidian=,
+      the new entry at its end; a note with an image: the image in
+      =~/notes/attachments/= and still in the vault, shown in the note.
+
 ** R45. Package upgrades with a copy [0/4]
 - [ ] =C-c n != shows the column Emacs packages (=U=, =B=, =L=) beside
       Quit, and the menu looks as before otherwise.

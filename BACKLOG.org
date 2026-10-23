@@ -859,6 +859,26 @@ Options, not decided:
 - *=my-notes-dir= itself as a vault*: one silo, sub-folders as the
   structure.
 
+** TODO Obsidian import: a run that fails midway
+Seen 2026-10-23r while testing (=tests/test-obsidian-import.el=), not
+changed.  =tools/obsidian_import.py= writes a note, then creates
+=Imported2Emacs/<year>= and moves the Markdown file.  When something
+after the write fails -- the year folder cannot be made, the move is
+refused -- the script stops with a traceback, and:
+- the note is written but its source is still in the inbox, so the
+  next run imports it a second time (a second entry in the journal);
+- the touched list is written only at the end of a run, so Emacs
+  reverts none of the notes written before the failure.  A buffer of
+  such a note still holds the old text; Emacs's own check asks before
+  saving it over the file (/has changed since visited/), which is the
+  only guard.
+Proposal for the owner: create the year folder before writing, append
+each note to the touched list as it is written, and let the module
+revert after a failure too (the clause that skips it,
+=(= status 0)= in =my/obsidian-import--sentinel=, is then the one to
+drop).  A test plants the failure with a file standing where the year
+folder should be.
+
 * Testing a clean configuration
 A branch with the configuration as a new user would get it, to find
 what breaks on a first start.  Emacs 29 runs a configuration from any

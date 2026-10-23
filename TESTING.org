@@ -180,9 +180,10 @@ them through the basics; until then the =tests= check reminds;
    46-blog (SAFETY.org 1.1-1.4 and 1.6 done 2026-10-23g, in
    =tests/test-safety.el=), 47-repo-docs (several repositories,
    2026-10-23j, =tests/test-repo-docs.el=; Org and publishing follow),
-   42-obsidian-import, 24-readwise; then the others, a few per session,
-   as each is next changed.
+   42-obsidian-import (done 2026-10-23r, =tests/test-obsidian-import.el=,
+   with its script =tools/obsidian_import.py=), 24-readwise; then the
+   others, a few per session, as each is next changed.
 
-On 2026-10-23, 20 of 53 modules are named by a test file
+On 2026-10-23, 21 of 53 modules are named by a test file
 (=python3 hooks/lint.py tests= lists the others); every module has the
 weekly load tests of part 2.

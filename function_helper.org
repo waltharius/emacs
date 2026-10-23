@@ -7976,7 +7976,23 @@ Requires pandoc and PyYAML: ~nix-shell -p pandoc python3Packages.pyyaml~.
 | ~my/obsidian-import-open-inbox~  | open the vault inbox folder in Dired           |
 
 Modified buffers under ~~/notes/~ are saved before the run and the
-written files are reverted after it.
+written files are reverted after it.  Both compare true names
+(=file-in-directory-p=, =find-buffer-visiting=), so a notes folder
+reached through a symbolic link, or a note opened through one, is
+saved and reverted like any other; a buffer typed into during the run
+is not reverted, and is named in the message.  After a failed run
+nothing is reverted, and the temporary list of written files is
+removed.
+
+A new note gets an identifier no file in the notes tree carries --
+Org, Markdown, any other note, or an attachment named for a note --
+the time of its creation, moved on by seconds when taken (as
+=my/denote-fix-duplicates= does).  Dot folders inside the vault's
+inbox and inside the notes tree are skipped; a vault or notes tree
+that itself lies under a dot folder is read.
+
+Tests: =tests/test-obsidian-import.el= (the script on a temporary
+vault, and the commands); SAFETY.org 2.8.
 
 ** Menu (C-c n t o)
 :PROPERTIES:
