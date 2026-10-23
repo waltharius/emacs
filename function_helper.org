@@ -6737,6 +6737,7 @@ module's loading together.
 | =my/notes-stats-module-mode= | =36-notes-stats.el=  | Find → =s=, =C-c w s= |
 | =my/image-display-mode=   | =44-image-display.el=   | View → =m=, =C-c u i= |
 | =my/blog-mode=            | =46-blog.el=            | export on save, the autostart sites (after start-up, or at once when turned on later), Export → =b=, Settings → =b=; off also cancels pending exports and stops its Hugo servers |
+| =my/repo-docs-mode=       | =47-repo-docs.el=       | regeneration on save while the preview runs, Export → =r=; off also stops the preview server |
 
 How a module writes one, with two helpers:
 
@@ -6918,7 +6919,7 @@ Optional (43):
 | =44-image-display= | Hide inline images while writing | -- |
 | =45-standard-pages= | Standard pages of prose | -- |
 | =46-blog= | Publish selected notes as Hugo sites | -- |
-| =47-repo-docs= | Markdown docs of a git repository as a Hugo site | -- |
+| =47-repo-docs= | Documentation of git repositories as one Hugo site | -- |
 | =48-settings-tools= | Favourite and recently changed settings | -- |
 
 * One symbol, one owner
@@ -8810,15 +8811,19 @@ Site properties: =:directory=, =:remote=, =:url=, =:port=, =:theme=,
 :CUSTOM_ID: repo-docs
 :END:
 
-The Markdown files of one git repository — by default the NixOS
-configuration in =~/nixos= — read as a separate Hugo site with the
-Geekdoc theme ([[https://github.com/thegeeklab/hugo-geekdoc]]), laid
-out by the repository's own folders. The files are edited in place, in
-the repository, and committed there by hand. The site is only a way of
-reading them.
+The documents (Markdown and plain text) of several git repositories —
+by default the NixOS configuration in =~/nixos= and this configuration
+in =~/.emacs.d= — read as one Hugo site with the Geekdoc theme
+([[https://github.com/thegeeklab/hugo-geekdoc]]).  Each repository is a
+section of its own, named after it (=/nixos/=, =/emacs/=), laid out by
+the repository's own folders, with its root files listed in it; files
+of the same name in two repositories (both have a =README.md=) never
+mix.  The files are edited in place, in the repository, and committed
+there by hand. The site is only a way of reading them.
 
-Module: =modules/47-repo-docs.el=. Site: =~/projects/nixos-docs-site/=,
-generated in full; nothing in it is edited by hand.
+Module: =modules/47-repo-docs.el=, switch =my/repo-docs-mode=. Site:
+=~/projects/nixos-docs-site/=, generated in full; nothing in it is
+edited by hand.
 
 ** Setup, once
 :PROPERTIES:
@@ -8841,14 +8846,38 @@ URL, its digest (=sha256sum= on a copy downloaded by hand), then delete
 
 | Option | Default | Meaning |
 |--------+---------+---------|
-| =my/repo-docs-repository= | =~/nixos/= | repository read |
+| =my/repo-docs-repositories= | =nixos= (=~/nixos/=), =emacs= (=~/.emacs.d/=, without =hugo/= and =tests/=) | repositories shown, in this order; see below |
+| =my/repo-docs-default-include= | =*.md=, =*.txt= | files taken from a repository without =:include= |
 | =my/repo-docs-site-directory= | =~/projects/nixos-docs-site/= | generated site |
-| =my/repo-docs-title= | =nixos= | title in the site header |
+| =my/repo-docs-title= | =Repositories= | title in the site header and on the home page |
 | =my/repo-docs-port= | 1316 | port of =hugo server= (1313–1315 belong to the blog sites) |
 | =my/repo-docs-regenerate-on-save= | =t= | regenerate on saving a repository =.md= while the server runs |
 | =my/repo-docs-toc= | =t= | table of contents above the text of pages with headings |
 | =my/repo-docs-theme-url= | Geekdoc =v4.1.4= bundle | where the theme comes from |
 | =my/repo-docs-theme-sha256= | its SHA-256 | digest checked before unpacking; nil does not check |
+
+=my/repo-docs-repositories= is set per machine (Customize saves it in
+the machine's own settings, =settings/hosts/<host>/custom.el=), so each
+laptop lists the repositories it has.  Each entry is
+=(NAME :directory DIR :title TITLE :include (PATHSPEC...) :exclude (PATHSPEC...))=:
+
+| Part | Meaning |
+|------+---------|
+| NAME | the section: its folder in the site and the first part of its URLs; lower-case letters, digits, hyphens |
+| =:directory= | the repository, a git working tree |
+| =:title= | title of the section; NAME when absent |
+| =:include= | git pathspecs of the files taken; =*.md= matches at any depth; =my/repo-docs-default-include= when absent |
+| =:exclude= | git pathspecs left out, e.g. =hugo/= for a folder |
+
+The pathspecs are git's own ([[https://git-scm.com/docs/gitglossary#Documentation/gitglossary.txt-aiddefpathspecapathspec][gitglossary: pathspec]]), matched
+ignoring letter case.  Whatever they take, only Markdown and plain-text
+files are shown.  A repository missing on the machine is left out and
+named in the report; with none present, nothing is generated.
+
+#+begin_src emacs-lisp
+(("nixos" :directory "~/nixos/")
+ ("emacs" :directory "~/.emacs.d/" :exclude ("hugo/" "tests/")))
+#+end_src
 
 ** Not a Denote silo
 :PROPERTIES:
@@ -8874,31 +8903,41 @@ would not render well: none has front matter while Geekdoc prints the
 title itself as an H1, seven are called =README.md=, and fifty relative
 links point at =.md= files, which Geekdoc's link hook passes through
 unchanged — fifty 404s. So every run writes the site's =content/=
-directory from the repository (anything else in it is deleted):
+directory from the repositories (anything else in it is deleted).
+Examples from the =nixos= repository:
 
 | In the repository | On the site |
 |-------------------+-------------|
-| =docs/devices/README.md= | the page of the folder, titled =devices/=; the README's H1 becomes an H2 under it, or disappears if it only repeats the folder name |
-| a folder without a README (=docs/guide/=) | a page titled =guide/= listing its contents (Geekdoc's =toc-tree=) |
-| any other file | a page titled with its first H1, which is removed from the text; no H1 → the file name |
-| the root =README.md= | the home page, with its own H1 as the title |
-| =[x](../BACKUPS.md#tests)= | =[x](/docs/backups/#tests)= |
+| — | the home page, titled =my/repo-docs-title=, listing the repositories |
+| the root =README.md= | the page of the section =/nixos/=, titled with the repository's =:title= (its name by default); the README's H1 becomes an H2 under it, or disappears if it only repeats that title |
+| a root file, =CLAUDE.md= | a page in the section, =/nixos/claude/=, listed in the menu under =nixos= |
+| =docs/devices/README.md= | the page of the folder, titled =devices/=; its H1 as above |
+| =CHANGELOG.md= beside a folder =changelog/= without a README | the page of that folder (both would otherwise get one URL) |
+| a folder without a page of its own (=docs/guide/=) | a page titled =guide/= listing its contents (Geekdoc's =toc-tree=) |
+| any other Markdown file | a page titled with its first H1, which is removed from the text; no H1 → the file name |
+| a plain-text file (=notes.txt=) | a page titled with the file name, the text as it is in a preformatted block |
+| =[x](../BACKUPS.md#tests)= | =[x](/nixos/docs/backups/#tests)= |
 
-- *Order:* within a folder, subfolders first by name, then files in
-  file-name order, so =01-…= to =08-…= in =docs/guide/= keep their
-  reading order.
-- *URLs* are the repository path in lower case (=docs/BACKUPS.md= →
-  =/docs/backups/=), written into each page's =url= so that links never
-  depend on Hugo's own path rules.
+- *Order:* the repositories as listed; within a folder, subfolders
+  first by name, then files in file-name order, so =01-…= to =08-…= in
+  =docs/guide/= keep their reading order.
+- *URLs* are the repository's name and path in lower case
+  (=docs/BACKUPS.md= of =nixos= → =/nixos/docs/backups/=), written into
+  each page's =url= so that links never depend on Hugo's own path
+  rules.
 - *Links* are rewritten outside fenced code blocks only, inline
   (=](target)=, with or without a title) and as reference definitions
   (=[id]: target=). Links to folders lead to the folder's page; anchors
-  are kept. A relative link to a =.md= file the site has no page for is
-  left as written and listed by =my/repo-docs-report=.
+  are kept. A relative link to a document the site has no page for, or
+  one leading out of its repository, is left as written and listed by
+  =my/repo-docs-report=.
 - *Files* are those git would commit: tracked, plus untracked but not
   ignored, so a new document shows up before its first =git add=.
-- *Two files differing only in letter case* would get one URL; the run
-  then stops without changing anything and names them.
+- *Two files that would make one page* — names differing only in letter
+  case, one name in two kinds (=notes.md=, =notes.txt=), two pages for
+  one folder (=README.md= and =README.txt=, or =CHANGELOG.md= beside
+  =changelog/README.md=) — stop the run without changing anything; the
+  report names them.
 - *Table of contents* above the text of every page with headings, H2
   to H4 (the H1 is the title). Geekdoc draws one only through a
   shortcode, so each run also writes =layouts/_default/single.html= and
@@ -8922,9 +8961,10 @@ warnings.
 :CUSTOM_ID: fn-my-repo-docs-find
 :END:
 
-Completes over the repository paths of the Markdown files, with each
-file's H1 beside it, and opens the chosen file. Paths, not titles, are
-the candidates: seven =README.md= files stay seven distinct choices.
+Completes over the documents of the repositories by site path
+(=nixos/docs/BACKUPS.md=), with each Markdown file's H1 beside it, and
+opens the chosen file. Paths, not titles, are the candidates: seven
+=README.md= files stay seven distinct choices.
 
 Function: =my/repo-docs-find= | Module: =modules/47-repo-docs.el=
 
@@ -8935,9 +8975,9 @@ Function: =my/repo-docs-find= | Module: =modules/47-repo-docs.el=
 
 Regenerates the site, installs the theme if missing, starts
 =hugo server= on =my/repo-docs-port= and opens the page of the current
-buffer's file — or the home page when the buffer is not a Markdown file
-of the repository. While the server runs, saving any Markdown file of
-the repository regenerates the site and the browser reloads.
+buffer's file — or the home page when the site has no page for it.
+While the server runs, saving any document of the repositories
+regenerates the site and the browser reloads.
 
 Function: =my/repo-docs-preview= | Module: =modules/47-repo-docs.el=
 
@@ -8970,8 +9010,9 @@ Function: =my/repo-docs-open-site= | Module: =modules/47-repo-docs.el=
 :CUSTOM_ID: fn-my-repo-docs-report
 :END:
 
-The last regeneration in =*Repo docs*=: counts, and every relative link
-to a =.md= file that has no page, as =source -> target=. =q= closes.
+The last regeneration in =*Repo docs*=: counts, repositories missing on
+this machine, and every relative link to a document that has no page,
+as =source -> target=. =q= closes.
 
 Function: =my/repo-docs-report= | Module: =modules/47-repo-docs.el=
 

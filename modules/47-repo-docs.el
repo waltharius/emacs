@@ -1,16 +1,25 @@
-;;; 47-repo-docs.el --- Markdown docs of a git repository as a Hugo site -*- lexical-binding: t; -*-
+;;; 47-repo-docs.el --- Documentation of git repositories as one Hugo site -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
 ;; MyPKS-Default: off
+;; MyPKS-Switch: my/repo-docs-mode
 
 ;;; Commentary:
-;; The Markdown files of one git repository -- by default the NixOS
-;; configuration in ~/nixos -- served as a separate, read-only Hugo site
-;; with the Geekdoc theme (https://github.com/thegeeklab/hugo-geekdoc),
-;; laid out by the repository's own folders.  The files are edited where
-;; they are, in the repository, and committed there by hand; the site is
-;; only a way of reading them.
+;; The documentation files of several git repositories -- by default the
+;; NixOS configuration in ~/nixos and this configuration in ~/.emacs.d --
+;; served as one read-only Hugo site with the Geekdoc theme
+;; (https://github.com/thegeeklab/hugo-geekdoc).  Each repository is a
+;; section of its own, named after it (/nixos/, /emacs/), laid out by the
+;; repository's own folders, its root files listed in the section.  The
+;; files are edited where they are, in the repository, and committed
+;; there by hand; the site is only a way of reading them.
+;;
+;; Which repositories, and which of their files, is set per machine in
+;; `my/repo-docs-repositories' (Customize saves it in the machine's own
+;; settings): a name, a folder, and git pathspecs of the files to take
+;; and to leave out.  A repository missing on a machine is left out and
+;; named in the report.  Markdown and plain-text files are shown.
 ;;
 ;; WHY NOT A DENOTE SILO
 ;; ---------------------
@@ -36,27 +45,36 @@
 ;;     Geekdoc's link render hook passes them through unchanged, so every
 ;;     one of them would be a 404.
 ;; So each run writes a content directory into the site, derived from the
-;; repository and owned by this module (anything else in it is deleted):
-;;   - a README.md becomes the page of its FOLDER (_index.md), titled
-;;     with the folder name and a trailing slash, e.g. "devices/";
-;;     the README's own H1 stays in the text as an H2 under it, unless
-;;     it only repeats the folder name;
+;; repositories and owned by this module (anything else in it is
+;; deleted).  Paths below are the site's: the repository's name, then
+;; its path, e.g. nixos/docs/BACKUPS.md.
+;;   - the home page lists the repositories; each repository's root is
+;;     a section titled with its `:title' (its name by default);
+;;   - a README (.md or .txt) becomes the page of its FOLDER
+;;     (_index.md), titled with the folder name and a trailing slash,
+;;     e.g. "devices/"; so does a file named like a folder beside it
+;;     when the folder has no README (CHANGELOG.md for changelog/) --
+;;     otherwise both would get one URL; the file's own H1 stays in
+;;     the text as an H2 under it, unless it only repeats the folder
+;;     name; two such files for one folder stop the run;
 ;;   - a folder without a README still appears, titled the same way, with
 ;;     Geekdoc's `toc-tree' listing what is inside;
 ;;   - every other file becomes a page titled with its first H1, which is
-;;     taken out of the text; a file without an H1 is titled with its
-;;     name;
+;;     taken out of the text; a file without an H1, and every plain-text
+;;     file, is titled with its name; plain text is shown as it is, in a
+;;     preformatted block;
 ;;   - in each folder, subfolders come first, then files in file-name
 ;;     order (the guide's 01-..08- prefixes give the reading order);
 ;;   - relative links to .md files and to folders are rewritten to the
 ;;     URL of the page they become, anchors kept; links Hugo would not
-;;     find are left as written and listed in the report.
+;;     find, or leading out of the repository, are left as written and
+;;     listed in the report.
 ;; Above the text of every page with headings sits its table of
 ;; contents (`my/repo-docs-toc'), from Geekdoc's templates overridden in
 ;; the site's layouts/ -- Geekdoc has no hook there.
 ;;
-;; URLs are the repository path in lower case: docs/BACKUPS.md is read at
-;; /docs/backups/.  They are written into each page's `url', so a link
+;; URLs are the site path in lower case: docs/BACKUPS.md of nixos is read
+;; at /nixos/docs/backups/.  They are written into each page's `url', so a link
 ;; never depends on Hugo's own path rules.
 ;;
 ;; Files are those git would commit: tracked, plus untracked but not
@@ -69,6 +87,12 @@
 ;; the server runs, saving any Markdown file of the repository
 ;; regenerates the site, and the server reloads the browser.  Only files
 ;; whose content changed are rewritten.
+;;
+;; SWITCH
+;; ------
+;; `my/repo-docs-mode': on, the regeneration on save and the entry in the
+;; Export menu; off, neither, and the preview server is stopped.  The
+;; commands stay for M-x.
 ;;
 ;; THEME
 ;; -----
@@ -108,20 +132,48 @@
   :tag "Repository docs site"
   :group 'mypks-publishing)
 
-(defcustom my/repo-docs-repository "~/nixos/"
-  "Git repository whose Markdown files are shown."
-  :type 'directory
+(defcustom my/repo-docs-repositories
+  '(("nixos" :directory "~/nixos/")
+    ("emacs" :directory "~/.emacs.d/" :exclude ("hugo/" "tests/")))
+  "Git repositories whose documentation the site shows, in this order.
+Each entry is (NAME . PROPERTIES):
+  NAME        the section of the repository: its folder in the site and
+              the first part of its URLs (/NAME/...); lower-case
+              letters, digits and hyphens
+  :directory  the repository, a git working tree
+  :title      title of the section; NAME when absent
+  :include    git pathspecs of the files taken (\"*.md\" matches at
+              any depth); `my/repo-docs-default-include' when absent
+  :exclude    git pathspecs of files left out, e.g. \"hugo/\" for a
+              folder
+Letter case does not matter in the pathspecs.  Only Markdown and
+plain-text files are shown, whatever the pathspecs take.  A repository
+missing on this machine is left out and named in the report.  Saved in
+this machine's settings, so each machine can list its own."
+  :type '(repeat
+          (cons :tag "Repository"
+                (string :tag "Name")
+                (plist :tag "Properties"
+                       :options ((:directory directory)
+                                 (:title string)
+                                 (:include (repeat string))
+                                 (:exclude (repeat string))))))
+  :group 'my/repo-docs)
+
+(defcustom my/repo-docs-default-include '("*.md" "*.txt")
+  "Git pathspecs of the files taken from a repository without `:include'."
+  :type '(repeat string)
   :group 'my/repo-docs)
 
 (defcustom my/repo-docs-site-directory "~/projects/nixos-docs-site/"
-  "Hugo site generated from `my/repo-docs-repository'.
+  "Hugo site generated from `my/repo-docs-repositories'.
 Created when missing.  Everything in it is generated or downloaded, so
 it is kept outside the notes tree and outside any repository."
   :type 'directory
   :group 'my/repo-docs)
 
-(defcustom my/repo-docs-title "nixos"
-  "Title of the site, shown in its header."
+(defcustom my/repo-docs-title "Repositories"
+  "Title of the site, shown in its header and on its home page."
   :type 'string
   :group 'my/repo-docs)
 
@@ -160,8 +212,8 @@ Only pages with headings below the title get one."
   :group 'my/repo-docs)
 
 (defcustom my/repo-docs-regenerate-on-save t
-  "Non-nil regenerates the site when a Markdown file of the repository
-is saved while the preview server runs."
+  "Non-nil regenerates the site when a document of a repository is
+saved while the preview server runs."
   :type 'boolean
   :group 'my/repo-docs)
 
@@ -177,10 +229,9 @@ is saved while the preview server runs."
 ;; ============================================================
 ;; PATHS
 ;; ============================================================
-
-(defun my/repo-docs--repo ()
-  "Return the repository root as an absolute directory name."
-  (file-name-as-directory (expand-file-name my/repo-docs-repository)))
+;; Pages are addressed by their SITE PATH: the repository's name, then
+;; the path in the repository -- nixos/docs/BACKUPS.md.  The site's root
+;; is "", a repository's root its name.
 
 (defun my/repo-docs--site ()
   "Return the site root as an absolute directory name."
@@ -195,41 +246,117 @@ is saved while the preview server runs."
   (let ((case-fold-search t))
     (string-match-p "\\.md\\'" path)))
 
+(defun my/repo-docs--text-p (path)
+  "Non-nil when PATH names a plain-text file."
+  (let ((case-fold-search t))
+    (string-match-p "\\.txt\\'" path)))
+
+(defun my/repo-docs--document-p (path)
+  "Non-nil when PATH names a file the site shows: Markdown or plain text."
+  (or (my/repo-docs--markdown-p path) (my/repo-docs--text-p path)))
+
 (defun my/repo-docs--readme-p (rel)
-  "Non-nil when repository path REL is a README.md."
-  (string-equal-ignore-case (file-name-nondirectory rel) "README.md"))
+  "Non-nil when path REL is a README the site shows."
+  (and (my/repo-docs--document-p rel)
+       (string-equal-ignore-case
+        (file-name-sans-extension (file-name-nondirectory rel)) "README")))
 
 (defun my/repo-docs--dir-of (rel)
   "Return the directory part of REL without a trailing slash, \"\" at the root."
   (directory-file-name (or (file-name-directory rel) "")))
 
-(defun my/repo-docs--files ()
-  "Return the repository's Markdown files, relative and sorted.
+(defun my/repo-docs--repo-dir (repo)
+  "Return the directory of REPO, an entry of `my/repo-docs-repositories'."
+  (file-name-as-directory (expand-file-name (plist-get (cdr repo) :directory))))
 
-The files git would commit: tracked ones, plus untracked ones that are
-not ignored.  Signals a `user-error' when the repository is missing or
-git fails, since a silently empty site would look like deleted docs."
-  (let ((repo (my/repo-docs--repo)))
-    (unless (file-directory-p repo)
-      (user-error "Repository %s does not exist" repo))
+(defun my/repo-docs--repo-title (repo)
+  "Return the title of REPO's section."
+  (or (plist-get (cdr repo) :title) (car repo)))
+
+(defun my/repo-docs--check-repositories ()
+  "Stop with a readable message when `my/repo-docs-repositories' is wrong."
+  (unless my/repo-docs-repositories
+    (user-error "No repositories in `my/repo-docs-repositories'"))
+  (let ((seen '()))
+    (dolist (repo my/repo-docs-repositories)
+      (let ((name (car-safe repo)))
+        (unless (and (stringp name)
+                     (let ((case-fold-search nil))
+                       (string-match-p "\\`[a-z0-9][a-z0-9-]*\\'" name)))
+          (user-error "Repository name %S: lower-case letters, digits and hyphens only"
+                      name))
+        (when (member name seen)
+          (user-error "Two repositories called %s in `my/repo-docs-repositories'" name))
+        (push name seen)
+        (unless (stringp (plist-get (cdr repo) :directory))
+          (user-error "Repository %s has no :directory" name))))))
+
+(defun my/repo-docs--repo-files (repo)
+  "Return the documents of REPO, relative to it, as git sees them.
+
+The files git would commit -- tracked, plus untracked but not ignored,
+so that a new document shows up before its first `git add' -- taken by
+the `:include' pathspecs and not left out by the `:exclude' ones, of
+the kinds the site shows.  Signals a `user-error' when git fails."
+  (let* ((dir (my/repo-docs--repo-dir repo))
+         (props (cdr repo))
+         (pathspecs (append (or (plist-get props :include) my/repo-docs-default-include)
+                            (mapcar (lambda (p) (concat ":(exclude)" p))
+                                    (plist-get props :exclude)))))
     (with-temp-buffer
-      (let* ((default-directory repo)
-             (status (process-file "git" nil t nil
-                                   "-c" "core.quotePath=false"
-                                   "ls-files" "-z" "--cached" "--others"
-                                   "--exclude-standard")))
+      (let* ((default-directory dir)
+             (status (apply #'process-file "git" nil t nil
+                            "--icase-pathspecs"
+                            "-c" "core.quotePath=false"
+                            "ls-files" "-z" "--cached" "--others"
+                            "--exclude-standard" "--" pathspecs)))
         (unless (eq status 0)
           (user-error "git ls-files failed in %s: %s"
-                      repo (string-trim (buffer-string))))
+                      dir (string-trim (buffer-string))))
         (sort (seq-filter
                (lambda (rel)
-                 (and (my/repo-docs--markdown-p rel)
-                      (file-regular-p (expand-file-name rel repo))))
+                 (and (my/repo-docs--document-p rel)
+                      (file-regular-p (expand-file-name rel dir))))
                (delete-dups (split-string (buffer-string) "\0" t)))
               #'string<)))))
 
+(defun my/repo-docs--files ()
+  "Return the documents of every repository on this machine.
+A plist: :files is a list of (SITE-PATH . ABSOLUTE-PATH), sorted by
+site path; :missing the names of the repositories whose folder this
+machine lacks.  Stops when none is there: an empty site would look
+like deleted documentation."
+  (my/repo-docs--check-repositories)
+  (let ((files '())
+        (missing '()))
+    (dolist (repo my/repo-docs-repositories)
+      (let ((dir (my/repo-docs--repo-dir repo)))
+        (if (not (file-directory-p dir))
+            (push (car repo) missing)
+          (dolist (rel (my/repo-docs--repo-files repo))
+            (push (cons (concat (car repo) "/" rel) (expand-file-name rel dir))
+                  files)))))
+    (when (= (length missing) (length my/repo-docs-repositories))
+      (user-error "No repository of `my/repo-docs-repositories' is on this machine: %s"
+                  (string-join (nreverse missing) ", ")))
+    (list :files (sort files (lambda (a b) (string< (car a) (car b))))
+          :missing (nreverse missing))))
+
+(defun my/repo-docs--site-path-of (file)
+  "Return the site path of FILE, an absolute path, or nil.
+Nil when FILE is no document in a repository of
+`my/repo-docs-repositories'; whether its pathspecs take it is not
+checked."
+  (when (and file (my/repo-docs--document-p file))
+    (let ((path (expand-file-name file)))
+      (seq-some (lambda (repo)
+                  (let ((dir (my/repo-docs--repo-dir repo)))
+                    (when (string-prefix-p dir path)
+                      (concat (car repo) "/" (substring path (length dir))))))
+                my/repo-docs-repositories))))
+
 ;; ============================================================
-;; PAGE MAP: repository path -> content file and URL
+;; PAGE MAP: site path -> content file and URL
 ;; ============================================================
 ;; Built once per run from the file list alone, so that every link can
 ;; be rewritten before any page is written.
@@ -249,55 +376,88 @@ The root is \"\"; the list is sorted with parents before children."
           (setq dir (my/repo-docs--dir-of dir)))))
     (sort (delete-dups dirs) #'string<)))
 
+(defun my/repo-docs--folder-pages (files sections)
+  "Return folder -> the files of FILES claiming to be its page.
+A README claims its own folder; a file named like a folder beside it
+(CHANGELOG.md beside changelog/) claims that folder, so that the two do
+not get one URL.  SECTIONS are the folders, as `my/repo-docs--sections'
+returns them.  More than one claim for a folder is a collision."
+  (let ((by-name (make-hash-table :test #'equal))
+        (claims (make-hash-table :test #'equal)))
+    (dolist (dir sections)
+      (puthash (downcase dir) dir by-name))
+    (dolist (rel files)
+      (let ((dir (if (my/repo-docs--readme-p rel)
+                     (my/repo-docs--dir-of rel)
+                   (gethash (downcase (file-name-sans-extension rel)) by-name))))
+        (when dir
+          (push rel (gethash dir claims)))))
+    claims))
+
 (defun my/repo-docs--map (files)
   "Return a hash table describing the pages made from FILES.
+FILES is a list of (SITE-PATH . ABSOLUTE-PATH).
 
-Keys are repository paths of files and of folders (without trailing
-slash, \"\" for the root).  Each value is a plist:
+Keys are site paths of files and of folders (without trailing slash,
+\"\" for the root).  Each value is a plist:
   :content  content-relative path of the generated file
   :url      URL of the page
-  :file     repository path of the source file, or nil for a folder
-            without a README
-  :section  non-nil for a folder page."
-  (let ((map (make-hash-table :test #'equal)))
-    (dolist (dir (my/repo-docs--sections files))
-      (puthash dir
-               (list :content (if (string-empty-p dir)
-                                  "_index.md"
-                                (concat (downcase dir) "/_index.md"))
-                     :url (my/repo-docs--url-of-dir dir)
-                     :file nil
-                     :section t)
-               map))
-    (dolist (rel files)
-      (if (my/repo-docs--readme-p rel)
-          ;; The README is the folder's page: same content file and URL,
-          ;; now with a source.  Both keys lead to it, so a link to the
-          ;; folder and a link to its README.md land on the same page.
-          (let ((entry (plist-put (copy-sequence
-                                   (gethash (my/repo-docs--dir-of rel) map))
-                                  :file rel)))
-            (puthash (my/repo-docs--dir-of rel) entry map)
-            (puthash rel entry map))
-        (let ((stem (downcase (file-name-sans-extension rel))))
-          (puthash rel
-                   (list :content (concat stem ".md")
-                         :url (concat "/" stem "/")
-                         :file rel
-                         :section nil)
-                   map))))
+  :file     site path of the source file, or nil for a folder without
+            a page of its own
+  :source   absolute path of the source file, or nil
+  :section  non-nil for a folder page
+  :dir      for a folder page, the folder's key
+A folder whose page comes from a file has two keys, the folder's and
+the file's, both leading to one entry."
+  (let* ((rels (mapcar #'car files))
+         (sections (my/repo-docs--sections rels))
+         (claims (my/repo-docs--folder-pages rels sections))
+         (map (make-hash-table :test #'equal)))
+    (dolist (dir sections)
+      (let ((owner (car (gethash dir claims))))
+        (puthash dir
+                 (list :content (if (string-empty-p dir)
+                                    "_index.md"
+                                  (concat (downcase dir) "/_index.md"))
+                       :url (my/repo-docs--url-of-dir dir)
+                       :file owner
+                       :source (and owner (cdr (assoc owner files)))
+                       :section t
+                       :dir dir)
+                 map)))
+    (let ((owner-of (make-hash-table :test #'equal)))
+      (maphash (lambda (dir rels) (dolist (rel rels) (puthash rel dir owner-of))) claims)
+      (setq claims owner-of))
+    (dolist (file files)
+      (let* ((rel (car file))
+             (owned (gethash rel claims)))
+        (if owned
+            ;; The folder's page: a link to the folder and a link to the
+            ;; file land on the same page.
+            (puthash rel (gethash owned map) map)
+          (let ((stem (downcase (file-name-sans-extension rel))))
+            (puthash rel
+                     (list :content (concat stem ".md")
+                           :url (concat "/" stem "/")
+                           :file rel
+                           :source (cdr file)
+                           :section nil)
+                     map)))))
     map))
 
 (defun my/repo-docs--collisions (map)
-  "Return lists of repository paths that MAP sends to one content file.
+  "Return lists of site paths that MAP sends to one page.
 Two files differing only in letter case collide, since URLs are lower
-case."
+case; so do two files of one name and different kinds (notes.md and
+notes.txt), and two files claiming one folder (README.md and
+README.txt)."
   (let ((by-content (make-hash-table :test #'equal))
         collisions)
     (maphash (lambda (key entry)
-               (when (plist-get entry :file)
-                 (unless (plist-get entry :section)
-                   (push key (gethash (plist-get entry :content) by-content)))))
+               (when (and (plist-get entry :file)
+                          (not (and (plist-get entry :section)
+                                    (equal key (plist-get entry :dir)))))
+                 (push key (gethash (plist-get entry :content) by-content))))
              map)
     (maphash (lambda (_content keys)
                (when (cdr keys) (push (sort keys #'string<) collisions)))
@@ -319,8 +479,9 @@ case."
 
 Only relative targets are considered: a scheme, an absolute path or a
 bare anchor is left alone (nil).  The path part is resolved against the
-folder of SOURCE-REL; a target outside the repository, or one MAP does
-not know, also gives nil.  The anchor, if any, is kept."
+folder of SOURCE-REL, a site path; a target outside SOURCE-REL's
+repository, or one MAP does not know, also gives nil.  The anchor, if
+any, is kept."
   (unless (or (string-match-p "\\`[a-zA-Z][a-zA-Z0-9+.-]*:" target)
               (string-prefix-p "#" target)
               (string-prefix-p "/" target))
@@ -335,7 +496,8 @@ not know, also gives nil.  The anchor, if any, is kept."
                                   (concat root (or (file-name-directory
                                                     source-rel)
                                                    ""))))
-           (rel (and (string-prefix-p root abs)
+           (repo (substring source-rel 0 (string-search "/" source-rel)))
+           (rel (and (string-prefix-p (concat root repo "/") abs)
                      (directory-file-name (substring abs (length root)))))
            (entry (and rel (gethash rel map))))
       (when entry
@@ -345,7 +507,7 @@ not know, also gives nil.  The anchor, if any, is kept."
   "Return LINE with relative links rewritten for SOURCE-REL using MAP.
 
 Inline links `](target)' and reference definitions `[id]: target' are
-rewritten.  A relative target that ends in .md or names a folder and
+rewritten.  A relative target that names a document (.md, .txt) and
 cannot be resolved is pushed onto the list in the cdr of UNRESOLVED
 as (SOURCE-REL . TARGET)."
   (let ((rewrite
@@ -355,7 +517,7 @@ as (SOURCE-REL . TARGET)."
                  (when (and (not (string-match-p
                                   "\\`\\([a-zA-Z][a-zA-Z0-9+.-]*:\\|#\\|/\\)"
                                   target))
-                            (my/repo-docs--markdown-p
+                            (my/repo-docs--document-p
                              (car (split-string target "#"))))
                    (push (cons source-rel target) (cdr unresolved)))
                  target)))))
@@ -363,8 +525,11 @@ as (SOURCE-REL . TARGET)."
           (replace-regexp-in-string
            "](\\([^)[:space:]]+\\)\\([ \t]+\"[^\"]*\"\\)?)"
            (lambda (match)
-             (concat "](" (funcall rewrite (match-string 1 match))
-                     (or (match-string 2 match) "") ")"))
+             ;; `replace-regexp-in-string' reads the match data after
+             ;; this returns; the rewrite must not change it.
+             (save-match-data
+               (concat "](" (funcall rewrite (match-string 1 match))
+                       (or (match-string 2 match) "") ")")))
            line t t))
     (if (string-match "\\`\\( \\{0,3\\}\\[[^]]+\\]:[ \t]+\\)\\([^[:space:]]+\\)\\(.*\\)\\'"
                       line)
@@ -435,58 +600,87 @@ scalars, so a title with a colon or quotes needs no special care."
                      "\n")
           "\n---\n\n"))
 
+(defun my/repo-docs--escape-shortcodes (text)
+  "Return TEXT with every Hugo shortcode call escaped, to show as written.
+Hugo runs shortcodes anywhere in a page, in code too: a document that
+writes about one -- `{{< relref \"x\" >}}' in a change log -- would
+fail the build or show its output.  Hugo's escape, {{</* ... */>}},
+prints the call as it was written; one already escaped stays so."
+  (replace-regexp-in-string
+   "{{\\([<%]\\)\\(?:/\\*\\)?\\(.*?\\)\\(?:\\*/\\)?\\([>%]\\)}}" "{{\\1/*\\2*/\\3}}"
+   text t))
+
 (defun my/repo-docs--weights (map)
-  "Return a hash table of repository key -> weight for the pages in MAP.
+  "Return a hash table of site path -> weight for the pages in MAP.
+The repositories come in the order of `my/repo-docs-repositories'.
 Within a folder, subfolders come first, sorted by name, then files in
-file-name order.  The README of a folder is the folder's own page and
-takes no place among its siblings."
+file-name order.  A file that is a folder's page takes no place among
+its siblings."
   (let ((children (make-hash-table :test #'equal))
         (weights (make-hash-table :test #'equal)))
     (maphash
      (lambda (key entry)
        (unless (or (string-empty-p key)
-                   ;; A README key and its folder key share one entry;
-                   ;; only the folder key counts as a child.
+                   ;; A folder and the file that is its page share one
+                   ;; entry; only the folder counts as a child.
                    (and (plist-get entry :section)
-                        (my/repo-docs--markdown-p key)))
+                        (not (equal key (plist-get entry :dir)))))
          (push key (gethash (my/repo-docs--dir-of key) children))))
      map)
     (maphash
-     (lambda (_parent keys)
-       (let ((sorted (sort keys
-                           (lambda (a b)
-                             (let ((sa (plist-get (gethash a map) :section))
-                                   (sb (plist-get (gethash b map) :section)))
-                               (if (eq (not sa) (not sb))
-                                   (string< (downcase a) (downcase b))
-                                 sa)))))
+     (lambda (parent keys)
+       (let ((sorted (if (string-empty-p parent)
+                         (seq-filter (lambda (name) (member name keys))
+                                     (mapcar #'car my/repo-docs-repositories))
+                       (sort keys
+                             (lambda (a b)
+                               (let ((sa (plist-get (gethash a map) :section))
+                                     (sb (plist-get (gethash b map) :section)))
+                                 (if (eq (not sa) (not sb))
+                                     (string< (downcase a) (downcase b))
+                                   sa))))))
              (weight 0))
          (dolist (key sorted)
            (puthash key (setq weight (+ weight 10)) weights))))
      children)
     weights))
 
+(defun my/repo-docs--plain-text (text)
+  "Return (nil . BODY): TEXT, a plain-text file, as a preformatted block.
+The fence is longer than any run of backticks in TEXT, so nothing in it
+can close the block early."
+  (let ((longest 2) (start 0))
+    (while (string-match "`+" text start)
+      (setq longest (max longest (- (match-end 0) (match-beginning 0)))
+            start (match-end 0)))
+    (let ((fence (make-string (1+ longest) ?`)))
+      (cons nil (concat fence "text\n" (string-trim-right text) "\n" fence)))))
+
+(defun my/repo-docs--label (key)
+  "Return the title of the folder page of KEY.
+The site's title at the root, the repository's at a repository's root,
+the folder name with a trailing slash below."
+  (cond ((string-empty-p key) my/repo-docs-title)
+        ((not (string-search "/" key))
+         (my/repo-docs--repo-title (or (assoc key my/repo-docs-repositories)
+                                       (list key))))
+        (t (concat (file-name-nondirectory key) "/"))))
+
 (defun my/repo-docs--page-text (key entry map weights unresolved)
   "Return the full text of the generated file for KEY and its ENTRY."
-  (let* ((repo (my/repo-docs--repo))
-         (file (plist-get entry :file))
+  (let* ((file (plist-get entry :file))
+         (source (plist-get entry :source))
          (section (plist-get entry :section))
-         (label (and section
-                     (if (string-empty-p key)
-                         my/repo-docs-title
-                       (concat (file-name-nondirectory key) "/"))))
-         (parsed (and file
-                      (my/repo-docs--transform
-                       (with-temp-buffer
-                         (insert-file-contents (expand-file-name file repo))
-                         (buffer-string))
-                       file map unresolved
-                       (and section (not (string-empty-p key)) label))))
+         (label (and section (my/repo-docs--label key)))
+         (text (and source
+                    (with-temp-buffer
+                      (insert-file-contents source)
+                      (buffer-string))))
+         (parsed (cond
+                  ((null text) nil)
+                  ((my/repo-docs--text-p file) (my/repo-docs--plain-text text))
+                  (t (my/repo-docs--transform text file map unresolved label))))
          (title (cond
-                 ;; The home page keeps the README's title: there is no
-                 ;; folder name worth showing at the root.
-                 ((and section (string-empty-p key))
-                  (or (car parsed) label))
                  (section label)
                  (t (or (car parsed)
                         (file-name-sans-extension
@@ -500,8 +694,9 @@ takes no place among its siblings."
         ("url" . ,(unless section (plist-get entry :url)))
         ("sourcePath" . ,file)))
      (if parsed
-         (cdr parsed)
-       ;; A folder without a README: let the theme list its contents.
+         (my/repo-docs--escape-shortcodes (cdr parsed))
+       ;; A folder without a page of its own: let the theme list its
+       ;; contents.
        "{{< toc-tree >}}")
      "\n")))
 
@@ -615,17 +810,21 @@ files deleted."
 (defvar my/repo-docs--last-report nil
   "Plist describing the last regeneration, for `my/repo-docs-report'.")
 
+(defvar my/repo-docs--last-map nil
+  "The page map of the last regeneration, for finding a file's page.")
+
 (defun my/repo-docs-generate ()
-  "Regenerate the site's content and configuration from the repository.
+  "Regenerate the site's content and configuration from the repositories.
 Return a plist (:pages N :written N :deleted N :unresolved LIST
-:collisions LIST).  Refuses, changing nothing, when two files would
-produce the same page."
-  (let* ((files (my/repo-docs--files))
+:collisions LIST :missing NAMES).  Refuses, changing nothing, when two
+files would produce the same page."
+  (let* ((found (my/repo-docs--files))
+         (files (plist-get found :files))
          (map (my/repo-docs--map files))
          (collisions (my/repo-docs--collisions map)))
     (when collisions
       (setq my/repo-docs--last-report (list :collisions collisions))
-      (user-error "Files differing only in case, site not regenerated: %s"
+      (user-error "Files that would make one page, site not regenerated: %s"
                   (mapconcat (lambda (c) (string-join c " / ")) collisions "; ")))
     (let* ((site (my/repo-docs--site))
            (content (my/repo-docs--content-dir))
@@ -645,15 +844,15 @@ produce the same page."
           (setq written (1+ written))))
       (maphash
        (lambda (key entry)
-         ;; A README and its folder share one entry; write it once.
+         ;; A folder and the file that is its page share one entry;
+         ;; write it once, as the folder's.
          (let ((target (expand-file-name (plist-get entry :content) content)))
            (unless (gethash target seen)
              (puthash target t seen)
              (puthash target t keep)
              (setq pages (1+ pages))
-             (let ((owner (if (and (plist-get entry :section)
-                                   (my/repo-docs--markdown-p key))
-                              (my/repo-docs--dir-of key)
+             (let ((owner (if (plist-get entry :section)
+                              (plist-get entry :dir)
                             key)))
                (when (my/repo-docs--write-if-changed
                       target
@@ -665,8 +864,10 @@ produce the same page."
                           :written written
                           :deleted (my/repo-docs--prune content keep)
                           :unresolved (nreverse (cdr unresolved))
-                          :collisions nil)))
-        (setq my/repo-docs--last-report report)
+                          :collisions nil
+                          :missing (plist-get found :missing))))
+        (setq my/repo-docs--last-report report
+              my/repo-docs--last-map map)
         report))))
 
 ;; ============================================================
@@ -735,30 +936,33 @@ succeeded, so a failure never leaves a half-filled theme behind."
      :noquery t)
     t))
 
+(defun my/repo-docs--base-url ()
+  "Return the address the site is read at, without a trailing slash."
+  (format "http://localhost:%d" my/repo-docs-port))
+
 (defun my/repo-docs--url-for-file (file)
-  "Return the preview URL of the page made from FILE, or nil.
-FILE is an absolute path; nil when it is not a Markdown file of the
-repository."
-  (let ((repo (my/repo-docs--repo)))
-    (when (and file
-               (my/repo-docs--markdown-p file)
-               (file-in-directory-p file repo))
-      (let* ((rel (file-relative-name file repo))
-             (path (if (my/repo-docs--readme-p rel)
-                       (my/repo-docs--url-of-dir (my/repo-docs--dir-of rel))
-                     (concat "/" (downcase (file-name-sans-extension rel)) "/"))))
-        (format "http://localhost:%d%s" my/repo-docs-port path)))))
+  "Return the address of the page made from FILE, or nil.
+FILE is an absolute path; nil when the last regeneration made no page
+from it."
+  (when-let* ((path (my/repo-docs--site-path-of file))
+              (entry (and my/repo-docs--last-map
+                          (gethash path my/repo-docs--last-map))))
+    (concat (my/repo-docs--base-url) (plist-get entry :url))))
 
 (defun my/repo-docs--summary (report)
   "Return a one-line summary of REPORT."
-  (format "Repo docs: %d pages, %d files written, %d removed%s"
+  (format "Repo docs: %d pages, %d files written, %d removed%s%s"
           (plist-get report :pages)
           (plist-get report :written)
           (plist-get report :deleted)
           (let ((n (length (plist-get report :unresolved))))
             (if (zerop n) ""
               (format ", %d unresolved link%s (C-c n x r l)"
-                      n (if (= n 1) "" "s"))))))
+                      n (if (= n 1) "" "s"))))
+          (if (plist-get report :missing)
+              (format ", not on this machine: %s"
+                      (string-join (plist-get report :missing) ", "))
+            "")))
 
 ;; ============================================================
 ;; COMMANDS
@@ -766,46 +970,46 @@ repository."
 
 ;;;###autoload
 (defun my/repo-docs-find ()
-  "Open a Markdown file of the repository, chosen by path.
-Candidates are the paths, so seven README.md files stay seven different
-choices; the first H1 of each is shown beside it."
+  "Open a document of the repositories, chosen by its site path.
+Candidates are the paths, repository name first, so seven README.md
+files stay seven different choices; the first H1 of each is shown
+beside it."
   (interactive)
-  (let* ((repo (my/repo-docs--repo))
-         (files (my/repo-docs--files))
+  (let* ((files (plist-get (my/repo-docs--files) :files))
          (titles (make-hash-table :test #'equal)))
-    (dolist (rel files)
-      (with-temp-buffer
-        (insert-file-contents (expand-file-name rel repo) nil 0 4096)
-        (goto-char (point-min))
-        (when (re-search-forward my/repo-docs--h1-regexp nil t)
-          (puthash rel (match-string 1) titles))))
+    (dolist (file files)
+      (when (my/repo-docs--markdown-p (car file))
+        (with-temp-buffer
+          (insert-file-contents (cdr file) nil 0 4096)
+          (goto-char (point-min))
+          (when (re-search-forward my/repo-docs--h1-regexp nil t)
+            (puthash (car file) (match-string 1) titles)))))
     (let* ((completion-extra-properties
             (list :annotation-function
                   (lambda (rel)
                     (when-let* ((title (gethash rel titles)))
                       (concat "  " (propertize title 'face
                                                'completions-annotations))))))
-           (choice (completing-read "Document: " files nil t)))
-      (find-file (expand-file-name choice repo)))))
+           (choice (completing-read "Document: " (mapcar #'car files) nil t)))
+      (find-file (cdr (assoc choice files))))))
 
 ;;;###autoload
 (defun my/repo-docs-regenerate ()
-  "Regenerate the site from the repository and report."
+  "Regenerate the site from the repositories and report."
   (interactive)
   (message "%s" (my/repo-docs--summary (my/repo-docs-generate))))
 
 ;;;###autoload
 (defun my/repo-docs-preview ()
   "Regenerate the site, serve it and open it in the browser.
-Opens the page of the current buffer's file when it is a Markdown file
-of the repository, the home page otherwise.  The theme is installed on
-first use."
+Opens the page of the current buffer's file when the site has one, the
+home page otherwise.  The theme is installed on first use."
   (interactive)
   (let ((report (my/repo-docs-generate)))
     (my/repo-docs--ensure-theme)
     (let ((started (my/repo-docs--serve))
           (url (or (my/repo-docs--url-for-file buffer-file-name)
-                   (format "http://localhost:%d/" my/repo-docs-port))))
+                   (concat (my/repo-docs--base-url) "/"))))
       ;; The first build takes a moment; opening at once shows a
       ;; connection error instead.
       (if started
@@ -840,42 +1044,40 @@ first use."
          ((null report)
           (insert "No regeneration in this session yet.\n"))
          ((plist-get report :collisions)
-          (insert "Not regenerated: files differing only in letter case\n\n")
+          (insert "Not regenerated: files that would make one page\n\n")
           (dolist (c (plist-get report :collisions))
             (insert "  " (string-join c "  /  ") "\n")))
          (t
           (insert (my/repo-docs--summary report) "\n\n")
           (if (plist-get report :unresolved)
               (progn
-                (insert "Links to .md files the site has no page for:\n\n")
+                (insert "Links to documents the site has no page for:\n\n")
                 (dolist (u (plist-get report :unresolved))
                   (insert (format "  %s  ->  %s\n" (car u) (cdr u)))))
-            (insert "Every link to a .md file was resolved.\n")))))
+            (insert "Every link to a document was resolved.\n")))))
       (special-mode)
       (goto-char (point-min)))
     (pop-to-buffer my/repo-docs-report-buffer)))
 
 (defun my/repo-docs--after-save ()
-  "Regenerate the site after a Markdown file of the repository is saved.
+  "Regenerate the site after a document of a repository is saved.
 Only while the preview server runs: otherwise nobody is looking, and
 `my/repo-docs-preview' regenerates anyway."
   (when (and my/repo-docs-regenerate-on-save
              (my/repo-docs--serving-p)
-             (my/repo-docs--url-for-file buffer-file-name))
+             (my/repo-docs--site-path-of buffer-file-name))
     (condition-case err
         (let ((report (my/repo-docs-generate)))
           (when (> (plist-get report :written) 0)
             (message "%s" (my/repo-docs--summary report))))
       (error (message "Repo docs: %s" (error-message-string err))))))
 
-(add-hook 'after-save-hook #'my/repo-docs--after-save)
-
 ;; ============================================================
 ;; MENU (C-c n x r)
 ;; ============================================================
 
 (transient-define-prefix my/repo-docs-menu ()
-  "Markdown documentation of the repository as a Hugo site."
+  "Documentation of the repositories as a Hugo site."
   [["Documents"
     ("f" "Find a document"      my/repo-docs-find)
     ("g" "Regenerate the site"  my/repo-docs-regenerate)
@@ -886,14 +1088,36 @@ Only while the preview server runs: otherwise nobody is looking, and
     ("l" "Last report"          my/repo-docs-report)]
    [("q" "Quit" transient-quit-one)]])
 
-;; Inserted into the Export menu of 12-transient.el before its Quit,
-;; through the degrading wrapper, so the menu is intact whether or not
-;; this module is loaded.  (Anchored on "Q" of 16-org-export.el until
-;; 2026-10-19.)
-(with-eval-after-load '12-transient
-  (when (fboundp 'my/transient-insert)
-    (my/transient-insert 'my/notes-export-menu "q"
-                         '("r" "Repo docs (Hugo) →" my/repo-docs-menu))))
+;; ============================================================
+;; SWITCH
+;; ============================================================
+
+(defconst my/repo-docs--menu-entries
+  '((insert my/notes-export-menu "q" ("r" "Repo docs (Hugo) →" my/repo-docs-menu)))
+  "Menu entries of this module, for `my/transient-entries'.
+In the Export menu of 12-transient.el, before its Quit.")
+
+(define-minor-mode my/repo-docs-mode
+  "The repository docs as a module: regeneration on save, menu entry.
+Turned off, neither, and the preview server is stopped; the commands
+remain for M-x.  Customize saves the position in this machine's
+settings."
+  :global t
+  :init-value t
+  :group 'my/repo-docs
+  (if my/repo-docs-mode
+      (add-hook 'after-save-hook #'my/repo-docs--after-save)
+    (remove-hook 'after-save-hook #'my/repo-docs--after-save)
+    (when (my/repo-docs--serving-p)
+      (delete-process (get-buffer-process my/repo-docs--server-buffer))
+      (message "Repo docs off: preview server stopped")))
+  (with-eval-after-load '12-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/repo-docs-mode my/repo-docs--menu-entries))))
+
+;; The switch, applied with the position Customize read from this
+;; machine's custom.el.
+(my/repo-docs-mode (if my/repo-docs-mode 1 -1))
 
 (provide '47-repo-docs)
 

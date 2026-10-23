@@ -627,6 +627,23 @@ first: on exit it still writes to the old places.
       nothing changes; then y where the "meant" note is right, and
       follow the link afterwards.
 
+** R41. Repository docs: both repositories in one site [0/5]
+- [ ] =C-c n x r v=: the browser opens =http://localhost:1316/=, titled
+      Repositories; the menu shows =nixos= and =emacs=, each with its
+      folders, and the root files of each (e.g. =CLAUDE.md= of nixos)
+      listed under it.
+- [ ] Old addresses moved: =/docs/backups/= is now
+      =/nixos/docs/backups/=; links inside the NixOS docs still open the
+      right pages.  =C-c n x r l=: unresolved links, if any, are real.
+- [ ] =/emacs/changelog/= shows =CHANGELOG.md= with the months under
+      it; =hooks/=, =docs/pl/= present; nothing from =hugo/= or
+      =tests/=.
+- [ ] =C-c n , ,=, search =my/repo-docs-repositories=: change the list
+      (e.g. drop =:exclude= of emacs), Apply and Save; =C-c n x r g=
+      follows it.  The value is in this machine's =custom.el= only.
+- [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
+      has no =r=; on again: =r= back.
+
 * Part A -- notes and their folders
 ** A1. Moving the notes root (copy only) [12/12]
 - [X] =C-c n ,= → Notes and silos → =my-notes-dir= = =~/notes2/= → Apply
