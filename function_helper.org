@@ -8020,6 +8020,20 @@ the time of its creation, moved on by seconds when taken (as
 inbox and inside the notes tree are skipped; a vault or notes tree
 that itself lies under a dot folder is read.
 
+A journal note merged into is replaced in one step (a temporary file
+in the same folder, then =os.replace=): an interrupted or full-disk run
+leaves it whole.  A new note is created exclusively, never over a file.
+Two different images of one name get files of their own
+(=ID--name-2.png=); the same image imported again reuses its file.  A
+note whose front matter is not valid YAML, or that pandoc cannot
+convert, is not imported: it stays in the vault's inbox and the report
+lists it under /Not imported/.  The script then ends with status 2,
+and the module says "finished with notes not imported".
+
+The dry run saves no buffer; its report says how many note buffers
+hold unsaved changes, which it does not see.  =my/obsidian-inbox-subdir=
+is passed to the script (=--inbox=).
+
 Tests: =tests/test-obsidian-import.el= (the script on a temporary
 vault, and the commands); SAFETY.org 2.8.
 

@@ -51,6 +51,7 @@
 ;;; Code:
 
 (require 'subr-x)   ; string-join, string-trim
+(require 'seq)      ; seq-count
 (require 'transient nil t)
 
 ;; ============================================================
@@ -153,6 +154,15 @@ begins like the notes folder (~/notes-old beside ~/notes) is not."
           (setq saved (1+ saved)))))
     saved))
 
+(defun my/obsidian-import--unsaved-notes ()
+  "Return how many modified buffers visit files in the notes tree."
+  (let ((root (my/obsidian-import--notes-root)))
+    (seq-count (lambda (buf)
+                 (let ((file (buffer-file-name buf)))
+                   (and file (buffer-modified-p buf)
+                        (file-in-directory-p (expand-file-name file) root))))
+               (buffer-list))))
+
 (defun my/obsidian-import--revert (paths)
   "Revert buffers visiting PATHS, leaving modified ones alone.
 A modified buffer here would mean something was typed into a note while
@@ -207,8 +217,12 @@ Each once: two notes merged into one journal note list it twice."
           (ignore-errors (delete-file my/obsidian-import--touched-file))
           (setq my/obsidian-import--touched-file nil))
         (if (/= status 0)
-            (message "Obsidian import failed (%s) - see %s%s"
-                     (string-trim event) my/obsidian-import-buffer
+            (message "Obsidian import %s - see %s%s"
+                     ;; 2: the script went through and named the notes it
+                     ;; could not import (left in the vault's inbox).
+                     (if (= status 2) "finished with notes not imported"
+                       (format "failed (%s)" (string-trim event)))
+                     my/obsidian-import-buffer
                      (cond
                       (skipped
                        (format "; %d note(s) written before it reverted, modified buffers left alone: %s"
@@ -231,9 +245,13 @@ Each once: two notes merged into one journal note list it twice."
   "Run the import script.  With WRITE non-nil it actually writes."
   (let ((problem (my/obsidian-import--check)))
     (when problem (user-error "%s" problem)))
-  (let* ((saved (my/obsidian-import--save-notes))
+  ;; Only an import saves: a dry run writes nothing, buffers included,
+  ;; and says how many hold changes it does not see.
+  (let* ((saved (if write (my/obsidian-import--save-notes) 0))
+         (unsaved (if write 0 (my/obsidian-import--unsaved-notes)))
          (buffer (get-buffer-create my/obsidian-import-buffer))
          (args (list "--vault" (expand-file-name my/obsidian-vault-directory)
+                     "--inbox" my/obsidian-inbox-subdir
                      "--notes" (my/obsidian-import--notes-root)
                      "--settle" (number-to-string my/obsidian-import-settle))))
     (when write
@@ -247,7 +265,10 @@ Each once: two notes merged into one journal note list it twice."
       (insert (format "Running %s %s\n\n" my/obsidian-python
                       (string-join args " ")))
       (when (> saved 0)
-        (insert (format "Saved %d modified note buffer(s) first.\n\n" saved))))
+        (insert (format "Saved %d modified note buffer(s) first.\n\n" saved)))
+      (when (> unsaved 0)
+        (insert (format "%d note buffer(s) hold unsaved changes; the dry run reads the files on disk.\n\n"
+                        unsaved))))
     (let ((proc (make-process
                  :name "obsidian-import"
                  :buffer buffer

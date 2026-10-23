@@ -415,7 +415,8 @@ folder is still read."
 (ert-deftest my/obs-test-script-pandoc-failure-keeps-source ()
   "When pandoc fails on a note the note stays in the vault's inbox and
 nothing is written for it; the report names the failure, and the run
-itself ends normally."
+ends with status 2: through, with notes not imported (until 2026-10-24
+it ended with 0, and the module said the import was done)."
   (skip-unless (my/obs-test--tools-p))
   (my/obs-test--with-tree
     (let* ((bin (expand-file-name "bin" root))
@@ -428,11 +429,65 @@ itself ends normally."
            (target (my/obs-test--journal-file journal)))
       (set-file-modes pandoc #o755)
       (let ((result (my/obs-test--script-run vault notes "--settle" "0" "--write")))
-        (should (= 0 (car result)))
+        (should (= 2 (car result)))
         (should (string-match-p "pandoc failed: stand-in failure" (cdr result))))
       (should (equal (my/obs-test--read daily) my/obs-test--daily))
       (should (equal (my/obs-test--read target) my/obs-test--journal-text))
       (should-not (file-exists-p (expand-file-name "Imported2Emacs" vault))))))
+
+(ert-deftest my/obs-test-script-broken-yaml-left-in-inbox ()
+  "A note whose front matter is not valid YAML is not imported: it stays
+in the inbox, unchanged, nothing is written for it, the report names
+it, and the run ends with status 2.  A good note beside it is imported."
+  (skip-unless (my/obs-test--tools-p))
+  (my/obs-test--with-tree
+    (let ((broken (my/obs-test--write (expand-file-name "Zepsuta.md" inbox)
+                                      "---\ncreated: [2026-10-20\ntags: [a\n---\nTreść.\n")))
+      (my/obs-test--inbox-note inbox "Dobra.")
+      (let ((result (my/obs-test--script-run vault notes "--settle" "0" "--write")))
+        (should (= 2 (car result)))
+        (should (string-match-p "Zepsuta.md: front matter is not valid YAML" (cdr result))))
+      (should (equal (my/obs-test--read broken)
+                     "---\ncreated: [2026-10-20\ntags: [a\n---\nTreść.\n"))
+      (should (equal (directory-files (expand-file-name "inbox" notes) nil "\\.org\\'")
+                     '("20261020T100000--esej__filozofia.org"))))))
+
+(ert-deftest my/obs-test-script-same-image-name-two-images ()
+  "Two different images of one name, from two folders, in one daily
+note: each gets its own file, and each link shows the bytes of the
+image it named.  The same image imported again reuses its file."
+  (skip-unless (my/obs-test--tools-p))
+  (my/obs-test--with-tree
+    (my/obs-test--write (expand-file-name "img/a.png" inbox) "FIRST")
+    (my/obs-test--write (expand-file-name "shots/a.png" inbox) "SECOND")
+    (my/obs-test--write (expand-file-name "2026-10-20.md" inbox)
+                        (concat my/obs-test--daily "![](img/a.png) ![](shots/a.png)\n"))
+    (let ((target (my/obs-test--journal-file journal)))
+      (should (= 0 (car (my/obs-test--script-run vault notes "--settle" "0" "--write"))))
+      (let ((text (my/obs-test--read target)) (links nil) (start 0))
+        (while (string-match "\\[\\[file:\\([^]]+\\)\\]\\]" text start)
+          (push (match-string 1 text) links)
+          (setq start (match-end 0)))
+        (should (equal (mapcar (lambda (l) (my/obs-test--read (expand-file-name l)))
+                               (nreverse links))
+                       '("FIRST" "SECOND"))))
+      ;; Imported again into the same journal note: no third file.
+      (my/obs-test--write (expand-file-name "2026-10-20.md" inbox)
+                          (concat my/obs-test--daily "![](img/a.png)\n"))
+      (should (= 0 (car (my/obs-test--script-run vault notes "--settle" "0" "--write"))))
+      (should (= 2 (length (directory-files (expand-file-name "attachments" notes) nil "\\.png\\'"))))
+      ;; Another image under the same name, in a later import: a file of
+      ;; its own, never the one already there.
+      (my/obs-test--write (expand-file-name "img/a.png" inbox) "THIRD")
+      (my/obs-test--write (expand-file-name "2026-10-20.md" inbox)
+                          (concat my/obs-test--daily "![](img/a.png)\n"))
+      (should (= 0 (car (my/obs-test--script-run vault notes "--settle" "0" "--write"))))
+      (let ((text (my/obs-test--read target)))
+        (should (string-match "\\[\\[file:\\([^]]+\\)\\]\\]\\(?:.\\|\n\\)*\\'" text))
+        (let ((last nil) (start 0))
+          (while (string-match "\\[\\[file:\\([^]]+\\)\\]\\]" text start)
+            (setq last (match-string 1 text) start (match-end 0)))
+          (should (equal (my/obs-test--read (expand-file-name last)) "THIRD")))))))
 
 (ert-deftest my/obs-test-script-no-journal-silo-stops ()
   "Without a journal silo the script stops with a failure before it
@@ -709,6 +764,34 @@ temporary list is gone."
       (should temp)
       (should-not (file-exists-p temp))
       (should (file-exists-p (plist-get setup :late))))))
+
+(ert-deftest my/obs-test-dry-run-saves-no-buffer ()
+  "The dry run writes nothing, buffers included: a note open with unsaved
+text stays modified, its file unchanged, and the report says how many
+buffers hold changes the dry run does not see."
+  (skip-unless (my/obs-test--tools-p))
+  (my/obs-test--with-tree
+    (my/obs-test--daily-file inbox)
+    (let* ((file (my/obs-test--journal-file journal))
+           (buf (find-file-noselect file)))
+      (with-current-buffer buf (goto-char (point-max)) (insert "unsaved\n"))
+      (should (my/obs-test--run-command #'my/obsidian-import-dry-run))
+      (should (buffer-modified-p buf))
+      (should (equal (my/obs-test--read file) my/obs-test--journal-text))
+      (should (string-match-p "1 note buffer(s) hold unsaved changes"
+                              (with-current-buffer my/obsidian-import-buffer (buffer-string)))))))
+
+(ert-deftest my/obs-test-inbox-folder-option-reaches-script ()
+  "The vault folder named by `my/obsidian-inbox-subdir' is the one the
+script reads (until 2026-10-24 the script read its own fixed folder)."
+  (skip-unless (my/obs-test--tools-p))
+  (my/obs-test--with-tree
+    (let ((my/obsidian-inbox-subdir "Telefon"))
+      (my/obs-test--write (expand-file-name "Telefon/2026-10-20.md" vault) my/obs-test--daily)
+      (my/obs-test--journal-file journal)
+      (should (my/obs-test--run-command #'my/obsidian-import-dry-run))
+      (should (string-match-p "Telefon/2026-10-20.md | journal-merge"
+                              (with-current-buffer my/obsidian-import-buffer (buffer-string)))))))
 
 (provide 'test-obsidian-import)
 ;;; test-obsidian-import.el ends here

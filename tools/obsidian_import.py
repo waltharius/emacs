@@ -32,6 +32,9 @@ Attachments are COPIED, not moved, so links in the vault keep resolving.
 
 import argparse
 import datetime as dt
+import filecmp
+import os
+import tempfile
 import re
 import shutil
 import subprocess
@@ -183,12 +186,16 @@ def parse_frontmatter(text):
     for i in range(1, len(lines)):
         if lines[i].strip() in ("---", "..."):
             raw = "\n".join(lines[1:i])
+            # A broken header is an error, not an empty one: guessing
+            # would file the note under a wrong date with its tags lost,
+            # and move the source out of the inbox as if all went well.
             try:
                 data = yaml.safe_load(raw) or {}
-            except yaml.YAMLError:
-                data = {}
+            except yaml.YAMLError as err:
+                raise ValueError(f"front matter is not valid YAML: "
+                                 f"{str(err).splitlines()[0]}") from None
             if not isinstance(data, dict):
-                data = {}
+                raise ValueError("front matter is not a mapping of keys")
             return data, "\n".join(lines[i + 1:])
     return {}, text
 
@@ -301,6 +308,58 @@ def clean_time_headings(org_text):
     return TIME_HEADING_RE.sub(r"\1 \2:\3", org_text)
 
 
+def attachment_name(source, attach_dir, ident, copies):
+    """Return the attachments name for SOURCE in the note IDENT.
+
+    IDENT--NAME when that is free, or holds the same image already (a
+    second import of it); otherwise IDENT--STEM-2.EXT and on.  Two
+    images of one name -- img/a.png and shots/a.png in one daily note,
+    or a journal note imported into twice -- each get a file of their
+    own, so a link never shows another image than the one it named.
+    COPIES, the copies planned in this run, counts as taken too.
+    """
+    planned = {dest.name: src for src, dest in copies}
+    stem, suffix = source.stem, source.suffix
+    counter = 1
+    while True:
+        name = (f"{ident}--{stem}{suffix}" if counter == 1
+                else f"{ident}--{stem}-{counter}{suffix}")
+        if name in planned:
+            if planned[name] == source:
+                return name
+        elif not (attach_dir / name).exists():
+            return name
+        elif filecmp.cmp(attach_dir / name, source, shallow=False):
+            return name
+        counter += 1
+
+
+def write_atomic(target, content, new):
+    """Write CONTENT to TARGET without ever leaving it half written.
+
+    The text goes to a temporary file in the same folder, which then
+    replaces TARGET in one step (os.replace): a full disk or an
+    interrupted run leaves the old journal note whole, not cut short.
+    NEW: TARGET must not exist yet; it is created exclusively, so an
+    existing file of that name is never replaced.  An existing file
+    keeps its permissions.
+    """
+    if new:
+        with open(target, "x", encoding="utf-8") as out:
+            out.write(content)
+        return
+    fd, temp = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as out:
+            out.write(content)
+        shutil.copymode(target, temp)
+        os.replace(temp, target)
+    except BaseException:
+        if os.path.exists(temp):
+            os.unlink(temp)
+        raise
+
+
 def rewrite_links(org_text, note_rel_dir, vault, attach_dir,
                   attach_link_base, ident, copies, report):
     """Resolve vault-relative file: links produced by pandoc.
@@ -323,7 +382,7 @@ def rewrite_links(org_text, note_rel_dir, vault, attach_dir,
             report.append(("missing-link", rel))
             return match.group(0)
         if source.suffix.lower() in IMAGE_EXTS:
-            new_name = f"{ident}--{source.name}"
+            new_name = attachment_name(source, attach_dir, ident, copies)
             copies.append((source, attach_dir / new_name))
             link = f"{attach_link_base}/{new_name}"
             return f"[[file:{link}]" + (f"[{desc}]" if desc else "") + "]"
@@ -534,6 +593,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--vault", default=VAULT_DEFAULT)
+    ap.add_argument("--inbox", default=INBOX_REL,
+                    help="folder inside the vault to import from")
     ap.add_argument("--notes", default=NOTES_DEFAULT)
     ap.add_argument("--write", action="store_true",
                     help="actually write, move and copy (default: dry run)")
@@ -550,7 +611,7 @@ def main():
     check_pandoc()
     vault = Path(args.vault).expanduser().resolve()
     notes = Path(args.notes).expanduser()
-    inbox_dir = vault / INBOX_REL
+    inbox_dir = vault / args.inbox
     journal_dir = notes / JOURNAL_REL
     inbox_silo = notes / INBOX_SILO_REL
     attach_dir = notes / ATTACH_REL
@@ -580,7 +641,7 @@ def main():
 
     taken = existing_identifiers(notes)
     now = dt.datetime.now()
-    rows, warnings = [], []
+    rows, warnings, failed = [], [], []
 
     # The touched list is started empty and gets each note as soon as it
     # is written, not at the end: a run that fails on a later note still
@@ -593,7 +654,11 @@ def main():
     for path in sources:
         rel = path.relative_to(vault)
         text = path.read_text(encoding="utf-8")
-        fm, body = parse_frontmatter(text)
+        try:
+            fm, body = parse_frontmatter(text)
+        except ValueError as err:
+            failed.append(f"{rel}: {err}; left in the inbox")
+            continue
         created = parse_created(fm, path)
         tags = [t for t in frontmatter_tags(fm) if t not in IGNORED_TAGS]
 
@@ -603,13 +668,13 @@ def main():
         if stem_date and not date:
             date = dt.date(*(int(g) for g in stem_date.groups()))
         if is_journal and not date:
-            warnings.append(f"{rel}: journal note without a usable date")
+            failed.append(f"{rel}: journal note without a usable date")
             continue
 
         try:
             org_body = run_pandoc(preprocess(body))
         except RuntimeError as err:
-            warnings.append(f"{rel}: pandoc failed: {err}")
+            failed.append(f"{rel}: pandoc failed: {err}")
             continue
 
         copies, link_report = [], []
@@ -667,7 +732,7 @@ def main():
             if copies:
                 attach_dir.mkdir(parents=True, exist_ok=True)
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(content, encoding="utf-8")
+            write_atomic(target, content, new=(action != "journal-merge"))
             if touched_path:
                 with touched_path.open("a", encoding="utf-8") as out:
                     out.write(str(Path(target).expanduser().resolve()) + "\n")
@@ -687,6 +752,8 @@ def main():
              "|--------+--------+--------+----------|"]
     for row in rows:
         lines.append("| " + " | ".join(row) + " |")
+    if failed:
+        lines += ["", "* Not imported (left in the inbox)"] + [f"- {w}" for w in failed]
     if warnings:
         lines += ["", "* Warnings"] + [f"- {w}" for w in warnings]
     report = "\n".join(lines) + "\n"
@@ -694,6 +761,11 @@ def main():
     print(report)
     if args.report:
         Path(args.report).expanduser().write_text(report, encoding="utf-8")
+    # 2: the run went through, but some notes were not imported -- a
+    # note to look at, not a run to repeat.  A note skipped on purpose
+    # (still settling) is no failure.
+    if failed:
+        sys.exit(2)
 
 
 if __name__ == "__main__":
