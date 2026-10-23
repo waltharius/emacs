@@ -25,6 +25,8 @@
 
 ;;; Code:
 
+(defvar org-indent-mode)
+
 ;; ============================================================
 ;; HIDE EMPHASIS MARKERS (stars, slashes, underscores)
 ;; ============================================================
@@ -247,11 +249,11 @@ Toggle: C-c n E  (in notes transient menu)"
   (if org-hide-emphasis-markers
       (progn
         (setq org-hide-emphasis-markers nil)
-        (font-lock-fontify-buffer)
+        (font-lock-flush)
         (message "👁 Markers VISIBLE - raw syntax: *bold* /italic/ _under_"))
     (progn
       (setq org-hide-emphasis-markers t)
-      (font-lock-fontify-buffer)
+      (font-lock-flush)
       (message "✨ Markers HIDDEN - pretty rendering active"))))
 
 ;; ============================================================

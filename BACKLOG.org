@@ -525,17 +525,21 @@ that silently did nothing; checked in the packages' sources, the first
 four are obsolete /aliases/ of the new names, so they worked all along,
 and =pulsar-pulse= has no effect since pulsar 1.3 because pulsing is
 always on.  Renamed so that they keep working when the aliases go.
-Left:
-- an obsolete function: =denote-explore-identify-duplicate-notes=
-  (15-workspace.el);
-- =org-emacs-idle-seconds= and =dbus-call-method= not known where
-  28-writing-projects.el calls them (a missing =require= of org-clock
-  and dbus, or a guard);
-- =magit-status= called from code (07-git.el): Magit asks for
-  =magit-status-setup-buffer=.
-The rest: free variables of ispell and org-clock set before their
-package loads (03-spelling.el, 28-writing-projects.el), docstring
-form.
+*Done 2026-10-23o*: the remaining 22 fixed, the list empty (see the
+change log).  A new warning fails the weekly check and is fixed at
+once.
+
+*Packages' own warnings* (150-235 per Emacs version in the weekly
+install log, 2026-10-23) are not ours: mostly names their authors
+still use and Emacs or Org marked obsolete (=when-let=, =if-let= since
+Emacs 31; old Denote names in citar-denote, denote-explore,
+denote-sequence -- maintained, and they follow).  One to watch:
+*org-drill*, last release 2021-04-27 (=org-drill-20210427.2003=),
+58-67 warnings, among them Org names obsolete for years
+(=org-bracket-link-regexp=, =org-display-inline-images=,
+=org-show-entry=).  When Org removes them, drilling breaks at run time,
+which the weekly load tests do not exercise.  Then: a maintained
+alternative (org-fc, org-srs: not yet looked at) or a fork.
 
 * Module map
 Asked 2026-10-22: the modules grew one feature at a time, and many

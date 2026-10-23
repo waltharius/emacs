@@ -75,6 +75,14 @@
 ;; `alone': 'void-function transient-define-prefix' with transient 0.13).
 (require 'transient)
 
+;; Org's clock and D-Bus load when used; named here for the compiler.
+(defvar org-clock-persist)
+(defvar org-clock-history-length)
+(defvar org-clock-out-remove-zero-time-clocks)
+(defvar org-clock-report-include-clocking-task)
+(declare-function dbus-call-method "dbus" (bus service path interface method &rest args))
+(declare-function org-emacs-idle-seconds "org-clock" ())
+
 ;; ============================================================
 ;; OPTIONS
 ;; ============================================================

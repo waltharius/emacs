@@ -39,8 +39,16 @@
 ;; this file sets some of its variables.
 (defvar ispell-personal-dictionary)
 (defvar ispell-process)
+(defvar ispell-hunspell-dict-paths-alist)
+(defvar ispell-hunspell-dictionary-alist)
+(defvar ispell-pdict-modified-p)
 (declare-function ispell-kill-ispell "ispell" (&optional no-error clear))
 (declare-function ispell-send-string "ispell" (string))
+(declare-function ispell-find-hunspell-dictionaries "ispell" ())
+(declare-function ispell-hunspell-add-multi-dic "ispell" (dict))
+(declare-function ispell-init-process "ispell" ())
+(declare-function ispell-set-spellchecker-params "ispell" ())
+(declare-function flyspell-overlay-p "flyspell" (o))
 
 ;; ============================================================
 ;; ISPELL CORE VARIABLES  (set immediately — flyspell reads these
@@ -874,8 +882,9 @@ every open text buffer."
 (use-package flyspell-correct
   :ensure t
   :after flyspell
+  ;; The interface is flyspell-correct's default,
+  ;; `flyspell-correct-completing-read', which Vertico shows.
   :config
-  (setq flyspell-correct-interface #'flyspell-correct-completing-read)
   (define-key flyspell-mode-map (kbd "C-;") 'flyspell-correct-wrapper))
 
 ;; ============================================================

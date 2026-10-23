@@ -2,25 +2,4 @@
 # (tests/weekly/compile.el).  One per line, MODULE: message.
 # Written 2026-10-22 with Emacs 29.3; remove a line when its warning is fixed.
 # Some warnings read differently in other versions: both forms are listed.
-03-spelling: assignment to free variable `ispell-hunspell-dict-paths-alist'
-03-spelling: assignment to free variable `ispell-hunspell-dictionary-alist'
-03-spelling: assignment to free variable `ispell-pdict-modified-p'
-03-spelling: reference to free variable `ispell-hunspell-dict-paths-alist'
-03-spelling: the function `flyspell-correct-completing-read' might not be defined at runtime.
-03-spelling: the function `flyspell-overlay-p' might not be defined at runtime.
-03-spelling: the function `ispell-find-hunspell-dictionaries' might not be defined at runtime.
-03-spelling: the function `ispell-hunspell-add-multi-dic' might not be defined at runtime.
-03-spelling: the function `ispell-init-process' might not be defined at runtime.
-03-spelling: the function `ispell-set-spellchecker-params' might not be defined at runtime.
-07-git: `magit-status' is for interactive use only; use `magit-status-setup-buffer' instead.
-11-org-appearance: `font-lock-fontify-buffer' is for interactive use only; use `font-lock-ensure' or `font-lock-flush' instead.
-11-org-appearance: reference to free variable `org-indent-mode'
-15-workspace: `denote-explore-identify-duplicate-notes' is an obsolete function (as of 3.3); use `denote-explore-duplicate-notes' instead.
-22-zettelkasten: docstring wider than 80 characters
-28-writing-projects: assignment to free variable `org-clock-history-length'
-28-writing-projects: assignment to free variable `org-clock-out-remove-zero-time-clocks'
-28-writing-projects: assignment to free variable `org-clock-persist'
-28-writing-projects: assignment to free variable `org-clock-report-include-clocking-task'
-28-writing-projects: the function `dbus-call-method' is not known to be defined.
-28-writing-projects: the function `org-emacs-idle-seconds' is not known to be defined.
-40-markdown: the function `markdown-toggle-markup-hiding' might not be defined at runtime.
+# Empty since 2026-10-23o: every warning of the list was fixed.

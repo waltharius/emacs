@@ -82,6 +82,12 @@
 
 (require 'transient)
 
+;; markdown-mode does not autoload this command; said here, it loads the
+;; package when called -- and the compiler, which sees markdown-mode
+;; only through use-package's load at compile time, knows it exists at
+;; run time too.
+(autoload 'markdown-toggle-markup-hiding "markdown-mode" nil t)
+
 ;; Denote's, declared here so that the `let' in `my/markdown-new-note'
 ;; binds it DYNAMICALLY.  Without this the file compiles the binding as
 ;; a lexical one -- a local variable nothing reads -- and the wrapper

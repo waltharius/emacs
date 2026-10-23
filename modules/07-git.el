@@ -27,6 +27,8 @@
 (require 'seq)
 (require 'subr-x)
 
+(declare-function magit-status-setup-buffer "magit-status" (&optional directory))
+
 ;; ============================================================
 ;; MAGIT: Git interface for Emacs
 ;; ============================================================
@@ -812,7 +814,7 @@ rebase.  The next automatic cycle pushes the result."
     (unless (my/auto-commit--busy-p dir)
       (my/auto-commit--git dir "pull" "--rebase"))
     (setq my/auto-commit--conflicts (delete dir my/auto-commit--conflicts))
-    (magit-status dir)))
+    (magit-status-setup-buffer dir)))
 
 ;; ============================================================
 ;; WHEN IT RUNS
@@ -1097,7 +1099,7 @@ open the commit message buffer."
   (interactive)
   (let ((default-directory (expand-file-name user-emacs-directory)))
     (call-process "git" nil nil nil "add" "init.el" "modules/" ".gitignore")
-    (magit-status)))
+    (magit-status-setup-buffer)))
 
 ;; ============================================================
 ;; GIT STATUS FUNCTIONS
@@ -1107,13 +1109,13 @@ open the commit message buffer."
   "Open Magit status for notes."
   (interactive)
   (let ((default-directory (expand-file-name my-notes-dir)))
-    (magit-status)))
+    (magit-status-setup-buffer)))
 
 (defun my/config-git-status ()
   "Open Magit status for config."
   (interactive)
   (let ((default-directory (expand-file-name user-emacs-directory)))
-    (magit-status)))
+    (magit-status-setup-buffer)))
 
 ;; ============================================================
 ;; KEYBINDINGS

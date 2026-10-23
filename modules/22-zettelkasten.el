@@ -122,7 +122,8 @@ only appears after asking for the same prefix twice.
 The cause is upstream, in how the package reuses an existing Dired
 buffer.  `denote-sequence-dired' ends in
 
-    (denote-sort-dired--prepare-buffer directory files-fn dired-name buffer-name)
+    (denote-sort-dired--prepare-buffer
+     directory files-fn dired-name buffer-name)
 
 where DIRECTORY is the same for every invocation in one silo, and
 FILES-FN is a lambda that computes the listing.  When a Dired buffer

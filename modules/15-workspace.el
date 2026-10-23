@@ -742,7 +742,7 @@ Point ends up in the leftmost column."
   :after (denote org)
   :commands (denote-explore-count-notes
              denote-explore-count-keywords
-             denote-explore-identify-duplicate-notes
+             denote-explore-duplicate-notes
              denote-explore-random-note
              denote-explore-network)
   :custom
