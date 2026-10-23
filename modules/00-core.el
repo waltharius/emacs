@@ -2731,5 +2731,39 @@ is recorded: nothing is checked and nil is returned; otherwise t."
                what actual (downcase expected))))
     t))
 
+;; ============================================================
+;; UPLOADS MIRRORED WITH RSYNC
+;; ============================================================
+;; A site is published by mirroring its build to a server with rsync
+;; --delete.  Which destinations that may never be: one rule, used by
+;; 46-blog.el and 47-repo-docs.el (SAFETY.org 1.5, finding F2).
+
+(defun my/upload-destination-problem (remote)
+  "Return why REMOTE must not receive an upload, or nil when it may.
+The upload mirrors the build with rsync --delete, so the destination
+folder ends up holding the build and nothing else (SAFETY.org, finding
+F2).  Refused: a destination that is a home folder or the root -- an
+empty path after the host (\"user@server:\" is the home folder there),
+~ or ~user, /, /root, /home/NAME, /Users/NAME -- or, on this machine,
+this machine's home folder.  The rights of the user rsync logs
+in as limit what it can delete on the server; within that user's own
+home they limit nothing."
+  (let* ((path (if (string-match "\\`[^/:]+:\\(.*\\)\\'" remote)
+                   (match-string 1 remote)
+                 remote))
+         (bare (replace-regexp-in-string "/+\\'" "" path)))
+    (cond
+     ((string-match-p "\\`rsync://" remote) nil)
+     ((member bare '("" "." "~" "/root"))
+      "that is a home folder or the root")
+     ((string-match-p "\\`~[^/]*\\'" bare)
+      "that is a home folder")
+     ((string-match-p "\\`/\\(home\\|Users\\)/[^/]+\\'" bare)
+      "that is a home folder")
+     ((and (string-prefix-p "/" bare)
+           (equal (file-name-as-directory bare)
+                  (file-name-as-directory (expand-file-name "~"))))
+      "that is this machine's home folder"))))
+
 (provide '00-core)
 ;;; 00-core.el ends here

@@ -8686,7 +8686,8 @@ hard: a changed one may need a reload bypassing the cache
 *Publishing asks, and refuses a home folder* (SAFETY.org, 1.5 and F2).
 The upload mirrors =public/= with =rsync --delete=: the folder named by
 =:remote= ends up holding the build and nothing else.  The question
-before it says so.  =my/blog--remote-problem= refuses a destination
+before it says so.  =my/upload-destination-problem= (00-core.el, shared
+with the repository docs) refuses a destination
 that is a home folder or the root -- an empty path after the host
 (=user@server:= is that user's home there), =~=, =~user=, =/=,
 =/root=, =/home/NAME=, =/Users/NAME=, or this machine's home -- before
@@ -8851,6 +8852,10 @@ URL, its digest (=sha256sum= on a copy downloaded by hand), then delete
 | =my/repo-docs-site-directory= | =~/projects/nixos-docs-site/= | generated site |
 | =my/repo-docs-title= | =Repositories= | title in the site header and on the home page |
 | =my/repo-docs-port= | 1316 | port of =hugo server= (1313–1315 belong to the blog sites) |
+| =my/repo-docs-lan-host= | nil | this machine's name or address in the local network: the preview then listens on every interface, readable by the network ([[#repo-docs-server][Addresses and publishing]]) |
+| =my/repo-docs-url= | nil | the site's address on a server (at home or on the internet): =w= opens pages there, the published build takes it as base address |
+| =my/repo-docs-remote= | nil | rsync destination =p= uploads to; nil: not published |
+| =my/repo-docs-rsync-program= | =rsync= | rsync executable |
 | =my/repo-docs-regenerate-on-save= | =t= | regenerate on saving a repository =.md= while the server runs |
 | =my/repo-docs-toc= | =t= | table of contents above the text of pages with headings |
 | =my/repo-docs-theme-url= | Geekdoc =v4.1.4= bundle | where the theme comes from |
@@ -9037,6 +9042,43 @@ as =source -> target=. =q= closes.
 
 Function: =my/repo-docs-report= | Module: =modules/47-repo-docs.el=
 
+** Addresses and publishing
+:PROPERTIES:
+:CUSTOM_ID: repo-docs-server
+:END:
+
+Three settings of this machine, each optional:
+
+| Setting | What it does |
+|---------+--------------|
+| =my/repo-docs-lan-host= (e.g. =laptop.lan=) | the preview server listens on every interface (=--bind 0.0.0.0=) and its pages use =http://laptop.lan:1316/=, so other machines of the network can read the site — anyone in that network, as far as the firewall lets them; nil: this machine only |
+| =my/repo-docs-url= (e.g. =https://docs.example.org/=) | the site on a server: =w= opens the current file's page there; the build of =p= takes it as base address |
+| =my/repo-docs-remote= (e.g. =user@server:/var/www/docs/=) | where =p= uploads the build |
+
+Publishing (=p=) regenerates the site, installs the theme if missing,
+then asks: /Build the repository docs and upload to …?  That folder
+becomes an exact copy of the build: anything else in it is deleted./
+On yes, Hugo builds =public/= at =my/repo-docs-url=, and only when that
+succeeded rsync mirrors it with =--delete=; both run with argument
+lists, no shell, their output in =*Repo docs publish*=.  A home folder
+or the root as destination is refused before anything runs and again
+at the upload itself — the rule of the blog
+(=my/upload-destination-problem=, 00-core.el; SAFETY.org 1.5).
+
+*** w — Open on the server
+:PROPERTIES:
+:CUSTOM_ID: fn-my-repo-docs-open-on-server
+:END:
+
+Function: =my/repo-docs-open-on-server= | Module: =modules/47-repo-docs.el=
+
+*** p — Publish to the server
+:PROPERTIES:
+:CUSTOM_ID: fn-my-repo-docs-publish
+:END:
+
+Function: =my/repo-docs-publish= | Module: =modules/47-repo-docs.el=
+
 ** Menu (C-c n x r)
 :PROPERTIES:
 :CUSTOM_ID: menu-repo-docs
@@ -9050,6 +9092,8 @@ Function: =my/repo-docs-report= | Module: =modules/47-repo-docs.el=
 | =v= | Preview in browser |
 | =s= | Stop the preview |
 | =l= | Last report |
+| =w= | Open on the server |
+| =p= | Publish to the server |
 
 Function: =my/repo-docs-menu= | Module: =modules/47-repo-docs.el=
 

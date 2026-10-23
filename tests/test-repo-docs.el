@@ -496,5 +496,123 @@ other documents are there."
         (should (equal (my/rd-test--pages content)
                        '("_index.md" "emacs/_index.md" "emacs/b.md")))))))
 
+;; ============================================================
+;; ADDRESSES AND PUBLISHING
+;; ============================================================
+
+(ert-deftest my/rd-test-preview-local-unless-network-name ()
+  "The preview server listens on this machine only, unless a name in the
+network is set: then on every interface, its pages under that name."
+  (let ((my/repo-docs-site-directory "/tmp/site/")
+        (my/repo-docs-port 1316)
+        (my/repo-docs-hugo-program "hugo"))
+    (let ((my/repo-docs-lan-host nil))
+      (should (equal (my/repo-docs--server-command)
+                     '("hugo" "server" "--source" "/tmp/site/" "--port" "1316"))))
+    (let ((my/repo-docs-lan-host "laptop.lan"))
+      (should (equal (my/repo-docs--server-command)
+                     '("hugo" "server" "--source" "/tmp/site/" "--port" "1316"
+                       "--bind" "0.0.0.0" "--baseURL" "http://laptop.lan/"))))))
+
+(ert-deftest my/rd-test-open-on-server ()
+  "`w' opens the current file's page at the server's address, the home
+page for a file the site lacks, and refuses without an address."
+  (my/rd-test--with-repos '(("nixos" (("README.md" . "r\n") ("docs/B.md" . "# B\n"))))
+    (my/repo-docs-generate)
+    (let ((opened nil))
+      (cl-letf (((symbol-function 'browse-url) (lambda (url &rest _) (setq opened url))))
+        (let ((my/repo-docs-url "https://docs.example.org/"))
+          (let ((buffer-file-name (expand-file-name "nixos/docs/B.md" root)))
+            (my/repo-docs-open-on-server))
+          (should (equal opened "https://docs.example.org/nixos/docs/b/"))
+          (let ((buffer-file-name nil))
+            (my/repo-docs-open-on-server))
+          (should (equal opened "https://docs.example.org/")))
+        (let ((my/repo-docs-url nil))
+          (should-error (my/repo-docs-open-on-server) :type 'user-error))))))
+
+(defmacro my/rd-test--publishing (remote &rest body)
+  "Run BODY with the site uploading to REMOTE, nothing run for real.
+`commands' holds the command lines started, in order; each process
+ends at once with the status in `status' (0 at first).  `asked' holds
+the questions asked, `answer' is the answer given (nil at first)."
+  (declare (indent 1))
+  `(my/rd-test--with-repos '(("nixos" (("README.md" . "r\n"))))
+     (let ((my/repo-docs-remote ,remote)
+           (my/repo-docs-url "https://docs.example.org/")
+           (commands '())
+           (status 0)
+           (asked '())
+           (answer nil))
+       (cl-letf (((symbol-function 'executable-find) (lambda (name &rest _) name))
+                 ((symbol-function 'my/repo-docs--ensure-theme) #'ignore)
+                 ((symbol-function 'yes-or-no-p)
+                  (lambda (prompt) (push prompt asked) answer))
+                 ((symbol-function 'make-process)
+                  (lambda (&rest args)
+                    (setq commands (append commands (list (plist-get args :command))))
+                    (let ((sentinel (plist-get args :sentinel))
+                          (proc 'fake))
+                      (cl-letf (((symbol-function 'process-status) (lambda (_) 'exit))
+                                ((symbol-function 'process-exit-status) (lambda (_) status)))
+                        (funcall sentinel proc "finished\n"))
+                      proc))))
+         ,@body))))
+
+(ert-deftest my/rd-test-publish-refuses-home-and-root ()
+  "1.5: no destination, a home folder or the root: refused before the
+site is regenerated, built or uploaded."
+  (dolist (remote '(nil "user@server:" "user@server:~" "user@server:/" "user@server:/home/user/"))
+    (my/rd-test--publishing remote
+      (should-error (my/repo-docs-publish) :type 'user-error)
+      (should-not commands)
+      (should-not asked)
+      (should-not (file-exists-p content)))))
+
+(ert-deftest my/rd-test-publish-asks-then-builds-and-uploads ()
+  "1.5: the question names the server and says the folder becomes an
+exact copy; no builds nothing; yes builds with Hugo at the server's
+address, then mirrors the build with rsync --delete -- argument lists,
+no shell."
+  (my/rd-test--publishing "user@server:/var/www/docs/"
+    (my/repo-docs-publish)
+    (should (= 1 (length asked)))
+    (should (string-match-p (regexp-quote "user@server:/var/www/docs/") (car asked)))
+    (should (string-match-p "exact copy" (car asked)))
+    (should-not commands)
+    (setq answer t)
+    (my/repo-docs-publish)
+    (let ((public (expand-file-name "public/" site)))
+      (should (equal commands
+                     (list (list "hugo" "--source" site "--destination" public
+                                 "--baseURL" "https://docs.example.org/"
+                                 "--gc" "--minify" "--cleanDestinationDir")
+                           (list "rsync" "-az" "--delete" public
+                                 "user@server:/var/www/docs/")))))))
+
+(ert-deftest my/rd-test-publish-no-upload-after-failed-build ()
+  "A build that fails uploads nothing."
+  (my/rd-test--publishing "user@server:/var/www/docs/"
+    (setq answer t status 1)
+    (cl-letf (((symbol-function 'display-buffer) #'ignore))
+      (my/repo-docs-publish))
+    (should (= 1 (length commands)))
+    (should (equal (car (car commands)) "hugo"))))
+
+(ert-deftest my/rd-test-upload-refused-at-the-last-moment ()
+  "1.5: the build-and-upload step itself refuses a home folder, whoever
+calls it, starting nothing."
+  (my/rd-test--publishing "user@server:"
+    (should-error (my/repo-docs--build-and-upload) :type 'user-error)
+    (should-not commands)))
+
+(ert-deftest my/rd-test-publish-needs-server-address ()
+  "Without the server's address the build would point at this machine:
+refused."
+  (my/rd-test--publishing "user@server:/var/www/docs/"
+    (let ((my/repo-docs-url nil))
+      (should-error (my/repo-docs-publish) :type 'user-error))
+    (should-not commands)))
+
 (provide 'test-repo-docs)
 ;;; test-repo-docs.el ends here

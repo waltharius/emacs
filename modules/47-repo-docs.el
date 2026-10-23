@@ -107,10 +107,22 @@
 ;; digest, never something a download does by itself.  Geekdoc 4.x needs
 ;; Hugo 0.160 or newer.
 ;;
+;; ADDRESSES AND PUBLISHING
+;; ------------------------
+;; Three settings, each optional: `my/repo-docs-lan-host' lets the
+;; preview server listen on the local network under this machine's
+;; name; `my/repo-docs-url' is the address of the site on a server (a
+;; machine at home or on the internet), where `w' opens pages; and
+;; `my/repo-docs-remote' is where `p' uploads the built site, mirrored
+;; with rsync --delete after a question that names the server and says
+;; the folder becomes an exact copy -- a home folder or the root is
+;; refused, as for the blog (SAFETY.org 1.5).  Hugo and rsync run with
+;; argument lists, rsync only after Hugo succeeded.
+;;
 ;; MENU (C-c n x r)
 ;; ----------------
-;;   f  find a document       v  preview in the browser
-;;   g  regenerate the site   s  stop the preview
+;;   f  find a document       v  preview in the browser   w  open on the server
+;;   g  regenerate the site   s  stop the preview         p  publish
 ;;   o  site folder           l  last report
 ;;
 ;; Docs: ~/.emacs.d/function_helper.org::#repo-docs
@@ -184,6 +196,42 @@ it is kept outside the notes tree and outside any repository."
   :type 'integer
   :group 'my/repo-docs)
 
+(defcustom my/repo-docs-lan-host nil
+  "Name or address of this machine in the local network, or nil.
+Nil: the preview server listens on this machine only.  A name such as
+\"laptop.lan\" or an address such as \"192.168.1.20\": it listens
+on every network interface, its pages addressed as
+http://HOST:PORT/, so other machines of the network can read the site
+-- anyone in that network, as far as this machine's firewall lets
+them."
+  :type '(choice (const :tag "This machine only" nil)
+                 (string :tag "Name or address in the network"))
+  :group 'my/repo-docs)
+
+(defcustom my/repo-docs-url nil
+  "Address the site is read at on a server, or nil.
+A server in the local network or on the internet, e.g.
+\"https://docs.example.org/\".  `my/repo-docs-open-on-server' opens
+pages there, and the build `my/repo-docs-publish' uploads takes it as
+its base address."
+  :type '(choice (const :tag "None" nil) (string :tag "Address"))
+  :group 'my/repo-docs)
+
+(defcustom my/repo-docs-remote nil
+  "Where `my/repo-docs-publish' uploads the built site, or nil.
+An rsync destination such as \"user@server:/var/www/docs/\" (the
+trailing slash matters).  The folder there becomes an exact copy of the
+build: anything else in it is deleted.  A home folder or the root is
+refused (`my/upload-destination-problem').  Nil: the site is not
+published."
+  :type '(choice (const :tag "Not published" nil) (string :tag "rsync destination"))
+  :group 'my/repo-docs)
+
+(defcustom my/repo-docs-rsync-program "rsync"
+  "rsync executable, for `my/repo-docs-publish'."
+  :type 'string
+  :group 'my/repo-docs)
+
 (defcustom my/repo-docs-hugo-program "hugo"
   "Hugo executable."
   :type 'string
@@ -223,6 +271,9 @@ saved while the preview server runs."
 
 (defconst my/repo-docs--server-buffer "*Repo docs server*"
   "Buffer of the `hugo server' process.")
+
+(defconst my/repo-docs--publish-buffer "*Repo docs publish*"
+  "Buffer of the build and upload of `my/repo-docs-publish'.")
 
 (defconst my/repo-docs--theme-name "hugo-geekdoc"
   "Directory name of the theme under themes/.")
@@ -1119,6 +1170,18 @@ succeeded, so a failure never leaves a half-filled theme behind."
   (let ((proc (get-buffer-process my/repo-docs--server-buffer)))
     (and proc (process-live-p proc))))
 
+(defun my/repo-docs--server-command ()
+  "Return the command line of `hugo server' for the site.
+With `my/repo-docs-lan-host', listening on every interface under that
+name; otherwise on this machine only, Hugo's default."
+  (append (list my/repo-docs-hugo-program "server"
+                "--source" (my/repo-docs--site)
+                "--port" (number-to-string my/repo-docs-port))
+          ;; Hugo adds the port to the base address itself.
+          (when my/repo-docs-lan-host
+            (list "--bind" "0.0.0.0"
+                  "--baseURL" (format "http://%s/" my/repo-docs-lan-host)))))
+
 (defun my/repo-docs--serve ()
   "Start `hugo server' for the site unless it runs.  Return non-nil if started."
   (unless (my/repo-docs--serving-p)
@@ -1128,24 +1191,26 @@ succeeded, so a failure never leaves a half-filled theme behind."
     (make-process
      :name "repo-docs-server"
      :buffer (get-buffer-create my/repo-docs--server-buffer)
-     :command (list my/repo-docs-hugo-program "server"
-                    "--source" (my/repo-docs--site)
-                    "--port" (number-to-string my/repo-docs-port))
+     :command (my/repo-docs--server-command)
      :noquery t)
+    (when my/repo-docs-lan-host
+      (message "Repo docs: readable in the network at http://%s:%d/"
+               my/repo-docs-lan-host my/repo-docs-port))
     t))
 
 (defun my/repo-docs--base-url ()
   "Return the address the site is read at, without a trailing slash."
   (format "http://localhost:%d" my/repo-docs-port))
 
-(defun my/repo-docs--url-for-file (file)
+(defun my/repo-docs--url-for-file (file &optional base)
   "Return the address of the page made from FILE, or nil.
 FILE is an absolute path; nil when the last regeneration made no page
-from it."
+from it.  BASE is the site's address without a trailing slash, the
+local preview's by default."
   (when-let* ((path (my/repo-docs--site-path-of file))
               (entry (and my/repo-docs--last-map
                           (gethash path my/repo-docs--last-map))))
-    (concat (my/repo-docs--base-url) (plist-get entry :url))))
+    (concat (or base (my/repo-docs--base-url)) (plist-get entry :url))))
 
 (defun my/repo-docs--summary (report)
   "Return a one-line summary of REPORT."
@@ -1232,6 +1297,93 @@ home page otherwise.  The theme is installed on first use."
     (message "Repo docs server is not running")))
 
 ;;;###autoload
+(defun my/repo-docs-open-on-server ()
+  "Open the page of the current buffer's file on `my/repo-docs-url'.
+The home page when the site has no page for the file.  The pages are
+the last regeneration's; the server shows what was last published."
+  (interactive)
+  (unless (and (stringp my/repo-docs-url) (not (string-empty-p my/repo-docs-url)))
+    (user-error "No server address: set `my/repo-docs-url' (C-c n , ,)"))
+  (let ((base (string-remove-suffix "/" my/repo-docs-url)))
+    (unless my/repo-docs--last-map
+      (ignore-errors (my/repo-docs-generate)))
+    (browse-url (or (my/repo-docs--url-for-file buffer-file-name base)
+                    (concat base "/")))))
+
+(defun my/repo-docs--refuse-upload (remote)
+  "Stop unless REMOTE may receive the site: set, and not a home or root."
+  (unless (and (stringp remote) (not (string-empty-p remote)))
+    (user-error "No upload destination: set `my/repo-docs-remote' (C-c n , ,)"))
+  (when-let* ((problem (my/upload-destination-problem remote)))
+    (user-error "Repo docs: refusing to upload to %s -- %s" remote problem)))
+
+(defun my/repo-docs--run (name command then)
+  "Run COMMAND, an argument list, as process NAME in the publish buffer.
+THEN is called with no argument when it exits with status 0; any other
+end shows the buffer and says so."
+  (with-current-buffer (get-buffer-create my/repo-docs--publish-buffer)
+    (let ((inhibit-read-only t))
+      (goto-char (point-max))
+      (insert "$ " (mapconcat #'shell-quote-argument command " ") "\n")))
+  (make-process
+   :name name
+   :buffer my/repo-docs--publish-buffer
+   :command command
+   :noquery t
+   :sentinel (lambda (proc _event)
+               (when (memq (process-status proc) '(exit signal))
+                 (if (zerop (process-exit-status proc))
+                     (funcall then)
+                   (display-buffer my/repo-docs--publish-buffer)
+                   (message "Repo docs: %s FAILED (exit %d) - see %s"
+                            name (process-exit-status proc)
+                            my/repo-docs--publish-buffer))))))
+
+(defun my/repo-docs--build-and-upload ()
+  "Build the site into public/ and mirror it to `my/repo-docs-remote'.
+Two programs, each with an argument list: Hugo, then -- only when it
+succeeded -- rsync --delete.  The destination is checked again here, at
+the last moment, whoever calls this."
+  (let* ((remote my/repo-docs-remote)
+         (site (my/repo-docs--site))
+         (public (file-name-as-directory (expand-file-name "public" site))))
+    (my/repo-docs--refuse-upload remote)
+    (with-current-buffer (get-buffer-create my/repo-docs--publish-buffer)
+      (let ((inhibit-read-only t)) (erase-buffer)))
+    (my/repo-docs--run
+     "repo-docs-build"
+     (list my/repo-docs-hugo-program "--source" site "--destination" public
+           "--baseURL" my/repo-docs-url "--gc" "--minify" "--cleanDestinationDir")
+     (lambda ()
+       (my/repo-docs--run
+        "repo-docs-upload"
+        (list my/repo-docs-rsync-program "-az" "--delete" public remote)
+        (lambda () (message "Repo docs published to %s" remote)))))
+    (message "Repo docs: building and uploading to %s..." remote)))
+
+;;;###autoload
+(defun my/repo-docs-publish ()
+  "Regenerate the site, build it and upload it to `my/repo-docs-remote'.
+The upload mirrors the build with rsync --delete, so the folder on the
+server ends up holding exactly the build.  Asks first, naming the
+server; a home folder or the root is refused.  The build's addresses
+are `my/repo-docs-url''s."
+  (interactive)
+  (my/repo-docs--refuse-upload my/repo-docs-remote)
+  (unless (and (stringp my/repo-docs-url) (not (string-empty-p my/repo-docs-url)))
+    (user-error "No server address: set `my/repo-docs-url', the address the published site is read at"))
+  (dolist (program (list my/repo-docs-hugo-program my/repo-docs-rsync-program))
+    (unless (executable-find program)
+      (user-error "%s not found on PATH" program)))
+  (let ((report (my/repo-docs-generate)))
+    (my/repo-docs--ensure-theme)
+    (message "%s" (my/repo-docs--summary report)))
+  (when (yes-or-no-p
+         (format "Build the repository docs and upload to %s?  That folder becomes an exact copy of the build: anything else in it is deleted. "
+                 my/repo-docs-remote))
+    (my/repo-docs--build-and-upload)))
+
+;;;###autoload
 (defun my/repo-docs-open-site ()
   "Open the generated site's folder in Dired."
   (interactive)
@@ -1291,6 +1443,9 @@ Only while the preview server runs: otherwise nobody is looking, and
     ("v" "Preview in browser"   my/repo-docs-preview)
     ("s" "Stop the preview"     my/repo-docs-stop)
     ("l" "Last report"          my/repo-docs-report)]
+   ["Server"
+    ("w" "Open on the server"   my/repo-docs-open-on-server)
+    ("p" "Publish to the server" my/repo-docs-publish)]
    [("q" "Quit" transient-quit-one)]])
 
 ;; ============================================================

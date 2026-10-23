@@ -822,8 +822,9 @@ text.
 repositories, a section each, Markdown and plain text, the list set per
 machine.  Org files through ox-hugo: 2026-10-23k (one page per file;
 =function_helper.org= as one page of about 9000 lines builds without
-trouble, so not split by heading for now).  Next: the address, a
-server in the local network and publishing.
+trouble, so not split by heading for now).  The address, a server in
+the local network and publishing: 2026-10-23l.  Done as asked; left:
+links between the two repositories (left as text, reported).
 
 * Fonts as configuration, per silo
 Proposed 2026-10-12, after the journal PDF export broke on font lookup.

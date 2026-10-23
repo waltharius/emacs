@@ -644,6 +644,21 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R43. Repository docs: network, server, publishing [0/4]
+- [ ] =C-c n , ,= → =my/repo-docs-lan-host= = this laptop's name in the
+      network (or its address); =C-c n x r s=, then =v=.  From another
+      machine (phone) open =http://NAME:1316/=: the site, links working.
+      Set back to nil, =s=, =v=: the other machine no longer reaches it.
+- [ ] With a server at hand: =my/repo-docs-url= and
+      =my/repo-docs-remote= set (a folder made for the docs, not a home
+      folder).  =p=: the question names the destination and says
+      /exact copy/; answer no -- nothing in =*Repo docs publish*=.
+- [ ] =p= again, yes: Hugo, then rsync in =*Repo docs publish*=; the
+      site reads at =my/repo-docs-url=.  =w= on a document opens its
+      page there.
+- [ ] =my/repo-docs-remote= = =user@server:= (no path): =p= refuses at
+      once, naming the reason.
+
 ** R42. Repository docs: Org files [0/3]
 - [ ] Under =emacs=: BACKLOG, function_helper, SAFETY, TESTING,
       TESTPLAN as pages with their titles; tables and code blocks
