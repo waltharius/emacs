@@ -170,7 +170,7 @@ missing one disables a feature rather than breaking the configuration:
 
 | Program | Used for | Module |
 |---------|----------|--------|
-| `git` | auto-commit, `git mv`/`git rm` for notes | `07-git.el`, `05-notes.el` |
+| `git` | auto-commit, `git mv` for moved notes | `07-git.el`, `05-notes.el` |
 | `hunspell` | spell checking (Polish and English dictionaries) | `03-spelling.el` |
 | `magick` or `convert` (ImageMagick) | image attachment compression | `31-org-images.el` |
 | `libreoffice` / `soffice` | ODT → DOCX conversion | `29-writing-export.el` |

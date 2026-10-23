@@ -915,23 +915,22 @@ switched off per session or for good; plain `yes-or-no-p' without it."
     (yes-or-no-p prompt)))
 
 (defun my/denote--delete-file (file)
-  "Delete FILE with `git rm -f' when it is tracked, to the trash otherwise.
-Returns the word describing what happened, for the report.
+  "Move FILE to the system's trash, tracked by git or not; return \"trash\".
 
-A tracked file can be got back from git; an untracked one, deleted for
-good before 2026-10-19 (SAFETY.org, finding F1), goes to the system's
-trash, from where it can be restored.
+The trash holds the file as it is on disk, everything written since the
+last commit included; git keeps its history, and the next automatic
+commit (07-git.el, `git add -A') records the deletion.  Until 2026-10-24
+a tracked file was removed with `git rm -f', which can be got back only
+as it was at the last commit: what had been written since was lost for
+good (outside audits of 2026-10-24, decided by the owner the same day).
 
-`call-process' is used rather than a shell command so that a file name
-containing an apostrophe or a space needs no quoting and cannot be
-re-read as syntax."
-  (if (and (executable-find "git")
-           (= 0 (call-process "git" nil nil nil
-                              "ls-files" "--error-unmatch" file)))
-      (progn (call-process "git" nil nil nil "rm" "-f" file) "git")
-    (let ((delete-by-moving-to-trash t))
-      (delete-file file t)
-      "trash")))
+A failure -- no trash, no permission -- signals, before anything else
+is done; nothing reports a deletion that did not happen."
+  (let ((delete-by-moving-to-trash t))
+    (delete-file file t))
+  (when (file-exists-p file)
+    (error "Could not move %s to the trash" (file-name-nondirectory file)))
+  "trash")
 
 (defun my/denote--attachment-prompt (own)
   "Return the question asked about deleting the attachments OWN.
@@ -950,18 +949,16 @@ Names up to three of them; the full list has already gone to
 (defun my/denote-delete-note ()
   "Delete the current note, and offer to delete its attachments with it.
 
-Uses `git rm -f' when a file is tracked, the system's trash otherwise
-(`my/denote--delete-file'), for the note and for every attachment alike.
+The note and every attachment go to the system's trash
+\(`my/denote--delete-file'); unsaved changes in the note's buffer are
+saved first, so the trash holds everything that was typed.
 
 Which files count as the note's attachments, and which are held back
 for being linked from elsewhere, is decided by
 `my/org-image-note-attachments' in 31-org-images.el -- the module that
 owns the attachments directory.  Without that module loaded the note is
 deleted on its own, exactly as before.  See
-`my/denote-delete-attachments' for turning the offer off.
-
-WARNING: `git rm -f' bypasses staging.  The deletion is immediate in
-the working tree."
+`my/denote-delete-attachments' for turning the offer off."
   (interactive)
   (let ((file (buffer-file-name)))
     (if (not file)
@@ -982,7 +979,11 @@ the working tree."
           (let* ((also (and own
                             (or (eq my/denote-delete-attachments 'always)
                                 (yes-or-no-p (my/denote--attachment-prompt own)))))
-                 (where (my/denote--delete-file file))
+                 (where (progn
+                          ;; What was typed and not saved goes to the
+                          ;; trash with the note, not lost with the buffer.
+                          (when (buffer-modified-p) (save-buffer))
+                          (my/denote--delete-file file)))
                  (removed 0))
             (when also
               (dolist (attachment own)
@@ -1003,6 +1004,7 @@ the working tree."
                        (format "  -- %d attachment(s) left: also used by other notes"
                                (length shared)))
                       (t "")))
+            (set-buffer-modified-p nil)
             (kill-buffer (current-buffer))))))))
 
 ;; ============================================================
@@ -1077,16 +1079,6 @@ is preserved instead of showing an unrelated delete plus add."
           (rename-file source target t))
       (rename-file source target t))))
 
-(defun my/denote--remove (file)
-  "Delete FILE, using \"git rm\" when it is tracked, to the trash otherwise."
-  (let ((default-directory (file-name-directory file)))
-    (if (and (executable-find "git")
-             (= 0 (call-process "git" nil nil nil
-                                "ls-files" "--error-unmatch" file)))
-        (call-process "git" nil nil nil "rm" "-f" file)
-      (let ((delete-by-moving-to-trash t))
-        (delete-file file t)))))
-
 (defun my/denote-move-to-silo ()
   "Move the current Denote note to another silo.
 
@@ -1157,7 +1149,7 @@ the duplicate identifier still needs sorting out afterwards."
                                               title-matches nil t))))
                (if (my/notes--confirm-deletion (format "Permanently delete %s? "
                                         (file-name-nondirectory victim)))
-                   (my/denote--remove victim)
+                   (my/denote--delete-file victim)
                  (setq proceed nil))))
 
             ("keep both"

@@ -92,21 +92,34 @@ With COMMIT, add it to git and commit."
 
 (defmacro my/notes-test--answering (answers &rest body)
   "Run BODY with `completing-read' answering ANSWERS in order.
-`yes-or-no-p' and `y-or-n-p' answer from the plist ANSWERS's :yes
-\(default t); `read-string' from :title."
+`yes-or-no-p' and `y-or-n-p' answer from the plist ANSWERS's :yes;
+`read-string' from :title.
+
+:yes is a list of answers, one per question in order (`(t nil)': yes to
+the first, no to the second).  A question beyond the list fails the
+test, and so does an answer left unused, so a question added or dropped
+in a deletion is seen rather than answered yes in silence (outside
+audits of 2026-10-24).  Without :yes no yes-or-no question may come."
   (declare (indent 1))
   `(let ((queue (plist-get ,answers :choices))
-         (yes (if (plist-member ,answers :yes) (plist-get ,answers :yes) t))
+         (yes (plist-get ,answers :yes))
          (asked nil))
      (cl-letf (((symbol-function 'completing-read)
                 (lambda (prompt &rest _)
                   (push prompt asked)
                   (or (pop queue) (error "Unexpected question: %s" prompt))))
-               ((symbol-function 'yes-or-no-p) (lambda (prompt) (push prompt asked) yes))
-               ((symbol-function 'y-or-n-p) (lambda (prompt) (push prompt asked) yes))
+               ((symbol-function 'yes-or-no-p)
+                (lambda (prompt)
+                  (push prompt asked)
+                  (if yes (pop yes) (error "Unexpected yes-or-no question: %s" prompt))))
+               ((symbol-function 'y-or-n-p)
+                (lambda (prompt)
+                  (push prompt asked)
+                  (if yes (pop yes) (error "Unexpected y-or-n question: %s" prompt))))
                ((symbol-function 'read-string)
                 (lambda (prompt &rest _) (push prompt asked) (plist-get ,answers :title))))
-       ,@body)))
+       (prog1 (progn ,@body)
+         (should-not yes)))))
 
 (defun my/notes-test--move (file answers)
   "Visit FILE and run `my/denote-move-to-silo' answering ANSWERS.
@@ -179,7 +192,7 @@ the move refuses, and both files stay as they were."
   (my/notes-test--with-notes
     (let ((note (my/notes-test--note pks "20261022T100000" "kant" "Kant"))
           (other (my/notes-test--note docu "20261022T110000" "kant" "Kant")))
-      (my/notes-test--move note '(:choices ("docu" "overwrite") :yes nil))
+      (my/notes-test--move note '(:choices ("docu" "overwrite") :yes (nil)))
       (should (file-exists-p note))
       (should (file-exists-p other)))))
 
@@ -189,7 +202,7 @@ not deleted for good; the note takes its place in the silo."
   (my/notes-test--with-notes
     (let* ((note (my/notes-test--note pks "20261022T100000" "kant" "Kant"))
            (other (my/notes-test--note docu "20261022T110000" "kant" "Kant"))
-           (moved (my/notes-test--move note '(:choices ("docu" "overwrite")))))
+           (moved (my/notes-test--move note '(:choices ("docu" "overwrite") :yes (t)))))
       (should-not (file-exists-p other))
       (should (file-exists-p (expand-file-name (file-name-nondirectory other) trash)))
       (should (file-exists-p moved)))))
@@ -212,7 +225,7 @@ cancels, and the note stays where it was, unchanged."
       (with-current-buffer (find-file-noselect note)
         (goto-char (point-max))
         (insert "unsaved")
-        (my/notes-test--answering '(:choices ("docu") :yes nil)
+        (my/notes-test--answering '(:choices ("docu") :yes (nil))
           (should-error (my/denote-move-to-silo) :type 'user-error)))
       (should (equal (my/notes-test--read note) text)))))
 
@@ -253,7 +266,7 @@ the trash; an attachment other notes use stays."
       (my/notes-test--write shared "png")
       (my/notes-test--with-attachments (list own) (list shared)
         (with-current-buffer (find-file-noselect note)
-          (my/notes-test--answering '(:yes t)
+          (my/notes-test--answering '(:yes (t t))
             (my/denote-delete-note))))
       (should-not (file-exists-p note))
       (should (file-exists-p (expand-file-name (file-name-nondirectory note) trash)))
@@ -265,12 +278,11 @@ the trash; an attachment other notes use stays."
   "Yes to the note, no to the attachments: the attachments stay."
   (my/notes-test--with-notes
     (let* ((note (my/notes-test--note pks "20261022T100000" "kant" "Kant"))
-           (own (expand-file-name "attachments/kant.png" root))
-           (answers (list t nil)))
+           (own (expand-file-name "attachments/kant.png" root)))
       (my/notes-test--write own "png")
       (my/notes-test--with-attachments (list own) nil
-        (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) (pop answers))))
-          (with-current-buffer (find-file-noselect note)
+        (with-current-buffer (find-file-noselect note)
+          (my/notes-test--answering '(:yes (t nil))
             (my/denote-delete-note))))
       (should-not (file-exists-p note))
       (should (file-exists-p own)))))
@@ -289,6 +301,51 @@ and they stay."
           (with-current-buffer (find-file-noselect note)
             (my/denote-delete-note))))
       (should (= questions 1))
+      (should (file-exists-p own)))))
+
+;; Since 2026-10-24 every deleted note goes to the trash, tracked or not:
+;; `git rm -f' lost what had been written since the last commit.
+(ert-deftest my/notes-test-delete-tracked-note-keeps-uncommitted-text ()
+  "2.1: a note git tracks, changed on disk since its last commit, and
+with more typed in its buffer: deleted, the trash holds all of it --
+the commit, the saved change, the unsaved text -- and git still has the
+committed version."
+  (my/notes-test--with-notes
+    (let* ((note (my/notes-test--note pks "20261022T100000" "kant" "Kant" t))
+           (name (file-name-nondirectory note)))
+      (my/notes-test--write note (concat (my/notes-test--read note) "Saved, not committed.\n"))
+      (with-current-buffer (find-file-noselect note)
+        (goto-char (point-max))
+        (insert "Typed, not saved.\n")
+        (my/notes-test--answering '(:yes (t))
+          (my/denote-delete-note)))
+      (should-not (file-exists-p note))
+      (should-not (find-buffer-visiting note))
+      (let ((trashed (my/notes-test--read (expand-file-name name trash))))
+        (should (string-search "Body of Kant." trashed))
+        (should (string-search "Saved, not committed." trashed))
+        (should (string-search "Typed, not saved." trashed)))
+      (should (string-search "Body of Kant."
+                             (my/notes-test--git root "show" (concat "HEAD:pks/" name)))))))
+
+(ert-deftest my/notes-test-delete-failure-reports-and-keeps ()
+  "When the note cannot be moved to the trash, the deletion stops with
+an error: the note and its buffer stay, and no attachment is touched."
+  (my/notes-test--with-notes
+    (let* ((note (my/notes-test--note pks "20261022T100000" "kant" "Kant"))
+           (own (expand-file-name "attachments/kant.png" root)))
+      (my/notes-test--write own "png")
+      (my/notes-test--with-attachments (list own) nil
+        (advice-add 'move-file-to-trash :override
+                    (lambda (&rest _) (error "Trash unavailable"))
+                    '((name . my/notes-test-no-trash)))
+        (unwind-protect
+            (with-current-buffer (find-file-noselect note)
+              (my/notes-test--answering '(:yes (t t))
+                (should-error (my/denote-delete-note))))
+          (advice-remove 'move-file-to-trash 'my/notes-test-no-trash)))
+      (should (file-exists-p note))
+      (should (find-buffer-visiting note))
       (should (file-exists-p own)))))
 
 ;; ============================================================

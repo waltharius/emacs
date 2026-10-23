@@ -1758,7 +1758,7 @@ being moved (comparison ignores case and surrounding whitespace).
 may legitimately share a title as long as their identifiers differ,
 because the identifier is what makes the file name unique.
 
-"Overwrite" deletes the target note (via =git rm= when tracked) after a
+"Overwrite" moves the target note to the system's trash after a
 =yes-or-no-p= confirmation. When several notes in the target share the
 title, it asks which one to replace.
 
@@ -1794,7 +1794,7 @@ or outgoing links.
 
 Functions: =my/denote-move-to-silo=, =my/denote--file-title=,
 =my/denote--silo-note-files=, =my/denote--current-silo=,
-=my/denote--titles-equal-p=, =my/denote--relocate=, =my/denote--remove=
+=my/denote--titles-equal-p=, =my/denote--relocate=, =my/denote--delete-file=
 | Variable: =my/denote-silo-alist= | Module: =modules/05-notes.el=
 
 Identifiers are read with =my/denote--file-identifier=, which lives in
@@ -1805,15 +1805,16 @@ Identifiers are read with =my/denote--file-identifier=, which lives in
 :CUSTOM_ID: fn-my-denote-delete-note
 :END:
 
-Deletes the current note file and kills its buffer. If tracked by Git,
-uses =git rm -f= (the note can be got back from git); otherwise it goes
-to the system's trash, from where it can be restored -- before
-2026-10-19 it was deleted for good (SAFETY.org, F1).  Attachments
-deleted with it go the same way.  Asks first, through the shared
-deletion question (see [[#confirm-deletion][Deletion questions]]).
-
-*Warning:* =git rm -f= bypasses staging — deletion is immediate in the
-working tree. Commit or stash important changes first.
+Moves the current note to the system's trash and kills its buffer,
+tracked by git or not; unsaved changes in the buffer are saved first,
+so the trash holds everything that was typed.  Git keeps the history,
+and the next automatic commit records the deletion.  Before 2026-10-24
+a tracked note was removed with =git rm -f=, which loses what was
+written since the last commit; before 2026-10-19 an untracked one was
+deleted for good (SAFETY.org, F1).  Attachments deleted with it go to
+the trash too.  When the trash refuses, the command stops with an
+error and nothing is deleted.  Asks first, through the shared deletion
+question (see [[#confirm-deletion][Deletion questions]]).
 
 **** Attachments go with it, if they are the note's alone
 

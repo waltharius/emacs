@@ -62,21 +62,31 @@
     (delete-directory dir t)
     (delete-directory trash t)))
 
-(ert-deftest my/safety-test-2.1-tracked-note-kept-by-git ()
-  "2.1: a tracked note is removed with git rm, and git still has it."
+(ert-deftest my/safety-test-2.1-tracked-note-to-trash ()
+  "2.1: a tracked note goes to the trash too, with what was written since
+its last commit; git still has the committed version (since 2026-10-24;
+before, `git rm -f' lost the uncommitted text)."
   (skip-unless (executable-find "git"))
   (let* ((dir (make-temp-file "mypks-notes-" t))
+         (trash (make-temp-file "mypks-trash-" t))
+         (trash-directory trash)
          (note (expand-file-name "20261019T120000--tracked.org" dir)))
     (my/safety-test--git dir "init" "--quiet")
     (with-temp-file note (insert "#+title: tracked\n"))
     (my/safety-test--git dir "add" ".")
     (my/safety-test--git dir "commit" "--quiet" "-m" "note")
+    (with-temp-file note (insert "#+title: tracked\nWritten since the commit.\n"))
     (let ((default-directory (file-name-as-directory dir)))
-      (should (equal (my/denote--delete-file note) "git")))
+      (should (equal (my/denote--delete-file note) "trash")))
     (should-not (file-exists-p note))
+    (should (equal (with-temp-buffer
+                     (insert-file-contents (expand-file-name (file-name-nondirectory note) trash))
+                     (buffer-string))
+                   "#+title: tracked\nWritten since the commit.\n"))
     (should (string-match-p "tracked"
                             (my/safety-test--git dir "show" "HEAD:20261019T120000--tracked.org")))
-    (delete-directory dir t)))
+    (delete-directory dir t)
+    (delete-directory trash t)))
 
 ;; ============================================================
 ;; F2 -- 1.5: UPLOADING A SITE
