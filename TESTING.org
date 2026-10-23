@@ -145,7 +145,9 @@ them through the basics; until then the =tests= check reminds;
    25-inbox-review (done 2026-10-22l, =tests/test-inbox-review.el=),
    26-maintenance (done 2026-10-23b, =tests/test-maintenance.el=),
    31-org-images (done 2026-10-23e, =tests/test-org-images.el=),
-   39-project-git (done 2026-10-23f, =tests/test-project-git.el=), 46-blog (the rest of SAFETY.org 1.x), 47-repo-docs,
+   39-project-git (done 2026-10-23f, =tests/test-project-git.el=),
+   46-blog (SAFETY.org 1.1-1.4 and 1.6 done 2026-10-23g, in
+   =tests/test-safety.el=), 47-repo-docs,
    42-obsidian-import, 24-readwise; then the others, a few per session,
    as each is next changed.
 

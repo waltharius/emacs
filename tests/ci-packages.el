@@ -11,7 +11,8 @@
 ;; is in ~/.emacs.d/elpa/.  These are the packages whose absence makes a
 ;; test file fail rather than skip: Denote (04-denote.el, loaded by
 ;; test-journal-metrics) and no-littering (00-core.el; compat comes with
-;; it).  A module loaded by a test whose package is missing still loads,
+;; it); ox-hugo (with tomelr), which test-safety needs to check what a
+;; page of a site says about the notes it links to (SAFETY.org 1.4).  A module loaded by a test whose package is missing still loads,
 ;; with a warning, as at a real start.  Not a test file itself: its name
 ;; does not start with test-.
 
@@ -25,7 +26,7 @@
 (package-initialize)
 
 (defconst my/ci-packages
-  '((denote) (no-littering)
+  '((denote) (no-littering) (ox-hugo)
     ;; Not the transient built into Emacs: the one the configuration
     ;; really runs with comes from the archives with Magit (0.13 on the
     ;; owner's machine, 2026-10-20), and its menu entries have another

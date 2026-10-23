@@ -14,8 +14,12 @@
 ;;       the upload replaces what is there;
 ;;   F3  a theme cloned with git is checked out at its pinned commit.
 ;;
-;; Needs git; the modules load in the sandbox of tests/helper.el, Denote
-;; from the installed packages.
+;; Then the rules of publishing, 1.1-1.4 and 1.6 (2026-10-23g), on a
+;; notes tree and a Hugo folder made for each test; nothing is uploaded.
+;;
+;; Needs git, and ox-hugo for the page test of 1.4; the modules load in
+;; the sandbox of tests/helper.el, Denote and ox-hugo from the installed
+;; packages.
 ;;
 ;;   emacs -Q --batch --eval '(package-initialize)' -l ert \
 ;;     -l tests/test-safety.el -f ert-run-tests-batch-and-exit
@@ -276,6 +280,322 @@ answer is t; k keeps it."
         (should (file-exists-p (expand-file-name "notes-root.eld" trash)))
         (should (file-exists-p new))))
     (delete-directory trash t)))
+
+;; ============================================================
+;; 1.1-1.4, 1.6: WHAT A SITE TAKES, AND WHAT LEAVES WITH IT
+;; ============================================================
+
+(defconst my/safety-test--server "user@server:/var/www/s/"
+  "A `:remote' for a site with a server; nothing is uploaded to it.")
+
+(defmacro my/safety-test--with-site (remote &rest body)
+  "Run BODY with a notes tree and one site \"s\" whose `:remote' is REMOTE.
+The site's one section, posts, takes the notes with the keyword blog
+from the silos pks and docu.  Binds `root' (the notes: the silos
+journal, pks and docu of `my/silos', the folders inbox and misc),
+`site' (the Hugo folder, with a hugo.toml) and `posts' (its
+content/posts/)."
+  (declare (indent 1))
+  `(let* ((root (file-name-as-directory (make-temp-file "mypks-notes-" t)))
+          (site (file-name-as-directory (make-temp-file "mypks-site-" t)))
+          (posts (expand-file-name "content/posts/" site))
+          (my-notes-dir root)
+          (my/blog-sites
+           (list (list "s" :directory site :remote ,remote
+                       :sections (list (list "posts" :keyword "blog"
+                                             :silos (list "pks" "docu"))))))
+          (my/blog-extra-files-file (expand-file-name "extra-files.eld" site))
+          (my/blog--extra-cache nil)
+          (my/blog--foreign-index-cache nil)
+          (my/blog--jobs nil)
+          (inhibit-message t))
+     (dolist (dir '("journal" "pks" "docu" "inbox" "misc"))
+       (make-directory (expand-file-name dir root)))
+     (with-temp-file (expand-file-name "hugo.toml" site) (insert "title = 'test'\n"))
+     (unwind-protect
+         (progn ,@body)
+       (dolist (buf (buffer-list))
+         (let ((file (buffer-file-name buf)))
+           (when (and file (string-prefix-p root file))
+             (with-current-buffer buf (set-buffer-modified-p nil))
+             (kill-buffer buf))))
+       (delete-directory root t)
+       (delete-directory site t))))
+
+(defun my/safety-test--note (dir id title &optional keywords body)
+  "Write a Denote note titled TITLE with ID and KEYWORDS in DIR; return it.
+DIR is relative to `my-notes-dir'; BODY follows the front matter."
+  (let ((file (expand-file-name
+               (format "%s--%s%s.org" id (downcase title)
+                       (if keywords (concat "__" (string-join keywords "_")) ""))
+               (expand-file-name dir my-notes-dir))))
+    (make-directory (file-name-directory file) t)
+    (with-temp-file file
+      (insert (format "#+title:      %s\n#+identifier: %s\n\n%s" title id (or body "Text.\n"))))
+    file))
+
+(defun my/safety-test--read (file)
+  "Return the contents of FILE."
+  (with-temp-buffer (insert-file-contents file) (buffer-string)))
+
+(defun my/safety-test--sites (remote silos keyword)
+  "Return a `my/blog-sites' of one site with REMOTE and one section.
+The section takes notes with KEYWORD from SILOS."
+  (list (list "s" :directory "/tmp/s/" :remote remote
+              :sections (list (list "posts" :keyword keyword :silos silos)))))
+
+;; 1.1: keyword AND silo
+;; ------------------------------------------------------------
+
+(ert-deftest my/safety-test-1.1-keyword-and-silo-both-needed ()
+  "1.1: a site takes the notes that carry the section's keyword and lie
+in one of its silos -- not a note with the word only in its title, a
+keyword merely like it, the keyword in another silo or folder, or a
+copy in a dot folder."
+  (my/safety-test--with-site nil
+    (let ((kant (my/safety-test--note "pks" "20261023T100000" "Kant" '("blog")))
+          (hegel (my/safety-test--note "docu" "20261023T100100" "Hegel" '("blog" "logic"))))
+      (my/safety-test--note "pks" "20261023T100200" "Blog" nil)
+      (my/safety-test--note "pks" "20261023T100300" "Fichte" '("blogs"))
+      (my/safety-test--note "journal" "20261023T100400" "Day" '("blog"))
+      (my/safety-test--note "inbox" "20261023T100500" "Draft" '("blog"))
+      (my/safety-test--note "misc" "20261023T100600" "Loose" '("blog"))
+      (my/safety-test--note "pks/.snapshots/1" "20261023T100000" "Kant" '("blog"))
+      (let ((site (my/blog--site "s")))
+        (should (equal (my/blog--candidates site) (list kant hegel)))
+        (should (equal (mapcar #'car (plist-get (my/blog--plan site) :ready))
+                       (list kant hegel)))))))
+
+(ert-deftest my/safety-test-1.1-other-silo-on-no-site ()
+  "1.1: the keyword in a silo or folder the section does not take puts a
+note on no site.  Asked of one note -- the question behind exporting the
+current note and the export after saving, which do not go through the
+list of candidates and its silos."
+  (my/safety-test--with-site nil
+    (let ((site (my/blog--site "s")))
+      (dolist (dir '("journal" "inbox" "misc"))
+        (let ((note (my/safety-test--note dir "20261023T100400" "Day" '("blog"))))
+          (should-not (my/blog--sections-of site note))
+          (should-not (my/blog--sites-of note))))
+      (should (equal (my/blog--sections-of
+                      site (my/safety-test--note "pks" "20261023T100000" "Kant" '("blog")))
+                     '("posts"))))))
+
+(ert-deftest my/safety-test-1.1-include-of-other-note-refused ()
+  "1.1: a note that pulls a note not on the site into itself with
+#+INCLUDE is refused whole: the other note's text would be on the page."
+  (my/safety-test--with-site nil
+    (my/safety-test--note "journal" "20261023T100400" "Day" nil "Private text.\n")
+    (let* ((kant (my/safety-test--note "pks" "20261023T100000" "Kant" '("blog")
+                                       "#+INCLUDE: \"../journal/20261023T100400--day.org\"\n"))
+           (plan (my/blog--plan (my/blog--site "s"))))
+      (should-not (plist-get plan :ready))
+      (should (equal (mapcar #'car (plist-get plan :refused)) (list kant)))
+      (should (string-match-p "includes a note not on this site"
+                              (nth 1 (car (plist-get plan :refused))))))))
+
+;; 1.2: a site with a server -- checked before every command
+;; ------------------------------------------------------------
+
+(ert-deftest my/safety-test-1.2-server-site-refuses-private-silos ()
+  "1.2: a section of a site with a server that takes notes from journal
+or inbox stops the configuration check; the same section on a site
+without a server passes it."
+  (dolist (silos '(("journal") ("inbox") ("pks" "journal")))
+    (let ((my/blog-sites (my/safety-test--sites my/safety-test--server silos "blog")))
+      (should-error (my/blog--check-config) :type 'user-error))
+    (let ((my/blog-sites (my/safety-test--sites nil silos "blog")))
+      (my/blog--check-config))))
+
+(ert-deftest my/safety-test-1.2-silo-marked-private-counts ()
+  "1.2: a silo marked :private in `my/silos' is refused like journal."
+  (let ((my/blog-sites (my/safety-test--sites my/safety-test--server '("docu") "blog")))
+    (my/blog--check-config)
+    (let ((my/silos (mapcar (lambda (silo)
+                              (if (eq (car silo) 'docu)
+                                  (cons 'docu (plist-put (copy-sequence (cdr silo)) :private t))
+                                silo))
+                            my/silos)))
+      (should-error (my/blog--check-config) :type 'user-error))))
+
+(ert-deftest my/safety-test-1.2-silo-name-as-keyword-refused ()
+  "1.2: on a site with a server, a silo's name as a section keyword
+stops the configuration check: it would select the whole silo."
+  (dolist (keyword '("pks" "journal" "inbox"))
+    (let ((my/blog-sites (my/safety-test--sites my/safety-test--server '("pks") keyword)))
+      (should-error (my/blog--check-config) :type 'user-error))
+    (let ((my/blog-sites (my/safety-test--sites nil '("pks") keyword)))
+      (my/blog--check-config))))
+
+(ert-deftest my/safety-test-1.2-refused-before-anything-is-written ()
+  "1.2: an export of a site breaking the rule stops before a page is
+written."
+  (my/safety-test--with-site my/safety-test--server
+    (my/safety-test--note "journal" "20261023T100400" "Day" '("blog"))
+    (setf (plist-get (cdr (car (my/blog--sections (my/blog--site "s")))) :silos)
+          (list "pks" "journal"))
+    (should-error (my/blog-export-all "s") :type 'user-error)
+    (should-not (file-exists-p posts))
+    (should-not (file-exists-p (my/blog--state-path (my/blog--site "s"))))))
+
+;; 1.3: files placed by hand
+;; ------------------------------------------------------------
+
+(ert-deftest my/safety-test-1.3-placed-private-file-refused-on-server ()
+  "1.3: a file of journal or inbox placed on a site by hand is refused
+once the site has a server; a file of another folder is not.  Without
+a server all three are on the site."
+  (my/safety-test--with-site nil
+    (let ((day (my/safety-test--note "journal" "20261023T100400" "Day"))
+          (draft (my/safety-test--note "inbox" "20261023T100500" "Draft"))
+          (loose (my/safety-test--note "misc" "20261023T100600" "Loose")))
+      (dolist (file (list day draft loose))
+        (my/blog-place-file file '("s") "posts"))
+      (should (equal (mapcar #'car (plist-get (my/blog--plan (my/blog--site "s")) :ready))
+                     (list day draft loose)))
+      (setf (plist-get (cdr (my/blog--site "s")) :remote) my/safety-test--server)
+      (let ((plan (my/blog--plan (my/blog--site "s"))))
+        (should (equal (mapcar #'car (plist-get plan :ready)) (list loose)))
+        (should (equal (mapcar #'car (plist-get plan :refused)) (list day draft)))
+        (dolist (refused (plist-get plan :refused))
+          (should (string-match-p "private silo" (nth 1 refused))))))))
+
+;; 1.4: what a page says about notes that are not published
+;; ------------------------------------------------------------
+
+(ert-deftest my/safety-test-1.4-link-to-unpublished-note-is-its-text ()
+  "1.4: a `denote:' link to a note not on the site is written as its
+description and nothing else -- empty without one; a link to a page of
+the site becomes a link to it."
+  (let* ((targets (make-hash-table :test #'equal))
+         (export (progn (puthash "20261023T100000" '("posts" "kant" nil) targets)
+                        (my/blog--link-export-function targets))))
+    (should (equal (funcall export "20261023T110000" "the other one" 'md) "the other one"))
+    (should (equal (funcall export "20261023T110000" nil 'md) ""))
+    (should (equal (funcall export "20261023T110000::*Logic" "his logic" 'md) "his logic"))
+    (should (equal (funcall export "20261023T100000" "Kant" 'html) "Kant"))
+    (should (equal (funcall export "20261023T100000::#ethics" "Kant" 'md)
+                   "[Kant](/posts/kant/#ethics)"))))
+
+(ert-deftest my/safety-test-1.4-page-names-no-unpublished-note ()
+  "1.4: the page ox-hugo writes for a note says nothing of the notes it
+links to that are not on the site -- no identifier, file name, title
+other than the link's own words, folder or link type.  Denote's own
+export of its links writes the file name; the site's replaces it."
+  (skip-unless (require 'ox-hugo nil t))
+  (my/safety-test--with-site my/safety-test--server
+    (my/safety-test--note "pks" "20261023T110000" "Hegel" nil "* Logic\nText.\n")
+    (my/safety-test--note "journal" "20261023T120000" "Day" nil)
+    (my/safety-test--note "pks" "20261023T130000" "Fichte" '("blog"))
+    (my/safety-test--note "pks" "20261023T100000" "Kant" '("blog")
+                          (concat "See [[denote:20261023T110000][the other one]], "
+                                  "[[denote:20261023T110000::*Logic][his logic]], "
+                                  "[[denote:20261023T110000]], "
+                                  "[[denote:20261023T120000][that day]] "
+                                  "and [[denote:20261023T130000][Fichte]].\n"))
+    (my/blog--start "s" '(:write t))
+    (let ((page (my/safety-test--read (expand-file-name "kant.md" posts)))
+          (case-fold-search t))
+      (should (string-match-p (regexp-quote "See the other one, his logic, , that day and [Fichte](/posts/fichte/).")
+                              page))
+      (dolist (leak (list "20261023T110000" "20261023T120000" "hegel" "journal"
+                          "denote" ".org" (directory-file-name root)))
+        (should-not (string-match-p (regexp-quote leak) page))))))
+
+(ert-deftest my/safety-test-1.4-backlinks-name-only-pages ()
+  "1.4: the backlinks the site's pages show name only pages of the site:
+not a note off the site, nor a note of the site that was refused, that
+links to a published one."
+  (my/safety-test--with-site nil
+    (my/safety-test--note "journal" "20261023T120000" "Day" nil)
+    (my/safety-test--note "pks" "20261023T100000" "Kant" '("blog"))
+    (my/safety-test--note "pks" "20261023T130000" "Fichte" '("blog")
+                          "After [[denote:20261023T100000][Kant]].\n")
+    (my/safety-test--note "pks" "20261023T110000" "Hegel" nil
+                          "Against [[denote:20261023T100000][Kant]].\n")
+    (my/safety-test--note "pks" "20261023T140000" "Schelling" '("blog")
+                          (concat "#+INCLUDE: \"../journal/20261023T120000--day.org\"\n"
+                                  "Like [[denote:20261023T100000][Kant]].\n"))
+    (let ((plan (my/blog--plan (my/blog--site "s"))))
+      (my/blog--write-backlinks (my/blog--site "s") plan)
+      (should (equal (my/safety-test--read (expand-file-name "data/blog_backlinks.json" site))
+                     "{\"/posts/kant\":[\"/posts/fichte\"]}")))))
+
+;; 1.6: unpublishing
+;; ------------------------------------------------------------
+
+(defmacro my/safety-test--pruning (&rest body)
+  "Run BODY in `my/safety-test--with-site's notes and site, set up for pruning.
+Kant is published, Hegel was and is no longer (its keyword is gone):
+posts/ holds kant.md, hegel.md, the hand-written _index.md and a
+stray hegel.org; content/other/ a page of no section.  ox-hugo is not
+needed: an export writes a stand-in page.  Binds `hegel' (the note),
+`pages' (the files of the site to check), `asked' (the questions asked)
+and `answer' (the answer given, nil at first)."
+  (declare (indent 0))
+  `(let ((hegel (my/safety-test--note "pks" "20261023T110000" "Hegel" nil))
+         (asked '())
+         (answer nil))
+     (my/safety-test--note "pks" "20261023T100000" "Kant" '("blog"))
+     (make-directory posts t)
+     (make-directory (expand-file-name "content/other" site))
+     (dolist (page '("content/posts/kant.md" "content/posts/hegel.md"
+                     "content/posts/_index.md" "content/posts/hegel.org"
+                     "content/other/hegel.md"))
+       (with-temp-file (expand-file-name page site) (insert "page")))
+     (cl-letf (((symbol-function 'my/blog--require-ox-hugo) #'ignore)
+               ((symbol-function 'my/blog--export-file)
+                (lambda (site _file section slug _targets)
+                  (with-temp-file (my/blog--page-file site section slug) (insert "page"))))
+               ((symbol-function 'yes-or-no-p)
+                (lambda (prompt) (push prompt asked) answer)))
+       ,@body)))
+
+(defun my/safety-test--pages (site)
+  "Return the files under the content/ of SITE's folder, relative to it."
+  (let ((content (expand-file-name "content/" site)))
+    (sort (mapcar (lambda (f) (file-relative-name f content))
+                  (directory-files-recursively content ""))
+          #'string<)))
+
+(ert-deftest my/safety-test-1.6-unpublishing-removes-only-pages ()
+  "1.6: on a site without a server the page of a note that left the site
+is removed without a question; the note itself, the hand-written
+_index.md, a file that is no page and the pages outside the site's
+sections stay."
+  (my/safety-test--with-site nil
+    (my/safety-test--pruning
+      (let ((text (my/safety-test--read hegel)))
+        (my/blog--start "s" '(:write t :quiet t))
+        (should-not asked)
+        (should (equal (my/safety-test--pages site)
+                       '("other/hegel.md" "posts/_index.md" "posts/hegel.org" "posts/kant.md")))
+        (should (equal (my/safety-test--read hegel) text))))))
+
+(ert-deftest my/safety-test-1.6-server-site-asks-first ()
+  "1.6: on a site with a server, an export started by hand asks before
+removing a page; no keeps it, yes removes it."
+  (my/safety-test--with-site my/safety-test--server
+    (my/safety-test--pruning
+      (my/blog-export-all "s")
+      (should (= 1 (length asked)))
+      (should (string-match-p "Remove 1 page" (car asked)))
+      (should (file-exists-p (expand-file-name "hegel.md" posts)))
+      (setq answer t)
+      (my/blog-export-all "s")
+      (should-not (file-exists-p (expand-file-name "hegel.md" posts)))
+      (should (file-exists-p (expand-file-name "_index.md" posts)))
+      (should (file-exists-p hegel)))))
+
+(ert-deftest my/safety-test-1.6-server-site-background-removes-nothing ()
+  "1.6: on a site with a server, an export in the background -- the
+one after saving a note, or at start-up -- neither asks nor removes."
+  (my/safety-test--with-site my/safety-test--server
+    (my/safety-test--pruning
+      (setq answer t)
+      (my/blog--start "s" '(:write t :quiet t))
+      (should-not asked)
+      (should (file-exists-p (expand-file-name "hegel.md" posts))))))
 
 (provide 'test-safety)
 ;;; test-safety.el ends here
