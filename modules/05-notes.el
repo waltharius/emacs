@@ -26,6 +26,13 @@
 
 ;;; Code:
 
+;; Bound with `let' in this module to put a note in one folder.
+;; Declared special here, because Denote may not be loaded yet when that
+;; `let' runs: the binding would then be lexical, and Denote, loading
+;; inside it, stops with "Defining as dynamic an already lexical var"
+;; (tests/test-declarations.el).
+(defvar denote-directory)
+
 ;; `seq-take' and `string-join' are used when reporting which
 ;; attachments a deletion would take with it.
 (require 'seq)

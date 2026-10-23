@@ -50,6 +50,13 @@
 
 ;;; Code:
 
+;; Bound with `let' in this module to put a note in one folder.
+;; Declared special here, because Denote may not be loaded yet when that
+;; `let' runs: the binding would then be lexical, and Denote, loading
+;; inside it, stops with "Defining as dynamic an already lexical var"
+;; (tests/test-declarations.el).
+(defvar denote-directory)
+
 (require 'org)
 (require 'org-capture)
 (require 'org-element)
