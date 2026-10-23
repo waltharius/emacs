@@ -543,7 +543,8 @@ def main():
     ap.add_argument("--report", help="write the org report to this file")
     ap.add_argument("--touched",
                     help="write one path per line for every org file "
-                         "created or modified (read by Emacs to revert them)")
+                         "created or modified, as each is written (read by "
+                         "Emacs to revert them, also after a failed run)")
     args = ap.parse_args()
 
     check_pandoc()
@@ -579,7 +580,15 @@ def main():
 
     taken = existing_identifiers(notes)
     now = dt.datetime.now()
-    rows, notes_touched, warnings = [], [], []
+    rows, warnings = [], []
+
+    # The touched list is started empty and gets each note as soon as it
+    # is written, not at the end: a run that fails on a later note still
+    # tells Emacs which notes to revert.
+    touched_path = (Path(args.touched).expanduser()
+                    if args.touched and args.write else None)
+    if touched_path:
+        touched_path.write_text("", encoding="utf-8")
 
     for path in sources:
         rel = path.relative_to(vault)
@@ -647,19 +656,24 @@ def main():
             action = "inbox"
 
         rows.append((str(rel), action, str(target), str(destination)))
-        notes_touched.append(str(Path(target).expanduser().resolve()))
         for kind, detail in link_report:
             warnings.append(f"{rel}: {kind}: {detail}")
 
         if args.write:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(content, encoding="utf-8")
+            # The folders first: a failure to make one leaves this note
+            # unwritten and its source in the inbox, to be imported by the
+            # next run -- not written and left behind to be imported twice.
+            year_dir.mkdir(parents=True, exist_ok=True)
             if copies:
                 attach_dir.mkdir(parents=True, exist_ok=True)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8")
+            if touched_path:
+                with touched_path.open("a", encoding="utf-8") as out:
+                    out.write(str(Path(target).expanduser().resolve()) + "\n")
             for source, dest in copies:
                 if not dest.exists():
                     shutil.copy2(source, dest)
-            year_dir.mkdir(parents=True, exist_ok=True)
             final = destination
             counter = 2
             while final.exists():
@@ -680,9 +694,6 @@ def main():
     print(report)
     if args.report:
         Path(args.report).expanduser().write_text(report, encoding="utf-8")
-    if args.touched and args.write:
-        Path(args.touched).expanduser().write_text(
-            "\n".join(notes_touched) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

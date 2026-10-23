@@ -859,7 +859,7 @@ Options, not decided:
 - *=my-notes-dir= itself as a vault*: one silo, sub-folders as the
   structure.
 
-** TODO Obsidian import: a run that fails midway
+** DONE Obsidian import: a run that fails midway
 Seen 2026-10-23r while testing (=tests/test-obsidian-import.el=), not
 changed.  =tools/obsidian_import.py= writes a note, then creates
 =Imported2Emacs/<year>= and moves the Markdown file.  When something
@@ -878,6 +878,13 @@ revert after a failure too (the clause that skips it,
 =(= status 0)= in =my/obsidian-import--sentinel=, is then the one to
 drop).  A test plants the failure with a file standing where the year
 folder should be.
+
+Done 2026-10-23s as proposed (decided by the owner the same day).
+What remains: a failure /after/ a note is written -- an image copy or
+the move of the Markdown refused (a full disk, a permission) -- still
+leaves the note written and its source in the inbox, imported again by
+the next run.  Its buffer is reverted now.  Not tested (as root in the
+test container permissions do not stop a move), and not changed.
 
 * Testing a clean configuration
 A branch with the configuration as a new user would get it, to find

@@ -182,6 +182,20 @@ Return non-nil when the sentinel ran within two minutes."
                       (concat "---\ncreated: 2026-10-20T10:00:00\ntags: [filozofia]\n---\n"
                               body "\n")))
 
+;; A run that fails midway: the daily note of 2026 imports, then the note
+;; of 2025 cannot be moved because a file stands where its year folder
+;; would be.  Sources are taken by name, so the daily note goes first.
+(defun my/obs-test--midway-failure (vault inbox journal)
+  "Set up a run in VAULT that fails on its second note; return its paths.
+A plist: :daily (imported first), :late (the note that fails) and
+:target (the journal note the first one is merged into)."
+  (let ((daily (my/obs-test--daily-file inbox))
+        (late (my/obs-test--write (expand-file-name "Stara.md" inbox)
+                                  "---\ncreated: 2025-05-01T09:00:00\n---\nStara notatka.\n"))
+        (target (my/obs-test--journal-file journal)))
+    (my/obs-test--write (expand-file-name "Imported2Emacs/2025" vault) "not a folder\n")
+    (list :daily daily :late late :target target)))
+
 ;; ============================================================
 ;; THE SCRIPT: WHAT IT WRITES AND KEEPS
 ;; ============================================================
@@ -437,15 +451,37 @@ writes or moves anything."
       (should-not (file-exists-p (expand-file-name "inbox" notes)))
       (should-not (file-exists-p (expand-file-name "Imported2Emacs" vault))))))
 
+(ert-deftest my/obs-test-script-failure-midway ()
+  "When a run fails on a later note, the notes imported before it are
+complete -- written, moved, and in the touched list -- and the note it
+failed on is not written and stays in the inbox, so that the next run
+imports it once."
+  (skip-unless (my/obs-test--tools-p))
+  (my/obs-test--with-tree
+    (let* ((setup (my/obs-test--midway-failure vault inbox journal))
+           (touched (expand-file-name "touched.txt" root))
+           (result (my/obs-test--script-run vault notes "--settle" "0" "--write"
+                                            "--touched" touched)))
+      (should-not (= 0 (car result)))
+      (should (string-search "Rano pisałam o Kancie." (my/obs-test--read (plist-get setup :target))))
+      (should-not (file-exists-p (plist-get setup :daily)))
+      (should (file-exists-p (expand-file-name "2026-10-20.md" imported)))
+      (should (equal (split-string (my/obs-test--read touched) "\n" t)
+                     (list (file-truename (plist-get setup :target)))))
+      (should (file-exists-p (plist-get setup :late)))
+      (should-not (my/obs-test--files (expand-file-name "inbox" notes))))))
+
 (ert-deftest my/obs-test-script-touched-lists-written ()
   "The --touched list names every note written, by its true name: what
-Emacs reverts afterwards."
+Emacs reverts afterwards.  A list left by an earlier run is started
+again, not added to."
   (skip-unless (my/obs-test--tools-p))
   (my/obs-test--with-tree
     (my/obs-test--daily-file inbox)
     (my/obs-test--inbox-note inbox "Szkic.")
     (let ((target (my/obs-test--journal-file journal))
-          (touched (expand-file-name "touched.txt" root)))
+          (touched (my/obs-test--write (expand-file-name "touched.txt" root)
+                                       "/stale/earlier-run.org\n")))
       (should (= 0 (car (my/obs-test--script-run vault notes "--settle" "0" "--write"
                                                  "--touched" touched))))
       (should (equal (sort (split-string (my/obs-test--read touched) "\n" t) #'string<)
@@ -572,6 +608,14 @@ a buffer typed into meanwhile keeps what was typed, and is named."
       (should (equal (with-current-buffer buf-b (buffer-string)) "b\ntyped meanwhile\n"))
       (should (buffer-modified-p buf-b)))))
 
+(ert-deftest my/obs-test-touched-paths-once-each ()
+  "A note the touched list names twice -- two daily notes merged into
+one journal note -- is reverted and counted once."
+  (my/obs-test--with-tree
+    (let ((my/obsidian-import--touched-file
+           (my/obs-test--write (expand-file-name "touched.txt" root) "/a.org\n/b.org\n/a.org\n")))
+      (should (equal (my/obsidian-import--touched-paths) '("/a.org" "/b.org"))))))
+
 (ert-deftest my/obs-test-revert-through-symlink ()
   "A buffer is reverted when the script names its file by the true name
 and the buffer was opened through a symbolic link to the notes folder."
@@ -629,9 +673,9 @@ run."
                               (with-current-buffer my/obsidian-import-buffer (buffer-string)))))))
 
 (ert-deftest my/obs-test-failed-run-leaves-no-temp-file ()
-  "A run the script ends with a failure reverts nothing, names the
-failure in the report, and leaves no temporary list of touched files
-behind."
+  "A run the script stops before writing anything reverts nothing,
+names the failure in the report, and leaves no temporary list of
+touched files behind."
   (skip-unless (my/obs-test--tools-p))
   (my/obs-test--with-tree
     (delete-directory journal)
@@ -646,6 +690,25 @@ behind."
       (should (file-exists-p daily))
       (should (string-match-p "journal silo not found"
                               (with-current-buffer my/obsidian-import-buffer (buffer-string)))))))
+
+(ert-deftest my/obs-test-failed-run-reverts-what-was-written ()
+  "A run that fails midway reverts the notes written before the failure:
+an open journal note shows the imported entry, unmodified, and the
+temporary list is gone."
+  (skip-unless (my/obs-test--tools-p))
+  (my/obs-test--with-tree
+    (let* ((setup (my/obs-test--midway-failure vault inbox journal))
+           (buf (find-file-noselect (plist-get setup :target)))
+           (temp nil))
+      (should (my/obs-test--run-command
+               #'my/obsidian-import
+               (lambda () (setq temp my/obsidian-import--touched-file))))
+      (with-current-buffer buf
+        (should (string-search "Rano pisałam o Kancie." (buffer-string)))
+        (should-not (buffer-modified-p)))
+      (should temp)
+      (should-not (file-exists-p temp))
+      (should (file-exists-p (plist-get setup :late))))))
 
 (provide 'test-obsidian-import)
 ;;; test-obsidian-import.el ends here

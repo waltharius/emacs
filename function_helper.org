@@ -7980,9 +7980,13 @@ written files are reverted after it.  Both compare true names
 (=file-in-directory-p=, =find-buffer-visiting=), so a notes folder
 reached through a symbolic link, or a note opened through one, is
 saved and reverted like any other; a buffer typed into during the run
-is not reverted, and is named in the message.  After a failed run
-nothing is reverted, and the temporary list of written files is
-removed.
+is not reverted, and is named in the message.  The script lists each
+note as soon as it has written it, so after a run that fails on a
+later note the notes written before the failure are reverted too; the
+temporary list of written files is removed either way.  The
+=Imported2Emacs/<year>= folder is made before a note is written: a
+note whose folder cannot be made is not written and stays in the
+vault's inbox.
 
 A new note gets an identifier no file in the notes tree carries --
 Org, Markdown, any other note, or an attachment named for a note --

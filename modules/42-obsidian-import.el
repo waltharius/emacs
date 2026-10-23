@@ -173,12 +173,13 @@ also finds a buffer that visits one through a symbolic link, which
     skipped))
 
 (defun my/obsidian-import--touched-paths ()
-  "Return the paths the last run wrote, from its --touched file."
+  "Return the paths the last run wrote, from its --touched file.
+Each once: two notes merged into one journal note list it twice."
   (when (and my/obsidian-import--touched-file
              (file-exists-p my/obsidian-import--touched-file))
     (with-temp-buffer
       (insert-file-contents my/obsidian-import--touched-file)
-      (split-string (buffer-string) "\n" t))))
+      (delete-dups (split-string (buffer-string) "\n" t)))))
 
 ;; ============================================================
 ;; RUNNING
@@ -196,15 +197,27 @@ also finds a buffer that visits one through a symbolic link, which
         (when (fboundp 'org-mode) (org-mode))
         (setq buffer-read-only t))
       (display-buffer my/obsidian-import-buffer)
-      (let* ((paths (and write (= status 0) (my/obsidian-import--touched-paths)))
+      ;; Reverted after a failed run too: the script lists each note as
+      ;; soon as it has written it, so the list names the notes written
+      ;; before the failure, and their buffers must show them.
+      (let* ((paths (and write (my/obsidian-import--touched-paths)))
              (skipped (and paths (my/obsidian-import--revert paths))))
         ;; The temporary list goes in every case, a failed run included.
         (when my/obsidian-import--touched-file
           (ignore-errors (delete-file my/obsidian-import--touched-file))
           (setq my/obsidian-import--touched-file nil))
         (if (/= status 0)
-            (message "Obsidian import failed (%s) - see %s"
-                     (string-trim event) my/obsidian-import-buffer)
+            (message "Obsidian import failed (%s) - see %s%s"
+                     (string-trim event) my/obsidian-import-buffer
+                     (cond
+                      (skipped
+                       (format "; %d note(s) written before it reverted, modified buffers left alone: %s"
+                               (- (length paths) (length skipped))
+                               (string-join skipped ", ")))
+                      (paths
+                       (format "; %d note(s) written before it reverted"
+                               (length paths)))
+                      (t "")))
           (cond
            (skipped
             (message "Import done; %d note(s) reverted, modified buffers left alone: %s"
