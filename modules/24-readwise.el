@@ -44,6 +44,14 @@
 (require 'seq)
 (require 'transient)
 
+;; Bound with `let' in `my/readwise--promote' to put a new note in pks.
+;; Declared special here, because Denote may not be loaded yet when
+;; that `let' runs: the binding would then be lexical, and Denote,
+;; loading inside it, refuses to define the variable ("Defining as
+;; dynamic an already lexical var") -- or, already compiled that way,
+;; never sees the pks folder and writes the note to its own.
+(defvar denote-directory)
+
 (defgroup my/readwise nil
   "Importing Readwise highlights into Org files."
   :tag "Readwise import"

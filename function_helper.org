@@ -2814,12 +2814,27 @@ with a partial one. So phase one asks which books changed, and phase
 two re-fetches those books in full and rewrites their files. Every file
 stays a complete picture of Readwise's current state.
 
-The sync timestamp is recorded *before* fetching: a highlight changed
+The sync timestamp is taken *before* fetching: a highlight changed
 while the sync runs would otherwise fall between the fetch and the
-timestamp and never be seen again.
+timestamp and never be seen again.  It is saved only after every book
+file is written: a sync that fails -- a refused request, a lost
+connection -- writes no file and leaves the earlier time, so the next
+sync asks again for everything it missed.
 
 File names derive from =user_book_id=, not import time, so re-import
-overwrites rather than accumulating a copy per sync.
+overwrites rather than accumulating a copy per sync.  The title part
+keeps letters, digits and hyphens only, so a title with =/= or =..=
+never names a file outside =my/readwise-directory=.
+
+** The token
+
+Read through auth-source (=machine readwise.io login apikey password
+TOKEN= in =~/.authinfo.gpg=), sent only in the =Authorization= header
+of requests to =https://readwise.io/api/v2/export/=, and written
+nowhere: not to a book file, the state file, a setting or
+=*Messages*=, nor into the error a refused request gives.  On a
+redirect, Emacs's =url-http= drops that header itself (read in Emacs
+29.3).  SAFETY.org 3.2; tests in =tests/test-readwise.el=.
 
 ** File format
 
