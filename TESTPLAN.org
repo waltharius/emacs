@@ -645,7 +645,9 @@ first: on exit it still writes to the old places.
       has no =r=; on again: =r= back.
 
 ** R44. PDF viewer built on first use [0/2]
-- [ ] Start Emacs: no build, no password question at start-up.
+- [ ] Start Emacs: no build, no password question at start-up -- also
+      the first start after pdf-tools is installed (e.g. after deleting
+      its folder in =~/.emacs.d/elpa/=).
 - [ ] Open a PDF (=C-x C-f= any .pdf): where the viewer was never
       built, the question /Need to (re)build the epdfinfo program/;
       where it was (this laptop), the PDF opens at once in the viewer.

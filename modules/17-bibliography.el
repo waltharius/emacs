@@ -21,6 +21,8 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+
 ;; ============================================================
 ;; WHERE THE BIBLIOGRAPHY IS
 ;; ============================================================
@@ -487,12 +489,30 @@ present, and the report says when they are the ones in use."
 ;; first install -- and built the epdfinfo server then, unasked (the
 ;; build may ask for the sudo password to install libraries).  Now
 ;; the first PDF opened loads pdf-tools, which asks before building.
+
+(defun my/bibliography--pdf-on-demand ()
+  "Set PDF Tools up to load, and build its server, with the first PDF.
+`pdf-loader-install' sets pdf-tools up at once when pdf-tools is loaded
+already -- as it is in the session that installed it, by the byte
+compilation of its own files -- and so asks about building the server
+in the middle of the first start (and fails in batch, where nobody can
+answer).  Told that pdf-tools is not loaded, it waits for a PDF, as in
+every later session."
+  ;; Loaded first, outside the binding below: a `provide' inside it
+  ;; would be undone when the binding ends.
+  (when (require 'pdf-loader nil t)
+    ;; `cl-progv' binds `features' dynamically.  It has no `defvar' in
+    ;; Lisp, so a plain `let' in this lexically bound file would bind a
+    ;; local name `featurep' never reads; `dlet' would, but makes the
+    ;; compiler ask for a prefix on a name that is Emacs's own.
+    (cl-progv '(features) (list (remq 'pdf-tools features))
+      (pdf-loader-install))))
+
 (use-package pdf-tools
   :ensure t
   :defer t
   :init
-  (when (fboundp 'pdf-loader-install)
-    (pdf-loader-install))
+  (my/bibliography--pdf-on-demand)
   :config
   (add-hook 'pdf-view-mode-hook
             (lambda () (display-line-numbers-mode -1))))

@@ -11,7 +11,9 @@
 ;; asking.  The weekly workflow's first start failed on Emacs 29.1 and
 ;; 30.2 when that build failed while packages were still installing,
 ;; and passed on 31.1 only because Emacs had quit before the build
-;; ended.  The build now waits for the first PDF opened.  Needs
+;; ended.  The build now waits for the first PDF opened, also in the
+;; session that installed pdf-tools (the next weekly run stopped on the
+;; question there, asked at once because pdf-tools was loaded).  Needs
 ;; pdf-tools installed (ci-packages.el installs it for the workflow);
 ;; nothing is built: `pdf-tools-install' is stood in for.
 ;;
@@ -65,6 +67,31 @@ pdf-tools asks before it builds its server."
       (funcall (cdr (assoc pdf-loader--auto-mode-alist-item auto-mode-alist)))
       (should (= 1 (length calls)))
       (should-not (car (car calls))))))
+
+(ert-deftest my/bib-test-setup-after-pdf-tools-loaded-asks-nothing ()
+  "In the session that installed pdf-tools, pdf-tools is loaded before
+the module's setup runs (the weekly first start of 2026-10-23 stopped
+there, on a question nobody could answer): the setup still asks
+nothing and waits for the first PDF."
+  (skip-unless (fboundp 'pdf-loader-install))
+  (require 'pdf-tools)
+  (let* ((builds 0)
+         (count (lambda (&rest _) (setq builds (1+ builds))))
+         (auto-mode-alist (assoc-delete-all pdf-loader--auto-mode-alist-item
+                                            (copy-alist auto-mode-alist)))
+         (magic-mode-alist (assoc-delete-all pdf-loader--magic-mode-alist-item
+                                             (copy-alist magic-mode-alist))))
+    (advice-add 'pdf-tools-install :override count)
+    (unwind-protect
+        (progn
+          (my/bibliography--pdf-on-demand)
+          (should (= builds 0))
+          (should (assoc pdf-loader--auto-mode-alist-item auto-mode-alist))
+          (should (assoc pdf-loader--magic-mode-alist-item magic-mode-alist))
+          ;; The features are as they were: pdf-tools still loaded.
+          (should (featurep 'pdf-tools))
+          (should (featurep 'pdf-loader)))
+      (advice-remove 'pdf-tools-install count))))
 
 (provide 'test-bibliography)
 ;;; test-bibliography.el ends here
