@@ -1944,6 +1944,14 @@ asked twice whatever `my/confirm-deletion' says: it removes every note."
       (message "No previous notes root to delete"))
      ((my/notes--same-dir-p previous my-notes-dir)
       (message "The previous root is the current one; refusing"))
+     ;; One inside the other: trashing the previous root would take the
+     ;; current notes with it, or a part of them.  Not made by a move
+     ;; (nested roots are refused there), but a state file edited or
+     ;; restored by hand could say so (outside audits, 2026-10-24).
+     ((or (file-in-directory-p my-notes-dir previous)
+          (file-in-directory-p previous my-notes-dir))
+      (message "The previous root %s and the current one %s lie inside one another; refusing"
+               previous my-notes-dir))
      ((and (yes-or-no-p (format "Move the OLD notes root %s to the trash? " previous))
            (yes-or-no-p (format "Every note under %s goes to the trash.  Really? " previous)))
       (let ((delete-by-moving-to-trash t))
