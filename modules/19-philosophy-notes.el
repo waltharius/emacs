@@ -101,6 +101,10 @@ the new note as a minimal Org scaffold."
 ;; ============================================================
 ;; TYPE COMMANDS (minimal 1-2 heading scaffolds, content in Polish)
 ;; ============================================================
+;; Each scaffold is one string written with \n only.  Until 2026-10-24
+;; the strings ran over several source lines, so the indentation of
+;; those lines went into every new note: a line of three spaces between
+;; the headings (found by the tests of this module).
 
 (defun my/philosophy-note-literatura ()
   "Create a literature note (keyword: literatura) in the pks silo."
@@ -114,42 +118,28 @@ the new note as a minimal Org scaffold."
   (interactive)
   (my/philosophy--create-note
    "pojęcie"
-   "\n* Definicja (moimi słowami)\n
-   \n* Skąd się wzięło / jak ewoluowało\n
-   \n* Napięcia i krytyka\n
-   \n* Powiązania\n# denote-link: pojęcia / problemy / myśliciele | hooki: nauka, egzystencja, polityka, moje projekty\n"))
+   "\n* Definicja (moimi słowami)\n\n* Skąd się wzięło / jak ewoluowało\n\n* Napięcia i krytyka\n\n* Powiązania\n# denote-link: pojęcia / problemy / myśliciele | hooki: nauka, egzystencja, polityka, moje projekty\n"))
 
 (defun my/philosophy-note-mysliciel ()
   "Create a thinker note (keyword: myśliciel) in the pks silo."
   (interactive)
   (my/philosophy--create-note
    "myśliciel"
-   "\n* Centralny projekt\n
-   \n* Problem, na który odpowiada\n
-   \n* Kluczowe ruchy i pojęcia\n
-   \n* Komu odpowiada / kto odpowiada jemu\n
-   \n* Powiązania\n"))
+   "\n* Centralny projekt\n\n* Problem, na który odpowiada\n\n* Kluczowe ruchy i pojęcia\n\n* Komu odpowiada / kto odpowiada jemu\n\n* Powiązania\n"))
 
 (defun my/philosophy-note-problem ()
   "Create a problem note (keyword: problem) in the pks silo."
   (interactive)
   (my/philosophy--create-note
    "problem"
-   "\n* Geneza\n
-   \n* Proponowane rozwiązania\n
-   \n* Krytyka\n
-   \n* Pytania otwarte\n
-   \n* Powiązania\n"))
+   "\n* Geneza\n\n* Proponowane rozwiązania\n\n* Krytyka\n\n* Pytania otwarte\n\n* Powiązania\n"))
 
 (defun my/philosophy-note-mapa ()
   "Create a map-of-content note (keyword: mapa) in the pks silo."
   (interactive)
   (my/philosophy--create-note
    "mapa"
-   "\n* Wielkie pytania okresu\n
-   \n* Postacie\n
-   \n* Pojęcia i problemy do rozwinięcia\n
-   \n* Linki\n"))
+   "\n* Wielkie pytania okresu\n\n* Postacie\n\n* Pojęcia i problemy do rozwinięcia\n\n* Linki\n"))
 
 ;; ============================================================
 ;; SUBMENU (C-c n l)
