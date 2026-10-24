@@ -7901,6 +7901,12 @@ and still looks nothing like a note, so the signal survives in a form
 that costs nothing. Files that *do* match a silo entry are untouched —
 a Markdown file in =docu= is meant to be monospaced and stays so.
 
+A file is inside the notes folder, or a silo, only when it lies in that
+folder (=file-in-directory-p=): =~/notes-old/= is not =~/notes=.  A
+Markdown note counts as docu by the =docu= keyword in its file name, or
+by the =tags= line of its front matter (between =---= or =+++=), never
+by a =tags:= line in its text.
+
 ** What Markdown notes do NOT get
 :PROPERTIES:
 :CUSTOM_ID: markdown-limits

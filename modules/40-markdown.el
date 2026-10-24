@@ -273,16 +273,32 @@ what an Obsidian export looks like before it is renamed."
              (fboundp 'denote-extract-keywords-from-path)
              (member "docu" (denote-extract-keywords-from-path file))
              t)
+        ;; The `tags' line of the front matter only, the block between
+        ;; the opening `---' (YAML) or `+++' (TOML) and its closing
+        ;; line.  Until 2026-10-24 the first 2000 characters were
+        ;; searched, so a `tags: docu' line in the text of a short note
+        ;; counted (found by the tests of this module).
         (save-excursion
           (goto-char (point-min))
           (let ((case-fold-search t))
-            (and (re-search-forward "^tags\\s-*[:=].*\\bdocu\\b" 2000 t) t))))))
+            (when (looking-at "\\(---\\|\\+\\+\\+\\)[ \t]*$")
+              (let* ((fence (match-string 1))
+                     (end (save-excursion
+                            (forward-line 1)
+                            (and (re-search-forward
+                                  (concat "^" (regexp-quote fence) "[ \t]*$") nil t)
+                                 (line-beginning-position)))))
+                (and end
+                     (re-search-forward "^tags\\s-*[:=].*\\_<docu\\_>" end t)
+                     t))))))))
 
 (defun my/markdown--in-notes-p ()
   "Return non-nil when the current buffer visits a file under `my-notes-dir'."
+  ;; `file-in-directory-p', not a common prefix of names: with the notes
+  ;; folder written without its final slash, `~/notes-old/' began with
+  ;; `~/notes' (until 2026-10-24, as in 29-writing-export).
   (when-let* ((file (buffer-file-name)))
-    (string-prefix-p (expand-file-name my-notes-dir)
-                     (expand-file-name file))))
+    (file-in-directory-p (expand-file-name file) (expand-file-name my-notes-dir))))
 
 (defun my/markdown--siloed-p ()
   "Return non-nil when this file matches an entry in `my/font-silo-styles'.
@@ -295,7 +311,7 @@ the list itself has one owner and is not copied."
               ((boundp 'my/font-silo-styles)))
     (let ((path (expand-file-name file)))
       (and (seq-find (lambda (entry)
-                       (string-prefix-p (expand-file-name (car entry)) path))
+                       (file-in-directory-p path (expand-file-name (car entry))))
                      my/font-silo-styles)
            t))))
 
