@@ -138,6 +138,24 @@
     result))
 
 ;; ============================================================
+;; COMMIT MESSAGES WRITTEN BY HAND
+;; ============================================================
+
+(ert-deftest my/ac-test-commit-message-wraps-at-72 ()
+  "Once Magit is loaded, a commit message buffer wraps at 72 columns:
+the function is on `git-commit-setup-hook' and sets `fill-column' there,
+for that buffer only.  (Until 2026-10-24 through Magit's
+`git-commit-fill-column', which Magit 4 removed.)"
+  (skip-unless (require 'magit nil t))
+  (should (memq #'my/git-commit-fill-column git-commit-setup-hook))
+  (let ((default fill-column))
+    (with-temp-buffer
+      (run-hooks 'git-commit-setup-hook)
+      (should (= fill-column 72))
+      (should (local-variable-p 'fill-column)))
+    (should (= fill-column default))))
+
+;; ============================================================
 ;; START-UP PULL
 ;; ============================================================
 

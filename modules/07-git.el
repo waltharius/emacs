@@ -43,8 +43,18 @@
   :config
   (setq magit-refresh-status-buffer t)
   (setq git-commit-summary-max-length 72)
-  (setq git-commit-fill-column 72)
+  ;; The body of a commit message wraps at 72 columns too.  Through the
+  ;; standard `fill-column', set in the message buffer: Magit removed
+  ;; `git-commit-fill-column' (obsolete since Magit 2.11, removed in
+  ;; Magit 4), and the setq on it only made a byte-compiler warning
+  ;; after the packages were upgraded on 2026-10-24.
+  (add-hook 'git-commit-setup-hook #'my/git-commit-fill-column)
   (add-hook 'after-save-hook 'magit-after-save-refresh-status t))
+
+(defun my/git-commit-fill-column ()
+  "Wrap the body of a commit message at 72 columns.
+Run from `git-commit-setup-hook' in the buffer of the message."
+  (setq-local fill-column 72))
 
 
 ;; ============================================================
