@@ -67,14 +67,18 @@ Signals when the child did not reach its end."
          (default-directory dir))
     (unwind-protect
         (with-temp-buffer
-          (call-process (expand-file-name invocation-name invocation-directory)
-                        nil t nil "-Q" "--batch"
-                        "--eval" "(package-initialize)"
-                        "-l" (expand-file-name "lib.el" my/weekly-directory)
-                        "--eval" (format "(my/weekly-child %S %S)" kind name))
-          (let ((lines (split-string (buffer-string) "\n")))
-            (unless (member "DONE" lines)
-              (error "The child Emacs stopped before the end:\n%s"
+          (let* ((code (call-process (expand-file-name invocation-name invocation-directory)
+                                     nil t nil "-Q" "--batch"
+                                     "--eval" "(package-initialize)"
+                                     "-l" (expand-file-name "lib.el" my/weekly-directory)
+                                     "--eval" (format "(my/weekly-child %S %S)" kind name)))
+                 (lines (split-string (buffer-string) "\n")))
+            ;; Both: DONE printed and then an error on the way out was a
+            ;; pass until 2026-10-24 (TESTING.org, rule 14).
+            (unless (and (eql code 0) (member "DONE" lines))
+              (error "The child Emacs %s:\n%s"
+                     (if (member "DONE" lines) (format "ended with status %s" code)
+                       "stopped before the end")
                      (string-join (last lines 15) "\n")))
             (seq-filter (lambda (l) (string-prefix-p "PROBLEM " l)) lines)))
       (delete-directory dir t))))

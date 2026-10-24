@@ -28,6 +28,14 @@ cd "$root" || exit 1
 
 only="${1:-}"
 strict="${MYPKS_STRICT_TESTS:-}"
+# A time limit per test file, so that a test caught in a loop fails the
+# run instead of hanging it (MYPKS_TEST_TIMEOUT seconds, 600 by default;
+# without coreutils' timeout there is no limit).
+seconds="${MYPKS_TEST_TIMEOUT:-600}"
+limit=""
+if command -v timeout >/dev/null 2>&1; then
+  limit="timeout $seconds"
+fi
 status=0
 files_run=0
 skipped_total=0
@@ -66,9 +74,16 @@ for file in tests/test-*.el; do
   name="$(basename "$file" .el)"
   case "$name" in *"$only"*) ;; *) continue ;; esac
   files_run=$((files_run + 1))
-  output="$(emacs -Q --batch --eval '(package-initialize)' -l ert -l "$file" \
-              -f ert-run-tests-batch-and-exit 2>&1)"
+  output="$($limit emacs -Q --batch --eval '(package-initialize)' -l ert -l "$file" \
+              -f ert-run-tests-batch-and-exit 2>&1 </dev/null)"
   code=$?
+  # 124: stopped by timeout -- a test looping, or waiting for an answer
+  # (stdin is /dev/null, so a question gets none).
+  if [ "$code" -eq 124 ] && [ -n "$limit" ]; then
+    status=1
+    printf '  FAILED   %-28s %s\n' "$name" "timed out after $seconds s: a test loops or waits"
+    continue
+  fi
   summary="$(grep -E '^Ran ' <<<"$output" | sed -E 's/ \(20[0-9-]+ .*\)$//')"
   ran="$(sed -nE 's/^Ran ([0-9]+) tests?.*/\1/p' <<<"$summary")"
   skipped="$(sed -nE 's/.* ([0-9]+) skipped.*/\1/p' <<<"$summary")"

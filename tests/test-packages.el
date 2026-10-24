@@ -47,13 +47,19 @@
 (ert-deftest my/packages-test-warnings-kept-while-loading ()
   "Warnings about no-littering while it loads are kept for the report;
 others are not, and the keeping stops afterwards."
-  (let ((my/var--no-littering-problems nil))
-    (cl-letf (((symbol-function 'use-package-ensure-elpa) #'ignore))
-      (my/var--load-no-littering))
-    ;; In this sandbox no-littering is not on `load-path' unless installed.
-    (unless (featurep 'no-littering)
-      (should (seq-some (lambda (m) (string-match-p "no-littering" m))
-                        my/var--no-littering-problems)))
+  (let ((my/var--no-littering-problems nil)
+        (refuse (lambda (load feature &rest args)
+                  (unless (eq feature 'no-littering) (apply load feature args)))))
+    ;; no-littering made unloadable, installed or not: until 2026-10-24
+    ;; the assertion ran only where it was missing, so never in the
+    ;; workflow, which installs it (outside audits of 2026-10-24).
+    (advice-add 'require :around refuse '((name . my/packages-test-refuse)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'use-package-ensure-elpa) #'ignore))
+          (my/var--load-no-littering))
+      (advice-remove 'require 'my/packages-test-refuse))
+    (should (seq-some (lambda (m) (string-match-p "no-littering" m))
+                      my/var--no-littering-problems))
     (let ((before (length my/var--no-littering-problems)))
       (display-warning 'test "a warning about no-littering after loading")
       (should (= before (length my/var--no-littering-problems))))))

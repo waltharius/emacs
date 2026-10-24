@@ -990,13 +990,6 @@ so reloading a module does not stack it.
   this repository), never for notes.
 
 * Small items
-- =hooks/check-all= has no time limit per test file: a test caught in an
-  endless loop hangs the whole run (seen 2026-10-24k: planting a fault
-  in the inbox heading check made a search-and-replace loop forever;
-  2026-10-24n: a planted fault in the notes-root move left a question
-  waiting for an answer).
-  A limit with coreutils' =timeout= per =emacs --batch=, reported as
-  FAILED with "timed out", would turn a hang into a failure.
 - =languageCode= is deprecated (Hugo 0.158) in =hugo/sites/journal= and
   =hugo/sites/blog=; use =locale=, as the docs site already does.
 - When Syncthing is dropped for this repository: remove =.stignore=.

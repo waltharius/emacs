@@ -75,14 +75,20 @@ before the start."
            ;; Reports are collected, not shown: in batch they would only print.
            "--eval" "(setq my/test-reports nil)"
            "--eval" "(advice-add 'my/notes-report :override (lambda (kind title &rest _) (push (list kind title) my/test-reports)))"
-           "--eval" (format "(condition-case nil (load %S nil t) (error nil))"
+           ;; A load error is recorded and fails the test (below); until
+           ;; 2026-10-24 it was swallowed, and a 00-core.el that stopped
+           ;; half way passed if the settings were set before the error.
+           "--eval" "(setq my/test-load-error nil)"
+           "--eval" (format "(condition-case err (load %S nil t) (error (setq my/test-load-error (error-message-string err))))"
                             (expand-file-name "modules/00-core.el" my/core-test--repo))
-           "--eval" (format "(with-temp-file %S (prin1 (list :dir (file-relative-name my/settings-directory %S) :host my/host-name :reports (reverse my/test-reports) :put (condition-case err (progn (my/local--put :test t) nil) (error (error-message-string err))) :extra %s) (current-buffer)))"
+           "--eval" (format "(with-temp-file %S (prin1 (list :load-error my/test-load-error :dir (file-relative-name my/settings-directory %S) :host my/host-name :reports (reverse my/test-reports) :put (condition-case err (progn (my/local--put :test t) nil) (error (error-message-string err))) :extra %s) (current-buffer)))"
                             out home (or extra "nil")))
           (when (file-readable-p out)
-            (with-temp-buffer
-              (insert-file-contents out)
-              (read (current-buffer)))))
+            (let ((result (with-temp-buffer
+                            (insert-file-contents out)
+                            (read (current-buffer)))))
+              (should-not (plist-get result :load-error))
+              result)))
       (delete-directory home t))))
 
 (defun my/core-test--titles (result)

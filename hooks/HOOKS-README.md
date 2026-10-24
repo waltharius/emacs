@@ -70,7 +70,11 @@ that matched nothing, or a file without tests, passed):
   workflow sets it: every package the tests need is installed there,
   so a skip can only hide something.  Locally a skip stays a skip --
   a missing package or program is reported, not counted against the
-  code.
+  code;
+- a test file that runs longer than `MYPKS_TEST_TIMEOUT` seconds (600
+  by default; coreutils' `timeout`) fails as "timed out": a test caught
+  in a loop, or waiting for an answer (standard input is `/dev/null`),
+  fails the run instead of hanging it.
 
 The checkers' own tests (`tests/hooks/test_*.py`, Python unittest) run
 after lint, as "hook tests".  Continuous integration runs the same
