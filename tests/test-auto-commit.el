@@ -252,6 +252,41 @@ stops there with an error: nothing is committed, pulled or pushed."
     (should-not (file-exists-p (expand-file-name "b.org" here)))
     (should (equal (my/ac-test--server-subject server) "other machine"))))
 
+;; A repository git refuses: every question fails.  A damaged .git/HEAD
+;; stands in for `detected dubious ownership', which needs another user.
+(defun my/ac-test--break-repository (dir)
+  "Make git refuse DIR as a repository."
+  (my/ac-test--write (expand-file-name ".git/HEAD" dir) "not a reference\n"))
+
+(ert-deftest my/ac-test-unreadable-repository-reported ()
+  "A repository git cannot read is reported with git's message, not
+taken for one with nothing to do."
+  (my/ac-test--with-repos
+    (my/ac-test--write (expand-file-name "c.org" here) "new here\n")
+    (my/ac-test--break-repository here)
+    (let ((reason (my/auto-commit-pending here)))
+      (should (stringp reason))
+      (should (string-prefix-p "git cannot read the repository: " reason))
+      (should (string-match-p "not a git repository" reason))
+      (should (string-search "safe.directory" (my/auto-commit--advice here reason))))))
+
+(ert-deftest my/ac-test-unreadable-repository-cycle-fails-loudly ()
+  "The cycle on a repository git cannot read ends in an error line, not
+in silence; `git status' failing counts as changes, never as none."
+  (my/ac-test--with-repos
+    (my/ac-test--break-repository here)
+    (should (my/auto-commit--dirty-p here))
+    (let ((result (my/ac-test--cycle)))
+      (should (equal (length result) 1))
+      (should (string-match-p "\\`here: ERROR" (car result))))))
+
+(ert-deftest my/ac-test-readable-repository-no-reason ()
+  "A healthy repository with everything pushed gives no reason at all."
+  (my/ac-test--with-repos
+    (should-not (my/auto-commit--unreadable here))
+    (should-not (my/auto-commit--dirty-p here))
+    (should-not (my/auto-commit-pending here))))
+
 ;; ============================================================
 ;; THE COMMIT CYCLE
 ;; ============================================================

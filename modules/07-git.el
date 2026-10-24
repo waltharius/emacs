@@ -242,8 +242,8 @@ credential prompt either."
            (my/auto-commit--log dir args output status)
            (funcall callback status)))))))
 
-(defun my/auto-commit--query (dir &rest args)
-  "Run git ARGS in DIR for a local answer: its output lines, or nil on failure.
+(defun my/auto-commit--query-status (dir &rest args)
+  "Run git ARGS in DIR; return (EXIT-STATUS . OUTPUT-LINES).
 No shell, so nothing in a file name is ever interpreted; standard error
 is discarded, so a failure never passes for an answer.  For questions
 that read the repository only (status, rev-parse, rev-list) and take
@@ -252,12 +252,49 @@ milliseconds; anything that may reach the network goes through
   (let ((default-directory (file-name-as-directory dir))
         (process-environment (my/auto-commit--env)))
     (with-temp-buffer
-      (when (eq 0 (apply #'call-process "git" nil '(t nil) nil args))
-        (split-string (buffer-string) "\n" t)))))
+      (let ((status (apply #'call-process "git" nil '(t nil) nil args)))
+        (cons status (split-string (buffer-string) "\n" t))))))
+
+(defun my/auto-commit--query (dir &rest args)
+  "Run git ARGS in DIR for a local answer: its output lines, or nil on failure.
+Nil is also the answer of a command that succeeds with no output; where
+the two must be told apart, use `my/auto-commit--query-status' (as
+`my/auto-commit--dirty-p' does) or check first that git can read the
+repository at all (`my/auto-commit--unreadable')."
+  (let ((result (apply #'my/auto-commit--query-status dir args)))
+    (when (eq 0 (car result))
+      (cdr result))))
+
+(defun my/auto-commit--unreadable (dir)
+  "Return git's own message when it cannot read DIR's repository, or nil.
+Git refuses a repository it does not trust or cannot parse: a folder
+owned by another user (`detected dubious ownership', which a folder
+synchronised from another machine can give), a damaged .git/HEAD.
+Every question then fails, and until 2026-10-24 each failure read as
+the harmless answer -- no changes, no upstream, nothing unpushed -- so
+nothing was committed or pushed and nothing was reported (outside
+audits of 2026-10-24)."
+  (let ((default-directory (file-name-as-directory dir))
+        (process-environment (my/auto-commit--env))
+        (errors (make-temp-file "mypks-git-error")))
+    (unwind-protect
+        (with-temp-buffer
+          (unless (eq 0 (call-process "git" nil (list t errors) nil "rev-parse" "--git-dir"))
+            (erase-buffer)
+            (insert-file-contents errors)
+            (or (car (split-string (buffer-string) "\n" t "[ \t]+"))
+                "git gave no reason")))
+      (delete-file errors))))
 
 (defun my/auto-commit--dirty-p (dir)
-  "Return non-nil when DIR has uncommitted changes."
-  (and (my/auto-commit--query dir "status" "--porcelain") t))
+  "Return non-nil when DIR has uncommitted changes, or when git cannot tell.
+A failed `git status' counts as changes: the commit step then runs and
+its failure is reported, and nothing is pulled into a repository in an
+unknown state.  Read as `no changes', as until 2026-10-24, it sent the
+cycle on to a pull that failed too and was reported as `offline'."
+  (let ((result (my/auto-commit--query-status dir "status" "--porcelain")))
+    (or (not (eq 0 (car result)))
+        (and (cdr result) t))))
 
 (defun my/auto-commit--unpushed-p (dir)
   "Return non-nil when DIR has commits its upstream does not."
@@ -458,16 +495,24 @@ UPDATED is non-nil when HEAD moved."
   "commits not pushed: pushing is turned off"
   "The reason `my/auto-commit-pending' gives when pushing was turned off.")
 
+(defconst my/auto-commit--unreadable-reason
+  "git cannot read the repository: "
+  "The start of the reason `my/auto-commit-pending' gives when git refuses DIR.")
+
 (defun my/auto-commit-pending (dir)
   "Return why DIR's work is not on its server, or nil when it is.
 
 Nil for a repository without an upstream branch, a local one by
 choice.  Unpushed commits while pushing is turned off for DIR are
 reported too, with their own reason: a switch turned off and forgotten
-looks exactly like a push that silently stopped."
+looks exactly like a push that silently stopped.  A repository git
+cannot read is reported with git's own message
+\(`my/auto-commit--unreadable')."
   (setq dir (expand-file-name dir))
   (when (file-directory-p (expand-file-name ".git" dir))
     (cond
+     ((let ((message (my/auto-commit--unreadable dir)))
+        (and message (concat my/auto-commit--unreadable-reason message))))
      ((my/auto-commit--unmerged-p dir) "files hold conflict markers")
      ((my/auto-commit--busy-p dir) "a rebase or merge is in progress")
      ((my/auto-commit--locked-p dir) "git is locked (.git/index.lock)")
@@ -482,6 +527,12 @@ looks exactly like a push that silently stopped."
   "Return what to do about REASON in DIR, as text."
   (let ((git (abbreviate-file-name (expand-file-name ".git" dir))))
     (pcase reason
+      ((pred (string-prefix-p my/auto-commit--unreadable-reason))
+       (format "  Nothing is committed, pulled or pushed here until git can read
+  it.  `detected dubious ownership': the folder belongs to another user;
+  if it is trusted:  git config --global --add safe.directory %s
+  Otherwise run `git status' in the folder for git's full message."
+               (directory-file-name (expand-file-name dir))))
       ("git is locked (.git/index.lock)"
        (format "  A git command was interrupted and left its lock.  If no git
   is running now, remove it:  rm %s/index.lock" git))

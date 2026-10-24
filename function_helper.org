@@ -3916,6 +3916,7 @@ now asked what keeps its work off the server
 
 | Reason | Cause | What to do |
 |--------+-------+------------|
+| git cannot read the repository: MESSAGE | git refuses the folder: =detected dubious ownership= (the folder belongs to another user, as a folder synchronised from another machine can), or a damaged =.git=; every git command fails, so nothing is committed, pulled or pushed | if the folder is trusted: =git config --global --add safe.directory DIR=; otherwise =git status= in the folder shows git's full message |
 | git is locked (.git/index.lock) | a git command was interrupted (Emacs killed during the exit commit, a crash) and left its lock; every =git add= fails | if no git is running: =rm ~/notes/.git/index.lock= |
 | a rebase or merge is in progress | a conflict being resolved, or a rebase left half-done | =M-x my/auto-commit-resolve=, or Magit =r r= / =r a= |
 | changes not committed | the commit itself failed | the reason is in =C-c v l= |
