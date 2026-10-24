@@ -3200,6 +3200,10 @@ the deadline.
 
 ** Creating versus adding
 
+A new project's title must leave a usable folder name: an empty title,
+or one starting with a dot (=.=, =..=), is refused before anything is
+created.
+
 =f= asks for a project, a section and a title, then does everything
 else: creates the note in =my/writing-project-note-directory=
 (=pks/=, not the project directory), writes =#+project:=, adds the
@@ -3247,6 +3251,8 @@ assigned at creation and never changes, so adding a tag to a chapter —
 which rewrites its file name — breaks nothing. Only the caption goes
 stale, since it is a copy of the title made when the link was written.
 =t= resyncs captions from the current titles; nothing depends on them.
+Links are written by Org's own =org-link-make-string=, so a title
+ending in =]= (=Chapter 2 [draft]=) still gives a whole link.
 
 *Warning:* this does *not* extend to =#+INCLUDE:=, which takes a path
 and does break on rename. Assembling a manuscript from several chapter
@@ -3262,6 +3268,10 @@ matches what Denote already writes, takes several values separated by
 spaces, and is greppable:
 
 : rg '^#\+project:.*licencjat' ~/notes
+
+Only the front matter counts: the run of =#+KEY:= lines at the top of
+the note.  A =#+project:= line further down (an example in a source
+block) is body text, neither read as membership nor rewritten.
 
 ** What counts towards the target
 

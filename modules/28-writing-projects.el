@@ -74,6 +74,8 @@
 ;; this file is read, whatever loaded first (2026-10-22, weekly test
 ;; `alone': 'void-function transient-define-prefix' with transient 0.13).
 (require 'transient)
+;; `org-link-make-string' and `org-link-bracket-re', for link text.
+(require 'ol)
 
 ;; Org's clock and D-Bus load when used; named here for the compiler.
 (defvar org-clock-persist)
@@ -260,15 +262,27 @@ Regenerated wholesale, so nothing may be written there by hand."
 ;; keyword line matches what Denote already writes, is greppable from a
 ;; shell, and takes several values separated by spaces.
 
+(defun my/writing--front-matter-end ()
+  "Return the end of the current buffer's front matter.
+The front matter is the run of `#+KEY:' lines at the top, as Denote
+writes it.  A keyword further down -- an example in a source block, a
+quoted note -- is body text: until 2026-10-24 the first 2000
+characters were searched, and a `#+project:' line in the body of a
+short note was read as its membership and rewritten (outside audits of
+2026-10-24, the same fault as in 26-maintenance)."
+  (save-excursion
+    (goto-char (point-min))
+    (while (looking-at "#\\+[[:alnum:]_-]+:")
+      (forward-line 1))
+    (point)))
+
 (defun my/writing--keyword-in-buffer (keyword)
-  "Return the value of KEYWORD in the current buffer, or nil."
+  "Return the value of KEYWORD in the current buffer's front matter, or nil."
   (save-excursion
     (goto-char (point-min))
     (when (re-search-forward
            (format "^#\\+%s:[ \t]+\\(.+\\)$" (regexp-quote keyword))
-           ;; Front matter is at the top; stop early rather than scanning
-           ;; a whole chapter for a keyword that is not there.
-           (min (point-max) 2000) t)
+           (my/writing--front-matter-end) t)
       (string-trim (match-string-no-properties 1)))))
 
 (defun my/writing--read-keyword (file keyword)
@@ -301,13 +315,11 @@ Placed after the last front-matter keyword so it joins the existing
 block instead of landing in the body."
   (save-excursion
     (goto-char (point-min))
-    (if (re-search-forward "^#\\+project:.*$" nil t)
-        (replace-match (concat "#+project: " (string-join slugs " ")) t t)
-      ;; Walk past the contiguous run of keyword lines at the top.
-      (goto-char (point-min))
-      (while (looking-at "^#\\+[a-zA-Z_]+:")
-        (forward-line 1))
-      (insert "#+project: " (string-join slugs " ") "\n"))))
+    (let ((end (my/writing--front-matter-end)))
+      (if (re-search-forward "^#\\+project:.*$" end t)
+          (replace-match (concat "#+project: " (string-join slugs " ")) t t)
+        (goto-char end)
+        (insert "#+project: " (string-join slugs " ") "\n")))))
 
 (defun my/writing--add-file-project (slug)
   "Add SLUG to the current buffer's project list, keeping the others.
@@ -332,11 +344,20 @@ Returns non-nil when the buffer changed."
 (defun my/writing--slugify (name)
   "Turn NAME into a directory name.
 Polish characters are kept: the notes tree already uses them and one
-transliteration rule applied inconsistently is worse than none."
+transliteration rule applied inconsistently is worse than none.
+
+A name that leaves nothing usable -- empty, or starting with a dot -- is
+refused: an empty one named the projects folder itself, and `..' the
+folder above it; `my/writing-project-new' then started a git repository
+there, and an empty title is one press of RET away (found 2026-10-24
+by the tests of this module)."
   (let ((s (string-trim name)))
     (setq s (replace-regexp-in-string "[/\\:*?\"<>|]" "" s))
     (setq s (replace-regexp-in-string "[ \t]+" "-" s))
-    (downcase s)))
+    (setq s (downcase s))
+    (when (or (string-empty-p s) (string-prefix-p "." s))
+      (user-error "Not a usable project name: `%s' (empty, or starting with a dot)" name))
+    s))
 
 (defun my/writing-project-directory (slug)
   "Return the directory of project SLUG."
@@ -523,6 +544,13 @@ END is the next heading at the same or a shallower level."
   (append (my/writing--links-in-section my/writing-heading-text)
           (my/writing--links-in-section my/writing-heading-sources)))
 
+(defun my/writing--link (id title)
+  "Return an Org link to Denote identifier ID described by TITLE.
+Org's own `org-link-make-string': a title ending in `]' -- `Chapter 2
+[draft]' -- written into the brackets as it is ended the link early
+and left a stray bracket (until 2026-10-24)."
+  (org-link-make-string (concat "denote:" id) title))
+
 (defun my/writing--append-link (heading id title)
   "Append a Denote link to ID titled TITLE at the end of HEADING's body.
 Returns nil when HEADING is absent or already lists ID."
@@ -531,7 +559,7 @@ Returns nil when HEADING is absent or already lists ID."
       (save-excursion
         (goto-char (cdr bounds))
         (skip-chars-backward " \t\n")
-        (insert (format "\n- [[denote:%s][%s]]\n" id title))
+        (insert "\n- " (my/writing--link id title) "\n")
         t))))
 
 (defun my/writing--id-to-file (id)
@@ -666,14 +694,36 @@ Purely cosmetic: nothing depends on the description."
     (with-current-buffer (find-file-noselect (my/writing-hub-file slug))
       (save-excursion
         (goto-char (point-min))
-        (while (re-search-forward "\\[\\[denote:\\([^]]+\\)\\]\\[\\([^]]*\\)\\]\\]" nil t)
-          (let* ((id (match-string-no-properties 1))
-                 (shown (match-string-no-properties 2))
-                 (file (my/writing--id-to-file id))
-                 (title (and file (my/writing--file-title file))))
-            (when (and title (not (equal title shown)))
-              (replace-match (format "[[denote:%s][%s]]" id title) t t)
-              (setq updated (1+ updated))))))
+        ;; Org's own pattern for a bracket link, which also matches a
+        ;; description holding brackets.  Compared as whole links, so a
+        ;; description Org had to alter (`]' at its end) is not
+        ;; rewritten again at every refresh.
+        (while (re-search-forward org-link-bracket-re nil t)
+          ;; The link's place is kept before the note is read: finding
+          ;; and reading it searches too, in other buffers, and changes
+          ;; the match data.  Until 2026-10-24 `replace-match' ran after
+          ;; that and wrote the new link over the start of the hub,
+          ;; where the note's own title had been found (found by the
+          ;; tests of this module).
+          (let ((start (match-beginning 0))
+                ;; Advances past a new link inserted at START, so the
+                ;; search goes on after it.
+                (end (copy-marker (match-end 0) t))
+                (shown (match-string-no-properties 0))
+                (target (match-string-no-properties 1))
+                (described (match-beginning 2)))
+            (when (and described (string-prefix-p "denote:" target))
+              (let* ((id (substring target (length "denote:")))
+                     (file (my/writing--id-to-file id))
+                     (title (and file (my/writing--file-title file)))
+                     (link (and title (my/writing--link id title))))
+                (when (and link (not (equal link shown)))
+                  (goto-char start)
+                  (delete-region start end)
+                  (insert link)
+                  (setq updated (1+ updated)))))
+            (goto-char end)
+            (set-marker end nil))))
       (when (> updated 0) (save-buffer)))
     (message "%d link description(s) updated" updated)))
 
@@ -730,9 +780,11 @@ hand -- anything worth keeping belongs under materials."
                   (title (my/writing--file-title file)))
               (unless (and id (member id members))
                 (setq listed (1+ listed))
-                (insert (if id
-                            (format "- [[denote:%s][%s]]\n" id title)
-                          (format "- [[file:%s][%s]]\n" file title))))))
+                (insert "- "
+                        (if id
+                            (my/writing--link id title)
+                          (org-link-make-string (concat "file:" file) title))
+                        "\n"))))
           (insert (if (= listed 0) "No mentions outside materials.\n\n" "\n"))))
       (save-buffer))
     (message "%d mention(s) of %s outside materials (%d matched the keyword)"
