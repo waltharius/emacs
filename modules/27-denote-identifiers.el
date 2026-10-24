@@ -319,7 +319,7 @@ uses a live buffer when one exists so unsaved edits are not lost."
                              (file-name-nondirectory file) t t)
    (file-name-directory file)))
 
-(defun my/denote--unsaved-or-ask (files)
+(defun my/denote-unsaved-or-ask (files)
   "Offer to save the modified buffers visiting FILES; return those left.
 Asked one buffer at a time by Emacs's own `save-some-buffers'; a buffer
 not saved is returned, and the caller refuses to go on.  A change of
@@ -409,7 +409,7 @@ the old name, which `my/denote-check-identifiers' can still see."
       ;; the name the file will take, and the buffers it writes into.
       (when (file-exists-p target)
         (user-error "Target already exists: %s" target))
-      (when-let* ((left (my/denote--unsaved-or-ask (cons file scope))))
+      (when-let* ((left (my/denote-unsaved-or-ask (cons file scope))))
         (user-error "Not changed: unsaved changes in %s; save or revert them first"
                     (mapconcat #'buffer-name left ", ")))
       (dolist (other scope)

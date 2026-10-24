@@ -3108,7 +3108,14 @@ rejected. So the repair happens on accept: =p=, =d= and =z= scan the
 journal silo for =[[Title]]= and =[[original-md-filename]]=, including
 =#heading= and =|alias= variants, and rewrite them to
 =[[denote:IDENTIFIER][...]]=. The number repaired is reported in the
-echo area.
+echo area.  A heading stays in the link's text
+(=[[denote:IDENTIFIER][Title#Heading]]=), an alias is the text; the
+silos' sub-folders are scanned, dot folders not; notes open read only
+are repaired too.  Before the note moves, every buffer the acceptance
+would write into that holds unsaved changes is offered for saving, one
+at a time; one left unsaved stops the acceptance, nothing moved.  A
+buffer visiting the note follows it to the silo (or to the reject
+folder), keeping any unsaved text.
 
 This runs without asking. At this volume a prompt per accept would be
 noise, and the rewrite only ever touches links naming that exact note.

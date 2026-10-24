@@ -95,7 +95,7 @@ EXTRA is front matter added after the identifier line."
       (should-not (file-exists-p note))
       (should (file-exists-p (expand-file-name "20200301T120000--kant.org" pks)))
       (should (string-match-p
-               (regexp-quote "Read [[denote:20200301T120000][Kant]], then [[denote:20200301T120000][the Prussian]] and [[denote:20200301T120000][Kant]].")
+               (regexp-quote "Read [[denote:20200301T120000][Kant]], then [[denote:20200301T120000][the Prussian]] and [[denote:20200301T120000][Kant#Ethics]].")
                (my/inbox-test--read day))))))
 
 (ert-deftest my/inbox-test-accept-clash-moves-only-the-inbox-note ()
@@ -160,6 +160,71 @@ the journal day."
 ;; ============================================================
 ;; REJECTING
 ;; ============================================================
+
+(ert-deftest my/inbox-test-accept-repairs-links-in-sub-folders ()
+  "A wikilink in a note kept in a sub-folder of a silo is repaired too,
+also with that note open read only; one in a dot folder is not touched.  (The scan was flat until
+2026-10-24.)"
+  (my/inbox-test--with-notes
+    (let* ((note (my/inbox-test--note inbox "20200301T120000" "kant" "Kant"))
+           (deep (my/inbox-test--note (expand-file-name "2020" journal) "20200302T080000"
+                                      "2020-03-02" "2020-03-02" "Read [[Kant]].\n"))
+           (hidden (my/inbox-test--note (expand-file-name ".old" journal) "20200303T080000"
+                                        "2020-03-03" "2020-03-03" "Read [[Kant]].\n")))
+      ;; The linking note open read only, as a preview leaves it.
+      (with-current-buffer (find-file-noselect deep) (view-mode 1))
+      (my/inbox-test--at note (my/inbox-accept "pks"))
+      (should (string-match-p (regexp-quote "Read [[denote:20200301T120000][Kant]].")
+                              (my/inbox-test--read deep)))
+      (should (string-match-p (regexp-quote "Read [[Kant]].") (my/inbox-test--read hidden))))))
+
+(ert-deftest my/inbox-test-preview-then-accept-with-clash ()
+  "The note previewed (read only, `view-mode') and then accepted with an
+identifier shared with a filed note: accepted without an error, and the
+preview buffer follows the note to its new name in the silo."
+  (my/inbox-test--with-notes
+    (my/inbox-test--note journal "20200301T000000" "2020-03-01" "2020-03-01")
+    (let* ((note (my/inbox-test--note inbox "20200301T000000" "kant" "Kant"))
+           (buf (find-file-noselect note))
+           (moved (expand-file-name "20200301T000001--kant.org" pks)))
+      (with-current-buffer buf (view-mode 1))
+      (my/inbox-test--at note (my/inbox-accept "pks"))
+      (should (file-exists-p moved))
+      (should-not (file-exists-p note))
+      (should (equal (buffer-file-name buf) moved)))))
+
+(ert-deftest my/inbox-test-accept-unsaved-linker-refused ()
+  "A note linking to the accepted one, open with unsaved text and not
+saved when asked: nothing moves and nothing is written; the error names
+the buffer."
+  (my/inbox-test--with-notes
+    (let* ((note (my/inbox-test--note inbox "20200301T120000" "kant" "Kant"))
+           (day (my/inbox-test--note journal "20200302T080000" "2020-03-02" "2020-03-02"
+                                     "Read [[Kant]].\n"))
+           (before (my/inbox-test--read day))
+           (buf (find-file-noselect day)))
+      (with-current-buffer buf (goto-char (point-max)) (insert "Typed.\n"))
+      (cl-letf (((symbol-function 'save-some-buffers) #'ignore))
+        (let ((err (should-error (my/inbox-test--at note (my/inbox-accept "pks"))
+                                 :type 'user-error)))
+          (should (string-search (buffer-name buf) (error-message-string err)))))
+      (should (file-exists-p note))
+      (should (equal (my/inbox-test--read day) before))
+      (should (buffer-modified-p buf)))))
+
+(ert-deftest my/inbox-test-reject-keeps-unsaved-buffer ()
+  "Rejecting a note open with unsaved text: the buffer follows it to the
+reject folder and keeps the text, still unsaved."
+  (my/inbox-test--with-notes
+    (let* ((note (my/inbox-test--note inbox "20200301T120000" "kant" "Kant" "Text.\n"))
+           (buf (find-file-noselect note)))
+      (with-current-buffer buf (goto-char (point-max)) (insert "Typed.\n"))
+      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) t)))
+        (my/inbox-test--at note (my/inbox-reject)))
+      (should (equal (buffer-file-name buf)
+                     (expand-file-name (file-name-nondirectory note) rejects)))
+      (should (buffer-modified-p buf))
+      (should (string-search "Typed." (with-current-buffer buf (buffer-string)))))))
 
 (ert-deftest my/inbox-test-reject-moves-never-deletes ()
   "No leaves the note; yes moves it to the reject folder, whole."

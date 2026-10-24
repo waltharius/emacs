@@ -358,41 +358,73 @@ Obsidian file name and the org title."
               names)))
     (seq-uniq (seq-remove #'string-empty-p names))))
 
+(defun my/inbox--link-files (entry)
+  "Return the files of `my/inbox-link-scan-directories' naming ENTRY in a [[link.
+Sub-folders included, dot folders not: notes kept in a sub-folder of a
+silo were never repaired when the scan was flat (outside audits of
+2026-10-24)."
+  (let ((needles (mapcar (lambda (n) (concat "[[" n)) (my/inbox--link-names entry))))
+    (seq-filter
+     (lambda (file)
+       (with-temp-buffer
+         (insert-file-contents file)
+         (seq-some (lambda (needle) (goto-char (point-min)) (search-forward needle nil t))
+                   needles)))
+     (delete-dups
+      (seq-mapcat (lambda (dir)
+                    (when (file-directory-p dir)
+                      (directory-files-recursively
+                       dir "\\.org\\'" nil
+                       (lambda (d) (not (string-prefix-p "." (file-name-nondirectory d)))))))
+                  my/inbox-link-scan-directories)))))
+
+(defun my/inbox--refuse-unsaved (entry)
+  "Offer the unsaved buffers ENTRY's acceptance writes into; refuse if any stay.
+The note itself and the notes linking to it, one buffer at a time
+\(`my/denote-unsaved-or-ask'); asked before the note moves, so that a
+refusal leaves everything where it was.  Until 2026-10-24 the link
+repair saved those buffers unasked, with whatever else was typed."
+  (when-let* ((left (my/denote-unsaved-or-ask
+                     (cons (plist-get entry :file) (my/inbox--link-files entry)))))
+    (user-error "Not moved: unsaved changes in %s; save or revert them first"
+                (mapconcat #'buffer-name left ", "))))
+
 (defun my/inbox--fix-journal-links (entry ident)
   "Rewrite [[name]] wikilinks to ENTRY as denote links to IDENT.
 Searches `my/inbox-link-scan-directories\=': the conversion could not
 resolve these links, because the target note did not exist in Org yet
-and might still be rejected.  Returns the number of links rewritten."
+and might still be rejected.  Returns the number of links rewritten.
+
+A link to a heading, [[name#Heading]], keeps the heading in its text
+\([[denote:IDENT][name#Heading]]): dropping it, as before 2026-10-24,
+lost where the link pointed.  An explicit [[name|text]] keeps its text."
   (let ((total 0)
-        (files (seq-mapcat (lambda (dir)
-                             (when (file-directory-p dir)
-                               (directory-files dir t "\\.org\\'")))
-                           my/inbox-link-scan-directories)))
+        (files (my/inbox--link-files entry)))
     (dolist (name (my/inbox--link-names entry))
-      (let ((needle (concat "[[" name))
-            (link-re (concat "\\[\\[" (regexp-quote name)
-                             "\\(?:#[^]|]*\\)?\\(?:|\\([^]]*\\)\\)?\\]\\]")))
+      (let ((link-re (concat "\\[\\[" (regexp-quote name)
+                             "\\(#[^]|]*\\)?\\(?:|\\([^]]*\\)\\)?\\]\\]")))
         (dolist (file files)
           ;; Never point a note at itself.  Before identifiers were made
           ;; unique this happened for real: a journal note and an
           ;; accepted note shared YYYYMMDDT000000, so the rewrite
           ;; resolved the journal note's own link to its own identifier.
-          (when (and (not (equal (my/denote-file-identifier file) ident))
-                     ;; Cheap containment check before visiting the file.
-                     (with-temp-buffer
-                       (insert-file-contents file)
-                       (goto-char (point-min))
-                       (search-forward needle nil t)))
+          (unless (equal (my/denote-file-identifier file) ident)
             (with-current-buffer (find-file-noselect file)
-              (save-excursion
-                (goto-char (point-min))
-                (while (re-search-forward link-re nil t)
-                  (replace-match
-                   (format "[[denote:%s][%s]]" ident
-                           (or (match-string 1) name))
-                   t t)
-                  (setq total (1+ total))))
-              (save-buffer))))))
+              (let ((count 0) (inhibit-read-only t))
+                (save-excursion
+                  (save-restriction
+                    (widen)
+                    (goto-char (point-min))
+                    (while (re-search-forward link-re nil t)
+                      (replace-match
+                       (format "[[denote:%s][%s]]" ident
+                               (or (match-string 2)
+                                   (concat name (or (match-string 1) ""))))
+                       t t)
+                      (setq count (1+ count)))))
+                (when (> count 0)
+                  (save-buffer)
+                  (setq total (+ total count)))))))))
     total))
 
 (defun my/inbox--ensure-unique-identifier (file)
@@ -431,7 +463,16 @@ cannot check identifier uniqueness"))
   (let ((target (expand-file-name (file-name-nondirectory file) dir)))
     (when (file-exists-p target)
       (user-error "Already exists: %s" target))
-    (rename-file file target)
+    ;; A buffer visiting the note follows it (a preview, usually): left
+    ;; at the old path, a later save would bring the note back into the
+    ;; inbox beside its moved self.
+    (if-let* ((buffer (find-buffer-visiting file)))
+        (with-current-buffer buffer
+          (rename-file file target)
+          ;; ALONG-WITH-FILE: the file is moved already; the buffer's
+          ;; modified flag stays as it was, unsaved text included.
+          (set-visited-file-name target t t))
+      (rename-file file target))
     target))
 
 (defun my/inbox-accept (silo)
@@ -443,6 +484,7 @@ cannot check identifier uniqueness"))
          (dir (cdr (assoc silo my/inbox-silos)))
          (ident (my/inbox--identifier file)))
     (unless dir (user-error "Unknown silo: %s" silo))
+    (my/inbox--refuse-unsaved entry)
     ;; Resolve identifier clashes first: `ident' below must be the one
     ;; the note will actually keep, or the journal links would be
     ;; rewritten to point at the wrong note.
@@ -474,6 +516,7 @@ existing thread."
   (interactive)
   (let* ((entry (my/inbox--entry))
          (dir (cdr (assoc "pks" my/inbox-silos)))
+         (_ (my/inbox--refuse-unsaved entry))
          ;; Settle any identifier clash before the note enters the silo.
          (file (my/inbox--ensure-unique-identifier
                 (plist-get entry :file)))
