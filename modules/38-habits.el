@@ -281,10 +281,15 @@ habit."
   (set-buffer (org-capture-target-buffer (my/habits--file)))
   (widen)
   (goto-char (point-min))
-  (if (re-search-forward
-       (format org-complex-heading-regexp-format
-               (regexp-quote my/habits-heading))
-       nil t)
+  (if (let ((regexp (format org-complex-heading-regexp-format
+                            (regexp-quote my/habits-heading)))
+            (found nil))
+        ;; Top level only, as the option says: a habit further down
+        ;; may carry the same word, and a new habit filed under it
+        ;; became its child (until 2026-10-24, as in 37-tasks).
+        (while (and (not found) (re-search-forward regexp nil t))
+          (setq found (save-excursion (beginning-of-line) (looking-at-p "\\* "))))
+        found)
       (goto-char (line-beginning-position))
     (goto-char (point-max))
     (unless (bolp) (insert "\n"))

@@ -213,7 +213,7 @@ them through the basics; until then the =tests= check reminds;
    2026-10-23t, =tests/test-readwise.el=, SAFETY.org 3.2); then the
    others, a few per session, as each is next changed.
 
-On 2026-10-24, 26 of 53 modules are named by a test file, 10 are
-marked =MyPKS-Tests: weekly=, and 17 still need tests
+On 2026-10-24, 27 of 53 modules are named by a test file, 10 are
+marked =MyPKS-Tests: weekly=, and 16 still need tests
 (=python3 hooks/lint.py tests= lists them); every module has the
 weekly load tests of part 2.

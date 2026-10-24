@@ -3676,6 +3676,9 @@ none defined offers to define one; it does not ask for a name and
 create one on the spot, because that is not what org-habit is. See
 below.
 
+A new habit goes under the top-level =Habits= heading
+(=my/habits-heading=), never under a habit of the same name.
+
 ** How org-habit works, in four sentences
 
 A habit is a TODO that never goes away. Marking it DONE does not close
