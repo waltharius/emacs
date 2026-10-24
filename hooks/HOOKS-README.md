@@ -130,6 +130,11 @@ show them and with a grave accent and an apostrophe elsewhere; both the
 list and the warnings are compared in the second form, so the same
 warning matches on every machine (on the owner's machine every listed
 warning first came out as NEW for this alone).
+The compile step writes its report (`NEW`, `gone`, `FAILED`, the
+`compiled` line) to a file of its own, named by `MYPKS_COMPILE_REPORT`,
+which check-weekly prints: read from the mixed output of Emacs, a `NEW`
+line glued to text a package wrote to standard error without a newline
+was not shown, leaving "1 new" without the warning (2026-10-24).
 A warning shown as `NEW` is fixed in the module, not listed: an
 obsolete name replaced, a missing `require` added, a fault fixed.  The
 list is not a way to quiet a warning; a line goes into it only when the

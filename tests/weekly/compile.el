@@ -70,6 +70,16 @@ Return (OK . WARNINGS), WARNINGS a list of \"NAME: message\" lines."
                (byte-compile-file (expand-file-name (concat "modules/" name ".el") my/test-repo)))))
     (cons ok (seq-uniq (nreverse warnings)))))
 
+(defun my/weekly--report (line)
+  "Print LINE, and add it to the file named by MYPKS_COMPILE_REPORT.
+hooks/check-weekly reads the file: in the mixed output of Emacs a line
+can lose its start to text a package wrote to standard error without a
+newline, and the warning then went unshown (2026-10-24: \"1 new\" with
+no NEW line on the owner's machine)."
+  (princ (concat line "\n"))
+  (when-let* ((file (getenv "MYPKS_COMPILE_REPORT")))
+    (write-region (concat line "\n") nil file t 'silent)))
+
 (defun my/weekly-compile-all ()
   "Compile every module; print the outcome; exit 1 on a new warning or error."
   (my/weekly-start)
@@ -95,14 +105,14 @@ Return (OK . WARNINGS), WARNINGS a list of \"NAME: message\" lines."
           (dolist (w (sort (seq-uniq (append baseline all)) #'string<))
             (insert w "\n")))
       (dolist (w (seq-remove (lambda (b) (member b all)) baseline))
-        (princ (format "gone      %s  (no longer seen: remove the line)\n" w))))
+        (my/weekly--report (format "gone      %s  (no longer seen: remove the line)" w))))
     (dolist (w new)
-      (princ (format "NEW       %s\n" w)))
+      (my/weekly--report (format "NEW       %s" w)))
     (dolist (name failed)
-      (princ (format "FAILED    %s did not compile\n" name)))
-    (princ (format "compiled %d modules: %d warning(s), %d new, %d failed%s\n"
-                   (length my/modules-order) (length all) (length new) (length failed)
-                   (if write "; list written" "")))
+      (my/weekly--report (format "FAILED    %s did not compile" name)))
+    (my/weekly--report (format "compiled %d modules: %d warning(s), %d new, %d failed%s"
+                               (length my/modules-order) (length all) (length new) (length failed)
+                               (if write "; list written" "")))
     (kill-emacs (if (or failed (and new (not write))) 1 0))))
 
 (provide 'weekly-compile)

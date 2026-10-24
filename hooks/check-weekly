@@ -35,17 +35,22 @@ ran=0
 run_compile() {
   ran=$((ran + 1))
   echo "compile:"
-  output="$(emacs -Q --batch --eval '(package-initialize)' \
+  # The report comes in a file of its own (tests/weekly/compile.el):
+  # read from the mixed output, a NEW line glued to something a package
+  # wrote to standard error went unshown.
+  report="$(mktemp)"
+  output="$(MYPKS_COMPILE_REPORT="$report" emacs -Q --batch --eval '(package-initialize)' \
               -l tests/weekly/compile.el -f my/weekly-compile-all 2>&1)"
   code=$?
-  grep -E '^(NEW|gone|FAILED|compiled) ' <<<"$output" | sed 's/^/  /'
+  sed 's/^/  /' "$report"
   if [ "$code" -ne 0 ]; then
     status=1
-    grep -qE '^compiled ' <<<"$output" || tail -n 15 <<<"$output" | sed 's/^/  /'
+    grep -qE '^compiled ' "$report" || tail -n 15 <<<"$output" | sed 's/^/  /'
     echo "  FAILED   compile"
   else
     echo "  ok       compile"
   fi
+  rm -f "$report"
   echo
 }
 
