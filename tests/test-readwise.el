@@ -331,6 +331,20 @@ missed; the book file of an earlier sync is unchanged."
         (should (equal (my/rw-test--read file) before))
         (should (equal (my/rw-test--book-files) (list (file-name-nondirectory file))))))))
 
+(ert-deftest my/rw-test-no-answer-says-offline ()
+  "No reply at all (no network): the error says so, and neither the
+recorded time nor any file changes."
+  (my/rw-test--with-tree
+    (my/readwise--save-sync-time "2026-10-01T00:00:00Z")
+    (advice-add 'url-retrieve-synchronously :override #'ignore
+                '((name . my/rw-test-offline)))
+    (unwind-protect
+        (let ((err (should-error (my/readwise-sync) :type 'user-error)))
+          (should (string-match-p "no answer from readwise.io" (error-message-string err))))
+      (advice-remove 'url-retrieve-synchronously 'my/rw-test-offline))
+    (should (equal (my/readwise--last-sync) "2026-10-01T00:00:00Z"))
+    (should-not (my/rw-test--book-files))))
+
 (ert-deftest my/rw-test-resync-overwrites-same-file ()
   "Syncing a book again rewrites its one file, at the same path, with
 what Readwise holds now -- no second copy."

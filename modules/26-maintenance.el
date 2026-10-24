@@ -492,16 +492,23 @@ Removes the line when KEYWORDS is nil: a field asserting nothing is
 noise.  Adds one above `#+identifier:', where Denote puts it, when the
 note has none and keywords are being given to it.
 
-The search is bounded to the first few thousand characters, which is
-where front matter is and where a stray `#+filetags:' further down --
-inside an example block, say -- cannot be mistaken for it."
+Only the front matter is searched: the lines from the top of the file
+that are `#+KEY:' lines, up to the first that is not.  A `#+filetags:'
+further down -- an example in a source block, however early -- is the
+note's text, not its metadata.  Until 2026-10-24 the bound was the
+first 4096 characters, which a short note's example fell within
+(outside audits of 2026-10-24)."
   (save-restriction
     (widen)
     (save-excursion
       (goto-char (point-min))
       (let ((value (when keywords
                      (concat ":" (string-join keywords ":") ":")))
-            (limit (min (point-max) 4096)))
+            (limit (save-excursion
+                     (goto-char (point-min))
+                     (while (looking-at "#\\+[[:alnum:]_-]+:")
+                       (forward-line 1))
+                     (point))))
         (cond
          ((re-search-forward "^\\(#\\+filetags:[ \t]*\\)\\(.*\\)$" limit t)
           (if keywords

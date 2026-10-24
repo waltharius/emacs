@@ -137,7 +137,13 @@ mistaken for an empty one."
          (url-request-method "GET")
          (url-request-extra-headers
           (list (cons "Authorization" (concat "Token " (my/readwise--token))))))
-    (with-current-buffer (url-retrieve-synchronously url t t 60)
+    (with-current-buffer
+        (or (url-retrieve-synchronously url t t 60)
+            ;; No reply at all -- no network, a name that does not
+            ;; resolve, the 60 s timeout: said so, not "wrong type
+            ;; argument" from `with-current-buffer' (outside audits of
+            ;; 2026-10-24).
+            (user-error "Readwise: no answer from readwise.io (offline?); nothing was changed"))
       (unwind-protect
           (progn
             (goto-char (point-min))

@@ -161,9 +161,14 @@ Also writes how to go back, in a text file beside the copy."
     (when (file-exists-p backup)
       (user-error "A copy of that name exists already: %s" backup))
     (make-directory root t)
+    ;; Copied under a name the list of copies does not match, renamed
+    ;; once complete: a copy cut short (a full disk, Emacs closed) is
+    ;; never offered for going back (outside audits of 2026-10-24).
     ;; COPY-CONTENTS: the folder's contents become the copy, not a
     ;; subfolder elpa/ inside it.
-    (copy-directory (my/packages--elpa) backup t t t)
+    (let ((partial (concat (directory-file-name backup) ".partial")))
+      (copy-directory (my/packages--elpa) partial t t t)
+      (rename-file partial (directory-file-name backup)))
     ;; Beside the copy, not in it: what is in it goes back into the
     ;; package folder on a restore.
     (with-temp-file (concat (directory-file-name backup) "-RESTORE.txt")

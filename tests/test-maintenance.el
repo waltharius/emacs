@@ -125,6 +125,19 @@ last keyword removes the line."
         (should (string-prefix-p "#+title:      A title\n#+identifier:" (my/maint-test--read bare)))
         (should (string-match-p "#\\+filetags: :deep:" (my/maint-test--read bare)))))))
 
+(ert-deftest my/maint-test-filetags-example-early-in-body ()
+  "A short note without its own #+filetags: but with one in an example
+right below the front matter: the keywords go into the front matter,
+the example is left exactly as it was.  (Until 2026-10-24 the search
+reached 4096 characters and rewrote the example.)"
+  (my/maint-test--with-notes
+    (let* ((example "#+begin_src org\n#+filetags: :przyklad:\n#+end_src\n")
+           (file (my/maint-test--note pks "20261023T100000--a-title" nil example))
+           (tagged (my/maintenance--set-keywords file '("kant")))
+           (text (my/maint-test--read tagged)))
+      (should (string-match-p "#\\+filetags:  :kant:\n#\\+identifier:" text))
+      (should (string-search example text)))))
+
 (ert-deftest my/maint-test-set-keywords-refuses-unsaved-buffer ()
   "Unsaved changes in the note's buffer: refused, nothing written."
   (my/maint-test--with-notes

@@ -676,8 +676,15 @@ If FILE is visited by a buffer, update that buffer too."
          (new-path   (expand-file-name (file-name-nondirectory old-path) target-dir))
          (buf        (find-buffer-visiting old-path)))
     (unless (file-equal-p (file-name-directory old-path) target-dir)
+      ;; Never over a file: `rename-file' with OK-IF-ALREADY-EXISTS 1
+      ;; asked Emacs's general question and then replaced the other note
+      ;; for good, no trash (outside audits of 2026-10-24).  Refused
+      ;; before anything moves, as 05-notes.el refuses a move.
+      (when (file-exists-p new-path)
+        (user-error "Not moved: %s exists already in %s"
+                    (file-name-nondirectory new-path) target-dir))
       (my/notes-ensure-directory-of new-path)
-      (rename-file old-path new-path 1)
+      (rename-file old-path new-path)
       (when (buffer-live-p buf)
         (with-current-buffer buf
           (set-visited-file-name new-path t t))))

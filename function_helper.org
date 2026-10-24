@@ -2820,6 +2820,9 @@ commentary is stored by Readwise in the highlight's =note= field and
 returns on every sync, so a book file can always be regenerated
 exactly. Losing the directory costs only the time to re-sync.
 
+A sync with no answer at all from readwise.io (no network) stops with
+"no answer from readwise.io (offline?)" and changes nothing.
+
 ** Why sync is two-phase
 
 =updatedAfter= returns each book carrying only its *changed*
@@ -7249,7 +7252,9 @@ The scheme does not change; it is what Denote exists to promise:
 
 : IDENTIFIER[==SIGNATURE][--TITLE][__KEYWORD_KEYWORD].EXTENSION
 
-together with =#+filetags:  :one:two:= holding the same keywords.
+together with =#+filetags:  :one:two:= holding the same keywords
+(the front matter only: the =#+KEY:= lines at the top of the file; a
+=#+filetags:= in the text, an example in a source block, is left alone).
 Changing a keyword means editing those two places, in that order: front
 matter first, file name second. Interrupted in between, the note has its
 new keywords and its old name — visible, and repaired by running the
@@ -7307,7 +7312,9 @@ column, Emacs packages, is in the Maintenance menu of
    to =my/packages-backup-directory= (=~/.emacs.d/elpa-backups/=, left
    out of git), a folder per upgrade, =elpa-YYYY-MM-DD-HHMMSS=; beside
    it a file of the same name ending in =-RESTORE.txt= says how to go
-   back, also from a shell when Emacs no longer starts.
+   back, also from a shell when Emacs no longer starts.  The copy is
+   made under a name ending in =.partial= and renamed when complete, so a
+   copy cut short is never offered for going back.
 3. Upgrades each package with package.el's own =package-upgrade=; one
    that fails does not stop the others.  =package-upgrade= deletes the
    old version before installing the new one, so a package whose

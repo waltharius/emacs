@@ -150,6 +150,26 @@ Emacs and from a shell; the report says where the copy is."
         (should (string-match-p "a +1\\.0 -> 1\\.1" (buffer-string)))
         (should (string-match-p "How to go back" (buffer-string)))))))
 
+(ert-deftest my/pkg-test-copy-cut-short-not-offered ()
+  "A copy that fails half way -- a full disk -- upgrades nothing and is
+not among the copies offered for going back; what it left keeps a name
+of its own.  (Until 2026-10-24 it was copied straight to its final name
+and looked complete.)"
+  (my/pkg-test--with-packages
+    (setq answer t)
+    (advice-add 'copy-directory :around
+                (lambda (copy from to &rest args)
+                  (apply copy from to args)
+                  (delete-file (expand-file-name "b-2.0/b.el" to))
+                  (signal 'file-error (list "No space left on device")))
+                '((name . my/pkg-test-full-disk)))
+    (unwind-protect
+        (should-error (my/packages-upgrade))
+      (advice-remove 'copy-directory 'my/pkg-test-full-disk))
+    (should-not upgraded)
+    (should-not (my/packages--backups))
+    (should (directory-files backups nil "\\.partial\\'"))))
+
 (ert-deftest my/pkg-test-one-failure-others-go-on ()
   "A package whose upgrade fails is reported as possibly missing; the
 others are upgraded."
