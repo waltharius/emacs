@@ -63,5 +63,26 @@
                                        (overlays-in (point-min) (point-max))))
                    '("zzzqxv")))))
 
+(ert-deftest my/spell-test-correction-ends-at-line-end ()
+  "After a correction that makes a word longer, point is at the end of
+the line it started on -- not on the old buffer position, which the
+longer word moved onto a letter -- and other lines are untouched."
+  (with-temp-buffer
+    (insert "Pierwsza linia.\nDruga z blendem tutaj koniec\nTrzecia linia.\n")
+    (goto-char (point-min))
+    (forward-line 1)
+    (search-forward "tutaj")
+    (let ((flyspell-mode t))
+      (cl-letf (((symbol-function 'my/spell-ensure-process) (lambda () t))
+                ((symbol-function 'my/flyspell-goto-previous-error)
+                 (lambda () (goto-char (point-min)) (search-forward "blendem")
+                   (goto-char (match-beginning 0))))
+                ((symbol-function 'flyspell-correct-wrapper)
+                 (lambda () (delete-region (point) (+ (point) 7)) (insert "błędnem"))))
+        (my/spell-correct-previous)))
+    (should (eolp))
+    (should (equal (buffer-substring (line-beginning-position) (point))
+                   "Druga z błędnem tutaj koniec"))))
+
 (provide 'test-spelling-languages)
 ;;; test-spelling-languages.el ends here

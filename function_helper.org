@@ -2204,6 +2204,12 @@ module the Tools menu has no Spelling column and nothing else changes.
 | T   | =my/toggle-flyspell=            | Toggle flyspell mode             |
 | e   | =my/spell-edit-personal-dictionary= | Open the personal dictionary, to remove a word |
 
+After a correction (=s=, =C-c s=) point goes to the end of the line it
+was on when the command started -- the logical line, so with
+=visual-line-mode= the end of the paragraph -- ready for typing on.  A
+correction that makes a word longer used to leave point on the last
+letter typed.
+
 Module: =modules/03-spelling.el=
 
 **** Personal dictionary in the settings folder

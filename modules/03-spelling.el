@@ -730,26 +730,43 @@ Returns t if process is ready, nil if it could not be started."
       found)))
 
 ;; ============================================================
-;; SPELL CORRECTION - Returns to start position
+;; SPELL CORRECTION - Returns to the end of the line it started on
 ;; ============================================================
 
+(defun my/spell--back-to-line-end (marker)
+  "Go to the end of the line MARKER is on, and release MARKER.
+The end of the logical line: with `visual-line-mode', where a paragraph
+is one line, the end of the paragraph."
+  (goto-char marker)
+  (set-marker marker nil)
+  (end-of-line))
+
 (defun my/spell-correct-previous ()
-  "Jump to previous spelling error, show correction menu, return to start."
+  "Correct the previous spelling error, then go to the end of the line.
+
+The line is the one point was on when the command started, followed
+by a marker, so text the correction adds or removes before it does not
+shift it.  Point ends at the end of that line, ready for typing on:
+until 2026-10-24 it went back to the old buffer position, which a
+correction a letter longer had moved onto the last letter typed."
   (interactive)
-  (let ((start-pos (point)))
+  (let ((start (copy-marker (point) t)))
     (condition-case err
         (cond
          ((not flyspell-mode)
+          (set-marker start nil)
           (message "⚠️ Spell-checking not active. Toggle with C-c n T"))
          ((not (my/spell-ensure-process))
+          (set-marker start nil)
           (message "⚠️ Could not start Hunspell. Check dictionary configuration."))
          ((not (my/flyspell-goto-previous-error))
+          (my/spell--back-to-line-end start)
           (message "No spelling errors found backward from cursor"))
          (t
           (flyspell-correct-wrapper)
-          (goto-char start-pos)))
+          (my/spell--back-to-line-end start)))
       (error
-       (goto-char start-pos)
+       (my/spell--back-to-line-end start)
        (message "Error in spell correction: %s" (error-message-string err))))))
 
 ;; ============================================================
