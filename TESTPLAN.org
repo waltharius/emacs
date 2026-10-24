@@ -644,6 +644,19 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R47. Inbox: unsaved buffers and links to headings [0/3]
+The tests stand in for the question of =save-some-buffers=; this checks
+the real one.
+- [ ] A journal note linking =[[Title]]= to an inbox note, open with a
+      line typed and not saved.  Accept the inbox note (=p=): Emacs asks
+      "Save file ...?" for that journal note.  Answer =n=: the
+      acceptance stops, naming the buffer; nothing moved, the line still
+      unsaved.
+- [ ] Accept again, answer =y=: the journal note is saved with the typed
+      line and its link repaired; the note is in the silo.
+- [ ] A journal link =[[Title#Heading]]= to a note that has =* Heading=:
+      after acceptance, =C-c C-o= on it opens the note at that heading.
+
 ** R46. Obsidian import on the real vault [0/3]
 The tests run the script with pandoc 3.1.3 (Ubuntu's); this checks the
 pandoc and vault of this machine.

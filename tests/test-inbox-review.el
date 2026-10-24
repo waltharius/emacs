@@ -161,6 +161,23 @@ the journal day."
 ;; REJECTING
 ;; ============================================================
 
+(ert-deftest my/inbox-test-accept-link-opens-at-heading ()
+  "A link to a heading the accepted note has, also one with tags,
+opens at it ([[denote:ID::*Heading][...]]); a link to a heading it
+lacks keeps the heading in its text only, so following it opens the
+note rather than failing with \"No match\"."
+  (my/inbox-test--with-notes
+    (let* ((note (my/inbox-test--note inbox "20200301T120000" "kant" "Kant"
+                                      "* Ethics\nText.\n* Logic :draft:\nMore.\n"))
+           (day (my/inbox-test--note journal "20200302T080000" "2020-03-02" "2020-03-02"
+                                     "[[Kant#Ethics]], [[Kant#Logic|logika]], [[Kant#Aesthetics]].\n")))
+      (my/inbox-test--at note (my/inbox-accept "pks"))
+      (should (string-match-p
+               (regexp-quote (concat "[[denote:20200301T120000::*Ethics][Kant#Ethics]], "
+                                     "[[denote:20200301T120000::*Logic][logika]], "
+                                     "[[denote:20200301T120000][Kant#Aesthetics]]."))
+               (my/inbox-test--read day))))))
+
 (ert-deftest my/inbox-test-accept-repairs-links-in-sub-folders ()
   "A wikilink in a note kept in a sub-folder of a silo is repaired too,
 also with that note open read only; one in a dot folder is not touched.  (The scan was flat until

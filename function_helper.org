@@ -3115,7 +3115,11 @@ journal silo for =[[Title]]= and =[[original-md-filename]]=, including
 =#heading= and =|alias= variants, and rewrite them to
 =[[denote:IDENTIFIER][...]]=. The number repaired is reported in the
 echo area.  A heading stays in the link's text
-(=[[denote:IDENTIFIER][Title#Heading]]=), an alias is the text; the
+(=[[denote:IDENTIFIER][Title#Heading]]=), and when the accepted note
+has that heading the link opens at it
+(=[[denote:IDENTIFIER::*Heading][Title#Heading]]=, Org's search option,
+which Denote follows); a heading the note lacks stays in the text only,
+since following it would end in "No match".  An alias is the text; the
 silos' sub-folders are scanned, dot folders not; notes open read only
 are repaired too.  Before the note moves, every buffer the acceptance
 would write into that holds unsaved changes is offered for saving, one

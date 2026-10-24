@@ -389,7 +389,24 @@ repair saved those buffers unasked, with whatever else was typed."
     (user-error "Not moved: unsaved changes in %s; save or revert them first"
                 (mapconcat #'buffer-name left ", "))))
 
-(defun my/inbox--fix-journal-links (entry ident)
+(defun my/inbox--has-heading-p (file heading)
+  "Return non-nil when FILE has an Org heading whose text is HEADING.
+Tags after it are allowed; a TODO keyword or priority is not, so the
+answer errs on the side of no.  The match data is kept: the caller
+asks in the middle of a search and replace, which would otherwise
+replace what this search found (an endless loop, seen in its test)."
+  (and file heading (file-readable-p file)
+       (save-match-data
+        (with-temp-buffer
+         (insert-file-contents file)
+         (goto-char (point-min))
+         (let ((case-fold-search nil))
+           (re-search-forward
+            (concat "^\\*+[ \t]+" (regexp-quote heading)
+                    "[ \t]*\\(?::[[:alnum:]_@#%:]+:[ \t]*\\)?$")
+            nil t))))))
+
+(defun my/inbox--fix-journal-links (entry ident &optional note-file)
   "Rewrite [[name]] wikilinks to ENTRY as denote links to IDENT.
 Searches `my/inbox-link-scan-directories\=': the conversion could not
 resolve these links, because the target note did not exist in Org yet
@@ -397,7 +414,11 @@ and might still be rejected.  Returns the number of links rewritten.
 
 A link to a heading, [[name#Heading]], keeps the heading in its text
 \([[denote:IDENT][name#Heading]]): dropping it, as before 2026-10-24,
-lost where the link pointed.  An explicit [[name|text]] keeps its text."
+lost where the link pointed.  When NOTE-FILE, the accepted note, has that
+heading, the link also opens at it, [[denote:IDENT::*Heading][...]]
+\(Denote follows Org's search options); without such a heading Org
+would only report \"No match\", so the target stays the note.  An
+explicit [[name|text]] keeps its text."
   (let ((total 0)
         (files (my/inbox--link-files entry)))
     (dolist (name (my/inbox--link-names entry))
@@ -416,11 +437,15 @@ lost where the link pointed.  An explicit [[name|text]] keeps its text."
                     (widen)
                     (goto-char (point-min))
                     (while (re-search-forward link-re nil t)
-                      (replace-match
-                       (format "[[denote:%s][%s]]" ident
-                               (or (match-string 2)
-                                   (concat name (or (match-string 1) ""))))
-                       t t)
+                      (let* ((anchor (match-string 1))
+                             (heading (and anchor (substring anchor 1)))
+                             (target (if (my/inbox--has-heading-p note-file heading)
+                                         (format "%s::*%s" ident heading)
+                                       ident)))
+                        (replace-match
+                         (format "[[denote:%s][%s]]" target
+                                 (or (match-string 2) (concat name (or anchor ""))))
+                         t t))
                       (setq count (1+ count)))))
                 (when (> count 0)
                   (save-buffer)
@@ -490,8 +515,8 @@ cannot check identifier uniqueness"))
     ;; rewritten to point at the wrong note.
     (setq file (my/inbox--ensure-unique-identifier file))
     (setq ident (my/inbox--identifier file))
-    (let ((target (my/inbox--move file dir))
-          (fixed (if ident (my/inbox--fix-journal-links entry ident) 0)))
+    (let* ((target (my/inbox--move file dir))
+           (fixed (if ident (my/inbox--fix-journal-links entry ident target) 0)))
       (message "%s -> %s%s" (plist-get entry :title) silo
                (if (> fixed 0)
                    (format " (%d wikilink(s) repaired)" fixed) ""))
@@ -522,7 +547,7 @@ existing thread."
                 (plist-get entry :file)))
          (ident (my/inbox--identifier file))
          (target (my/inbox--move file dir)))
-    (when ident (my/inbox--fix-journal-links entry ident))
+    (when ident (my/inbox--fix-journal-links entry ident target))
     (find-file target)
     (if (fboundp 'my/zettel-adopt)
         (call-interactively #'my/zettel-adopt)
