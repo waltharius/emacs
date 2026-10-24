@@ -134,15 +134,34 @@ Defaults to the Customize entry at point."
   (expand-file-name "recent-settings.eld"
                     (if (boundp 'my/host-directory) my/host-directory user-emacs-directory)))
 
+(defun my/settings--recent-read-file (file)
+  "Return the records in FILE, or the symbol `unreadable' when it has none."
+  (condition-case nil
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((data (read (current-buffer))))
+          (if (listp data) data 'unreadable)))
+    (error 'unreadable)))
+
 (defun my/settings--recent-read ()
   "Return the recorded changes, newest first: plists (:option :time :old)."
   (let ((file (my/settings--recent-file)))
     (when (file-readable-p file)
-      (ignore-errors
-        (with-temp-buffer
-          (insert-file-contents file)
-          (let ((data (read (current-buffer))))
-            (and (listp data) data)))))))
+      (let ((data (my/settings--recent-read-file file)))
+        (unless (eq data 'unreadable) data)))))
+
+(defun my/settings--recent-set-aside ()
+  "Keep an unreadable record file under its own name; return that name.
+Until 2026-10-24 a record that could not be read counted as empty, and
+the next change overwrote it: the history was gone without a word
+(found by the tests of this module)."
+  (let ((file (my/settings--recent-file)))
+    (when (and (file-readable-p file)
+               (eq (my/settings--recent-read-file file) 'unreadable))
+      (let ((aside (concat file ".unreadable")))
+        (rename-file file aside t)
+        (message "Settings record could not be read; kept as %s" aside)
+        aside))))
 
 (defun my/settings--printable-p (value)
   "Non-nil when VALUE can be written and read back as the same value."
@@ -166,11 +185,17 @@ Defaults to the Customize entry at point."
       (when (> (length records) my/settings-recent-max)
         (setq records (seq-take records my/settings-recent-max)))
       (condition-case err
-          (with-temp-file (my/settings--recent-file)
-            (insert ";; Written by 48-settings-tools.el: recently changed settings.\n")
-            (let ((print-length nil) (print-level nil))
-              (prin1 records (current-buffer)))
-            (insert "\n"))
+          (let* ((file (my/settings--recent-file))
+                 (partial (concat file ".partial")))
+            (my/settings--recent-set-aside)
+            ;; Written under another name and renamed when complete, so
+            ;; a write cut short never stands in for the record.
+            (with-temp-file partial
+              (insert ";; Written by 48-settings-tools.el: recently changed settings.\n")
+              (let ((print-length nil) (print-level nil))
+                (prin1 records (current-buffer)))
+              (insert "\n"))
+            (rename-file partial file t))
         (error (message "Settings record not written: %s" (error-message-string err)))))))
 
 (defun my/settings--record-widget (fn widget &rest args)

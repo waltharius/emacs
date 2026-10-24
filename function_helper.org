@@ -9421,8 +9421,10 @@ Customize's own /Revert This Session's Customization/ does not.
 
 =C-c n , z= sets one of them back to its value before the change —
 saved again when it was saved.  A value that cannot be written and read
-back (a function object, a buffer) is recorded without its old value,
-and undo says so.
+back (a marker, a buffer) is recorded without its old value, and undo
+says so.  The record is written under a temporary name and renamed when
+complete; a record file that cannot be read is kept as
+=recent-settings.eld.unreadable= and a new record starts beside it.
 
 Function: =my/settings-favourites-open=, =my/settings-favourite-add=, =my/settings-favourite-remove=, =my/settings-recent-open=, =my/settings-recent-undo= | Module: =modules/48-settings-tools.el=
 
