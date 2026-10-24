@@ -52,6 +52,8 @@
 (require 'ox)
 (require 'cl-lib)
 
+(declare-function org-odt-export-to-odt "ox-odt" (&optional async subtreep visible-only ext-plist))
+
 (defgroup my/writing-export nil
   "Export to office formats."
   :tag "Export: writing projects"
@@ -73,9 +75,10 @@ mirror the silo structure, as the PDF output does."
 (defcustom my/office-convert-timeout 120
   "Seconds to wait for LibreOffice to convert a document.
 
-Conversion runs synchronously because the result has to be moved into
-place afterwards.  The first run of the session is much slower than the
-rest, since LibreOffice starts a headless instance."
+Emacs waits for the conversion because the result has to be moved into
+place afterwards; after this many seconds LibreOffice is stopped and
+the export fails.  The first run of the session is much slower than
+the rest, since LibreOffice starts a headless instance."
   :type 'integer
   :group 'my/writing-export)
 
@@ -147,11 +150,17 @@ Everything else mirrors the silo structure under `my/office-output-dir'."
           (if project
               (expand-file-name my/office-project-subdirectory
                                 (my/writing-project-directory project))
-            (let* ((root (expand-file-name my-notes-dir))
-                   (here (expand-file-name (file-name-directory org-file)))
-                   (rel (when (string-prefix-p root here)
-                          (substring here (length root))))
-                   (silo (when (and rel (not (string-empty-p rel)))
+            ;; Inside the notes folder by `file-in-directory-p', not by a
+            ;; common prefix of names: with the notes folder written
+            ;; without its final slash, `~/notes-old/' began with
+            ;; `~/notes' and its notes went to export/-old/ (until
+            ;; 2026-10-24, found by the tests of this module).
+            (let* ((root (file-name-as-directory (expand-file-name my-notes-dir)))
+                   (here (file-name-as-directory
+                          (expand-file-name (file-name-directory org-file))))
+                   (rel (when (file-in-directory-p here root)
+                          (file-relative-name here root)))
+                   (silo (when (and rel (not (member rel '("./" "."))))
                            (car (split-string rel "/" t)))))
               (if silo
                   (expand-file-name (concat silo "/") my/office-output-dir)
@@ -177,23 +186,64 @@ such as \"docx\"."
         (out (concat (file-name-sans-extension odt-file) "." format)))
     (unless soffice
       (user-error "LibreOffice not found -- install it, or export ODT only"))
-    (with-timeout (my/office-convert-timeout
-                   (progn (message "LibreOffice timed out after %ds"
-                                   my/office-convert-timeout)
-                          nil))
-      (let ((exit (call-process soffice nil
-                                (get-buffer-create "*office-convert-log*") nil
-                                "--headless" "--convert-to" format
-                                "--outdir" (directory-file-name dir)
-                                odt-file)))
-        (if (and (zerop exit) (file-exists-p out))
-            out
-          (message "Conversion failed (exit %s) -- see *office-convert-log*" exit)
-          nil)))))
+    ;; An asynchronous process waited for with a deadline.  Until
+    ;; 2026-10-24 a synchronous `call-process' inside `with-timeout':
+    ;; the timer cannot run while `call-process' waits, so a LibreOffice
+    ;; that never returned froze Emacs until C-g (found by the tests of
+    ;; this module).
+    (let ((proc (make-process
+                 :name "office-convert"
+                 :buffer (get-buffer-create "*office-convert-log*")
+                 :command (list soffice "--headless" "--convert-to" format
+                                "--outdir" (directory-file-name dir) odt-file)
+                 :connection-type 'pipe
+                 :noquery t
+                 :sentinel #'ignore))
+          (deadline (+ (float-time) my/office-convert-timeout))
+          (stopped nil))
+      (unwind-protect
+          (while (and (process-live-p proc) (< (float-time) deadline))
+            (accept-process-output proc 0.2))
+        ;; Stopped on time out, and on C-g while waiting.
+        (when (process-live-p proc)
+          (setq stopped t)
+          (delete-process proc)))
+      (cond
+       (stopped
+        (message "LibreOffice did not finish within %ds and was stopped -- see *office-convert-log*"
+                 my/office-convert-timeout)
+        nil)
+       ((and (zerop (process-exit-status proc)) (file-exists-p out))
+        out)
+       (t
+        (message "Conversion failed (exit %s) -- see *office-convert-log*"
+                 (process-exit-status proc))
+        nil)))))
 
 ;; ============================================================
 ;; EXPORT
 ;; ============================================================
+
+(defun my/office--export-odt (org-file odt)
+  "Export ORG-FILE with Org's ODT exporter into the file ODT.
+Returns the file written, or nil.
+
+`org-odt-export-to-odt' is the exporter's own command: it binds the
+variables the ODT backend needs and packs the result into a zip.  It
+has no argument for the output file and always writes beside the note,
+so the one function that names that file is overridden for the length
+of the call.  Until 2026-10-24 this used the generic
+`org-export-to-file', which only writes the backend's text: no zip,
+and with Org 9.6 an error on the first export (void variable
+`hfy-user-sheet-assoc', bound only by the exporter's own command).
+Neither ODT nor DOCX export could have worked (found by the tests of
+this module)."
+  (let ((target (lambda (&rest _) odt)))
+    (advice-add 'org-export-output-file-name :override target)
+    (unwind-protect
+        (with-current-buffer (find-file-noselect org-file)
+          (org-odt-export-to-odt))
+      (advice-remove 'org-export-output-file-name target))))
 
 (defun my/office--export (org-file format)
   "Export ORG-FILE to FORMAT, which is either `odt' or `docx'.
@@ -211,9 +261,7 @@ Returns the destination path, or nil when cancelled or failed."
             (result nil))
         (unwind-protect
             (let* ((odt (expand-file-name (concat name ".odt") build))
-                   (produced
-                    (with-current-buffer (find-file-noselect org-file)
-                      (org-export-to-file 'odt odt))))
+                   (produced (my/office--export-odt org-file odt)))
               (when (and produced (file-exists-p odt))
                 (let ((final (if (equal format "odt")
                                  odt

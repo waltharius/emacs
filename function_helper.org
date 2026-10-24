@@ -4324,6 +4324,13 @@ here, for two reasons found by testing rather than assumed:
 Org exports to ODT, LibreOffice converts. Same exporter as PDF, same
 INCLUDE handling, same citation renderer.
 
+The ODT comes from Org's own command, =org-odt-export-to-odt=, built in
+a temporary folder; only the finished document is moved to its place.
+LibreOffice gets =my/office-convert-timeout= seconds (120); a
+conversion that does not finish is stopped and the export fails with a
+message, instead of freezing Emacs.  Its output is in
+=*office-convert-log*=.
+
 ** ODT or DOCX
 
 Word has opened ODT since 2007 and OnlyOffice reads it natively, so ODT

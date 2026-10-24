@@ -644,6 +644,19 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R48. ODT and DOCX export on this machine [0/3]
+The tests play LibreOffice with shell scripts; one real conversion
+(LibreOffice 24.2, Ubuntu 24.04) gave a Word 2007+ file.  This checks the
+LibreOffice, fonts and citation style of this machine.
+- [ ] A note with a heading, /italics/ and a footnote: =C-c n x O=; the
+      ODT opens in LibreOffice (or OnlyOffice) with all three.
+- [ ] The same note: =C-c n x W=; the DOCX opens, the footnote is a real
+      footnote.  Exported again: the question to overwrite; =n= keeps
+      the first file.
+- [ ] A note citing a source with a note style (17-bibliography):
+      =C-c n x W=; the citation is a footnote, the bibliography at the
+      end.
+
 ** R47. Inbox: unsaved buffers and links to headings [0/3]
 The tests stand in for the question of =save-some-buffers=; this checks
 the real one.
