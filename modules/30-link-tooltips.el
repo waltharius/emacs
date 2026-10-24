@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Tests: weekly
 
 ;;; Commentary:
 ;; Hovering the mouse over a `denote:' link in an Org buffer stalls

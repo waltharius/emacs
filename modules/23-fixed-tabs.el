@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires: 01-ui 05-notes
 ;; MyPKS-Optional: yes
+;; MyPKS-Tests: weekly
 ;; Docs: ~/.emacs.d/function_helper.org::#fixed-tabs
 
 ;;; Commentary:

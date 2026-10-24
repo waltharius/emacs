@@ -241,19 +241,32 @@ class Definitions(unittest.TestCase):
 class Tests(unittest.TestCase):
     """The advisory 'tests' check: which modules a test file says it tests."""
 
-    def problems(self, test_files, staged=()):
+    def problems(self, test_files, staged=(), texts=None):
         tests_dir = tempfile.mkdtemp()
         for name, text in test_files.items():
             with open(os.path.join(tests_dir, name), "w", encoding="utf-8") as f:
                 f.write(text)
+        texts = texts or {"10-a.el": "", "20-b.el": ""}
         with mock.patch.object(lint, "TESTS_DIR", tests_dir), \
                 mock.patch.object(lint, "module_names", return_value=["10-a.el", "20-b.el"]), \
+                mock.patch.object(lint, "modules", return_value=list(texts.items())), \
                 mock.patch.object(lint, "staged_files", return_value=list(staged)):
             return lint.check_tests()
 
+    def test_weekly_module_not_listed(self):
+        found = self.problems({"test-a.el": ";; Tests: 10-a\n"},
+                              texts={"10-a.el": "", "20-b.el": ";; MyPKS-Tests: weekly\n"})
+        self.assertFalse(any("have none" in p for p in found))
+
+    def test_weekly_module_changed_needs_no_test(self):
+        found = self.problems({"test-a.el": ";; Tests: 10-a\n"}, staged=["modules/20-b.el"],
+                              texts={"10-a.el": "", "20-b.el": ";; MyPKS-Tests: weekly\n"})
+        self.assertEqual([], found)
+
     def test_untested_module_listed(self):
         found = self.problems({"test-a.el": ";;; x\n;; Tests: 10-a\n"})
-        self.assertTrue(any("1 of 2 modules have no test: 20-b" in p for p in found))
+        self.assertTrue(any("1 of 2 modules that need tests have none" in p and p.endswith(": 20-b")
+                            for p in found))
 
     def test_unknown_module_named(self):
         found = self.problems({"test-a.el": ";; Tests: 10-a 20-b 99-gone\n"})

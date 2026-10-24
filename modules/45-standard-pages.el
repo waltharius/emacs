@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Tests: weekly
 
 ;;; Commentary:
 ;; How much text a note will amount to, measured in STANDARD PAGES.

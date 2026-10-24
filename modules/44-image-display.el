@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Tests: weekly
 ;; MyPKS-Switch: my/image-display-mode
 
 ;;; Commentary:

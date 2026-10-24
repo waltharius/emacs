@@ -379,6 +379,44 @@ def optional(text):
 # The check
 # ------------------------------------------------------------------
 
+# Calls that change files, or reach the network or run a program, which
+# may do either.  A module calling one may not be marked `MyPKS-Tests:
+# weekly' (TESTING.org, "Every module tested"): its functions need tests
+# of their own.  Recognised as symbols in the code -- the head of a form,
+# or a function passed as #'NAME -- not in comments, strings or quoted
+# data; a call made another way (`funcall' of a variable, an alias) is
+# not seen.
+CHANGES_FILES = {
+    "write-region", "with-temp-file", "write-file", "save-buffer", "basic-save-buffer",
+    "save-some-buffers", "rename-file", "delete-file", "delete-directory", "copy-file",
+    "copy-directory", "move-file-to-trash", "make-symbolic-link", "add-name-to-file",
+    "set-file-modes", "make-directory",
+    "url-retrieve", "url-retrieve-synchronously", "url-copy-file", "make-network-process",
+    "open-network-stream", "plz", "request",
+    "call-process", "call-process-region", "process-file", "make-process", "start-process",
+    "start-file-process", "shell-command", "async-shell-command",
+}
+CHANGES_FILES_PREFIXES = ("org-web-tools-",)
+
+
+def changes_files(text):
+    """Return the names in CHANGES_FILES that TEXT's code calls, sorted."""
+    code = text.split("\n;;; Code:", 1)[-1]
+    _top, symbols = parse(code)
+    found = set()
+    for name, pos, _form, quoted in symbols:
+        if quoted and code[max(0, pos - 2):pos] != "#'":
+            continue
+        if name in CHANGES_FILES or name.startswith(CHANGES_FILES_PREFIXES):
+            found.add(name)
+    return sorted(found)
+
+
+def weekly_only(text):
+    """Non-nil when TEXT's module is marked `MyPKS-Tests: weekly'."""
+    return (header(text, "MyPKS-Tests") or "").lower() == "weekly"
+
+
 def check(files, exempt=None):
     """Return a list of problems with FILES ({name: text})."""
     exempt = exempt or {}
@@ -424,6 +462,23 @@ def check(files, exempt=None):
                                 "(leave the header out for a module that starts on)")
             elif (opt_value or "").lower() != "yes":
                 problems.append(f"{name}: 'MyPKS-Default: off' on a module that is not optional")
+        # MyPKS-Tests: weekly -- the weekly load, switch and compile tests
+        # are enough for this module (appearance, screen behaviour); the
+        # lint check `tests' does not ask for tests of its functions.
+        # Refused on a module that changes files or reaches the network.
+        tests_value = header(text, "MyPKS-Tests")
+        if tests_value is not None:
+            if tests_value.lower() != "weekly":
+                problems.append(f"{name}: 'MyPKS-Tests: {tests_value}' -- the only value is "
+                                "'weekly' (leave the header out for a module whose "
+                                "functions need tests)")
+            else:
+                calls = changes_files(text)
+                if calls:
+                    problems.append(f"{name}: 'MyPKS-Tests: weekly' on a module that calls "
+                                    f"{', '.join(calls)} -- a module that changes files, "
+                                    "runs programs or reaches the network needs tests of "
+                                    "its functions (TESTING.org)")
         for other in requires(text):
             if other == feature:
                 problems.append(f"{name}: requires itself")

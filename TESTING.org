@@ -104,6 +104,33 @@ says how a test shows it.  Running them: =bash hooks/check-all=
     branch out changed nothing, and that is how it showed.  The test
     is fixed before the code is believed.  (2026-10-23j and k.)
 
+* Modules whose weekly tests are enough (2026-10-24)
+Asked by the owner: does every module, the cosmetic ones too, need
+tests of its functions?  No.  The weekly checks already test every
+module: it loads alone, its switch goes off and on without a trace, it
+compiles without a warning -- which catches what usually breaks such a
+module (an error at start-up, a name gone after a package upgrade).
+How something looks cannot be checked in batch anyway; TESTPLAN.org
+holds that.  Tests of functions are for what a wrong answer costs:
+modules that write, move or delete files, change the text of notes,
+reach the network, or report something relied on.
+
+A module that only changes how things look or behave on screen says
+so in its header, =;; MyPKS-Tests: weekly=.  The lint check =tests=
+then leaves it out of the modules without a test, and does not remind
+of a test when it changes.  The =modules= check refuses the header on
+a module whose code calls anything that changes files, runs a program
+or reaches the network (=CHANGES_FILES= in =hooks/module_contract.py=;
+it reads names in the code, not behaviour -- rule 7).  Not marked,
+though they write nothing, because what they do matters: 02-editing
+(it reloads buffers after a pull), 02b-bold-marker (it changes typed
+text), 18-zotero-transient (it inserts formatted references),
+32-web-links (network), 35-journal-gaps (a report relied on).
+
+Marked on 2026-10-24: 03b-fonts, 09-theme, 10-visual-fill,
+11-org-appearance, 13-centered-writing, 23-fixed-tabs, 30-link-tooltips,
+34-appearance, 44-image-display, 45-standard-pages.
+
 * Which module a test tests
 Every test file starts with a header naming the modules whose
 behaviour it asserts -- not every module it loads:
@@ -138,7 +165,8 @@ them through the basics; until then the =tests= check reminds;
 1. *A change to a module's behaviour comes with a test of it*, in the
    same patch -- or, for what cannot be checked in batch (how something
    looks, a window layout), a TESTPLAN.org item and a line in the
-   CHANGELOG saying so.  Checked today by the advisory =tests= check at
+   CHANGELOG saying so.  A module marked =MyPKS-Tests: weekly= needs no
+   test of its functions (part 2 below; decided 2026-10-24).  Checked today by the advisory =tests= check at
    each commit; *blocking* from the day the repository is ready for a
    first-time user (decided 2026-10-20).
 2. *Every module has at least a load test*: it loads in the sandbox
@@ -185,6 +213,7 @@ them through the basics; until then the =tests= check reminds;
    2026-10-23t, =tests/test-readwise.el=, SAFETY.org 3.2); then the
    others, a few per session, as each is next changed.
 
-On 2026-10-23, 22 of 53 modules are named by a test file
-(=python3 hooks/lint.py tests= lists the others); every module has the
+On 2026-10-24, 22 of 53 modules are named by a test file, 10 are
+marked =MyPKS-Tests: weekly=, and 21 still need tests
+(=python3 hooks/lint.py tests= lists them); every module has the
 weekly load tests of part 2.

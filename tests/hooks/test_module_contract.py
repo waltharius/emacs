@@ -181,5 +181,54 @@ class DefaultHeader(unittest.TestCase):
         self.assertTrue(self.problems(";; MyPKS-Optional: yes\n;; MyPKS-Default: on\n"))
 
 
+
+def module_with_code(name, headers, code):
+    """Like `module', with CODE after ';;; Code:'."""
+    return module(name, headers).replace(";;; Code:\n", ";;; Code:\n" + code + "\n")
+
+
+class TestsHeader(unittest.TestCase):
+    """MyPKS-Tests: weekly, refused on a module that changes files (2026-10-24)."""
+
+    def problems(self, headers, code=""):
+        return [p for p in module_contract.check(
+                    {"10-a.el": module_with_code("10-a.el", ";; MyPKS-Optional: no\n" + headers, code)})
+                if "MyPKS-Tests" in p]
+
+    def test_weekly_on_a_module_that_only_shows(self):
+        self.assertEqual([], self.problems(";; MyPKS-Tests: weekly\n",
+                                           "(defun my/a () (set-face-attribute 'default nil))"))
+
+    def test_weekly_with_save_buffer(self):
+        self.assertTrue(self.problems(";; MyPKS-Tests: weekly\n",
+                                      "(defun my/a () (save-buffer))"))
+
+    def test_weekly_with_function_passed(self):
+        self.assertTrue(self.problems(";; MyPKS-Tests: weekly\n",
+                                      "(add-hook 'x-hook #'write-region)"))
+
+    def test_weekly_with_a_program(self):
+        self.assertTrue(self.problems(";; MyPKS-Tests: weekly\n",
+                                      "(defun my/a () (call-process \"git\"))"))
+
+    def test_weekly_with_network(self):
+        self.assertTrue(self.problems(";; MyPKS-Tests: weekly\n",
+                                      "(defun my/a () (org-web-tools-insert-link-for-url))"))
+
+    def test_names_in_comments_strings_and_data_are_no_calls(self):
+        code = (";; (save-buffer) would be wrong here\n"
+                "(defun my/a () \"Never (delete-file).\" '(rename-file x))")
+        self.assertEqual([], self.problems(";; MyPKS-Tests: weekly\n", code))
+
+    def test_without_the_header_anything_goes(self):
+        self.assertEqual([], self.problems("", "(defun my/a () (save-buffer))"))
+
+    def test_other_value(self):
+        self.assertTrue(self.problems(";; MyPKS-Tests: none\n"))
+
+    def test_weekly_only(self):
+        self.assertTrue(module_contract.weekly_only(module("10-a.el", ";; MyPKS-Tests: weekly\n")))
+        self.assertFalse(module_contract.weekly_only(module("10-a.el", "")))
+
 if __name__ == "__main__":
     unittest.main()

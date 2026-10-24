@@ -6594,6 +6594,7 @@ The check =modules= of =hooks/lint.py= enforces the rules marked
 | =MyPKS-Switch:=      | the module's switch, a global minor mode it defines (only modules that have one; the =loader= check verifies it) |
 | =MyPKS-Writes:=      | files the module writes besides notes, relative to the settings folder or its =var/= (=var/keys=); a record for people, not read by code |
 | =MyPKS-Default:=     | =off=: a new machine starts with the module off (only optional modules; see [[#settings-host][The settings folder]]) |
+| =MyPKS-Tests:=       | =weekly=: the weekly load, switch and compile tests are this module's tests, no tests of its functions are asked for (appearance and screen behaviour; refused on a module that changes files, runs a program or reaches the network -- the =modules= check; TESTING.org) |
 | =Docs:=              | the section of this file describing the module                  |
 
 Read from Emacs, without loading the module:

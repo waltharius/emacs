@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Tests: weekly
 
 ;;; Commentary:
 ;; Two themes, one switch: `modus-operandi-tinted' (light, ochre base)

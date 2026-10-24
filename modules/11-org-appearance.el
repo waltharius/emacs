@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Tests: weekly
 ;; Docs: ~/.emacs.d/function_helper.org::#org-faces
 
 ;;; Commentary:

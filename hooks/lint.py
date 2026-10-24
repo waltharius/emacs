@@ -696,10 +696,17 @@ def check_tests():
     Advisory (TESTING.org): the list is the backlog of module tests, and
     the staged part is the reminder that a change comes with its test.
     """
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import module_contract
     covered, problems = test_coverage()
-    untested = [name[:-3] for name in module_names() if name[:-3] not in covered]
+    # A module marked `MyPKS-Tests: weekly' needs no tests of its own:
+    # the weekly checks are its tests (TESTING.org, "Every module tested").
+    weekly = {name[:-3] for name, text in modules() if module_contract.weekly_only(text)}
+    untested = [name[:-3] for name in module_names()
+                if name[:-3] not in covered and name[:-3] not in weekly]
     if untested:
-        problems.append(f"{len(untested)} of {len(module_names())} modules have no test: "
+        problems.append(f"{len(untested)} of {len(module_names()) - len(weekly)} modules "
+                        f"that need tests have none ({len(weekly)} marked weekly): "
                         + " ".join(untested))
     try:
         staged = staged_files()
@@ -711,6 +718,8 @@ def check_tests():
             continue
         module = os.path.basename(path)[:-3]
         tests = covered.get(module)
+        if module in weekly:
+            continue
         if not tests:
             problems.append(f"{path} changed; it has no test (TESTING.org)")
         elif not staged_tests.intersection(tests):

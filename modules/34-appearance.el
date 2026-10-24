@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires: 03b-fonts 09-theme 10-visual-fill
 ;; MyPKS-Optional: yes
+;; MyPKS-Tests: weekly
 
 ;;; Commentary:
 ;; The cosmetic layer that sits on top of the theme.  Nothing here
