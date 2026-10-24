@@ -441,8 +441,10 @@ where `my/readwise--render-highlight' puts it."
                                   "#\\+begin_quote\n\\(\\(?:.\\|\n\\)*?\\)\n#\\+end_quote"
                                   chunk)
                              (string-trim (match-string 1 chunk))))
+               ;; At the start of a line: a quote line ` #+end_quote',
+               ;; made harmless by `my/readwise--sanitize', is no end.
                (note (when (string-match
-                            "#\\+end_quote\n\\(\\(?:.\\|\n\\)*\\)\\'" chunk)
+                            "^#\\+end_quote\n\\(\\(?:.\\|\n\\)*\\)\\'" chunk)
                        (let ((tail (string-trim (match-string 1 chunk))))
                          (unless (string-empty-p tail) tail)))))
           (push (list :id id :location location :url url
@@ -522,7 +524,12 @@ n declines, everything else -- including an empty answer -- accepts."
     ;; The affiliated keyword is what marks the quote as cited rather
     ;; than consumed, so it is only written on this path.
     (insert (format "#+name: rw-%s\n" (plist-get record :id))))
-  (insert "#+begin_quote\n" (or (plist-get record :quote) "") "\n#+end_quote\n")
+  ;; Sanitised again: reading the book file trims the space that kept a
+  ;; first line starting with `* ' or `#+' from being Org structure, so
+  ;; such a quote would break the note's quote block (outside audits of
+  ;; 2026-10-24).  `my/readwise--sanitize' leaves sanitised text as is.
+  (insert "#+begin_quote\n" (my/readwise--sanitize (plist-get record :quote))
+          "\n#+end_quote\n")
   (when with-note (insert "\n" (plist-get record :note) "\n")))
 
 (defun my/readwise--promote (record book action)

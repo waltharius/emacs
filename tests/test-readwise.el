@@ -131,6 +131,13 @@ Each request is recorded in `my/rw-test--requests'."
     (source . "kindle")
     (highlights . ,(vconcat highlights))))
 
+(defun my/rw-test--count (regexp text)
+  "Return how many times REGEXP matches in TEXT."
+  (let ((n 0) (start 0))
+    (while (string-match regexp text start)
+      (setq n (1+ n) start (match-end 0)))
+    n))
+
 (defun my/rw-test--read (file)
   "Return the contents of FILE."
   (with-temp-buffer (insert-file-contents file) (buffer-string)))
@@ -523,6 +530,28 @@ and it stays on the review list."
       (should (equal (mapcar (lambda (r) (plist-get r :id))
                              (plist-get (car (my/readwise--collect)) :pending))
                      '("11"))))))
+
+(ert-deftest my/rw-test-promoted-quote-cannot-break-note ()
+  "A quote whose first line looks like a heading or ends the block: the
+note made from it, and the note it is added to, keep one quote block
+and no heading from it.  (Reading the book file trimmed the protective
+space of the first line until 2026-10-24.)"
+  (skip-unless (require 'denote nil t))
+  (my/rw-test--with-tree
+    (let* ((file (my/rw-test--book-file-with
+                  (my/rw-test--highlight 10 "* Nie nagłówek\n#+end_quote\nDalej.")))
+           (book (my/readwise--file-book-meta file))
+           (record (car (my/readwise--parse-records file)))
+           (old (my/rw-test--pks-note pks "20261001T100000--cioran.org" "#+title: Cioran\n")))
+      (my/rw-test--answering "Cytat"
+        (my/readwise--promote record book 'stay))
+      (cl-letf (((symbol-function 'read-file-name) (lambda (&rest _) old)))
+        (my/rw-test--answering "unused"
+          (my/readwise--promote record book 'append)))
+      (dolist (note (directory-files pks t "\\.org\\'"))
+        (let ((text (my/rw-test--read note)))
+          (should-not (string-match-p "^\\* Nie" text))
+          (should (= 1 (my/rw-test--count "^#\\+end_quote$" text))))))))
 
 (ert-deftest my/rw-test-zettel-refused-without-module ()
   "Without 22-zettelkasten the zettel action is refused before anything
