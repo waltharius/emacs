@@ -99,6 +99,13 @@ for file in tests/test-*.el; do
     grep -E -A2 '^Test .* skipped' <<<"$output" | sed 's/^/           /'
   elif [ "$code" -eq 0 ]; then
     printf '  ok       %-28s %s\n' "$name" "$summary"
+    # A skip is named with its reason, also outside a strict run: "1
+    # skipped" alone left it unknown which test, and why (2026-10-25,
+    # Magit installed on the owner's machine and a test still skipped).
+    if [ "$skipped" -gt 0 ]; then
+      grep -E '^ *SKIPPED ' <<<"$output" | sed 's/^ */           /'
+      grep -E -A2 '^Test .* skipped' <<<"$output" | sed 's/^/           /'
+    fi
   else
     status=1
     printf '  FAILED   %-28s %s\n' "$name" "${summary:-did not run to the end}"

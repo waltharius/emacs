@@ -133,7 +133,10 @@ SCHEDULED date and its source, a link to the note."
       (with-current-buffer (find-file-noselect note)
         (my/tasks-test--capture "Check the reference" (encode-time 0 0 12 30 10 2026)))
       (let ((inbox (my/tasks-test--under (my/tasks--file) my/tasks-heading-inbox)))
-        (should (string-search "** TODO Check the reference\nSCHEDULED: <2026-10-30 Fri>" inbox))
+        ;; The day name in the system's language, as Org writes it ("pią").
+        (should (string-search (format "** TODO Check the reference\nSCHEDULED: <2026-10-30 %s>"
+                                       (format-time-string "%a" (encode-time 0 0 12 30 10 2026)))
+                               inbox))
         (should (string-search ":SOURCE:   [[denote:20261024T100000][A note]]" inbox))
         (should-not (string-search "Check the reference"
                                    (my/tasks-test--under (my/tasks--file) my/tasks-heading-active)))))))

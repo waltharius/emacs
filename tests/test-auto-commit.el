@@ -146,7 +146,13 @@
 the function is on `git-commit-setup-hook' and sets `fill-column' there,
 for that buffer only.  (Until 2026-10-24 through Magit's
 `git-commit-fill-column', which Magit 4 removed.)"
-  (skip-unless (require 'magit nil t))
+  ;; Skipped only when Magit is not installed.  Installed but failing to
+  ;; load is a failure with the load error, not a skip: until 2026-10-25
+  ;; `(require 'magit nil t)' made the two look alike, and on the
+  ;; owner's machine the test was skipped with Magit installed.
+  (unless (locate-library "magit")
+    (ert-skip "Magit is not installed"))
+  (require 'magit)
   (should (memq #'my/git-commit-fill-column git-commit-setup-hook))
   (let ((default fill-column))
     (with-temp-buffer
