@@ -467,15 +467,10 @@ note's title, yes to carrying the comment over, keyword cytat."
              ((symbol-function 'my/notes-read-keywords) (lambda (&rest _) '("cytat"))))
      ,@body))
 
-(ert-deftest my/rw-test-promote-new-note-is-the-quote ()
-  "A quote made into a note gives one new note in pks: it carries the
-quote's :RW_ID:, the book in its drawer, the quote and the comment; the
-book file is unchanged, and the quote leaves the review list.
-
-Run before Denote is loaded -- the promotion loads it, inside the
-binding of `denote-directory' (TESTING.org, rule 12); the order of a
-start where Denote is loaded first is the next test's."
-  (skip-unless (fboundp 'denote))
+(defun my/rw-test--first-load-scenario ()
+  "Make a note from a quote with Denote not loaded yet; signal on a failure.
+Run by `my/rw-test-promote-new-note-is-the-quote' in a child Emacs, so
+that Denote is surely not loaded, whatever other tests ran before."
   (should-not (featurep 'denote))
   (my/rw-test--with-tree
     (let* ((file (my/rw-test--book-file-with
@@ -495,6 +490,38 @@ start where Denote is loaded first is the next test's."
           (should-not (string-match-p "^#\\+name: rw-10" text))))
       (should (equal (my/rw-test--read file) before))
       (should-not (my/readwise--collect)))))
+
+(ert-deftest my/rw-test-promote-new-note-is-the-quote ()
+  "A quote made into a note gives one new note in pks: it carries the
+quote's :RW_ID:, the book in its drawer, the quote and the comment; the
+book file is unchanged, and the quote leaves the review list.
+
+Before Denote is loaded -- the promotion loads it, inside the binding of
+`denote-directory' (TESTING.org, rule 12).  Run in a child Emacs, with
+HOME as before the sandbox so it finds the packages, started in a
+temporary folder (rule 8): in this Emacs another test may have loaded
+Denote already (outside audits of 2026-10-24).  Its exit status is read
+(rule 14).  The order of a start where Denote is loaded first is the
+next test's."
+  (skip-unless (locate-library "denote"))
+  (let* ((dir (file-name-as-directory (make-temp-file "mypks-rw-child-" t)))
+         (default-directory dir)
+         (process-environment (cons (concat "HOME=" my/test-real-home) process-environment)))
+    (unwind-protect
+        (with-temp-buffer
+          (let ((code (call-process
+                       (expand-file-name invocation-name invocation-directory) nil t nil
+                       "-Q" "--batch" "--eval" "(package-initialize)"
+                       "-l" (expand-file-name "tests/test-readwise.el" my/test-repo)
+                       "--eval" (concat "(condition-case err"
+                                        " (progn (my/rw-test--first-load-scenario) (princ \"RESULT ok\\n\"))"
+                                        " (error (princ (format \"RESULT %S\\n\" err))))"))))
+            (let ((result (and (re-search-backward "^RESULT \\(.*\\)$" nil t) (match-string 1))))
+              (unless (and (eql code 0) (equal result "ok"))
+                (ert-fail (list :exit code :result result
+                                :output (buffer-substring (max (point-min) (- (point-max) 2000))
+                                                          (point-max))))))))
+      (delete-directory dir t))))
 
 (ert-deftest my/rw-test-promote-with-denote-loaded ()
   "With Denote loaded first, as at a start where 04-denote runs before,

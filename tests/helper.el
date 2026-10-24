@@ -27,6 +27,11 @@
 (defvar my/test-sandbox nil
   "Temporary folder standing in for HOME, or nil before the first load.")
 
+(defvar my/test-real-home nil
+  "HOME before the sandbox, or nil before the first load.
+For a test that starts a child Emacs which must find the installed
+packages: the child gets this HOME and makes its own sandbox.")
+
 (defvar my/test-allow-install nil
   "Non-nil: use-package may install missing packages in the sandbox.
 Only tests/weekly/install.el sets it -- the first start on a clean
@@ -38,6 +43,7 @@ machine; a test installs nothing (TESTING.org, rule 9).")
   ;; changes: both may be written with "~", which then means the sandbox.
   (setq default-directory (file-name-as-directory (expand-file-name default-directory)))
   (let ((elpa (expand-file-name "elpa/" user-emacs-directory)))
+    (setq my/test-real-home (getenv "HOME"))
     (setq my/test-sandbox (make-temp-file "mypks-test-" t))
     (setenv "HOME" my/test-sandbox)
     (setenv "MYPKS_DIR" (expand-file-name "settings" my/test-sandbox))
