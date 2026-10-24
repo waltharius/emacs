@@ -187,39 +187,43 @@ leaves one entry per class instead of a growing list."
 ;; DENOTE LINK FILTER
 ;; ============================================================
 ;; A denote: link means something inside the notes tree and nothing at
-;; all in an exported document, so it is reduced to its description.
-;;
-;; The filter receives the link already transcoded by the backend, so
-;; the markup to strip differs per backend: LaTeX produces \href{}{},
-;; ODT produces <text:a>, HTML produces <a>.  Matching only the LaTeX
-;; shape and returning "" otherwise -- which is what this did -- silently
-;; deleted the description text from every ODT and HTML export, taking
-;; the words with it rather than just the link.
-;;
-;; Backends other than these three fall through to stripping tags,
-;; which is wrong for none of them and right for most.
+;; all in an exported document, so it is reduced to its description --
+;; or, without one, to its target -- before the document is transcoded.
+;; 46-blog.el and 47-repo-docs.el export denote: links as links to their
+;; pages and take this filter out for the duration of their exports.
 
-(defun my/latex-filter-denote-link (link-str link-obj _info)
-  "Reduce denote: links in LINK-STR to their description text.
-LINK-OBJ is the link element; returns nil for non-denote links so that
-other filters and backends handle them normally."
-  (when (string= (org-element-property :type link-obj) "denote")
-    (cond
-     ;; LaTeX: \href{target}{description}
-     ((string-match "\\\\href{[^}]*}{\\(.*\\)}" link-str)
-      (match-string 1 link-str))
-     ;; ODT: <text:a ...>description</text:a>
-     ((string-match "<text:a[^>]*>\\(\\(?:.\\|\n\\)*?\\)</text:a>" link-str)
-      (match-string 1 link-str))
-     ;; HTML: <a ...>description</a>
-     ((string-match "<a[^>]*>\\(\\(?:.\\|\n\\)*?\\)</a>" link-str)
-      (match-string 1 link-str))
-     ;; Anything else: drop markup, keep words.  Returning "" here would
-     ;; delete the text of the link along with the link itself.
-     (t (string-trim (replace-regexp-in-string "<[^>]*>" "" link-str))))))
+(defun my/org-export-denote-links-to-text (tree _backend _info)
+  "Replace every denote: link in TREE by its description, or its target.
+A filter of `org-export-filter-parse-tree-functions': it runs on the
+parsed document before any backend transcodes it, so the result is the
+same in every format, and the words of the link stay.
 
-(add-to-list 'org-export-filter-link-functions
-             #'my/latex-filter-denote-link)
+Until 2026-10-24 this was `my/latex-filter-denote-link', a filter of
+`org-export-filter-link-functions' that took its second argument for
+the link element; Org passes the backend's name there, so on Org 9.6
+it stopped every export with a link and on Org 9.7 it did nothing:
+denote: links reached LaTeX and ODT as links to nothing (outside audits
+of 2026-10-24)."
+  (let (links)
+    (org-element-map tree 'link
+      (lambda (link)
+        (when (equal (org-element-property :type link) "denote")
+          (push link links))))
+    ;; Changed after the walk, not during it.
+    (dolist (link links)
+      (let ((post (or (org-element-property :post-blank link) 0)))
+        (dolist (object (or (org-element-contents link)
+                            (list (org-element-property :path link))))
+          (org-element-insert-before object link))
+        (when (> post 0)
+          (org-element-insert-before (make-string post ?\s) link))
+        (funcall (if (fboundp 'org-element-extract) 'org-element-extract
+                   'org-element-extract-element)
+                 link))))
+  tree)
+
+(add-to-list 'org-export-filter-parse-tree-functions
+             #'my/org-export-denote-links-to-text)
 
 ;; ============================================================
 ;; OUTPUT DIRECTORY
@@ -470,8 +474,17 @@ LABEL is a string describing the search (shown in results header)."
 ;; BATCH EXPORT - ANY mode  (files with ANY of the keywords)
 ;; ============================================================
 
+(defun my/org-export--file-keywords (file)
+  "Return the Denote keywords in FILE's name: the part after `__'.
+Whole keywords: until 2026-10-24 a keyword was looked for anywhere in
+the file name, so \"ai\" also exported every note titled with \"mail\"
+or \"kraina\" (outside audits of 2026-10-24)."
+  (let ((name (file-name-base file)))
+    (when (string-match "__\\([^.]*\\)\\'" name)
+      (split-string (match-string 1 name) "_" t))))
+
 (defun my/org-export-pdf-by-keyword (keywords-input)
-  "Batch export: files whose names contain ANY of the given keywords.
+  "Batch export: notes carrying ANY of the given keywords.
 
 Keywords selected with completion (TAB) from all Denote tags in use.
 Separate multiple keywords with commas. Each file exported at most once.
@@ -487,15 +500,13 @@ Output mirrors notes structure: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc."
   (when (string-empty-p (string-trim keywords-input))
     (user-error "Please provide at least one keyword"))
   (my/ensure-pdf-dir)
-  (let* ((keywords (split-string (string-trim keywords-input) "[ \t]+" t))
+  (let* ((keywords (split-string (string-trim keywords-input) "[ ,\t]+" t))
          (matching
           (delete-dups
            (seq-filter
             (lambda (f)
-              (let ((fname (file-name-nondirectory f)))
-                (seq-some (lambda (kw)
-                            (string-match-p (regexp-quote kw) fname))
-                          keywords)))
+              (let ((own (my/org-export--file-keywords f)))
+                (seq-some (lambda (kw) (member kw own)) keywords)))
             (my/--all-notes-org-files)))))
     (if (null matching)
         (message "No files found matching ANY of: %s" (string-join keywords ", "))
@@ -509,9 +520,9 @@ Output mirrors notes structure: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc."
 ;; ============================================================
 
 (defun my/org-export-pdf-by-all-keywords (keywords-input)
-  "Batch export: files whose names contain ALL of the given keywords.
+  "Batch export: notes carrying ALL of the given keywords.
 
-A file is included only if EVERY keyword appears in its filename.
+A note is included only if it carries EVERY keyword.
 Keywords selected with completion (TAB) from all Denote tags in use.
 Separate multiple keywords with commas.
 Output mirrors notes structure: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc."
@@ -526,15 +537,13 @@ Output mirrors notes structure: ~/notes/pdf/pks/, ~/notes/pdf/journal/ etc."
   (when (string-empty-p (string-trim keywords-input))
     (user-error "Please provide at least one keyword"))
   (my/ensure-pdf-dir)
-  (let* ((keywords (split-string (string-trim keywords-input) "[ \t]+" t))
+  (let* ((keywords (split-string (string-trim keywords-input) "[ ,\t]+" t))
          (matching
           (delete-dups
            (seq-filter
             (lambda (f)
-              (let ((fname (file-name-nondirectory f)))
-                (seq-every-p (lambda (kw)
-                               (string-match-p (regexp-quote kw) fname))
-                             keywords)))
+              (let ((own (my/org-export--file-keywords f)))
+                (seq-every-p (lambda (kw) (member kw own)) keywords)))
             (my/--all-notes-org-files)))))
     (if (null matching)
         (message "No files found matching ALL of: %s" (string-join keywords ", "))

@@ -33,7 +33,9 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "05-notes" "46-blog")
+;; 16-org-export too: its filter of denote: links must be off during a
+;; site export, and only shows when it is loaded, as at a real start.
+(my/test-load-modules "05-notes" "46-blog" "16-org-export")
 
 (defun my/safety-test--git (dir &rest args)
   "Run git with ARGS in DIR; return its output, or signal on failure."

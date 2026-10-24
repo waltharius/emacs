@@ -23,7 +23,9 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "47-repo-docs")
+;; 16-org-export too: its filter of denote: links must be off during a
+;; site export, and only shows when it is loaded, as at a real start.
+(my/test-load-modules "47-repo-docs" "16-org-export")
 
 ;; ============================================================
 ;; FIXTURE

@@ -658,7 +658,7 @@ Links are rewritten line by line outside fenced code blocks; see
 ;; every save while the preview runs.
 
 (defvar org-hugo-base-dir)
-(defvar org-export-filter-link-functions)
+(defvar org-export-filter-parse-tree-functions)
 (declare-function org-hugo-link "ox-hugo" (link desc info))
 (declare-function org-hugo-slug "ox-hugo" (str &optional allow-double-hyphens))
 (declare-function org-export-define-derived-backend "ox")
@@ -766,8 +766,8 @@ and the failure is reported."
                 ;; with an image when the directory is missing.
                 (_ (make-directory (expand-file-name "static" org-hugo-base-dir) t))
                 (org-export-with-broken-links 'mark)
-                (org-export-filter-link-functions
-                 (remq 'my/latex-filter-denote-link org-export-filter-link-functions))
+                (org-export-filter-parse-tree-functions
+                 (remq 'my/org-export-denote-links-to-text org-export-filter-parse-tree-functions))
                 (my/repo-docs--org-context (list site-path map unresolved))
                 (inhibit-message t)
                 (message-log-max nil)

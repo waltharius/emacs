@@ -1944,9 +1944,16 @@ To change this for one document, defer the setting to the body:
 :CUSTOM_ID: fn-my-org-export-pdf-by-keyword
 :END:
 
-Exports all notes whose filenames match *any* of the given keywords.
+Exports all notes carrying *any* of the given keywords -- whole Denote
+keywords of the file name (after =__=), not a part of the title.
 Keyword input via =completing-read-multiple= with TAB completion over
 all Denote tags in use. Results shown in =*PDF Export Results*= buffer.
+
+In every export of this module a =denote:= link becomes its
+description, or its target when it has none
+(=my/org-export-denote-links-to-text=, a filter of the parsed
+document): a link to a note means nothing in a PDF or ODT.  Blog and
+repository-docs exports turn it off and link to their pages instead.
 
 Function: =my/org-export-pdf-by-keyword= | Module: =modules/16-org-export.el=
 
@@ -1955,8 +1962,8 @@ Function: =my/org-export-pdf-by-keyword= | Module: =modules/16-org-export.el=
 :CUSTOM_ID: fn-my-org-export-pdf-by-all-keywords
 :END:
 
-Exports all notes whose filenames match *all* given keywords
-simultaneously. More selective than =P=; useful for scoped sets
+Exports all notes carrying *all* given keywords simultaneously
+(whole keywords, as =P=). More selective than =P=; useful for scoped sets
 (e.g. =esej= + =project=).
 
 Function: =my/org-export-pdf-by-all-keywords= | Module: =modules/16-org-export.el=

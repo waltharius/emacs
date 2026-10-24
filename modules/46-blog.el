@@ -81,14 +81,12 @@
 ;; note's file name into the page.  Other `file:' links -- images,
 ;; PDFs -- are ox-hugo's, which copies the file into the site.
 ;;
-;; `my/latex-filter-denote-link' from 16-org-export.el is removed from
-;; `org-export-filter-link-functions' for the duration of the export,
-;; for two reasons.  As written, it takes its second argument to be the
-;; link element, but Org passes filters the backend name there: on Org
-;; 9.6 that aborts every export containing a link (reproduced), on Org
-;; 9.7 the type test sees nil and the filter does nothing.  And once
-;; that is corrected, its fallback branch strips anything shaped like
-;; an HTML tag, which a Hugo shortcode -- {{< relref "..." >}} -- is.
+;; `my/org-export-denote-links-to-text' from 16-org-export.el is
+;; removed from `org-export-filter-parse-tree-functions' for the
+;; duration of the export: it reduces every denote: link to its text
+;; before any backend runs, and the site makes links to pages of them.
+;; (Until 2026-10-24 the filter was `my/latex-filter-denote-link', a
+;; link filter with a wrong signature, removed here for that reason.)
 ;; Removing it by name only needs the symbol, so this module works
 ;; whether 16-org-export.el is loaded or not.
 ;;
@@ -1195,8 +1193,8 @@ Returns the path of the Markdown file written."
           (append org-hugo-tag-processing-functions
                   (list (lambda (tags _info) (seq-difference tags keywords)))))
          (org-export-with-broken-links (my/blog--prop site :broken-links))
-         (org-export-filter-link-functions
-          (remq 'my/latex-filter-denote-link org-export-filter-link-functions))
+         (org-export-filter-parse-tree-functions
+          (remq 'my/org-export-denote-links-to-text org-export-filter-parse-tree-functions))
          (org-link-parameters (my/blog--link-parameters targets)))
     (with-temp-buffer
       (insert (format "#+export_file_name: %s\n" slug))

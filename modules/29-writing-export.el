@@ -281,7 +281,7 @@ produces a document with no bibliography at all."
                (not (eq (cadr (assq t org-cite-export-processors)) 'csl)))
       (push "org-cite fallback processor is not csl -- citations will export unformatted"
             problems))
-    (unless (fboundp 'my/latex-filter-denote-link)
+    (unless (fboundp 'my/org-export-denote-links-to-text)
       (push "denote link filter missing (16-org-export.el not loaded)" problems))
     (if problems
         (message "Office export NOT ready:\n- %s"
