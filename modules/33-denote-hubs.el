@@ -70,6 +70,7 @@
 (defvar denote-directory)
 
 (require 'denote)
+(require 'ol)
 (require 'seq)
 (require 'subr-x)
 
@@ -243,15 +244,27 @@ or an echo-area report."
           (concat (car lines) " …")
         (car lines)))))
 
+(defun my/denote-hub--entry-regexp (identifier)
+  "Return a regexp matching the first line of an entry for IDENTIFIER.
+A list item whose first link goes to the note, `- [[denote:ID]...' or
+with a search option, `[[denote:ID::*Heading]...'.
+
+Until 2026-10-24 any `denote:ID' in the hub counted: a link inside
+another entry's description made the note look listed, its annotation
+showed the other entry's text, and choosing it to edit the description
+replaced that other entry -- which was gone (found by the tests of this
+module)."
+  (format "^[ \t]*[-+][ \t]+\\[\\[denote:%s\\(?:\\]\\|::\\)" (regexp-quote identifier)))
+
 (defun my/denote-hub--entries (hub identifier)
   "Return the full text of every entry in HUB linking to IDENTIFIER.
 More than one means the note was added to that hub twice."
-  (let ((needle (concat "denote:" identifier))
+  (let ((regexp (my/denote-hub--entry-regexp identifier))
         (entries nil))
     (with-temp-buffer
       (my/denote-hub--file-contents hub)
       (goto-char (point-min))
-      (while (search-forward needle nil t)
+      (while (re-search-forward regexp nil t)
         (beginning-of-line)
         (let ((end (my/denote-hub--entry-end)))
           (push (buffer-substring-no-properties (point) end) entries)
@@ -327,11 +340,13 @@ than a trailing dash.
 The description is inserted as typed.  Emphasis is the author\'s
 business here, unlike a hub\'s own description -- see
 `my/denote-hub--bold'."
-  (let ((description (string-trim-right description)))
+  (let ((description (string-trim-right description))
+        ;; Org's own link maker: a title ending in `]' ended the link
+        ;; early when written into it as it was (until 2026-10-24).
+        (link (org-link-make-string (concat "denote:" identifier) title)))
     (if (string-empty-p (string-trim description))
-        (format "- [[denote:%s][%s]]" identifier title)
-      (format "- [[denote:%s][%s]]%s%s"
-              identifier title my/denote-hub-entry-separator
+        (concat "- " link)
+      (concat "- " link my/denote-hub-entry-separator
               (my/denote-hub--indent-continuation description)))))
 
 (defun my/denote-hub--bold (text)
@@ -392,7 +407,7 @@ where it stood, so editing a description does not move the entry down
 the hub or leave the tail of the old one behind."
   (my/denote-hub--with-hub file
     (goto-char (point-min))
-    (if (search-forward (concat "denote:" identifier) nil t)
+    (if (re-search-forward (my/denote-hub--entry-regexp identifier) nil t)
         (progn
           (beginning-of-line)
           (delete-region (point) (my/denote-hub--entry-end))

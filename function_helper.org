@@ -1449,6 +1449,13 @@ Three outcomes:
   description becomes the first line of the new note's body, wrapped in
   =*= so it renders bold, and the entry goes one blank line below it.
 
+A hub lists a note when one of its list items links to it *first*
+(=- [[denote:ID][…]]=, also with a =::= search option).  A link to the
+note inside another entry's description does not count: the note is
+added as an entry of its own and the other entry is never rewritten.
+Links are made by Org's =org-link-make-string=, so a title ending in
+=]= still gives one link.
+
 Function: =my/denote-add-to-hub= | Module: =modules/33-denote-hubs.el=
 
 **** Entries stay in chronological order
