@@ -45,6 +45,11 @@
 
 (require 'transient)
 
+(declare-function denote-sequence-reparent "denote-sequence" (current-file file-with-sequence &optional recursive))
+(declare-function denote-sequence-rename-as-parent "denote-sequence" (current-file))
+(declare-function denote-sequence-file-prompt "denote-sequence" (&optional prompt-text files-with-sequences))
+(declare-function dired-get-filename "dired" (&optional localp no-error-if-not-filep))
+
 ;; ============================================================
 ;; DENOTE-SEQUENCE: official Folgezettel extension
 ;; ============================================================
@@ -223,18 +228,40 @@ Depth counts levels, so a depth of 2 under prefix 1 shows 1, 1a and
   (interactive)
   (my/zettel--in-pks (call-interactively #'denote-sequence-link)))
 
+;; The two renaming commands are called with their file given, through
+;; the arguments denote-sequence documents for calls from Lisp, rather
+;; than through `call-interactively'.  Their interactive forms use a
+;; private Denote function (`denote--rename-dired-file-or-current-file-
+;; or-prompt') that Denote's development version no longer has: with it,
+;; `a' and `r' stopped with "void-function" (found 2026-10-24 by the
+;; tests of this module, denote 4.2.3 from git with denote-sequence
+;; 0.3.3).  Not covered: an org-capture buffer as the current note.
+
+(defun my/zettel--current-file ()
+  "Return the note to work on: the file at point in Dired, else this buffer's."
+  (or (and (derived-mode-p 'dired-mode) (dired-get-filename nil t))
+      (buffer-file-name)
+      (user-error "No note here: visit one, or put point on it in Dired")))
+
 (defun my/zettel-reparent ()
   "Move the current note (or file at point in Dired) under another sequence."
   (interactive)
-  (my/zettel--in-pks (call-interactively #'denote-sequence-reparent)))
+  (let ((file (my/zettel--current-file)))
+    (my/zettel--in-pks
+     (denote-sequence-reparent
+      file
+      (denote-sequence-file-prompt
+       (format "Reparent `%s' to be a child of" (file-name-nondirectory file)))
+      current-prefix-arg))))
 
 (defun my/zettel-adopt ()
   "Give the current non-sequence note a sequence (make it a new parent).
 Use this to promote an ordinary pks note into the Zettelkasten;
 follow with my/zettel-reparent to place it under an existing thread."
   (interactive)
-  (my/zettel--in-pks
-   (call-interactively #'denote-sequence-rename-as-parent)))
+  (let ((file (my/zettel--current-file)))
+    (my/zettel--in-pks
+     (denote-sequence-rename-as-parent file))))
 
 ;; ============================================================
 ;; TRANSIENT SUB-MENU  (C-c n z)

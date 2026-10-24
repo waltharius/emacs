@@ -2650,6 +2650,11 @@ yields =1a2=.
 =j= and =k= are marked =:transient t= so the menu stays open while
 paging through siblings.
 
+=r= and =a= act on the note in the current buffer, or the file at point
+in Dired, and pass it to denote-sequence as an argument.  The commands'
+own interactive forms rely on a private Denote function that Denote's
+development version (4.2.3 from git) no longer has.
+
 *** Why =p= and =P= exist instead of =C-u=
 
 =denote-sequence-dired= is documented to prompt for a sequence prefix
