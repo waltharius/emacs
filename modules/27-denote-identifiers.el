@@ -269,12 +269,18 @@ uses a live buffer when one exists so unsaved edits are not lost."
         (needle (concat "denote:" old))
         (buffer (find-buffer-visiting file)))
     (if buffer
+        ;; The whole buffer, also when it is narrowed or read only (a
+        ;; preview in `view-mode'): a link outside the visible part, or
+        ;; an error half way, would leave the change half done.
         (with-current-buffer buffer
-          (save-excursion
-            (goto-char (point-min))
-            (while (search-forward needle nil t)
-              (replace-match (concat "denote:" new) t t)
-              (setq count (1+ count))))
+          (let ((inhibit-read-only t))
+            (save-excursion
+              (save-restriction
+                (widen)
+                (goto-char (point-min))
+                (while (search-forward needle nil t)
+                  (replace-match (concat "denote:" new) t t)
+                  (setq count (1+ count))))))
           (when (> count 0) (save-buffer)))
       (with-temp-buffer
         (insert-file-contents file)
@@ -291,10 +297,13 @@ uses a live buffer when one exists so unsaved edits are not lost."
   (let ((buffer (find-buffer-visiting file)))
     (if buffer
         (with-current-buffer buffer
-          (save-excursion
-            (goto-char (point-min))
-            (when (re-search-forward "^#\\+identifier:\\s-*\\(.*\\)$" nil t)
-              (replace-match new t t nil 1)))
+          (let ((inhibit-read-only t))
+            (save-excursion
+              (save-restriction
+                (widen)
+                (goto-char (point-min))
+                (when (re-search-forward "^#\\+identifier:\\s-*\\(.*\\)$" nil t)
+                  (replace-match new t t nil 1)))))
           (save-buffer))
       (with-temp-buffer
         (insert-file-contents file)
@@ -303,13 +312,32 @@ uses a live buffer when one exists so unsaved edits are not lost."
           (replace-match new t t nil 1))
         (write-region (point-min) (point-max) file nil 'quiet)))))
 
+(defun my/denote--identifier-target (file new)
+  "Return the path FILE takes with identifier NEW."
+  (expand-file-name
+   (replace-regexp-in-string (concat "\\`" my/denote-identifier-regexp) new
+                             (file-name-nondirectory file) t t)
+   (file-name-directory file)))
+
+(defun my/denote--unsaved-or-ask (files)
+  "Offer to save the modified buffers visiting FILES; return those left.
+Asked one buffer at a time by Emacs's own `save-some-buffers'; a buffer
+not saved is returned, and the caller refuses to go on.  A change of
+identifier writes into the files it touches, and saving a buffer for
+it would save whatever else was typed there unasked (outside audits of
+2026-10-24; the owner chose asking, buffer by buffer, then refusing)."
+  (let ((buffers (delete-dups
+                  (delq nil (mapcar (lambda (f)
+                                      (let ((b (find-buffer-visiting f)))
+                                        (and b (buffer-modified-p b) b)))
+                                    files)))))
+    (when buffers
+      (save-some-buffers nil (lambda () (memq (current-buffer) buffers))))
+    (seq-filter #'buffer-modified-p (seq-filter #'buffer-live-p buffers))))
+
 (defun my/denote--rename-with-identifier (file new)
   "Rename FILE so its name starts with identifier NEW.  Returns the path."
-  (let* ((dir (file-name-directory file))
-         (name (file-name-nondirectory file))
-         (new-name (replace-regexp-in-string
-                    (concat "\\`" my/denote-identifier-regexp) new name t t))
-         (target (expand-file-name new-name dir)))
+  (let* ((target (my/denote--identifier-target file new)))
     (when (file-exists-p target)
       (user-error "Target already exists: %s" target))
     (if-let* ((buffer (find-buffer-visiting file)))
@@ -375,7 +403,15 @@ the old name, which `my/denote-check-identifiers' can still see."
            (scope (cond (link-files link-files)
                         (shared nil)
                         (t all)))
+           (target (my/denote--identifier-target file new-id))
            (files 0) (links 0))
+      ;; Everything that can refuse is asked before anything is written:
+      ;; the name the file will take, and the buffers it writes into.
+      (when (file-exists-p target)
+        (user-error "Target already exists: %s" target))
+      (when-let* ((left (my/denote--unsaved-or-ask (cons file scope))))
+        (user-error "Not changed: unsaved changes in %s; save or revert them first"
+                    (mapconcat #'buffer-name left ", ")))
       (dolist (other scope)
         ;; The file's own `denote:OLD' links, when it is in the scope,
         ;; are self-links created by an earlier bad resolution; they

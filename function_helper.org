@@ -7097,6 +7097,13 @@ link pointing at it* across the whole notes tree, inbox included —
 links first, so an interruption leaves links pointing at a file that
 still exists.
 
+Before anything is written it checks that the new file name is free
+and that no buffer it would write into holds unsaved changes: each such
+buffer is offered for saving, one at a time (Emacs's =save-some-buffers=:
+=y= saves, =n= leaves it); one left unsaved stops the command, which
+names it, with nothing changed.  Buffers open read only (an inbox
+preview in =view-mode=) or narrowed are changed whole.
+
 *Links that may point at the wrong note* (=w=, =W=, since 2026-10-23).
 Until 2026-10-22 giving a duplicate identifier to one of its notes
 repointed every link to it at the note that moved, also links meant for

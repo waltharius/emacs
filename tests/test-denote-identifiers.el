@@ -158,9 +158,25 @@ and leaves both files."
       (should (file-exists-p note))
       (should (string-match-p "Keep me" (my/ids-test--read taken))))))
 
-(ert-deftest my/ids-test-open-buffer-edits-kept ()
-  "A linking note open with unsaved text: the link is repointed in the
-buffer, and the unsaved text is saved with it, not lost."
+(defmacro my/ids-test--saving (save &rest body)
+  "Run BODY with `save-some-buffers' answering for each buffer it offers.
+SAVE non-nil saves every buffer offered (yes to each), nil none (no to
+each).  The buffers offered are recorded in `offered'."
+  (declare (indent 1))
+  `(let ((offered nil))
+     (cl-letf (((symbol-function 'save-some-buffers)
+                (lambda (_arg pred)
+                  (dolist (b (buffer-list))
+                    (with-current-buffer b
+                      (when (and buffer-file-name (buffer-modified-p) (funcall pred))
+                        (push (buffer-name) offered)
+                        (when ,save (save-buffer))))))))
+       ,@body)))
+
+(ert-deftest my/ids-test-open-buffer-saved-when-asked ()
+  "A linking note open with unsaved text is offered for saving first;
+saved, the link is repointed and the typed text kept.  (Until
+2026-10-24 it was saved without asking.)"
   (my/ids-test--with-notes
     (let* ((note (my/ids-test--note pks "20261022T000000" "kant"))
            (linker (my/ids-test--note docu "20261023T090000" "linker"
@@ -168,10 +184,66 @@ buffer, and the unsaved text is saved with it, not lost."
       (with-current-buffer (find-file-noselect linker)
         (goto-char (point-max))
         (insert "Typed but not saved.\n"))
-      (my/denote-change-identifier note "20261022T000005")
+      (my/ids-test--saving t
+        (my/denote-change-identifier note "20261022T000005")
+        (should (equal offered (list (file-name-nondirectory linker)))))
       (let ((text (my/ids-test--read linker)))
         (should (string-match-p "denote:20261022T000005" text))
         (should (string-match-p "Typed but not saved" text))))))
+
+(ert-deftest my/ids-test-unsaved-buffer-not-saved-refuses ()
+  "A buffer left unsaved when asked: nothing is changed -- no link, no
+front matter, no name -- and the error names the buffer."
+  (my/ids-test--with-notes
+    (let* ((note (my/ids-test--note pks "20261022T000000" "kant"))
+           (linker (my/ids-test--note docu "20261023T090000" "linker"
+                                      "[[denote:20261022T000000][Kant]]\n"))
+           (before (my/ids-test--read linker))
+           (buf (find-file-noselect linker)))
+      (with-current-buffer buf (goto-char (point-max)) (insert "Typed.\n"))
+      (my/ids-test--saving nil
+        (let ((err (should-error (my/denote-change-identifier note "20261022T000005")
+                                 :type 'user-error)))
+          (should (string-search (buffer-name buf) (error-message-string err)))))
+      (should (file-exists-p note))
+      (should (string-match-p "^#\\+identifier: 20261022T000000$" (my/ids-test--read note)))
+      (should (equal (my/ids-test--read linker) before))
+      (should (buffer-modified-p buf)))))
+
+(ert-deftest my/ids-test-taken-name-refuses-before-writing ()
+  "A note outside the silos whose new name is taken there -- the
+identifier is free in the silos, so the first check passes: refused
+before any link or front matter is written."
+  (my/ids-test--with-notes
+    (let* ((note (my/ids-test--note inbox "20261022T000000" "kant"))
+           (taken (my/ids-test--note inbox "20261022T000005" "kant" "Another.\n"))
+           (linker (my/ids-test--note docu "20261023T090000" "linker"
+                                      "[[denote:20261022T000000][Kant]]\n"))
+           (before (list (my/ids-test--read note) (my/ids-test--read taken)
+                         (my/ids-test--read linker))))
+      (should-error (my/denote-change-identifier note "20261022T000005") :type 'user-error)
+      (should (equal (list (my/ids-test--read note) (my/ids-test--read taken)
+                           (my/ids-test--read linker))
+                     before)))))
+
+(ert-deftest my/ids-test-read-only-and-narrowed-buffers ()
+  "The note open read only (an inbox preview in `view-mode') and a
+linking note read only and narrowed to a part without the link: the
+identifier changes in both, completely, and the narrowing stays."
+  (my/ids-test--with-notes
+    (let* ((note (my/ids-test--note pks "20261022T000000" "kant"))
+           (linker (my/ids-test--note docu "20261023T090000" "linker"
+                                      "* One\nNothing.\n* Two\n[[denote:20261022T000000][Kant]]\n"))
+           (nbuf (find-file-noselect note))
+           (lbuf (find-file-noselect linker)))
+      (with-current-buffer nbuf (view-mode 1))
+      (with-current-buffer lbuf
+        (narrow-to-region (point-min) (+ (point-min) 10))
+        (view-mode 1))
+      (let ((target (my/denote-change-identifier note "20261022T000005")))
+        (should (string-match-p "^#\\+identifier: 20261022T000005$" (my/ids-test--read target))))
+      (should (string-match-p "denote:20261022T000005" (my/ids-test--read linker)))
+      (with-current-buffer lbuf (should (buffer-narrowed-p))))))
 
 (ert-deftest my/ids-test-fix-duplicates-asks-each ()
   "Each extra note of a group is offered a new identifier: no changes
