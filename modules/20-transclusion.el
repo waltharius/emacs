@@ -24,6 +24,8 @@
 (require 'denote)
 (require 'transient)
 (require 'cl-lib)
+(require 'seq)
+(require 'ol)
 
 (use-package org-transclusion
   :ensure t
@@ -56,20 +58,46 @@ Falls back to a short random id if TITLE becomes empty after cleanup."
 
 (defun my/--org-file-headings (file)
   "Return a list of (DISPLAY . POSITION) for all headings in FILE.
-DISPLAY is prefixed with stars to show heading depth."
+DISPLAY is prefixed with stars to show heading depth; a heading whose
+display occurs more than once gets its line number, so each can be
+chosen.
+
+Read by Org (`org-map-entries'), so what is offered is what Org calls
+a heading.  Until 2026-10-24 of two headings with the same title only
+the first could be chosen: the second display was the same string, and
+choosing it gave the first heading's position (found by the tests of
+this module)."
   (let (headings)
     (with-temp-buffer
       (insert-file-contents file)
-      ;; No `org-mode' here: the scan is purely regexp-based, and
-      ;; enabling Org in a temp buffer is expensive enough to be
-      ;; noticeable when the wizard is opened repeatedly.
-      (goto-char (point-min))
-      (while (re-search-forward "^\\(\\*+\\)[ \t]+\\(.*\\)$" nil t)
-        (let* ((stars (match-string 1))
-               (title (string-trim (match-string 2)))
-               (display (format "%s %s" stars title)))
-          (push (cons display (point)) headings))))
-    (nreverse headings)))
+      (let ((org-inhibit-startup t))
+        (delay-mode-hooks (org-mode)))
+      (org-map-entries
+       (lambda ()
+         (push (list (format "%s %s" (make-string (org-current-level) ?*)
+                             (org-get-heading t t t t))
+                     (point)
+                     (line-number-at-pos))
+               headings))))
+    (setq headings (nreverse headings))
+    (mapcar (lambda (entry)
+              (let ((display (nth 0 entry)))
+                (cons (if (> (seq-count (lambda (e) (equal (car e) display)) headings) 1)
+                          (format "%s  (line %d)" display (nth 2 entry))
+                        display)
+                      (nth 1 entry))))
+            headings)))
+
+(defun my/--transclusion-refuse-unsaved (file)
+  "Signal a `user-error' when a buffer visits FILE with unsaved changes.
+Headings and paragraphs are found in FILE as saved; in a buffer edited
+since, the same position is another place, and saving the anchor there
+would also save the unrelated edits.  Until 2026-10-24 both happened
+(found by the tests of this module)."
+  (let ((buffer (find-buffer-visiting file)))
+    (when (and buffer (buffer-modified-p buffer))
+      (user-error "%s has unsaved changes: save it first; nothing was written"
+                  (buffer-name buffer)))))
 
 ;; ============================================================
 ;; HELPER: title of an .org file (from #+title:)
@@ -93,6 +121,7 @@ DISPLAY is prefixed with stars to show heading depth."
 Returns the CUSTOM_ID string (existing or newly generated).
 Modifies and SAVES FILE if a CUSTOM_ID has to be created — be aware
 this is a write side-effect on a file you did not directly open."
+  (my/--transclusion-refuse-unsaved file)
   (with-current-buffer (find-file-noselect file)
     (save-excursion
       (goto-char heading-pos)
@@ -100,7 +129,16 @@ this is a write side-effect on a file you did not directly open."
       (let ((existing (org-entry-get (point) "CUSTOM_ID")))
         (if existing
             existing
-          (let ((new-id (my/--transclusion-slugify heading-title)))
+          ;; Unique in the file: two headings of the same title got the
+          ;; same CUSTOM_ID until 2026-10-24, and every transclusion of
+          ;; the second showed the first.
+          (let* ((taken (org-property-values "CUSTOM_ID"))
+                 (base (my/--transclusion-slugify heading-title))
+                 (new-id base)
+                 (n 1))
+            (while (member new-id taken)
+              (setq n (1+ n)
+                    new-id (format "%s-%d" base n)))
             (org-set-property "CUSTOM_ID" new-id)
             (save-buffer)
             new-id))))))
@@ -164,6 +202,7 @@ parser — tables, lists, and source blocks may be grouped imprecisely."
 n/p cycle through paragraphs, RET confirms the one shown, q/C-g cancels.
 Returns the target id string (existing or newly created), or nil if
 the user cancelled."
+  (my/--transclusion-refuse-unsaved file)
   (let* ((paragraphs (my/--extract-paragraphs file))
          (total (length paragraphs)))
     (unless paragraphs
@@ -229,25 +268,31 @@ the file every time."
       (org-transclusion-add)
       (goto-char end))))
 
+(defun my/--transclusion-keyword (target description)
+  "Return a `#+transclude:' line linking to TARGET described by DESCRIPTION.
+Org's own `org-link-make-string': a title ending in `]' written into
+the brackets as it was ended the link early (until 2026-10-24)."
+  (concat "#+transclude: " (org-link-make-string target description) "\n"))
+
 (defun my/--transclusion-insert-whole (file title)
   "Insert transclude + include pair for the WHOLE FILE with TITLE."
   (my/--transclusion-insert-pair
-   (format "#+transclude: [[file:%s][%s]]\n" file title)
+   (my/--transclusion-keyword (concat "file:" file) title)
    (format "#+INCLUDE: \"%s\" :only-contents t\n" file)))
 
 (defun my/--transclusion-insert-heading (file title custom-id heading-title)
   "Insert transclude + include pair for a HEADING (by CUSTOM-ID) in FILE."
-  (let ((link-desc (format "%s — %s" title heading-title)))
-    (my/--transclusion-insert-pair
-     (format "#+transclude: [[file:%s::#%s][%s]]\n" file custom-id link-desc)
-     (format "#+INCLUDE: \"%s::#%s\" :only-contents t\n" file custom-id))))
+  (my/--transclusion-insert-pair
+   (my/--transclusion-keyword (format "file:%s::#%s" file custom-id)
+                              (format "%s — %s" title heading-title))
+   (format "#+INCLUDE: \"%s::#%s\" :only-contents t\n" file custom-id)))
 
 (defun my/--transclusion-insert-paragraph (file title target-id)
   "Insert transclude + include pair for a PARAGRAPH (by TARGET-ID) in FILE."
-  (let ((link-desc (format "%s — paragraph" title)))
-    (my/--transclusion-insert-pair
-     (format "#+transclude: [[file:%s::%s][%s]]\n" file target-id link-desc)
-     (format "#+INCLUDE: \"%s::%s\" :only-contents t\n" file target-id))))
+  (my/--transclusion-insert-pair
+   (my/--transclusion-keyword (format "file:%s::%s" file target-id)
+                              (format "%s — paragraph" title))
+   (format "#+INCLUDE: \"%s::%s\" :only-contents t\n" file target-id)))
 
 ;; ============================================================
 ;; MAIN WIZARD: pick source -> pick target -> insert transclude pair
@@ -298,7 +343,9 @@ Commit your notes before heavy first use."
        (t
         (let* ((pos (cdr (assoc choice headings)))
                (heading-title (string-trim
-                                (replace-regexp-in-string "^\\*+[ \t]+" "" choice)))
+                                (replace-regexp-in-string
+                                 "  (line [0-9]+)\\'" ""
+                                 (replace-regexp-in-string "^\\*+[ \t]+" "" choice))))
                (custom-id (my/--ensure-custom-id file pos heading-title)))
           (my/--transclusion-insert-heading file title custom-id heading-title)))))))
 

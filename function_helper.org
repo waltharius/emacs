@@ -1024,7 +1024,9 @@ Workflow:
 Heading mode:
 If the chosen heading has no =CUSTOM_ID=, one is generated from the
 heading title (spaces become hyphens, non-alphanumeric characters are
-removed) and saved into the source file.
+removed), made unique in the file (=notes=, =notes-2=…) and saved into
+the source file.  Two headings with the same title and level are
+listed with their line numbers, so either can be chosen.
 
 Paragraph mode:
 Paragraphs are previewed one by one in a temporary preview window.
@@ -1039,6 +1041,9 @@ generated =<<target>>= anchor to that paragraph and saves the source file.
 
 *Warning:* this command may modify and save the source file on disk
 (adding =CUSTOM_ID= or =<<target>>=). Commit before heavy first use.
+A source open with unsaved changes is refused for heading and paragraph
+mode: save it first.  The =#+transclude:= link is made by Org's
+=org-link-make-string=, so a title ending in =]= still gives one link.
 
 Function: =my/denote-transclude-insert= | Module: =modules/20-transclusion.el=
 
