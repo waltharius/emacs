@@ -3414,10 +3414,18 @@ Three prompts, in this order:
    =display-sort-function= as =identity=; without it Vertico sorted by
    history, length and alphabet, which put =other date= last. Reordering
    =my/tasks-date-choices= (=M-x customize-option=) changes both.
+   A fixed answer (=tomorrow=, =next week=…) is the date at once, with
+   no second prompt.
 3. The capture buffer opens for the *reason*: what the thing is and
    why it is worth checking. =C-c C-c= files it, =C-c C-k= discards.
 
 The echo area then names the file and heading the task went to.
+
+The task as typed and the title of the note it came from go into the
+capture literally: =%(...)=, =%a=, =%t= in them are text, never
+org-capture escapes (=my/tasks--literal=), and the =SOURCE= link is
+made by Org's =org-link-make-string=.  The task lands under the
+top-level heading of that name, never under a task with the same words.
 
 The capture buffer is an ordinary Org buffer, so =C-c C-d= sets a
 deadline, =C-c C-s= a schedule, =C-c C-x e= an effort and =C-c C-q= a

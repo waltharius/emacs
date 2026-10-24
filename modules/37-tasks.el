@@ -362,8 +362,11 @@ where the repetition comes from."
     (cond
      ((null spec) nil)
      ((eq spec 'ask) (org-read-date nil t))
-     ;; FROM-STRING makes `org-read-date' parse without prompting.
-     (t (org-read-date nil t nil nil nil spec)))))
+     ;; FROM-STRING, the third argument, makes `org-read-date' parse
+     ;; without prompting.  Until 2026-10-24 SPEC went in as the sixth,
+     ;; DEFAULT-INPUT: every fixed answer opened the date prompt again
+     ;; with it filled in (found by the tests of this module).
+     (t (org-read-date nil t spec)))))
 
 (defun my/tasks--origin-of-buffer ()
   "Return (LINK . TITLE) for the current buffer, or nil.
@@ -390,10 +393,25 @@ worse than no link, because it looks like it should work."
 ;; built in one place is far easier to reason about than five sexps
 ;; whose results are concatenated by org-capture.
 ;;
-;; CAVEAT: a literal `%' followed by an org-capture escape letter in a
-;; note title (`100%TODO', say) would still be expanded.  A percent
-;; sign followed by a space or a digit -- which is every real case --
-;; passes through untouched.
+;; Text from outside the template -- the task as typed, a note's title --
+;; goes in through `my/tasks--literal', so that org-capture takes it
+;; literally.  Until 2026-10-24 a note title or a typed task holding
+;; `%(...)' had that expression evaluated as Lisp when the task was
+;; captured, and `%a', `%c', `%t' were replaced (found by the tests of
+;; this module).  Titles come also from Readwise and imported notes,
+;; text this configuration did not write.
+
+(defun my/tasks--literal (text)
+  "Return TEXT with every `%' escaped for org-capture's template.
+Org's own escape, a backslash before `%' (`org-capture-escaped-%').
+Backslashes already before a `%' are doubled first, so that they stay
+as they were."
+  (replace-regexp-in-string
+   "\\(\\\\*\\)%"
+   (lambda (match)
+     (let ((backslashes (substring match 0 -1)))
+       (concat backslashes backslashes "\\%")))
+   text t t))
 
 (defun my/tasks--timestamp ()
   "Return an inactive Org timestamp for now."
@@ -412,13 +430,17 @@ worse than no link, because it looks like it should work."
   (concat "\n:PROPERTIES:"
           "\n:CREATED:  " (my/tasks--timestamp)
           (when my/tasks--origin
-            (format "\n:SOURCE:   [[%s][%s]]"
-                    (car my/tasks--origin) (cdr my/tasks--origin)))
+            (concat "\n:SOURCE:   "
+                    (my/tasks--literal
+                     ;; Org's own link maker: a title ending in `]' ends
+                     ;; the link early when written into it as it is.
+                     (org-link-make-string (car my/tasks--origin)
+                                           (cdr my/tasks--origin)))))
           "\n:END:\n"))
 
 (defun my/tasks--capture-template ()
   "Return the capture template for the pending task."
-  (concat "* TODO " (or my/tasks--headline "")
+  (concat "* TODO " (my/tasks--literal (or my/tasks--headline ""))
           (my/tasks--date-line)
           (my/tasks--properties)
           "\n%?"))
@@ -436,9 +458,14 @@ error, and an unexpected heading at the end of the file is visible and
 trivially fixed."
   (widen)
   (goto-char (point-min))
-  (if (re-search-forward
-       (format org-complex-heading-regexp-format (regexp-quote heading))
-       nil t)
+  (if (let ((regexp (format org-complex-heading-regexp-format (regexp-quote heading)))
+            (found nil))
+        ;; Top level only: a task further down may carry the same words
+        ;; (`** TODO Inbox'), and a capture filed under it became its
+        ;; child (until 2026-10-24, found by the tests of this module).
+        (while (and (not found) (re-search-forward regexp nil t))
+          (setq found (save-excursion (beginning-of-line) (looking-at-p "\\* "))))
+        found)
       (goto-char (line-beginning-position))
     (goto-char (point-max))
     (unless (bolp) (insert "\n"))
