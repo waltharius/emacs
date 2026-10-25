@@ -320,7 +320,8 @@ startup. Optional ones can be removed.
 | Module | | Purpose |
 |--------|---|---------|
 | `00-core.el` | required | Package system, silo paths, backup/autosave policy, persisted UI state, front-matter keyword helpers. 24 other modules depend on it. |
-| `01-ui.el` | required | Interface, mode line, `desktop` session persistence, tab-bar, `my/fixed-tab-goto`. |
+| `01-ui.el` | required | Sessions (`desktop`), window splitting, tab-bar, `my/fixed-tab-goto`, completion, the mode line. |
+| `01b-frame-chrome.el` | optional | Tool bar and scroll bar off, menu bar on, again after a desktop restore. |
 | `02-editing.el` | required | which-key, vundo, undo-fu-session, **and the rebound default keys**. |
 | `02b-bold-marker.el` | required | Obsidian-style `word*` inline emphasis. |
 | `03-spelling.el` | required | Hunspell, Polish and English. |
@@ -389,7 +390,7 @@ startup. Optional ones can be removed.
 |--------|---|---------|
 | `09-theme.el` | required | Five theme collections, `<F4>`/`<F5>` cycling, choice persisted. |
 | `10-visual-fill.el` | required | Single source of truth for wrapping. No other module may set `visual-fill-column-*`. |
-| `11-org-appearance.el` | required | Org visual behaviour. Faces belong to `custom.el`. |
+| `11-org-appearance.el` | optional | Org visual behaviour: emphasis markers, quote blocks, block-marker symbols, org-modern. Faces belong to `custom.el`. |
 | `13-centered-writing.el` | required | Recentring that only fires while typing. |
 | `23-fixed-tabs.el` | required | Routes chosen commands into named tabs, by advice. |
 | `30-link-tooltips.el` | required | Cheap `denote:` tooltips — Denote's own freeze on large collections. |

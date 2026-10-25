@@ -60,7 +60,8 @@
 
 (my/modules-load
  '(
-   "01-ui"                   ; Interface + sessions
+   "01-ui"                   ; Sessions, windows, completion, mode line
+   "01b-frame-chrome"        ; Tool bar and scroll bar off (optional)
    "02-editing"              ; Modern conveniences
    "02b-bold-marker"         ; Obsidian-style bold (word*)
    "03-spelling"             ; Spellcheck (WORKING!)
