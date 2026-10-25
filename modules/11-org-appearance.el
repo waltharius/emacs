@@ -8,6 +8,8 @@
 ;;; Commentary:
 ;; Makes org-mode more visually pleasant:
 ;; - Hides emphasis markers (*bold*, /italic/, _underline_)
+;; - Quote and verse blocks in their faces; block markers as symbols
+;;   (a speech balloon, a lambda) -- from 01-ui.el since 2026-10-25zc
 ;; - Beautiful heading sizes and colors
 ;; - Pretty bullet points
 ;; - Extra line spacing for breathing room
@@ -96,6 +98,34 @@
 ;; too, so nothing is lost.
 
 ;; ============================================================
+;; QUOTE AND SOURCE BLOCKS
+;; ============================================================
+;; Moved here from 01-ui.el on 2026-10-25zc, next to org-modern, whose
+;; `org-modern-block-name' has to stay off while these symbols are on
+;; (below).
+
+;; Quote and verse blocks get the `org-quote' and `org-verse' faces.
+;; The faces themselves live in custom.el (managed by Customize); do
+;; NOT add custom-set-faces calls here -- duplicate definitions cause
+;; nil-attribute merge warnings.
+(setq org-fontify-quote-and-verse-blocks t)
+
+;; Block markers drawn as symbols: a speech balloon for quotes, a
+;; lambda for source blocks.  Shown as typed when point is on them.
+(setq-default prettify-symbols-alist
+              '(("#+BEGIN_QUOTE" . "\U0001F4AC")
+                ("#+END_QUOTE" . "\U0001F4AC")
+                ("#+begin_quote" . "\U0001F4AC")
+                ("#+end_quote" . "\U0001F4AC")
+                ("#+BEGIN_SRC" . "\u03BB")
+                ("#+END_SRC" . "\u03BB")
+                ("#+begin_src" . "\u03BB")
+                ("#+end_src" . "\u03BB")))
+
+(setq prettify-symbols-unprettify-at-point 'right-edge)
+(add-hook 'org-mode-hook #'prettify-symbols-mode)
+
+;; ============================================================
 ;; VISUAL IMPROVEMENTS
 ;; ============================================================
 
@@ -124,14 +154,15 @@
 ;;
 ;; WHAT IS DELIBERATELY TURNED OFF, AND WHY
 ;; ----------------------------------------
-;; `org-modern-block-name' is nil.  01-ui.el maps #+begin_src to a
-;; lambda and #+begin_quote to a speech balloon through
-;; `prettify-symbols-alist'.  org-modern styles those same lines by a
-;; different mechanism (font-lock and display properties), and running
+;; `org-modern-block-name' is nil.  This file (QUOTE AND SOURCE BLOCKS
+;; above) maps #+begin_src to a lambda and #+begin_quote to a speech
+;; balloon through `prettify-symbols-alist'.  org-modern styles those
+;; same lines by a different mechanism (font-lock and display
+;; properties), and running
 ;; both leaves the delimiter half-replaced.  The prettify mapping is
 ;; older, is what the notes were written against, and wins.  To go the
 ;; other way instead, drop the four #+begin/#+end pairs from
-;; `prettify-symbols-alist' in 01-ui.el and set this to t here --
+;; `prettify-symbols-alist' above and set this to t here --
 ;; but do one or the other, never both.
 ;;
 ;; `org-modern-block-fringe' is nil.  The block bracket is drawn in the

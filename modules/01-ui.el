@@ -1,4 +1,4 @@
-;;; 01-ui.el --- Interface settings and session management -*- lexical-binding: t; -*-
+;;; 01-ui.el --- Sessions, windows, tabs, completion and the mode line -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: no
@@ -6,9 +6,18 @@
 ;; Docs: ~/.emacs.d/function_helper.org::#session-management
 
 ;;; Commentary:
-;; UI settings: menu bar, tabs, themes, desktop-save-mode
-;; Session management: save/restore open files, window layouts, cursor positions
-;; Completion: Vertico + Orderless for fuzzy matching
+;; How Emacs itself behaves, whatever the notes (group 100 of MODULES.org):
+;; session management (save and restore open files, window layouts,
+;; cursor positions), window splitting, tabs, completion (Vertico,
+;; Orderless, Marginalia, Consult) and the mode line.
+;;
+;; The look went out on 2026-10-25zc: the frame's bars to
+;; 01b-frame-chrome.el, the Org block display (quote and verse faces,
+;; the block-marker symbols) to 11-org-appearance.el.  The mode line
+;; stays: it carries state that must be visible whatever the look --
+;; the warning that deletions are not confirmed (00-core.el, SAFETY.org
+;; 2.1), the writing mode, a buffer kept across restarts -- and
+;; `my/mode-line-front-segments' is the seam other modules write to.
 
 ;;; Code:
 
@@ -17,29 +26,6 @@
 ;; ============================================================
 
 (setq inhibit-startup-screen t)
-
-;; CHROME.  The tool bar and the scroll bar are the two elements that
-;; date the frame most: a row of 16-pixel icons for commands this
-;; configuration reaches through C-c n, and a scroll bar duplicating
-;; information the mode line already gives as a percentage.  Neither is
-;; ever clicked here, and both eat vertical and horizontal space that
-;; the centred text column of 10-visual-fill.el then has to give back.
-;;
-;; The menu bar STAYS.  It is the only surface that lists what a mode
-;; can do without knowing a key for it, which matters in a
-;; configuration this large -- Org's own menu alone is a reference.
-;; That is a different argument from the one against the tool bar, and
-;; it comes out the other way.
-;;
-;; To revert either: change -1 to 1 here, or toggle for one session
-;; with `M-x tool-bar-mode' / `M-x scroll-bar-mode'.
-(tool-bar-mode -1)
-(menu-bar-mode 1)
-;; An Emacs built without a window system (Fedora's emacs-nox, a
-;; terminal-only build) has no scroll bars and no `scroll-bar-mode':
-;; calling it stopped the start-up there (found 2026-10-22 by loading
-;; every module in such a build).
-(when (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
 
 ;; Set locale for Polish time/date formatting
 (setq system-time-locale "pl_PL.UTF-8")
@@ -483,13 +469,6 @@ Use \\[my/desktop-show-protected] to see the outcome before it happens."
         (message "desktop trim: %d buffer(s) declined to be killed"
                  refused)))))
 
-(defun my/restore-chrome-preferences ()
-  "Re-apply chrome settings that a desktop frameset restore overrode.
-Run from `desktop-after-read-hook'; a no-op when the modes are already
-off, so it is safe to call at any time."
-  (tool-bar-mode -1)
-  (when (fboundp 'scroll-bar-mode) (scroll-bar-mode -1)))
-
 (use-package desktop
   :ensure nil
   :init
@@ -527,22 +506,9 @@ off, so it is safe to call at any time."
   ;; Layer 1: trim buffer list before every save
   (add-hook 'desktop-save-hook #'my/desktop-trim-buffers)
 
-  ;; CHROME SURVIVES A DESKTOP RESTORE, AND HAS TO BE PUT BACK
-  ;; --------------------------------------------------------
-  ;; `desktop-restore-frames' is t by default, and the frameset it
-  ;; saves includes `tool-bar-lines' and `vertical-scroll-bars'.
-  ;; Restoring the frameset therefore re-applies whatever those were
-  ;; when the desktop was last saved -- which, for a desktop written
-  ;; before the tool bar was turned off, means the tool bar comes back
-  ;; on every start and `(tool-bar-mode -1)' at the top of this file
-  ;; appears to do nothing.  Frameset restore overrides
-  ;; `default-frame-alist' too, so setting the parameters there is not
-  ;; a fix either.
-  ;;
-  ;; Re-asserting after the restore is.  `my/restore-chrome-preferences'
-  ;; is defined at top level below, not here, so that the pre-commit
-  ;; grep for duplicate top-level definitions can see it.
-  (add-hook 'desktop-after-read-hook #'my/restore-chrome-preferences)
+  ;; A restored frameset brings back the bars it was saved with;
+  ;; 01b-frame-chrome.el turns them off again from
+  ;; `desktop-after-read-hook'.
 
   (desktop-save-mode 1))
 
@@ -876,34 +842,16 @@ files, and a window that is the only one, get Emacs's placeholder."
          ("C-c <right>" . winner-redo)))
 
 ;; ============================================================
-;; ORG-MODE VISUAL SETTINGS
+;; FILL COLUMN OF ORG FILES
 ;; ============================================================
 
-;; visual-line-mode and fill-column variable for org files.
-;; NOTE: visual-line-mode hook is owned by 02-editing.el.
-;; display-fill-column-indicator-mode is owned by 10-visual-fill.el.
+;; The column M-q fills to in Org files.  How a buffer is displayed is
+;; elsewhere: visual-line-mode in 02-editing.el, the fill-column
+;; indicator in 10-visual-fill.el, the Org block display in
+;; 11-org-appearance.el.
 (add-hook 'org-mode-hook
           (lambda ()
             (setq fill-column my-fill-column)))
-
-;; Face definitions for org-quote, org-block etc. live exclusively in
-;; custom.el (managed by Customize).  Do NOT add custom-set-faces calls
-;; here — duplicate definitions cause nil-attribute merge warnings.
-(setq org-fontify-quote-and-verse-blocks t)
-
-;; Replace block markers with Unicode symbols
-(setq-default prettify-symbols-alist
-              '(("#+BEGIN_QUOTE" . "\U0001F4AC")
-                ("#+END_QUOTE" . "\U0001F4AC")
-                ("#+begin_quote" . "\U0001F4AC")
-                ("#+end_quote" . "\U0001F4AC")
-                ("#+BEGIN_SRC" . "\u03BB")
-                ("#+END_SRC" . "\u03BB")
-                ("#+begin_src" . "\u03BB")
-                ("#+end_src" . "\u03BB")))
-
-(setq prettify-symbols-unprettify-at-point 'right-edge)
-(add-hook 'org-mode-hook 'prettify-symbols-mode)
 
 ;; ============================================================
 ;; WORD COUNT IN MODELINE
