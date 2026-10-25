@@ -38,6 +38,8 @@
     (org-transclusion) (denote-sequence) (markdown-mode) (visual-fill-column)
     ;; test-references renders references with citeproc (2026-10-25f).
     (citeproc)
+    ;; test-editing checks where undo history is kept (2026-10-25o).
+    (undo-fu-session)
     ;; Not the transient built into Emacs: the one the configuration
     ;; really runs with comes from the archives with Magit (0.13 on the
     ;; owner's machine, 2026-10-20), and its menu entries have another

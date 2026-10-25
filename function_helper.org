@@ -7851,6 +7851,21 @@ and =C-c n a= remain as well: they carry =:transient t= and so leave
 the menu open, which suits correcting several words in a row, while the
 direct bindings suit a single fix.
 
+** Pairs typed together (02-editing.el)
+
+=electric-pair-mode= types the closing half of a pair with the opening
+one, and steps over it when the closing half is typed: double quotes,
+round, square and curly brackets, in Org too, where the double quote is
+paired by Org's syntax table (the quoted-phrase rule of
+[[#inline-markers][Inline markers]] relies on it).  The apostrophe is not
+paired: in prose it is a letter, and listed as a pair it left a stray
+=\'= after "don't" in every text buffer -- commit messages, Markdown
+notes -- until 2026-10-25.  Programming modes whose syntax makes =\'= a
+string delimiter pair it all the same.
+
+Tests: =tests/test-editing.el= (pairs, =M-Q=, the keys, where undo
+history is kept).
+
 * NuPhy Air75 V2 — Caps Lock layer
 :PROPERTIES:
 :CUSTOM_ID: nuphy-layer

@@ -57,21 +57,28 @@
 
 (electric-pair-mode t)
 
-;; Default pairing for code modes
+;; Pairs added to what each mode's syntax table already pairs (a
+;; string delimiter is paired by its syntax).  No apostrophe: in prose
+;; it is a letter, not a quote, and listed here it was paired in every
+;; text buffer -- "don't" typed in a commit message or a Markdown note
+;; left a stray ' after the word (until 2026-10-25).  Programming modes
+;; whose syntax makes ' a string delimiter pair it all the same.
 (setq electric-pair-pairs
       '((?\" . ?\")
-        (?' . ?')
         (?\( . ?\))
         (?\[ . ?\])
         (?\{ . ?\})))
 
 ;; ============================================================
-;; DISABLE QUOTE PAIRING IN ORG-MODE (keep brackets!)
+;; PAIRS IN ORG-MODE (brackets; the double quote by Org's syntax)
 ;; ============================================================
 
 (defun my/org-mode-electric-pair-setup ()
-  "Configure electric-pair-mode for org-mode.
-  Disable quote pairing but keep brackets."
+  "Pair brackets in Org; the double quote is paired by Org's syntax.
+The local lists leave the quotes out, but Org's syntax table makes the
+double quote a string delimiter, which `electric-pair-mode' pairs by
+itself -- 02b-bold-marker relies on that.  (The text said until
+2026-10-25 that quote pairing was disabled here; it never was.)"
   ;; Make electric-pair-pairs buffer-local and exclude quotes
   (setq-local electric-pair-pairs
               '((?\( . ?\))
