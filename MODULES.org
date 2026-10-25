@@ -136,8 +136,9 @@ When every row is decided:
 2. Then the move by a script: =git mv= (history kept, =git log
    --follow=), new names in =provide=, =MyPKS-Requires=, =init.el=, the
    tests, =with-eval-after-load=, =function_helper.org= and
-   =my/modules-off= of each machine (an alias from the old names, so a
-   saved setting keeps working).  The weekly checks green before and
+   =my/modules-off= of each machine (an entry per old name in
+   =my/modules-renamed=, 00-core.el, since 2026-10-25ze, so a saved
+   setting keeps working).  The weekly checks green before and
    after.
 3. Then =groups= blocks instead of advising, and checks folders against
    this table.
