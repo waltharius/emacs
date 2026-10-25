@@ -1,10 +1,10 @@
-;;; test-denote-hubs.el --- ERT tests for hub notes of 33-denote-hubs -*- lexical-binding: t; -*-
+;;; test-denote-hubs.el --- ERT tests for hub notes of 333-denote-hubs -*- lexical-binding: t; -*-
 
-;; Tests: 33-denote-hubs
+;; Tests: 333-denote-hubs
 
 ;;; Commentary:
 
-;; 33-denote-hubs.el keeps hub notes: Denote notes with the `hub'
+;; 333-denote-hubs.el keeps hub notes: Denote notes with the `hub'
 ;; keyword whose body is a list of links with descriptions.  It reads
 ;; which hubs list a note, adds an entry in identifier order (sorting the
 ;; hub first when needed), edits an entry in place, and creates hubs:
@@ -21,7 +21,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "33-denote-hubs")
+(my/test-load-modules "333-denote-hubs")
 
 (defvar denote-directory)
 

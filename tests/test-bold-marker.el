@@ -1,10 +1,10 @@
-;;; test-bold-marker.el --- ERT tests for 02b-bold-marker -*- lexical-binding: t; -*-
+;;; test-bold-marker.el --- ERT tests for 302b-bold-marker -*- lexical-binding: t; -*-
 
-;; Tests: 02b-bold-marker
+;; Tests: 302b-bold-marker
 
 ;;; Commentary:
 
-;; 02b-bold-marker wraps the word or quoted phrase before point in Org
+;; 302b-bold-marker wraps the word or quoted phrase before point in Org
 ;; markers when *, ~ or = is typed right after it, and C-= moves the
 ;; opening marker one word left.  It changes the text being written, so
 ;; these tests type through `self-insert-command' with
@@ -25,7 +25,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "02b-bold-marker")
+(my/test-load-modules "302b-bold-marker")
 
 (defun my/bm-test-type (text)
   "Type TEXT character by character with self-inserting commands."

@@ -1,10 +1,10 @@
-;;; test-capture.el --- ERT tests for moving a captured note of 06-capture -*- lexical-binding: t; -*-
+;;; test-capture.el --- ERT tests for moving a captured note of 306-capture -*- lexical-binding: t; -*-
 
-;; Tests: 06-capture
+;; Tests: 306-capture
 
 ;;; Commentary:
 
-;; 06-capture.el moves a note made from a capture into a silo
+;; 306-capture.el moves a note made from a capture into a silo
 ;; (`my/--move-note-to-silo').  Until 2026-10-24 a file of the same name
 ;; there was replaced after Emacs's general question, for good (outside
 ;; audits of 2026-10-24).  The first tests of the module: the rest of it
@@ -20,7 +20,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "05-notes" "06-capture")
+(my/test-load-modules "205-notes" "306-capture")
 
 (defmacro my/capture-test--with-silos (&rest body)
   "Run BODY with folders `from' and `to' in a fresh temporary folder."

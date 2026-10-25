@@ -1,14 +1,14 @@
-;;; test-bibliography-menu.el --- ERT tests for the bibliography menu of 17-bibliography -*- lexical-binding: t; -*-
+;;; test-bibliography-menu.el --- ERT tests for the bibliography menu of 417-bibliography -*- lexical-binding: t; -*-
 
-;; Tests: 17-bibliography
+;; Tests: 417-bibliography
 
 ;;; Commentary:
 
 ;; The bibliography menu, C-c x and an entry in Tools, is part of
-;; 17-bibliography since 2026-10-25zg (until then 18-zotero-transient).
+;; 417-bibliography since 2026-10-25zg (until then 18-zotero-transient).
 ;; A menu entry naming a command that does not exist fails only when
 ;; chosen, so the test checks every entry of the menu against what
-;; citar, citar-denote and 17-bibliography define; and that the key,
+;; citar, citar-denote and 417-bibliography define; and that the key,
 ;; the Tools entry and the old name `my/zotero-menu' all open it.
 ;; Needs citar and citar-denote installed (ci-packages.el).
 ;;
@@ -24,7 +24,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "04-denote" "05-notes" "12-transient" "17-bibliography")
+(my/test-load-modules "204-denote" "205-notes" "212-transient" "417-bibliography")
 
 (defconst my/bm-menu-test-keys '("n" "o" "f" "e" "u" "i" "R" "S" "c" "C" "?" "," "q")
   "The keys of the bibliography menu.")

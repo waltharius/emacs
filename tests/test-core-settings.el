@@ -1,17 +1,17 @@
-;;; test-core-settings.el --- ERT tests for the settings folder and host of 00-core -*- lexical-binding: t; -*-
+;;; test-core-settings.el --- ERT tests for the settings folder and host of 000-core -*- lexical-binding: t; -*-
 
-;; Tests: 00-core
+;; Tests: 000-core
 
 ;;; Commentary:
-;; Which settings folder and which host folder 00-core.el chooses, and
+;; Which settings folder and which host folder 000-core.el chooses, and
 ;; what it refuses: precedence of MYPKS_DIR / MYPKS_HOST over
 ;; mypks-local.eld over the defaults, host names that would leave
 ;; hosts/, and a mypks-local.eld that cannot be read.
 ;;
-;; The choice is made once, while 00-core.el loads (`my/settings-directory'
+;; The choice is made once, while 000-core.el loads (`my/settings-directory'
 ;; and `my/host-name' are constants), so every case starts a fresh
 ;; `emacs -Q --batch' with its own HOME and environment and reads the
-;; result back.  00-core.el needs no package beyond what Emacs 29 ships.
+;; result back.  000-core.el needs no package beyond what Emacs 29 ships.
 ;; From the repository's folder:
 ;;
 ;;   emacs -Q --batch -l tests/test-core-settings.el \
@@ -32,7 +32,7 @@
   "The repository's folder.")
 
 (defun my/core-test--run (env &optional local-text extra files)
-  "Load 00-core.el in a fresh Emacs with ENV; return what it chose.
+  "Load 000-core.el in a fresh Emacs with ENV; return what it chose.
 ENV is a list of \"NAME=value\" strings added to the environment.
 LOCAL-TEXT, when non-nil, is written to mypks-local.eld first.  The
 result is a plist: :dir (the settings folder, relative to the home),
@@ -68,7 +68,7 @@ before the start."
           (call-process
            (expand-file-name invocation-name invocation-directory) nil nil nil
            "-Q" "--batch"
-           ;; A test installs nothing (no-littering, 00-core.el): without
+           ;; A test installs nothing (no-littering, 000-core.el): without
            ;; this each start tried the network, seconds per case.
            "--eval" "(setq use-package-ensure-function 'ignore)"
            "--eval" (format "(setq user-emacs-directory %S)" emacs-dir)
@@ -76,11 +76,11 @@ before the start."
            "--eval" "(setq my/test-reports nil)"
            "--eval" "(advice-add 'my/notes-report :override (lambda (kind title &rest _) (push (list kind title) my/test-reports)))"
            ;; A load error is recorded and fails the test (below); until
-           ;; 2026-10-24 it was swallowed, and a 00-core.el that stopped
+           ;; 2026-10-24 it was swallowed, and a 000-core.el that stopped
            ;; half way passed if the settings were set before the error.
            "--eval" "(setq my/test-load-error nil)"
            "--eval" (format "(condition-case err (load %S nil t) (error (setq my/test-load-error (error-message-string err))))"
-                            (expand-file-name "modules/00-core.el" my/core-test--repo))
+                            (expand-file-name "modules/000-loader/000-core.el" my/core-test--repo))
            "--eval" (format "(with-temp-file %S (prin1 (list :load-error my/test-load-error :dir (file-relative-name my/settings-directory %S) :host my/host-name :reports (reverse my/test-reports) :put (condition-case err (progn (my/local--put :test t) nil) (error (error-message-string err))) :extra %s) (current-buffer)))"
                             out home (or extra "nil")))
           (when (file-readable-p out)

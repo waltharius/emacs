@@ -8,7 +8,7 @@
 ;;
 ;; - `my/weekly-modules': the modules init.el loads, in its order, read
 ;;   from init.el's (my/modules-load '(...)) list;
-;; - `my/weekly-start': the sandbox of tests/helper.el, 00-core.el loaded,
+;; - `my/weekly-start': the sandbox of tests/helper.el, 000-core.el loaded,
 ;;   the modules read from this repository, none turned off;
 ;; - `my/weekly-snapshot': what a module can leave behind -- hooks,
 ;;   advice, key bindings, repeating timers, menu entries, file-name and
@@ -41,7 +41,7 @@
     (read (current-buffer))))
 
 (defun my/weekly-start ()
-  "Enter the sandbox and load 00-core.el; every module may load.
+  "Enter the sandbox and load 000-core.el; every module may load.
 The modules are read from this repository; `my/modules-off' is emptied,
 since a new machine would otherwise leave out the modules marked
 \"MyPKS-Default: off\" -- these checks are about every module."
@@ -49,7 +49,7 @@ since a new machine would otherwise leave out the modules marked
   (setq my/modules-directory (expand-file-name "modules/" my/test-repo))
   (clrhash my/modules--info-cache)
   (setq my/modules-off nil)
-  (setq my/modules-order (cons "00-core" (my/weekly-modules))))
+  (setq my/modules-order (cons "000-core" (my/weekly-modules))))
 
 (defun my/weekly-problem (format-string &rest args)
   "Print a PROBLEM line: the parent test fails and shows it."
@@ -60,7 +60,7 @@ since a new machine would otherwise leave out the modules marked
   (princ (concat "INFO " (apply #'format format-string args) "\n")))
 
 (defun my/weekly-load (names)
-  "Load NAMES with the loader of 00-core.el; report every module not loaded."
+  "Load NAMES with the loader of 000-core.el; report every module not loaded."
   (my/modules-load names)
   (dolist (entry my/modules--skipped)
     (my/weekly-problem "%s" (my/modules--skip-line entry))))
@@ -207,7 +207,7 @@ already; what it defines stays, as its commands do."
     (seq-filter (lambda (n) (member n wanted)) (cdr my/modules-order))))
 
 (defun my/weekly-run-alone (name)
-  "Load 00-core.el, the modules NAME requires and NAME, nothing else.
+  "Load 000-core.el, the modules NAME requires and NAME, nothing else.
 A module that uses another without declaring it in MyPKS-Requires fails
 here -- unless the use is guarded, which is what the contract asks."
   (my/weekly-start)
@@ -239,7 +239,7 @@ does not set merely by being loaded."
                       item)))
 
 (defvar my/weekly-allowed-leftovers
-  '(;; 07-git: a module's folders stay in the automatic commits when it is
+  '(;; 207-git: a module's folders stay in the automatic commits when it is
     ;; off (function_helper.org, "A module's switch": the one exception).
     "^hook my/auto-commit-repository-sources-functions: ")
   "Regexps of items a switched-off module may leave, by decision.")

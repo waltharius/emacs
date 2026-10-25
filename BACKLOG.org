@@ -19,7 +19,7 @@ says why and how.
 3. /Settings: core plus user layer/, step 5 -- decoupling, skipped
    menu entries, switches for 17 modules, the loader: done 2026-10-19.
    Left: hint texts from what loaded; the other modules' switches, one
-   per session, each rethought first -- 06-capture done 2026-10-22i
+   per session, each rethought first -- 306-capture done 2026-10-22i
    (asked: turned off, its templates stayed until a restart); the
    weekly switch test checks each new switch; own modules in the settings
    folder; /Start-up: early-init.el, compilation, lazy loading/.
@@ -49,7 +49,7 @@ says why and how.
 
 * Documentation to bring up to date
 Asked 2026-10-18: a running list of what the user-facing documentation
--- README.md, the help text of =C-c h k= (08-keybindings.el), the
+-- README.md, the help text of =C-c h k= (208-keybindings.el), the
 planned Polish guide -- no longer says correctly, so that one sync at
 the end of the refactoring brings them in line with the code.
 =function_helper.org= and =CHANGELOG.md= are kept current with every
@@ -65,7 +65,7 @@ settles; a line is a reminder, not the text to paste.
   =hosts/<host>/custom.el=, =mypks-local.eld=, =MYPKS_DIR=,
   =MYPKS_HOST=), what the first start creates and asks; the personal
   dictionary moving there; =private-strings.txt= for the =personal=
-  check.  The dashboard opening at start-up is 15-workspace.el, now
+  check.  The dashboard opening at start-up is 815-workspace.el, now
   optional (2026-10-19e).
 - /Expected file layout/: =~/.config/mypks/dictionaries/= (shared
   personal dictionary, =merge=union=), =hosts/<host>/spelling.eld=,
@@ -96,7 +96,7 @@ settles; a line is a reminder, not the text to paste.
   optional modules (2026-10-19e), the per-module on/off switch
   (=my/<name>-mode=, from 2026-10-19h).
 - /Menu extension without coupling/: the rule is now "insert before
-  Quit, or next to a column 12-transient.el owns"
+  Quit, or next to a column 212-transient.el owns"
   (=my/transient-insert=, coordinates for whole columns); a taken key
   is warned about after start-up and refused by the =menukeys= check
   (2026-10-19e-f); entries are removed when their module is turned off
@@ -129,11 +129,11 @@ settles; a line is a reminder, not the text to paste.
   =personal= skipped without its list).
 - A section /Privacy model and limits/ (BACKLOG, public repository,
   step 5).
-- /Optional modules/: 50-cite-preview, the citation under point in the
-  echo area (2026-10-25g); 17-bibliography's =C-c x S= and =R= render
+- /Optional modules/: 450-cite-preview, the citation under point in the
+  echo area (2026-10-25g); 417-bibliography's =C-c x S= and =R= render
   through CSL (2026-10-25f).
 
-** Help text of C-c h k (08-keybindings.el)
+** Help text of C-c h k (208-keybindings.el)
 - Brought up to date for Find, Insert and Export on 2026-10-19e; still
   to check: Create (Capture column), View (Toggle contents), Tools
   (Spelling column), the Settings menu (=m= modules, 2026-10-19n), and
@@ -218,7 +218,7 @@ modules (=:depends=, =modulep!=).  Proposed shape, Emacs's own
 conventions rather than a new format:
 - *Manifest = library headers*, read without loading the file by
   =lisp-mnt= (=lm-summary=, =lm-header=): the first line's summary is
-  the description; =;; MyPKS-Requires: 04-denote 05-notes= the modules
+  the description; =;; MyPKS-Requires: 204-denote 205-notes= the modules
   needed; =;; MyPKS-Optional: yes= marks a module that may be turned
   off; =;; Package-Requires:= the external packages, as in any Emacs
   package.  The menu can then list modules that are off.
@@ -245,15 +245,15 @@ are core, 33 optional.  =Package-Requires= left out: =use-package
 
 Next, in order:
 1. *Decoupling* (contract rules 10 and 11): the entries of
-   12-transient.el and 08-keybindings.el that name other modules'
+   212-transient.el and 208-keybindings.el that name other modules'
    commands move into those modules, through =my/transient-append= and
    their own keys.  Then spelling, capture, centred writing, the
    dashboard, export, the bibliography with Zotero, and fixed tabs can
    become optional.  Small ones along the way: the Readwise /zettel/
-   action guarded, so that Readwise does not need 22-zettelkasten.
+   action guarded, so that Readwise does not need 422-zettelkasten.
    - Done 2026-10-16d, part 1: Zotero and the bibliography optional
      (the Tools menu's Integrations column filled by the modules, before
-     Quit); Readwise without 22-zettelkasten.
+     Quit); Readwise without 422-zettelkasten.
    - Done 2026-10-16e, part 2: spelling, writing mode, centred text,
      Org appearance optional.  The View menu's Toggle column ends in
      Quit, before which the modules insert; the Spelling column is
@@ -262,7 +262,7 @@ Next, in order:
    - Done 2026-10-19e, part 3: capture, PDF export, the dashboard,
      fixed tabs optional; every entry of the Create, Find, Export and
      View menus that belongs to an optional module is added by it,
-     anchored on 12-transient's own Quit or first column.  9 modules
+     anchored on 212-transient's own Quit or first column.  9 modules
      core, 43 optional.  =init.el= still loads them without NOERROR;
      the loader (3.) decides.
    - Done 2026-10-19f: skipped entries recorded and a taken key
@@ -278,8 +278,8 @@ Next, in order:
      module registers one hint word with the entry it adds
      (=my/transient-hint=), and the main menu's descriptions are
      functions joining the words of what loaded.  A registry of whole
-     submenus is not needed any more: 12-transient.el requires only
-     05-notes, and a module with a submenu of its own already adds it
+     submenus is not needed any more: 212-transient.el requires only
+     205-notes, and a module with a submenu of its own already adds it
      with =my/transient-append= (19, 22, 26, 28, 37, 38).
 2. *A minor mode per module* (rule 12), the integrations first:
    Obsidian import, Readwise, Zotero, blog, drill.
@@ -292,8 +292,8 @@ Next, in order:
    - Left: the modules that also set things up at load -- hooks on Org
      or on files, advice, packages configured: 02b, 03b, 06, 09, 10,
      11, 13, 15, 16, 19, 20, 23, 25, 28, 29, 30, 31, 33, 34, 40, 41,
-     45, 47, 48; and 17-bibliography (other modules' exports use the
-     citation machinery it sets up) and 03-spelling.  Decided
+     45, 47, 48; and 417-bibliography (other modules' exports use the
+     citation machinery it sets up) and 303-spelling.  Decided
      2026-10-19: *one module per session*, and each first *rethought
      rather than rewritten* -- what it is for, whether it belongs where
      it is, what "off" should mean.  Examples raised: the writing mode
@@ -304,7 +304,7 @@ Next, in order:
      shipped -- the author's choice, as for any configuration; someone
      who clones the repository changes them in the code.  The loader
      can still leave any of them out (at the next start).
-3. *The loader* -- done 2026-10-19n: =my/modules-load= (00-core.el)
+3. *The loader* -- done 2026-10-19n: =my/modules-load= (000-core.el)
    reads the headers, leaves out what is in =my/modules-off= or needs
    what is left out, guards optional modules against errors, reports
    after start-up; =C-c n , m= turns modules on and off with their
@@ -483,14 +483,14 @@ compilation of every module with warnings shown (not failing at first:
 a list of the existing ones goes into the workflow, and only new ones
 fail), and the ERT files that run without packages
 (=tests/test-spelling-dictionary.el=).  =tests/test-notes-search.el=
-needs 00-core.el (=my/settings-apply-on-set=) since the settings work:
+needs 000-core.el (=my/settings-apply-on-set=) since the settings work:
 stand-ins as in test-spelling-dictionary.el make it run alone again.
 =tests/test-journal-metrics.el= needs the full configuration and waits
 for a package cache in the workflow.
 
 *Done 2026-10-19q*: =hooks/check-all= runs parens, lint and every
 =tests/test-*.el=, each in its own =emacs -Q --batch= with the user's
-installed packages; =tests/helper.el= loads 00-core.el and the modules
+installed packages; =tests/helper.el= loads 000-core.el and the modules
 a test names in a sandbox (temporary HOME, settings folder and
 =~/.emacs.d=), so notes-search and journal-metrics run again without
 touching real data.  The workflow's job is now =bash hooks/check-all=
@@ -512,7 +512,7 @@ byte compilation against a list of known warnings, the load and switch
 tests of every module.  On its first local run it found four faults,
 fixed in the same patch: =C-c h k= broken since 2026-09-12, =C-c v c=
 calling a function Magit does not have, menu entries staying after a
-module was switched off (transient 0.13), and 01-ui.el stopping the
+module was switched off (transient 0.13), and 101-ui.el stopping the
 start in an Emacs without scroll bars.
 
 * Module tests
@@ -535,7 +535,7 @@ The weekly byte compilation began with 28 warnings, listed in
 =tests/weekly/compile-warnings.txt= so that only new ones fail.  Each is
 fixed in the module's next patch and its line removed; a new warning is
 fixed at once, not listed (decided 2026-10-22).  Fixed so far: the
-docstring of 13-centered-writing (2026-10-22g); the five obsolete
+docstring of 313-centered-writing (2026-10-22g); the five obsolete
 option names -- =denote-link-button-action=,
 =org-confirm-elisp-link-function=, =spacious-padding-subtle-mode-line=,
 =org-export-before-processing-hook= set under their new names,
@@ -597,7 +597,7 @@ was rejected: thousands of lines, and a switch or a failing test could
 no longer name one feature.
 
 First ideas, to be decided on the map: 02, 02b, 04, 05b, 06, 13, 30,
-32, 33, 41 near 05-notes (05b with its own switch and tests may stay a
+32, 33, 41 near 205-notes (05b with its own switch and tests may stay a
 module of the group); 09, 10, 11 with the look; 17 and 18 one module
 (18 is a 99-line menu for 17); 35 and 36 together, 14 apart (it logs
 keys); 03 stays separate so that a jinx module can replace it -- which
@@ -642,7 +642,7 @@ and which stay on a machine (/A public repository/, README for others).
 
 * Journal metrics configurable
 Asked 2026-10-25, with the module map: the fields of the journal
-metrics (05b-journal-metrics.el, =my/journal-metrics-fields=, today a
+metrics (405b-journal-metrics.el, =my/journal-metrics-fields=, today a
 =defvar= in the code) set from the settings menu and kept locally, so
 that an update of 05 or 05b never loses a user's own fields.  Notes for
 the decision:
@@ -668,14 +668,14 @@ own, with its options and a menu.
 
 Not quick: the templates are spread over seven modules today, each
 inserted in its own way.  Where they are on 2026-10-22:
-- org-capture templates: Ideas =j= (06-capture), tasks =t= (37-tasks),
-  habits =h= (38-habits);
+- org-capture templates: Ideas =j= (306-capture), tasks =t= (437-tasks),
+  habits =h= (438-habits);
 - the front matter and first heading of a journal note, today's and a
-  backdated one (05-notes), and the metrics keywords (05b);
-- the bodies of the philosophy note types (19-philosophy-notes);
-- the Denote template of a bibliography note (17-bibliography,
+  backdated one (205-notes), and the metrics keywords (05b);
+- the bodies of the philosophy note types (419-philosophy-notes);
+- the Denote template of a bibliography note (417-bibliography,
   =denote-templates=);
-- report and export skeletons (36-notes-stats and others) -- probably
+- report and export skeletons (836-notes-stats and others) -- probably
   left in the code: they are output, not notes.
 
 What exists already, so nothing new has to be invented for reading a
@@ -730,7 +730,7 @@ Run by hand 2026-10-19q, from their GitHub releases:
   =gitleaks dir=): 877 commits and the working tree, no leaks found.
   To run again before the repository goes public, and in the workflow.
   The workflow's 8.30.1 found one, a false positive (2026-10-19w): a
-  comment in 08-keybindings.el, the word "keys" followed by a comma and
+  comment in 208-keybindings.el, the word "keys" followed by a comma and
   a file name, taken for a key by the rule generic-api-key; ignored by its fingerprint in
   =.gitleaksignore=, the comment reworded.
 - *ShellCheck* 0.10.0 on =hooks/pre-commit= and =hooks/check-all=, the
@@ -754,12 +754,12 @@ Next, in order:
      a private folder;
    - a file name with spaces, quotes, =;= or =$(...)= passed to an
      outside program is an argument, never shell syntax (12 modules
-     run programs; 46-blog.el calls =shell-command= once);
+     run programs; 746-blog.el calls =shell-command= once);
    - moving and deleting stay inside their folder (notes root move,
      =my/var--move-old-files=, backups);
    - a failed git command is reported as failed.
-4. *An independent review* of 46-blog, 07-git, 39-project-git and the
-   moves in 00-core: an agent that did not write them, given only the
+4. *An independent review* of 746-blog, 207-git, 439-project-git and the
+   moves in 000-core: an agent that did not write them, given only the
    specification and the code, or a person who knows Emacs.
 Not for this repository: vulnix and NixOS VM tests (the NixOS
 configuration), elisp-lint/package-lint (for packages published to
@@ -808,7 +808,7 @@ repository, differ between machines, or exist in several variants
 Before 2026-10-19o, written into =~/.emacs.d= and kept out of git only by
 =.gitignore=: =recentf=, =saveplace=, =bookmarks=, =savehist=/=history=,
 =desktop/=, =.org-id-locations=, =org-clock-save.el=, =keys= (keylog,
-14-typing-analytics.el), =.emacs.keyfreq=, =transient/= (menu
+114-typing-analytics.el), =.emacs.keyfreq=, =transient/= (menu
 history), =persist/= (org-drill's learning data), =undo-fu-session/=
 (text of edited buffers), =tramp=, =url/=, =eshell/=, =notes-root.eld=.
 
@@ -820,8 +820,8 @@ Proposal:
   =hosts/<host>/var/= of the settings folder, so that history,
   sessions and positions stay per machine and per role.  Both
   variables have to be set before the package loads, so early in
-  00-core.el; its own README adds both folders to =recentf-exclude=.
-- Three kinds of file, each with one helper in 00-core.el, used by
+  000-core.el; its own README adds both folders to =recentf-exclude=.
+- Three kinds of file, each with one helper in 000-core.el, used by
   every module instead of =user-emacs-directory=:
   - /settings/ (=custom.el=): already per machine;
   - /state of this machine/ (keylog, recent settings, notes root):
@@ -840,14 +840,14 @@ modules turned off is itself a setting.
 
 *Done 2026-10-18a*, the first file of the third kind: the personal
 dictionary, in =dictionaries/= at the root of the settings folder
-(=03-spelling.el=, =my/spell-personal-dictionary=), with
+(=303-spelling.el=, =my/spell-personal-dictionary=), with
 =merge=union= for git and a record of what each machine brought in in
 =hosts/<host>/spelling.eld=.  The pattern -- shared data at the root,
 the per-machine record of a migration under =hosts/<host>/= -- is the
 one the remaining files can follow.
 
 *Done 2026-10-19o*, the files of Emacs and of packages: no-littering
-loaded in 00-core.el before custom.el, =var/= in =hosts/<host>/=, =etc/=
+loaded in 000-core.el before custom.el, =var/= in =hosts/<host>/=, =etc/=
 at the root of the settings folder (shared), the old files moved at
 every start while their new place is free, a file found in both places
 reported and left, =/hosts/*/var/= in the settings folder's
@@ -858,13 +858,13 @@ Decided (asked 2026-10-19): org-drill's learning data per machine, in
 progress.
 
 *Done 2026-10-19p*: the keylog in =var/keys=; =;; MyPKS-Writes:= in
-the header (00-core, 01-ui, 02-editing, 14-typing-analytics); lint
+the header (000-core, 101-ui, 102-editing, 114-typing-analytics); lint
 check =codefolder=: a file named in =~/.emacs.d= must be a file of the
 repository.  The search found no other module writing there.
 
 *Left*:
 - =MyPKS-Writes:= in the other modules that write files outside the
-  notes (03-spelling, 48-settings-tools, 46-blog's sites, ...), when
+  notes (303-spelling, 148-settings-tools, 746-blog's sites, ...), when
   each is next touched; a check that the header is there needs a list
   of writing functions, so it waits.
 - =.stignore= for Syncthing users with the settings folder inside the
@@ -882,18 +882,18 @@ the folder is in use), so that each collection carries its own list.
 * Technical blog from this repository
 Asked 2026-10-15: the Markdown and Org files of this repository
 (README, CHANGELOG, BACKLOG, TESTPLAN, function_helper.org) readable as
-a site, like the NixOS documentation of 47-repo-docs.el -- in the same
+a site, like the NixOS documentation of 747-repo-docs.el -- in the same
 site if the two stay clearly apart, so that files with the same name
 (both have a README.md) never mix; otherwise a second site.
 
-*Proposed: one site, one section per repository.*  47-repo-docs.el
+*Proposed: one site, one section per repository.*  747-repo-docs.el
 already writes each file to a URL made from its repository path; with a
 list of repositories instead of one (=my/repo-docs-repositories=:
 name, folder, title), each goes under its own top-level section,
 /nixos/... and /emacs/..., with its own entry in Geekdoc's menu, so
 =README.md= becomes /nixos/ and /emacs/ respectively.  Saving a file of
 either regenerates the site.  New: Org files, which 47 does not read --
-exported to Markdown with ox-md (or ox-hugo, already used by 46-blog.el)
+exported to Markdown with ox-md (or ox-hugo, already used by 746-blog.el)
 before the same processing; =function_helper.org= is large, so one page
 per top-level heading.  Links between the two repositories are not
 rewritten.  *Why later*: a change of 47's data model (one repository
@@ -911,7 +911,7 @@ links between the two repositories (left as text, reported).
 
 * Fonts as configuration, per silo
 Proposed 2026-10-12, after the journal PDF export broke on font lookup.
-Today the screen fonts are in =03b-fonts.el= (=my/font-silo-styles=, by
+Today the screen fonts are in =503b-fonts.el= (=my/font-silo-styles=, by
 folder name) and the PDF font is one string, =my/latex-journal-font=.
 Goal: one font setting per silo in the registry, used for both the
 screen face and the PDF, taken (a) from the system by family name or
@@ -926,7 +926,7 @@ Proposed 2026-10-12.  Someone coming from Obsidian has Markdown notes
 in a vault: folders, =[[wikilinks]]=, no Denote names, and no notion of
 silos -- a vault is opened on its own, switching or a second window.
 Options, not decided:
-- *Migration*, which exists: =42-obsidian-import.el= converts a vault
+- *Migration*, which exists: =442-obsidian-import.el= converts a vault
   into Denote notes in the silos.
 - *A vault read in place* as a silo with sub-folders and Markdown
   files.  Candidate to evaluate first, before writing anything:
@@ -1028,7 +1028,7 @@ the decision, to be checked before it:
   list of the packages that touch the network or run programs (magit,
   pdf-tools, request, ...) to watch by hand may be what is realistic.
 - Asked again 2026-10-23 (regular updates, like the weekly flake
-  update).  Meanwhile: 49-packages.el (2026-10-23p) upgrades with a
+  update).  Meanwhile: 149-packages.el (2026-10-23p) upgrades with a
   copy of the package folder and a way back -- no lock, but no upgrade
   without a return.  Next: Elpaca or straight.el compared, to be
   discussed with the owner.
@@ -1045,9 +1045,9 @@ done (2026-10-14g); =insert-current-time=, =insert-current-date=,
 *Why*: an anonymous function cannot be removed with =remove-hook= and
 shows as a closure in =describe-variable=.  *How*: when a module is
 next touched, name its lambdas; left: =init.el= (the after-init GC
-reset), =00-core.el= (the mode-line seam on =after-init-hook=).
-=07-git.el= and =03-spelling.el= done (2026-10-19b, 2026-10-18b).  Advice inside loops
-(=23-fixed-tabs.el=, =31-org-images.el=): guard with =advice-member-p=
+reset), =000-core.el= (the mode-line seam on =after-init-hook=).
+=207-git.el= and =303-spelling.el= done (2026-10-19b, 2026-10-18b).  Advice inside loops
+(=323-fixed-tabs.el=, =331-org-images.el=): guard with =advice-member-p=
 so reloading a module does not stack it.
 
 ** TODO Smaller review items
@@ -1061,7 +1061,7 @@ so reloading a module does not stack it.
 - X12: =my-tasks-agenda-dirs= holds a file (=captures.org=) and is no
   longer the agenda; rename to what it is (all notes for scans) with an
   alias.
-- M1: split =46-blog.el= (2 000 lines) and =36-notes-stats.el= when next
+- M1: split =746-blog.el= (2 000 lines) and =836-notes-stats.el= when next
   changed substantially, not for its own sake.
 - M4: start-up messages with emoji ("✨ Emacs ready") -- the emoji cost
   of font fallback is measured by TESTPLAN B1; drop them if it shows.

@@ -1,13 +1,13 @@
-;;; test-zotero.el --- ERT tests for 17c-zotero -*- lexical-binding: t; -*-
+;;; test-zotero.el --- ERT tests for 417c-zotero -*- lexical-binding: t; -*-
 
-;; Tests: 17c-zotero
+;; Tests: 417c-zotero
 
 ;;; Commentary:
 
-;; 17c-zotero points citar at Zotero's attachments folder.  Tested: the
+;; 417c-zotero points citar at Zotero's attachments folder.  Tested: the
 ;; folder is citar's library path once citar loads, a new folder takes
 ;; effect at once, none gives no path; without the module citar has no
-;; library path from this configuration (17-bibliography sets none).
+;; library path from this configuration (417-bibliography sets none).
 ;; Needs citar installed.
 ;;
 ;;   emacs -Q --batch --eval '(package-initialize)' -l ert \
@@ -24,17 +24,17 @@
       nil t)
 (defvar citar-library-paths)
 
-(my/test-load-modules "04-denote" "05-notes" "17-bibliography")
+(my/test-load-modules "204-denote" "205-notes" "417-bibliography")
 (when (locate-library "citar") (require 'citar))
 
 (defconst my/zot-test--paths-without
   (and (boundp 'citar-library-paths) citar-library-paths)
-  "citar's library paths with 17-bibliography loaded and 17c-zotero not.")
+  "citar's library paths with 417-bibliography loaded and 417c-zotero not.")
 
-(my/test-load-modules "17c-zotero")
+(my/test-load-modules "417c-zotero")
 
 (ert-deftest my/zot-test-only-the-module-sets-the-folder ()
-  "17-bibliography alone sets no library path; 17c-zotero sets the
+  "417-bibliography alone sets no library path; 417c-zotero sets the
 folder, expanded, once citar is loaded."
   (skip-unless (featurep 'citar))
   (should-not my/zot-test--paths-without)

@@ -1,10 +1,10 @@
-;;; test-journal-gaps.el --- ERT tests for 35-journal-gaps -*- lexical-binding: t; -*-
+;;; test-journal-gaps.el --- ERT tests for 835-journal-gaps -*- lexical-binding: t; -*-
 
-;; Tests: 35-journal-gaps
+;; Tests: 835-journal-gaps
 
 ;;; Commentary:
 
-;; 35-journal-gaps lists the days of the last N with no journal note, or
+;; 835-journal-gaps lists the days of the last N with no journal note, or
 ;; with a note missing metrics.  Its whole content is a claim about what
 ;; is missing, so these tests check what it leaves out as much as what
 ;; it lists: complete days, days before the first note, other silos'
@@ -23,7 +23,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "05-notes" "35-journal-gaps")
+(my/test-load-modules "205-notes" "835-journal-gaps")
 
 (defmacro my/jg-test-with-journal (&rest body)
   "Run BODY with a fresh journal folder as `my-notes-journal'.

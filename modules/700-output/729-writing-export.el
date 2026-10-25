@@ -1,0 +1,359 @@
+;;; 729-writing-export.el --- ODT and DOCX export -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires: 428-writing-projects
+;; MyPKS-Optional: yes
+
+;;; Commentary:
+;; Office-format export for text that leaves Emacs: a chapter sent to a
+;; supervisor, an article sent to an editor.
+;;
+;; WHY ORG'S EXPORTER AND NOT PANDOC.  Pandoc reads Org and writes DOCX
+;; directly, in one step, and produces real Word footnotes from org-cite
+;; citations.  It is the obvious choice and it is the wrong one here, for
+;; two reasons:
+;;
+;;   Its Org reader is a reimplementation, not Org.  `#+INCLUDE:' with a
+;;   heading target (`file.org::*Heading') is not supported: pandoc warns
+;;   and omits the content.  `:only-contents t' is ignored, so the heading
+;;   comes through anyway.  Both are how 420-transclusion.el writes INCLUDE
+;;   pairs, so a manuscript assembled that way would export short without
+;;   failing.
+;;
+;;   It renders citations with its own citeproc.  PDF goes through Org and
+;;   citeproc-el; if DOCX went through pandoc, the same source could
+;;   produce two different citation apparatus, and the difference would
+;;   only appear in the copy already sent.
+;;
+;; So: Org exports to ODT, and LibreOffice converts ODT to DOCX.  Same
+;; exporter as PDF, same INCLUDE handling, same citation renderer.  The
+;; conversion step is mechanical.
+;;
+;; ODT IS ALSO A DELIVERABLE.  Word has opened ODT since 2007 and
+;; OnlyOffice reads it natively, so `my/org-export-to-odt' is often
+;; enough.  DOCX matters when the document comes back: a supervisor's
+;; tracked changes and comments survive a DOCX round-trip through Word
+;; more reliably than an ODT one.
+;;
+;; RELATION TO OTHER MODULES
+;; - 716-org-export.el: reuses its filename, destination and overwrite
+;;   helpers when present, and falls back to local equivalents when not.
+;;   Also relies on its denote-link filter being backend-aware -- the
+;;   LaTeX-only version deleted link descriptions from ODT output.
+;; - 417-bibliography.el: citations come out through org-cite and CSL.
+;;   A note style produces real footnotes in ODT.
+;; - 428-writing-projects.el: optional.  When a file declares `#+project:',
+;;   output goes to that project's directory instead of the notes tree.
+;; - 212-transient.el: menu entries appended via `my/transient-append'.
+;;
+;; Docs: ~/.emacs.d/function_helper.org::#office-export
+
+;;; Code:
+
+(require 'ox)
+(require 'cl-lib)
+
+(declare-function org-odt-export-to-odt "ox-odt" (&optional async subtreep visible-only ext-plist))
+
+(defgroup my/writing-export nil
+  "Export to office formats."
+  :tag "Export: writing projects"
+  :group 'mypks-writing)
+
+(defcustom my/office-output-dir (expand-file-name "export/" my-notes-dir)
+  "Root directory for exported office documents.
+
+Used for notes that do not belong to a writing project.  Subdirectories
+mirror the silo structure, as the PDF output does."
+  :type 'directory
+  :group 'my/writing-export)
+
+(defcustom my/office-project-subdirectory "export"
+  "Subdirectory of a project directory receiving its exports."
+  :type 'string
+  :group 'my/writing-export)
+
+(defcustom my/office-convert-timeout 120
+  "Seconds to wait for LibreOffice to convert a document.
+
+Emacs waits for the conversion because the result has to be moved into
+place afterwards; after this many seconds LibreOffice is stopped and
+the export fails.  The first run of the session is much slower than
+the rest, since LibreOffice starts a headless instance."
+  :type 'integer
+  :group 'my/writing-export)
+
+;; ============================================================
+;; ODT BACKEND
+;; ============================================================
+;; ox-odt ships with Org but is not loaded by default.
+
+(with-eval-after-load 'org
+  (require 'ox-odt nil t))
+
+(with-eval-after-load 'ox-odt
+  ;; Org can convert the ODT itself, but doing that through
+  ;; `org-odt-preferred-output-format' would apply to every ODT export
+  ;; including the ones that only want ODT.  Conversion is driven per
+  ;; command here instead.
+  (setq org-odt-preferred-output-format nil))
+
+;; ============================================================
+;; HELPERS
+;; ============================================================
+;; 716-org-export.el defines equivalents of the first three.  They are
+;; reused when it is loaded and reimplemented when it is not, so that
+;; this module works on its own without duplicating behaviour when both
+;; are present.
+
+(defun my/office--org-title (org-file)
+  "Return the #+title: of ORG-FILE, or nil."
+  (if (fboundp 'my/org-buffer-title)
+      (my/org-buffer-title org-file)
+    (with-temp-buffer
+      (insert-file-contents org-file nil 0 2000)
+      (goto-char (point-min))
+      (when (re-search-forward "^#\\+title:[ \t]*\\(.+\\)" nil t)
+        (string-trim (match-string 1))))))
+
+(defun my/office--safe-name (title)
+  "Turn TITLE into a file name, keeping spaces and diacritics."
+  (if (fboundp 'my/org-export-title-to-filename)
+      (my/org-export-title-to-filename title)
+    (replace-regexp-in-string "[/\\\\:*?\"<>|[:cntrl:]]" "" title)))
+
+(defun my/office--resolve-dest (dest)
+  "Prompt when DEST exists; return the path to use, or nil to cancel."
+  (if (fboundp 'my/org-export-resolve-destination)
+      (my/org-export-resolve-destination dest)
+    (if (not (file-exists-p dest))
+        dest
+      (when (y-or-n-p (format "%s exists.  Overwrite? "
+                              (file-name-nondirectory dest)))
+        dest))))
+
+(defun my/office--project-of (org-file)
+  "Return the writing project ORG-FILE belongs to, or nil.
+Nil whenever 428-writing-projects.el is absent, which makes the project
+directory an enhancement rather than a requirement."
+  (when (and (fboundp 'my/writing-file-projects)
+             (fboundp 'my/writing-project-directory))
+    (car (my/writing-file-projects org-file))))
+
+(defun my/office--dest-dir (org-file)
+  "Return the output directory for ORG-FILE, creating it if needed.
+
+A file belonging to a writing project exports into that project, since
+the document is a deliverable of the project rather than of the notes.
+Everything else mirrors the silo structure under `my/office-output-dir'."
+  (let* ((project (my/office--project-of org-file))
+         (dir
+          (if project
+              (expand-file-name my/office-project-subdirectory
+                                (my/writing-project-directory project))
+            ;; Inside the notes folder by `file-in-directory-p', not by a
+            ;; common prefix of names: with the notes folder written
+            ;; without its final slash, `~/notes-old/' began with
+            ;; `~/notes' and its notes went to export/-old/ (until
+            ;; 2026-10-24, found by the tests of this module).
+            (let* ((root (file-name-as-directory (expand-file-name my-notes-dir)))
+                   (here (file-name-as-directory
+                          (expand-file-name (file-name-directory org-file))))
+                   (rel (when (file-in-directory-p here root)
+                          (file-relative-name here root)))
+                   (silo (when (and rel (not (member rel '("./" "."))))
+                           (car (split-string rel "/" t)))))
+              (if silo
+                  (expand-file-name (concat silo "/") my/office-output-dir)
+                my/office-output-dir)))))
+    (unless (file-directory-p dir)
+      (make-directory dir t))
+    (file-name-as-directory dir)))
+
+;; ============================================================
+;; CONVERSION
+;; ============================================================
+
+(defun my/office--soffice ()
+  "Return the LibreOffice binary, or nil."
+  (or (executable-find "soffice") (executable-find "libreoffice")))
+
+(defun my/office--convert (odt-file format)
+  "Convert ODT-FILE to FORMAT with LibreOffice, in place.
+Returns the produced file, or nil.  FORMAT is a LibreOffice filter name
+such as \"docx\"."
+  (let ((soffice (my/office--soffice))
+        (dir (file-name-directory odt-file))
+        (out (concat (file-name-sans-extension odt-file) "." format)))
+    (unless soffice
+      (user-error "LibreOffice not found -- install it, or export ODT only"))
+    ;; An asynchronous process waited for with a deadline.  Until
+    ;; 2026-10-24 a synchronous `call-process' inside `with-timeout':
+    ;; the timer cannot run while `call-process' waits, so a LibreOffice
+    ;; that never returned froze Emacs until C-g (found by the tests of
+    ;; this module).
+    (let ((proc (make-process
+                 :name "office-convert"
+                 :buffer (get-buffer-create "*office-convert-log*")
+                 :command (list soffice "--headless" "--convert-to" format
+                                "--outdir" (directory-file-name dir) odt-file)
+                 :connection-type 'pipe
+                 :noquery t
+                 :sentinel #'ignore))
+          (deadline (+ (float-time) my/office-convert-timeout))
+          (stopped nil))
+      (unwind-protect
+          (while (and (process-live-p proc) (< (float-time) deadline))
+            (accept-process-output proc 0.2))
+        ;; Stopped on time out, and on C-g while waiting.
+        (when (process-live-p proc)
+          (setq stopped t)
+          (delete-process proc)))
+      (cond
+       (stopped
+        (message "LibreOffice did not finish within %ds and was stopped -- see *office-convert-log*"
+                 my/office-convert-timeout)
+        nil)
+       ((and (zerop (process-exit-status proc)) (file-exists-p out))
+        out)
+       (t
+        (message "Conversion failed (exit %s) -- see *office-convert-log*"
+                 (process-exit-status proc))
+        nil)))))
+
+;; ============================================================
+;; EXPORT
+;; ============================================================
+
+(defun my/office--export-odt (org-file odt)
+  "Export ORG-FILE with Org's ODT exporter into the file ODT.
+Returns the file written, or nil.
+
+`org-odt-export-to-odt' is the exporter's own command: it binds the
+variables the ODT backend needs and packs the result into a zip.  It
+has no argument for the output file and always writes beside the note,
+so the one function that names that file is overridden for the length
+of the call.  Until 2026-10-24 this used the generic
+`org-export-to-file', which only writes the backend's text: no zip,
+and with Org 9.6 an error on the first export (void variable
+`hfy-user-sheet-assoc', bound only by the exporter's own command).
+Neither ODT nor DOCX export could have worked (found by the tests of
+this module)."
+  (let ((target (lambda (&rest _) odt)))
+    (advice-add 'org-export-output-file-name :override target)
+    (unwind-protect
+        (with-current-buffer (find-file-noselect org-file)
+          (org-odt-export-to-odt))
+      (advice-remove 'org-export-output-file-name target))))
+
+(defun my/office--export (org-file format)
+  "Export ORG-FILE to FORMAT, which is either `odt' or `docx'.
+Returns the destination path, or nil when cancelled or failed."
+  (let* ((title (my/office--org-title org-file))
+         (name (if title (my/office--safe-name title) (file-name-base org-file)))
+         (dir (my/office--dest-dir org-file))
+         (dest (my/office--resolve-dest
+                (expand-file-name (format "%s.%s" name format) dir))))
+    (when dest
+      ;; Build in a temporary directory: ox-odt writes several
+      ;; intermediate files, and LibreOffice adds its own, none of which
+      ;; belong beside the finished document.
+      (let ((build (make-temp-file "org-odt-" t))
+            (result nil))
+        (unwind-protect
+            (let* ((odt (expand-file-name (concat name ".odt") build))
+                   (produced (my/office--export-odt org-file odt)))
+              (when (and produced (file-exists-p odt))
+                (let ((final (if (equal format "odt")
+                                 odt
+                               (my/office--convert odt format))))
+                  (when (and final (file-exists-p final))
+                    (rename-file final dest t)
+                    (setq result dest)))))
+          (when (file-directory-p build)
+            (delete-directory build t)))
+        result))))
+
+;;;###autoload
+(defun my/org-export-to-odt ()
+  "Export the current Org buffer to ODT.
+
+Output goes to the project's export directory when the file declares
+`#+project:', otherwise to `my/office-output-dir' mirroring the silo.
+Citations are rendered by org-cite: with a CSL note style they become
+real footnotes, with \"ibid.\" resolved from actual adjacency."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (unless (and file (string-suffix-p ".org" file))
+      (user-error "Not visiting an Org file"))
+    (when (buffer-modified-p) (save-buffer))
+    (message "Exporting to ODT...")
+    (let ((dest (my/office--export file "odt")))
+      (if dest (message "✓ ODT saved to: %s" dest)
+        (message "✗ Export cancelled or failed")))))
+
+;;;###autoload
+(defun my/org-export-to-docx ()
+  "Export the current Org buffer to DOCX, via ODT and LibreOffice.
+
+Use this when the document is going to come back edited: tracked changes
+and comments made in Word survive a DOCX round-trip more reliably than
+an ODT one.  For a document that is only read, ODT is enough and skips
+the conversion."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (unless (and file (string-suffix-p ".org" file))
+      (user-error "Not visiting an Org file"))
+    (unless (my/office--soffice)
+      (user-error "LibreOffice not found -- `my/org-export-to-odt' still works"))
+    (when (buffer-modified-p) (save-buffer))
+    (message "Exporting to DOCX (first conversion of the session is slow)...")
+    (let ((dest (my/office--export file "docx")))
+      (if dest (message "✓ DOCX saved to: %s" dest)
+        (message "✗ Export cancelled or failed")))))
+
+;;;###autoload
+(defun my/office-check-setup ()
+  "Report whether office export is ready, and what is missing if not.
+
+Worth running before relying on it: every failure mode here is quiet.
+A missing ox-odt exports nothing, a missing LibreOffice produces an ODT
+where a DOCX was asked for, and a citation processor that is not CSL
+produces a document with no bibliography at all."
+  (interactive)
+  (let (problems)
+    (unless (featurep 'ox-odt)
+      (push "ox-odt is not loaded -- ODT export unavailable" problems))
+    (unless (my/office--soffice)
+      (push "LibreOffice not found -- DOCX conversion unavailable" problems))
+    (when (and (boundp 'org-cite-export-processors)
+               (not (eq (cadr (assq t org-cite-export-processors)) 'csl)))
+      (push "org-cite fallback processor is not csl -- citations will export unformatted"
+            problems))
+    (unless (fboundp 'my/org-export-denote-links-to-text)
+      (push "denote link filter missing (716-org-export.el not loaded)" problems))
+    (if problems
+        (message "Office export NOT ready:\n- %s"
+                 (string-join (nreverse problems) "\n- "))
+      (message "Office export ready: ODT via ox-odt, DOCX via %s"
+               (my/office--soffice)))))
+
+;; ============================================================
+;; MENU
+;; ============================================================
+
+;; Inserted before Quit, the one entry of `my/notes-export-menu' that
+;; 212-transient.el owns.  Anchored on "Q" (716-org-export.el) until
+;; 2026-10-19, so the entries vanished without that module, and each
+;; append after the same "Q" put them in reverse order.
+
+(with-eval-after-load '212-transient
+  (when (fboundp 'my/transient-insert)
+    (my/transient-insert 'my/notes-export-menu "q"
+                         '("O" "Export to ODT" my/org-export-to-odt))
+    (my/transient-insert 'my/notes-export-menu "q"
+                         '("W" "Export to DOCX" my/org-export-to-docx))
+    (my/transient-insert 'my/notes-export-menu "q"
+                         '("?" "Check office export setup" my/office-check-setup))))
+
+(provide '729-writing-export)
+;;; 729-writing-export.el ends here

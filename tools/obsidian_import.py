@@ -23,7 +23,7 @@ Requires pandoc and PyYAML.  On NixOS:
 
 Routing:
     YYYY-MM-DD.md            -> ~/notes/journal/, merged under '* Obsidian'
-    everything else          -> ~/notes/inbox/, reviewed by 25-inbox-review.el
+    everything else          -> ~/notes/inbox/, reviewed by 425-inbox-review.el
 
 After a successful import the markdown file moves to
 VAULT/Imported2Emacs/<YYYY>/, the year directory being created on demand.
@@ -87,7 +87,7 @@ SETTLE_SECONDS = 60
 MAX_FILENAME_BYTES = 180
 
 # Heading imported material is filed under, and the journal front matter
-# this configuration writes (see my/denote-journal in 05-notes.el).
+# this configuration writes (see my/denote-journal in 205-notes.el).
 OBSIDIAN_HEADING = "Obsidian"
 SCHEMA_VERSION = 2
 LANGUAGE = "pl"
@@ -408,7 +408,7 @@ def journal_keywords(path):
 def journal_file_date(path):
     """Return the date a journal file describes, or None.
 
-    Mirrors my/journal-file-date in 05-notes.el: the 'journal' keyword
+    Mirrors my/journal-file-date in 205-notes.el: the 'journal' keyword
     identifies the file, the date comes from the slug and falls back to
     the identifier.  The title is deliberately not consulted.
     """
@@ -444,7 +444,7 @@ def existing_identifiers(notes_dir):
     """Return every Denote identifier currently used in the notes tree.
 
     Every file counts, whatever its extension: a Markdown or text note
-    (40-markdown.el) is a Denote note too, and an attachment named for
+    (440-markdown.el) is a Denote note too, and an attachment named for
     a note that was deleted since would otherwise be taken for the new
     note's own.  Dot folders are skipped by their path inside the
     tree, so a notes tree that itself lies under a dot folder is read.
@@ -465,7 +465,7 @@ def existing_identifiers(notes_dir):
 def unique_identifier(created, taken):
     """Return an unused identifier, bumping by seconds on collision.
 
-    Same rule as my/denote-fix-duplicates in 27-denote-identifiers.el:
+    Same rule as my/denote-fix-duplicates in 227-denote-identifiers.el:
     seconds move, the date never does.
     """
     stamp = created
@@ -546,7 +546,7 @@ def insert_into_journal(text, block, nested):
 
 
 def inbox_note_text(title, created, ident, tags, source_rel, body):
-    """Return a complete inbox note, ready for 25-inbox-review.el.
+    """Return a complete inbox note, ready for 425-inbox-review.el.
 
     The file-level properties drawer carries :source_path: and :status:,
     which are the two fields that module reads besides the front matter.

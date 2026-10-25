@@ -68,10 +68,10 @@ says how a test shows it.  Running them: =bash hooks/check-all=
     Magit): the menu entry had another shape.  The workflow installs
     the archive transient (=tests/ci-packages.el=); a test reads data
     of a package through its documented interface, or tolerates every
-    shape it has had.  (2026-10-20f.)  Again 2026-10-22: 12-transient's
+    shape it has had.  (2026-10-20f.)  Again 2026-10-22: 212-transient's
     own reader of a menu entry knew only the built-in shape, so with
     0.13 a module switched off kept its menu entries; found by the
-    weekly switch test, not by a test of 12-transient -- it had none.
+    weekly switch test, not by a test of 212-transient -- it had none.
 12. *Test the first start, not only the later ones.*  A setup can
     behave differently in the session that installs a package: there
     the package is already loaded -- the byte compilation of its own
@@ -96,7 +96,7 @@ says how a test shows it.  Running them: =bash hooks/check-all=
 15. *A planted fault nothing catches is a finding about the test as
     often as about the code.*  Either a second safeguard holds -- then
     both are taken out together, the test must fail on the pair, and
-    the CHANGELOG says so (=save-match-data= in 47-repo-docs, held by a
+    the CHANGELOG says so (=save-match-data= in 747-repo-docs, held by a
     link check that no longer changed the match data) -- or the test
     does not reach the code it names: the first test of Denote links
     in Org pages let-bound =org-link-parameters=, which Org's parser
@@ -111,11 +111,11 @@ says how a test shows it.  Running them: =bash hooks/check-all=
     computed apart from the code it checks; a test of date code also
     runs it on such a day, under =my/test-with-time-zone= with
     =my/test-central-europe=.  Code counts days only with the date
-    functions of 00-core.el (since 2026-10-26a, CHANGELOG.md lesson
+    functions of 000-core.el (since 2026-10-26a, CHANGELOG.md lesson
     L15), tested once in =tests/test-dates.el=.  (2026-10-25zh:
     two tests failed on the owner's machine at 23:23 on 2026-10-25,
-    and the search for the cause found 38-habits and
-    28-writing-projects doing the same.)
+    and the search for the cause found 438-habits and
+    428-writing-projects doing the same.)
 
 * Modules whose weekly tests are enough (2026-10-24)
 Asked by the owner: does every module, the cosmetic ones too, need
@@ -135,15 +135,15 @@ of a test when it changes.  The =modules= check refuses the header on
 a module whose code calls anything that changes files, runs a program
 or reaches the network (=CHANGES_FILES= in =hooks/module_contract.py=;
 it reads names in the code, not behaviour -- rule 7).  Not marked,
-though they write nothing, because what they do matters: 02-editing
-(it reloads buffers after a pull), 02b-bold-marker (it changes typed
+though they write nothing, because what they do matters: 102-editing
+(it reloads buffers after a pull), 302b-bold-marker (it changes typed
 text), 18-zotero-transient (it inserts formatted references; merged into
-17-bibliography on 2026-10-25zg),
-32-web-links (network), 35-journal-gaps (a report relied on).
+417-bibliography on 2026-10-25zg),
+332-web-links (network), 835-journal-gaps (a report relied on).
 
-Marked on 2026-10-24: 03b-fonts, 09-theme, 10-visual-fill,
-11-org-appearance, 13-centered-writing, 23-fixed-tabs, 30-link-tooltips,
-34-appearance, 44-image-display, 45-standard-pages.
+Marked on 2026-10-24: 503b-fonts, 509-theme, 510-visual-fill,
+511-org-appearance, 313-centered-writing, 323-fixed-tabs, 630-link-tooltips,
+534-appearance, 644-image-display, 645-standard-pages.
 
 * Which module a test tests
 Every test file starts with a header naming the modules whose
@@ -152,7 +152,7 @@ behaviour it asserts -- not every module it loads:
 #+begin_src emacs-lisp
 ;;; test-safety.el --- ERT tests for the rules of SAFETY.org -*- lexical-binding: t; -*-
 
-;; Tests: 00-core 05-notes 46-blog
+;; Tests: 000-core 205-notes 746-blog
 #+end_src
 
 The lint check =tests= (advisory) reads these headers: it lists the
@@ -191,7 +191,7 @@ them through the basics; until then the =tests= check reminds;
    =hooks/check-weekly= and the weekly workflow): for each module of
    init.el's list, made from the list and the headers -- a module
    renamed, merged or split needs no change to the tests:
-   - =alone=: 00-core, what the module declares, the module; nothing
+   - =alone=: 000-core, what the module declares, the module; nothing
      else.  A use of another module neither declared nor guarded
      fails.
    - =without= (optional modules): every other module but those
@@ -211,19 +211,19 @@ them through the basics; until then the =tests= check reminds;
    =tests/weekly/expected-failures.txt= with their reason; empty on
    2026-10-22.
 3. *Modules that touch data get tests of their functions first*, in
-   this order -- the order of SAFETY.org's risks: 05-notes (moving,
-   renaming; done 2026-10-22h, =tests/test-notes.el=), 07-git (done
-   2026-10-22j, =tests/test-auto-commit.el=), 27-denote-identifiers
+   this order -- the order of SAFETY.org's risks: 205-notes (moving,
+   renaming; done 2026-10-22h, =tests/test-notes.el=), 207-git (done
+   2026-10-22j, =tests/test-auto-commit.el=), 227-denote-identifiers
    (done 2026-10-22k, =tests/test-denote-identifiers.el=),
-   25-inbox-review (done 2026-10-22l, =tests/test-inbox-review.el=),
-   26-maintenance (done 2026-10-23b, =tests/test-maintenance.el=),
-   31-org-images (done 2026-10-23e, =tests/test-org-images.el=),
-   39-project-git (done 2026-10-23f, =tests/test-project-git.el=),
-   46-blog (SAFETY.org 1.1-1.4 and 1.6 done 2026-10-23g, in
-   =tests/test-safety.el=), 47-repo-docs (several repositories,
+   425-inbox-review (done 2026-10-22l, =tests/test-inbox-review.el=),
+   826-maintenance (done 2026-10-23b, =tests/test-maintenance.el=),
+   331-org-images (done 2026-10-23e, =tests/test-org-images.el=),
+   439-project-git (done 2026-10-23f, =tests/test-project-git.el=),
+   746-blog (SAFETY.org 1.1-1.4 and 1.6 done 2026-10-23g, in
+   =tests/test-safety.el=), 747-repo-docs (several repositories,
    2026-10-23j, =tests/test-repo-docs.el=; Org and publishing follow),
-   42-obsidian-import (done 2026-10-23r, =tests/test-obsidian-import.el=,
-   with its script =tools/obsidian_import.py=), 24-readwise (done
+   442-obsidian-import (done 2026-10-23r, =tests/test-obsidian-import.el=,
+   with its script =tools/obsidian_import.py=), 424-readwise (done
    2026-10-23t, =tests/test-readwise.el=, SAFETY.org 3.2); then the
    others, a few per session, as each is next changed.
 

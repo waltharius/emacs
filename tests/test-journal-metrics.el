@@ -1,9 +1,9 @@
-;;; test-journal-metrics.el --- ERT tests for 05b-journal-metrics -*- lexical-binding: t; -*-
+;;; test-journal-metrics.el --- ERT tests for 405b-journal-metrics -*- lexical-binding: t; -*-
 
-;; Tests: 05b-journal-metrics 21-dashboards
+;; Tests: 405b-journal-metrics 821-dashboards
 
 ;;; Commentary:
-;; Everything in 05b-journal-metrics.el and 21-dashboards.el that can be
+;; Everything in 405b-journal-metrics.el and 821-dashboards.el that can be
 ;; exercised without a human at the minibuffer: keyword read/write, the two
 ;; older formats and their conversion, prose counting, and the end-to-end
 ;; paths through `my/journal-set-metrics' with the prompts stubbed.
@@ -23,8 +23,8 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "04-denote" "05-notes" "05b-journal-metrics" "07-git" "12-transient"
-                      "21-dashboards")
+(my/test-load-modules "204-denote" "205-notes" "405b-journal-metrics" "207-git" "212-transient"
+                      "821-dashboards")
 
 ;; ============================================================
 ;; FIXTURES

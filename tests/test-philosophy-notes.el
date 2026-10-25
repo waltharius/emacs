@@ -1,10 +1,10 @@
-;;; test-philosophy-notes.el --- ERT tests for the philosophy notes of 19-philosophy-notes -*- lexical-binding: t; -*-
+;;; test-philosophy-notes.el --- ERT tests for the philosophy notes of 419-philosophy-notes -*- lexical-binding: t; -*-
 
-;; Tests: 19-philosophy-notes
+;; Tests: 419-philosophy-notes
 
 ;;; Commentary:
 
-;; 19-philosophy-notes.el creates five types of philosophy note in the
+;; 419-philosophy-notes.el creates five types of philosophy note in the
 ;; pks silo, each with its type keyword, the epoch keywords chosen and a
 ;; scaffold of headings: TESTING.org, *Every module tested*, part 3.  On
 ;; real files in a temporary notes folder; Denote runs, the prompts of
@@ -20,7 +20,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "19-philosophy-notes")
+(my/test-load-modules "419-philosophy-notes")
 
 (defvar denote-directory)
 

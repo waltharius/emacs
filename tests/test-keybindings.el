@@ -1,6 +1,6 @@
-;;; test-keybindings.el --- ERT tests for the keybinding help of 08-keybindings -*- lexical-binding: t; -*-
+;;; test-keybindings.el --- ERT tests for the keybinding help of 208-keybindings -*- lexical-binding: t; -*-
 
-;; Tests: 08-keybindings
+;; Tests: 208-keybindings
 
 ;;; Commentary:
 
@@ -21,9 +21,9 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-;; Only what the help command needs; 01-ui, also required by the
+;; Only what the help command needs; 101-ui, also required by the
 ;; module's header, sets up the interface and is not needed here.
-(my/test-load-modules "05-notes" "12-transient" "08-keybindings")
+(my/test-load-modules "205-notes" "212-transient" "208-keybindings")
 
 (ert-deftest my/keys-test-help-shows-whole-text ()
   "C-c h k shows the help text, from its title to its last line."

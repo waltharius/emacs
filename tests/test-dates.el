@@ -1,10 +1,10 @@
-;;; test-dates.el --- ERT tests for the date functions of 00-core -*- lexical-binding: t; -*-
+;;; test-dates.el --- ERT tests for the date functions of 000-core -*- lexical-binding: t; -*-
 
-;; Tests: 00-core
+;; Tests: 000-core
 
 ;;; Commentary:
 
-;; Every module counts days with the date functions of 00-core.el
+;; Every module counts days with the date functions of 000-core.el
 ;; (DATES), so they are tested here once, against dates written out by
 ;; hand -- never against the code's own arithmetic -- and under the
 ;; time zone of the owner's machines: the day summer time ends

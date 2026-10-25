@@ -1,10 +1,10 @@
-;;; test-repo-docs.el --- ERT tests for the repository docs site of 47-repo-docs -*- lexical-binding: t; -*-
+;;; test-repo-docs.el --- ERT tests for the repository docs site of 747-repo-docs -*- lexical-binding: t; -*-
 
-;; Tests: 47-repo-docs
+;; Tests: 747-repo-docs
 
 ;;; Commentary:
 
-;; 47-repo-docs.el turns the documents of several git repositories into
+;; 747-repo-docs.el turns the documents of several git repositories into
 ;; the content of one Hugo site, a section per repository: the eighth
 ;; module of TESTING.org, *Every module tested*, part 3.  With real git:
 ;; two repositories and a site folder made for each test.  Hugo is not
@@ -23,9 +23,9 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-;; 16-org-export too: its filter of denote: links must be off during a
+;; 716-org-export too: its filter of denote: links must be off during a
 ;; site export, and only shows when it is loaded, as at a real start.
-(my/test-load-modules "47-repo-docs" "16-org-export")
+(my/test-load-modules "747-repo-docs" "716-org-export")
 
 ;; ============================================================
 ;; FIXTURE

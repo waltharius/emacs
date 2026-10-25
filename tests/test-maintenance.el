@@ -1,10 +1,10 @@
-;;; test-maintenance.el --- ERT tests for keyword renaming and the checks of 26-maintenance -*- lexical-binding: t; -*-
+;;; test-maintenance.el --- ERT tests for keyword renaming and the checks of 826-maintenance -*- lexical-binding: t; -*-
 
-;; Tests: 26-maintenance 26b-maintenance-repairs
+;; Tests: 826-maintenance 826b-maintenance-repairs
 
 ;;; Commentary:
 
-;; 26-maintenance.el renames or removes a keyword across the collection
+;; 826-maintenance.el renames or removes a keyword across the collection
 ;; -- the front matter and the file name of every note using it -- and
 ;; reports broken `denote:' links: the fifth module of TESTING.org,
 ;; *Every module tested*, part 3.  On real files in a temporary notes
@@ -22,8 +22,8 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "05-notes" "12-transient" "27-denote-identifiers" "26-maintenance"
-                      "26b-maintenance-repairs")
+(my/test-load-modules "205-notes" "212-transient" "227-denote-identifiers" "826-maintenance"
+                      "826b-maintenance-repairs")
 
 ;; ============================================================
 ;; FIXTURE
@@ -239,7 +239,7 @@ suffix to an existing note is not."
 
 (ert-deftest my/maint-test-menu-columns-and-switch ()
   "The Maintenance menu has its reports and its repairs; K, the keyword
-repair, follows the switch of 26b-maintenance-repairs, the reports stay."
+repair, follows the switch of 826b-maintenance-repairs, the reports stay."
   (should (eq (my/transient--layout-command (transient-get-suffix 'my/notes-maintenance-menu "k"))
               #'my/maintenance-keyword-inventory))
   (should (eq (my/transient--layout-command (transient-get-suffix 'my/notes-maintenance-menu "K"))

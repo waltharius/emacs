@@ -1,14 +1,14 @@
-;;; test-project-git.el --- ERT tests for the remotes and pulls of 39-project-git -*- lexical-binding: t; -*-
+;;; test-project-git.el --- ERT tests for the remotes and pulls of 439-project-git -*- lexical-binding: t; -*-
 
-;; Tests: 39-project-git
+;; Tests: 439-project-git
 
 ;;; Commentary:
 
-;; 39-project-git.el creates a writing project's repository, gives it a
+;; 439-project-git.el creates a writing project's repository, gives it a
 ;; remote, pushes it, and fast-forwards it when it is behind -- the only
 ;; module that adds or changes a remote (SAFETY.org 3.1).  The seventh
 ;; module of TESTING.org, *Every module tested*, part 3.  With real git:
-;; projects in a temporary folder (28-writing-projects.el lists them), a
+;; projects in a temporary folder (428-writing-projects.el lists them), a
 ;; bare repository per project standing for the server, a second clone
 ;; standing for the other machine.  No network.
 ;;
@@ -24,7 +24,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "28-writing-projects" "39-project-git")
+(my/test-load-modules "428-writing-projects" "439-project-git")
 
 ;; ============================================================
 ;; FIXTURE
@@ -287,8 +287,8 @@ remove or rename.  A search of the code for those words next to
 \"remote\", so it finds what is written that way -- not a remote changed
 through a variable or by Magit on a key (TESTING.org, rule 7)."
   (let ((offenders nil))
-    (dolist (file (directory-files (expand-file-name "modules" my/test-repo) t "\\.el\\'"))
-      (unless (string-match-p "39-project-git\\.el\\'" file)
+    (dolist (file (directory-files-recursively (expand-file-name "modules" my/test-repo) "\\.el\\'"))
+      (unless (string-match-p "439-project-git\\.el\\'" file)
         (with-temp-buffer
           (insert-file-contents file)
           (goto-char (point-min))
@@ -299,7 +299,7 @@ through a variable or by Magit on a key (TESTING.org, rule 7)."
     (should (null offenders))
     ;; The search finds this module's own call.
     (with-temp-buffer
-      (insert-file-contents (expand-file-name "modules/39-project-git.el" my/test-repo))
+      (insert-file-contents (expand-file-name "modules/400-notes-extensions/439-project-git.el" my/test-repo))
       (should (re-search-forward
                "\"remote\"[ \t\n]+\\(?:(if[^\n]*\\)?\"\\(add\\|set-url\\|remove\\|rm\\|rename\\)\""
                nil t)))))

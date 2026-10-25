@@ -1,10 +1,10 @@
-;;; test-writing-export.el --- ERT tests for ODT and DOCX export of 29-writing-export -*- lexical-binding: t; -*-
+;;; test-writing-export.el --- ERT tests for ODT and DOCX export of 729-writing-export -*- lexical-binding: t; -*-
 
-;; Tests: 29-writing-export
+;; Tests: 729-writing-export
 
 ;;; Commentary:
 
-;; 29-writing-export.el exports a note to ODT through Org and converts
+;; 729-writing-export.el exports a note to ODT through Org and converts
 ;; it to DOCX with LibreOffice, into the folder of its writing project
 ;; or a folder mirroring its silo: TESTING.org, *Every module tested*,
 ;; part 3.  On real files in a temporary folder.  LibreOffice is played
@@ -22,7 +22,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "28-writing-projects" "29-writing-export")
+(my/test-load-modules "428-writing-projects" "729-writing-export")
 (require 'ox-odt)
 
 ;; ============================================================

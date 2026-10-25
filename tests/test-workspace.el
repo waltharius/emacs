@@ -1,16 +1,16 @@
-;;; test-workspace.el --- ERT tests for the notes dashboard of 15-workspace -*- lexical-binding: t; -*-
+;;; test-workspace.el --- ERT tests for the notes dashboard of 815-workspace -*- lexical-binding: t; -*-
 
-;; Tests: 15-workspace
+;; Tests: 815-workspace
 
 ;;; Commentary:
 
-;; 15-workspace draws the notes dashboard: recently modified notes, the
+;; 815-workspace draws the notes dashboard: recently modified notes, the
 ;; journal, the silos, hubs, sequenced notes and tags, in columns of
 ;; their own.  These tests build silos in a temporary folder and check
 ;; what the collectors return and what a column shows: titles and tags
 ;; from the front matter, signatures with or without a title, orders by
 ;; change and by creation, dot-files left out, the recent window, hubs
-;; without 33-denote-hubs, tag counts, the "... and N more" line, tags
+;; without 333-denote-hubs, tag counts, the "... and N more" line, tags
 ;; on lines only in a single column, hidden tags, an unknown section,
 ;; leftover column buffers.
 ;;
@@ -26,7 +26,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "01-ui" "27-denote-identifiers" "15-workspace")
+(my/test-load-modules "101-ui" "227-denote-identifiers" "815-workspace")
 
 (defmacro my/ws-test-with-silos (&rest body)
   "Run BODY with silos journal/ and pks/ in a temporary folder.
@@ -107,7 +107,7 @@ is not listed."
       (should (equal (my/denote-recently-modified 10) (list b a))))))
 
 (ert-deftest my/ws-test-hubs-without-the-hubs-module ()
-  "Without 33-denote-hubs, hubs are the notes with the hub keyword."
+  "Without 333-denote-hubs, hubs are the notes with the hub keyword."
   (skip-unless (not (fboundp 'my/denote-hub-files)))
   (my/ws-test-with-silos
     (let ((hub (my/ws-test-note pks "20261025T100000--mapa__hub" "Mapa")))

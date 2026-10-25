@@ -27,7 +27,9 @@ MODULES = os.path.join(ROOT, "modules")
 HELPER = os.path.join(ROOT, "function_helper.org")
 CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")
 CHANGELOG_DIR = os.path.join(ROOT, "changelog")
-KEYS_FILE = os.path.join(MODULES, "08-keybindings.el")
+# The module whose help text lists the global keys; found in its group's
+# folder when first needed (`keys_file'), or set by a test.
+KEYS_FILE = None
 
 # Top-level definitions: at column 0.  One nested in another form
 # (inside `with-eval-after-load', say) is not seen -- a known limit.
@@ -55,7 +57,7 @@ DUPLICATE_DEF_OK = {
     "vertico-preselect",
 }
 
-# Keys listed in the 08-keybindings.el help text that are bound by a
+# Keys listed in the 208-keybindings.el help text that are bound by a
 # package rather than by this configuration, so grepping modules/ for
 # them finds nothing and that is fine.
 EXTERNAL_KEYS = {
@@ -83,18 +85,45 @@ def module_names():
              "--cached", "--others", "--exclude-standard", "--", "modules/"],
             cwd=ROOT, capture_output=True, text=True, check=True,
         ).stdout
-        names = {os.path.basename(p) for p in out.split("\0")
-                 if p.endswith(".el") and os.path.dirname(p) == "modules"}
+        # modules/NAME.el or modules/GROUP/NAME.el (a folder per group of
+        # MODULES.org since 2026-10-26c).
         # --cached still lists a tracked file deleted from the working
-        # tree; there is nothing on disk to read for it.
-        return sorted(n for n in names if os.path.isfile(os.path.join(MODULES, n)))
+        # tree (as after a move not yet staged); there is nothing on disk
+        # to read for it, so only existing files count.
+        paths = {os.path.basename(p): os.path.join(ROOT, p) for p in out.split("\0")
+                 if p.endswith(".el") and p.startswith("modules/") and p.count("/") <= 2
+                 and os.path.isfile(os.path.join(ROOT, p))}
+        _MODULE_PATHS.clear()
+        _MODULE_PATHS.update(paths)
     except (OSError, subprocess.CalledProcessError):
-        return sorted(n for n in os.listdir(MODULES) if n.endswith(".el"))
+        _MODULE_PATHS.clear()
+        for folder, _dirs, files in os.walk(MODULES):
+            if os.path.relpath(folder, MODULES).count(os.sep) > 0:
+                continue
+            for n in files:
+                if n.endswith(".el"):
+                    _MODULE_PATHS[n] = os.path.join(folder, n)
+    return sorted(_MODULE_PATHS)
+
+
+_MODULE_PATHS = {}
+
+
+def module_path(name):
+    """The file of module NAME ('305-notes.el'), in its group's folder."""
+    if name not in _MODULE_PATHS:
+        module_names()
+    return _MODULE_PATHS.get(name, os.path.join(MODULES, name))
+
+
+def keys_file():
+    """The file of 208-keybindings, or KEYS_FILE when a test set it."""
+    return KEYS_FILE or module_path("208-keybindings.el")
 
 
 def modules():
     for name in module_names():
-        yield name, open(os.path.join(MODULES, name), encoding="utf-8").read()
+        yield name, open(module_path(name), encoding="utf-8").read()
 
 
 def code_of(text):
@@ -187,13 +216,13 @@ def check_documented_functions():
 
 
 def help_text_keys():
-    """Key sequences listed in the help text of 08-keybindings.el.
+    """Key sequences listed in the help text of 208-keybindings.el.
 
     Only the flat reference section is read.  The transient menu tree
     below it describes menu keys, which are not global bindings and
     would all look unbound to this check.
     """
-    text = open(KEYS_FILE, encoding="utf-8").read()
+    text = open(keys_file(), encoding="utf-8").read()
     head = text.split("NOTES TRANSIENT MENU TREE", 1)[0]
     keys = []
     for line in head.split("\n"):
@@ -233,7 +262,7 @@ def bound_keys():
 
 def check_keybinding_help():
     """A key the help text advertises that no binding form in modules/ binds."""
-    if not os.path.exists(KEYS_FILE):
+    if not os.path.exists(keys_file()):
         return []
     bound = bound_keys()
     problems = []
@@ -278,7 +307,7 @@ KEY_BINDING_RES = [
                r"[^\n]*?#?'(my/[A-Za-z0-9/_?-]+)"),
     # use-package :bind / :bind-keymap pairs: ("C-c u t" . my/theme-toggle)
     re.compile(r'\("[^"\n]+"\s*\.\s*#?\'?(my/[A-Za-z0-9/_?-]+)\)'),
-    # 00-core.el's helper for keys taken from options
+    # 000-core.el's helper for keys taken from options
     re.compile(r"my/settings-bind-key\s+#?'(my/[A-Za-z0-9/_?-]+)"),
 ]
 
@@ -349,7 +378,7 @@ def check_menu_reachability():
 
 
 # ------------------------------------------------------------------
-# Menu keys.  Modules add entries to the menus of 12-transient.el (and
+# Menu keys.  Modules add entries to the menus of 212-transient.el (and
 # to each other's) at load time; `my/transient-append' and
 # `my/transient-insert' leave an entry out when its key is already
 # taken, so two modules choosing the same key lose one entry, and load
@@ -454,7 +483,7 @@ def check_menu_keys():
 
 # ------------------------------------------------------------------
 # The loader.  init.el names every module once, in load order, for
-# `my/modules-load' (00-core.el); a module left out of that list is never
+# `my/modules-load' (000-core.el); a module left out of that list is never
 # loaded, and nothing else would say so.  A module's switch is named in
 # its header (MyPKS-Switch), which the modules menu (C-c n , m) uses to
 # turn it at once; a name that the module does not define would make
@@ -479,7 +508,7 @@ def slot_problems(texts):
 
     A slot (`;; MyPKS-Provides: spelling') is a place one module fills
     and another could fill instead; the loader never loads two modules
-    of one slot together (00-core.el).  Checked here: a slot is one or
+    of one slot together (000-core.el).  Checked here: a slot is one or
     more lower-case words; a module providing one is optional (a core
     module cannot give way to another); at most one module per slot
     starts on a new machine -- the others say `MyPKS-Default: off'."""
@@ -519,7 +548,7 @@ def check_loader():
         return ["init.el has no (my/modules-load ...) list"]
     problems = []
     files = [name[:-3] for name, _ in modules()]
-    listed = ["00-core"] + names
+    listed = ["000-core"] + names
     for name in files:
         count = listed.count(name)
         if count == 0:
@@ -542,7 +571,7 @@ def check_loader():
 # ------------------------------------------------------------------
 # Personal strings.  The repository is meant to be public; the list of
 # what must not appear in it is not, so it lives in the settings folder
-# (00-core.el, `my/settings-directory'), outside the repository.
+# (000-core.el, `my/settings-directory'), outside the repository.
 # ------------------------------------------------------------------
 
 PERSONAL_LIST = "private-strings.txt"
@@ -561,7 +590,7 @@ PERSONAL_SKIP = ("csl/",)
 
 
 def settings_directory():
-    """Return the settings folder as 00-core.el finds it.
+    """Return the settings folder as 000-core.el finds it.
 
     MYPKS_DIR, else :directory in mypks-local.eld beside init.el, else
     ~/.config/mypks/.
@@ -633,7 +662,7 @@ def repository_files():
     return files
 
 
-# Files of this installation that 00-core.el reads in ~/.emacs.d without
+# Files of this installation that 000-core.el reads in ~/.emacs.d without
 # git tracking them: which settings folder to use, and the places the
 # settings had before the settings folder (read once, to copy them).
 CODE_FOLDER_INSTALLATION = {"mypks-local.eld", "host", "hosts/", "custom.el", "ui-state.el"}
@@ -647,7 +676,7 @@ def check_code_folder():
     """A file named in ~/.emacs.d is a file of the repository.
 
     State and data go to the settings folder (`my/var-file',
-    `my/etc-file', 00-core.el); a name in the configuration folder that
+    `my/etc-file', 000-core.el); a name in the configuration folder that
     git does not track is a file written next to the code."""
     tracked = [t for t in git_output(["ls-files", "-z"], "the tracked files").split("\0")
                if t]
@@ -897,13 +926,16 @@ def org_section_table(text, heading):
     return rows
 
 
-def group_problems(groups, rows, texts):
+def group_problems(groups, rows, texts, folders=None):
     """Problems of the module map: GROUPS (numbers), ROWS of the map,
-    TEXTS a list of (file name, text) of modules/.
+    TEXTS a list of (file name, text) of modules/, FOLDERS a dict of
+    file name -> the folder it is in (relative to modules/), when known.
 
     Every module in the map once, every row a module, every group one of
-    GROUPS; and a module requires (MyPKS-Requires) only modules of its
-    own group or a lower one."""
+    GROUPS; a module requires (MyPKS-Requires) only modules of its own
+    group or a lower one; and, with FOLDERS, a module is in the folder
+    of its group (NNN-name) and its name begins with the group's digit
+    (since 2026-10-26c)."""
     problems = []
     group_of = {}
     for row in rows:
@@ -934,6 +966,15 @@ def group_problems(groups, rows, texts):
             if other in group_of and group_of[other] > group_of[name]:
                 problems.append(f"{name} ({group_of[name]}) requires {other} "
                                 f"({group_of[other]}): a group needs only its own and lower ones")
+        if folders is not None:
+            group = group_of[name]
+            folder = folders.get(file_name, "")
+            if not re.match(rf"^{group:03d}-[a-z-]+$", folder):
+                problems.append(f"{name} is in modules/{folder or '.'}, not in the folder "
+                                f"of its group {group:03d} (MODULES.org)")
+            if not name.startswith(f"{group:03d}"[0]) or not re.match(r"^\d{3}", name):
+                problems.append(f"{name}: the name begins with three digits, the first "
+                                f"that of its group {group:03d}")
     return problems
 
 
@@ -947,7 +988,11 @@ def check_groups():
     if not group_rows or rows is None:
         return ["MODULES.org: no table under '* Groups' or '* Map'"]
     groups = {int(r[0]) for r in group_rows if r and r[0].isdigit()}
-    return group_problems(groups, rows, list(modules()))
+    texts = list(modules())
+    folders = {name: os.path.relpath(os.path.dirname(module_path(name)), MODULES)
+               for name, _ in texts}
+    folders = {n: ("" if f == "." else f) for n, f in folders.items()}
+    return group_problems(groups, rows, texts, folders)
 
 
 CHECKS = {
@@ -965,7 +1010,7 @@ CHECKS = {
     "codefolder": (check_code_folder, "files named in ~/.emacs.d that the repository does not hold"),
     "loader": (check_loader, "every module in init.el's list once; every MyPKS-Switch defined; slots"),
     "tests": (check_tests, "modules without a test; modules changed without one of their tests"),
-    "groups": (check_groups, "the module map (MODULES.org): every module in a group, requirements pointing down"),
+    "groups": (check_groups, "the module map (MODULES.org): every module in a group and its folder, requirements pointing down"),
     "personal": (check_personal_strings, "personal strings (private-strings.txt) in files git would commit"),
 }
 
@@ -974,7 +1019,9 @@ CHECKS = {
 # them, and since 2026-10-18e it blocks, so that a new call to another
 # module's `--' function stops the commit instead of starting a new
 # backlog.
-ADVISORY = {"coverage", "tests", "groups"}
+# `groups' advised until the move into the folders of the groups
+# (2026-10-26c); since then it blocks.
+ADVISORY = {"coverage", "tests"}
 
 
 def main(argv):

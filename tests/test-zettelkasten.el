@@ -1,10 +1,10 @@
-;;; test-zettelkasten.el --- ERT tests for the pks-only Folgezettel of 22-zettelkasten -*- lexical-binding: t; -*-
+;;; test-zettelkasten.el --- ERT tests for the pks-only Folgezettel of 422-zettelkasten -*- lexical-binding: t; -*-
 
-;; Tests: 22-zettelkasten
+;; Tests: 422-zettelkasten
 
 ;;; Commentary:
 
-;; 22-zettelkasten.el wraps denote-sequence so that sequences are found
+;; 422-zettelkasten.el wraps denote-sequence so that sequences are found
 ;; and created in the pks silo only (`denote-directory' bound to it),
 ;; with the alphanumeric scheme (1, 1a, 1b, 2), and works around stale
 ;; Dired listings: TESTING.org, *Every module tested*, part 3.  On real
@@ -21,7 +21,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "22-zettelkasten")
+(my/test-load-modules "422-zettelkasten")
 (require 'denote)
 (require 'denote-sequence)
 

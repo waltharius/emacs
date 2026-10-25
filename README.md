@@ -123,14 +123,14 @@ decisions here are actively hostile to anyone who did not make them:
 - **Default Emacs keys are rebound.** `C-f` starts an incremental
   search, `C-s` saves, `C-z` undoes, `C-x u` opens the visual undo
   tree. If twenty years of muscle memory matter to you, delete
-  `modules/02-editing.el` before the first launch.
+  `modules/100-emacs/102-editing.el` before the first launch.
 - **The interface language is mixed.** Code, comments and commit
   messages are English; docstrings are English; prompts, note templates
   and the philosophy note types are Polish. Journal front matter is
   written with `#+language: pl`.
 - **Paths are assumed, not configured.** `~/notes/` with three silos,
   an inbox and an attachments folder, and `~/projects/planner/`. They are
-  variables in `00-core.el`, but nothing checks whether the layout
+  variables in `000-core.el`, but nothing checks whether the layout
   makes sense for you.
 - **It assumes Linux.** Developed on NixOS with GNOME under Wayland.
   It should run elsewhere; the external tools it shells out to are
@@ -171,15 +171,15 @@ missing one disables a feature rather than breaking the configuration:
 
 | Program | Used for | Module |
 |---------|----------|--------|
-| `git` | auto-commit, `git mv` for moved notes | `07-git.el`, `05-notes.el` |
-| `hunspell` | spell checking (Polish and English dictionaries) | `03-spelling.el` |
-| `magick` or `convert` (ImageMagick) | image attachment compression | `31-org-images.el` |
-| `libreoffice` / `soffice` | ODT → DOCX conversion | `29-writing-export.el` |
+| `git` | auto-commit, `git mv` for moved notes | `207-git.el`, `205-notes.el` |
+| `hunspell` | spell checking (Polish and English dictionaries) | `303-spelling.el` |
+| `magick` or `convert` (ImageMagick) | image attachment compression | `331-org-images.el` |
+| `libreoffice` / `soffice` | ODT → DOCX conversion | `729-writing-export.el` |
 | `pandoc` | Markdown → Org conversion for the Obsidian import, and for the one-off migration | `tools/obsidian_import.py`, `convert_journal.py` |
-| `python3` with PyYAML | runs the Obsidian import script | `42-obsidian-import.el` |
-| LaTeX | PDF export | `16-org-export.el` |
+| `python3` with PyYAML | runs the Obsidian import script | `442-obsidian-import.el` |
+| LaTeX | PDF export | `716-org-export.el` |
 
-Typing analytics (`14-typing-analytics.el`): command frequency
+Typing analytics (`114-typing-analytics.el`): command frequency
 (`keyfreq`, from MELPA) is on; the character-level keystroke log is
 **off by default** (`my/keylog-enabled`) and never records notes of a
 private silo.
@@ -229,7 +229,7 @@ absent, a capture file `~/notes/journal/captures.org` is written if
 absent, and the Notes Dashboard opens once startup finishes.
 
 If you want to try it without committing to the key rebindings, comment
-out `02-editing.el` in `init.el`.
+out `102-editing.el` in `init.el`.
 
 ---
 
@@ -253,7 +253,7 @@ Modules whose absence should degrade rather than break are loaded with
 `load`'s NOERROR argument:
 
 ```elisp
-(load (concat modules-dir "34-appearance.el") t)
+(load (concat modules-dir "534-appearance.el") t)
 ```
 
 Deleting such a file removes its commands and its menu entries and
@@ -263,20 +263,20 @@ error *inside* the file.
 
 ### Menu extension without coupling
 
-`12-transient.el` defines the menu skeleton — `C-c n` and its
+`212-transient.el` defines the menu skeleton — `C-c n` and its
 submenus. Feature modules add their own entries at load time through
 `my/transient-append`, which does nothing (and says so) when the prefix
 is missing, when the anchor key is absent, or when the key is already
 bound:
 
 ```elisp
-(with-eval-after-load '12-transient
+(with-eval-after-load '212-transient
   (my/transient-append 'my/notes-insert-menu "L"
                        '("H" "Add to HUB" my/denote-add-to-hub)))
 ```
 
 The rule that makes this safe: **anchor only on keys defined in
-`12-transient.el` itself**, never on a key contributed by another
+`212-transient.el` itself**, never on a key contributed by another
 optional module. Anchoring on another module's key is how the Insert
 menu silently lost four entries in August 2026.
 
@@ -320,91 +320,91 @@ startup. Optional ones can be removed.
 
 | Module | | Purpose |
 |--------|---|---------|
-| `00-core.el` | required | Package system, silo paths, backup/autosave policy, persisted UI state, front-matter keyword helpers. 24 other modules depend on it. |
-| `01-ui.el` | required | Sessions (`desktop`), window splitting, tab-bar, `my/fixed-tab-goto`, completion, the mode line. |
-| `01b-frame-bars.el` | optional | Tool bar and scroll bar off, menu bar on, again after a desktop restore. |
-| `02-editing.el` | required | which-key, vundo, undo-fu-session, **and the rebound default keys**. |
-| `02b-bold-marker.el` | required | Obsidian-style `word*` inline emphasis. |
-| `03-spelling.el` | required | Hunspell, Polish and English. |
-| `03b-fonts.el` | required | Per-silo fonts: journal Playpen Sans, pks Source Sans 3, docu JetBrains Mono. |
-| `04-denote.el` | required | Denote itself, multi-silo setup, backlink window placement. |
-| `08-keybindings.el` | required | Not where keys are defined — a reference buffer (`C-c h k`) plus a few helpers. |
-| `12-transient.el` | required | The `C-c n` menu skeleton and `my/transient-append`. |
+| `000-core.el` | required | Package system, silo paths, backup/autosave policy, persisted UI state, front-matter keyword helpers. 24 other modules depend on it. |
+| `101-ui.el` | required | Sessions (`desktop`), window splitting, tab-bar, `my/fixed-tab-goto`, completion, the mode line. |
+| `501b-frame-bars.el` | optional | Tool bar and scroll bar off, menu bar on, again after a desktop restore. |
+| `102-editing.el` | required | which-key, vundo, undo-fu-session, **and the rebound default keys**. |
+| `302b-bold-marker.el` | required | Obsidian-style `word*` inline emphasis. |
+| `303-spelling.el` | required | Hunspell, Polish and English. |
+| `503b-fonts.el` | required | Per-silo fonts: journal Playpen Sans, pks Source Sans 3, docu JetBrains Mono. |
+| `204-denote.el` | required | Denote itself, multi-silo setup, backlink window placement. |
+| `208-keybindings.el` | required | Not where keys are defined — a reference buffer (`C-c h k`) plus a few helpers. |
+| `212-transient.el` | required | The `C-c n` menu skeleton and `my/transient-append`. |
 
 ### Notes and writing
 
 | Module | | Purpose |
 |--------|---|---------|
-| `05-notes.el` | required | Journal (today and backdated), plain notes, essays, linked notes, silo moves, the shared keyword prompt, week-day link lists. |
-| `05b-journal-metrics.el` | optional | Structured daily metrics as front-matter keywords. |
-| `06-capture.el` | required | Idea capture that records where it came from, and promotion to a full note. |
-| `19-philosophy-notes.el` | required | Five note types: literatura, pojęcie, myśliciel, problem, mapa. |
-| `20-transclusion.el` | required | `org-transclusion` wizard and live-sync editing. |
-| `22-zettelkasten.el` | required | Folgezettel sequences via `denote-sequence`, scoped to `pks/`. |
-| `33-denote-hubs.el` | required | Hub notes: curated link lists with descriptions, kept in chronological order. |
-| `28-writing-projects.el` | optional | Project registry, membership by `#+project:`, progress tracking, clocking. |
-| `29-writing-export.el` | optional | Org → ODT → DOCX via LibreOffice. |
-| `31-org-images.el` | required | Image attachments with a compression ladder to a 300 kB budget. |
-| `32-web-links.el` | required | Insert an Org link with the page title fetched. |
+| `205-notes.el` | required | Journal (today and backdated), plain notes, essays, linked notes, silo moves, the shared keyword prompt, week-day link lists. |
+| `405b-journal-metrics.el` | optional | Structured daily metrics as front-matter keywords. |
+| `306-capture.el` | required | Idea capture that records where it came from, and promotion to a full note. |
+| `419-philosophy-notes.el` | required | Five note types: literatura, pojęcie, myśliciel, problem, mapa. |
+| `420-transclusion.el` | required | `org-transclusion` wizard and live-sync editing. |
+| `422-zettelkasten.el` | required | Folgezettel sequences via `denote-sequence`, scoped to `pks/`. |
+| `333-denote-hubs.el` | required | Hub notes: curated link lists with descriptions, kept in chronological order. |
+| `428-writing-projects.el` | optional | Project registry, membership by `#+project:`, progress tracking, clocking. |
+| `729-writing-export.el` | optional | Org → ODT → DOCX via LibreOffice. |
+| `331-org-images.el` | required | Image attachments with a compression ladder to a 300 kB budget. |
+| `332-web-links.el` | required | Insert an Org link with the page title fetched. |
 
 ### Reading in, cleaning up
 
 | Module | | Purpose |
 |--------|---|---------|
-| `17-bibliography.el` | optional | Citar, the `.bib` files (from Zotero or any other program), CSL, references as text, the citation key check, the bibliography menu (`C-c x`). |
-| `17b-document-viewers.el` | optional | PDF (`pdf-tools`) and EPUB (`nov`) viewers. |
-| `17c-zotero.el` | optional, off on a new machine | Zotero's attachments folder, where `C-c x f` finds a reference's PDF. |
-| `24-readwise.el` | required | Incremental import of Readwise highlights. |
-| `25-inbox-review.el` | required | Review queue for notes migrated from Obsidian. |
-| `42-obsidian-import.el` | optional | Front end for `tools/obsidian_import.py`: dry run, import, report (`C-c n t o`). |
-| `26-maintenance.el` | optional | Integrity checks, keyword inventory, identifier and link repairs; the Maintenance menu. |
-| `26b-maintenance-repairs.el` | optional | Renaming or removing a keyword across the collection. |
-| `27-denote-identifiers.el` | required | Duplicate identifiers, broken links, self-links. |
-| `49-packages.el` | optional | Upgrade the installed packages after copying the package folder; go back to a copy (`C-c n !`, `U` `B` `L`). |
-| `50-cite-preview.el` | optional | The citation under point shown in the echo area as the export will render it (ElDoc). |
+| `417-bibliography.el` | optional | Citar, the `.bib` files (from Zotero or any other program), CSL, references as text, the citation key check, the bibliography menu (`C-c x`). |
+| `117b-document-viewers.el` | optional | PDF (`pdf-tools`) and EPUB (`nov`) viewers. |
+| `417c-zotero.el` | optional, off on a new machine | Zotero's attachments folder, where `C-c x f` finds a reference's PDF. |
+| `424-readwise.el` | required | Incremental import of Readwise highlights. |
+| `425-inbox-review.el` | required | Review queue for notes migrated from Obsidian. |
+| `442-obsidian-import.el` | optional | Front end for `tools/obsidian_import.py`: dry run, import, report (`C-c n t o`). |
+| `826-maintenance.el` | optional | Integrity checks, keyword inventory, identifier and link repairs; the Maintenance menu. |
+| `826b-maintenance-repairs.el` | optional | Renaming or removing a keyword across the collection. |
+| `227-denote-identifiers.el` | required | Duplicate identifiers, broken links, self-links. |
+| `149-packages.el` | optional | Upgrade the installed packages after copying the package folder; go back to a copy (`C-c n !`, `U` `B` `L`). |
+| `450-cite-preview.el` | optional | The citation under point shown in the echo area as the export will render it (ElDoc). |
 
 ### Reports
 
 | Module | | Purpose |
 |--------|---|---------|
-| `15-workspace.el` | required | The Notes Dashboard: clickable sections in columns, in its own tab. |
-| `21-dashboards.el` | required | "This day in history" and "this day, every month". |
-| `35-journal-gaps.el` | optional | Days with no entry, or an entry with no metrics. |
-| `36-notes-stats.el` | optional | Collection statistics, two tiers: cheap from file names, expensive on demand. |
+| `815-workspace.el` | required | The Notes Dashboard: clickable sections in columns, in its own tab. |
+| `821-dashboards.el` | required | "This day in history" and "this day, every month". |
+| `835-journal-gaps.el` | optional | Days with no entry, or an entry with no metrics. |
+| `836-notes-stats.el` | optional | Collection statistics, two tiers: cheap from file names, expensive on demand. |
 
 ### Tasks
 
 | Module | | Purpose |
 |--------|---|---------|
-| `37-tasks.el` | optional | Task capture without leaving the buffer, routed by `#+project:`; owns `org-agenda-files`. |
-| `38-habits.el` | optional | org-habit setup, fast logging, history derived from journal file names. |
-| `39-project-git.el` | optional | Remotes and staleness checks for project repositories. |
+| `437-tasks.el` | optional | Task capture without leaving the buffer, routed by `#+project:`; owns `org-agenda-files`. |
+| `438-habits.el` | optional | org-habit setup, fast logging, history derived from journal file names. |
+| `439-project-git.el` | optional | Remotes and staleness checks for project repositories. |
 
 ### Learning
 
 | Module | | Purpose |
 |--------|---|---------|
-| `43-drill.el` | optional | Flashcards in Denote notes tagged `karty`, reviewed with `org-drill` (`C-c n r`). |
+| `443-drill.el` | optional | Flashcards in Denote notes tagged `karty`, reviewed with `org-drill` (`C-c n r`). |
 
 ### Appearance and comfort
 
 | Module | | Purpose |
 |--------|---|---------|
-| `09-theme.el` | required | Five theme collections, `<F4>`/`<F5>` cycling, choice persisted. |
-| `10-visual-fill.el` | required | Single source of truth for wrapping. No other module may set `visual-fill-column-*`. |
-| `11-org-appearance.el` | optional | Org visual behaviour: emphasis markers, quote blocks, block-marker symbols, org-modern. Faces belong to `custom.el`. |
-| `13-centered-writing.el` | required | Recentring that only fires while typing. |
-| `23-fixed-tabs.el` | required | Routes chosen commands into named tabs, by advice. |
-| `30-link-tooltips.el` | required | Cheap `denote:` tooltips — Denote's own freeze on large collections. |
-| `34-appearance.el` | optional | Padding, shared faces, `lin`, `pulsar`, text scaling. |
+| `509-theme.el` | required | Five theme collections, `<F4>`/`<F5>` cycling, choice persisted. |
+| `510-visual-fill.el` | required | Single source of truth for wrapping. No other module may set `visual-fill-column-*`. |
+| `511-org-appearance.el` | optional | Org visual behaviour: emphasis markers, quote blocks, block-marker symbols, org-modern. Faces belong to `custom.el`. |
+| `313-centered-writing.el` | required | Recentring that only fires while typing. |
+| `323-fixed-tabs.el` | required | Routes chosen commands into named tabs, by advice. |
+| `630-link-tooltips.el` | required | Cheap `denote:` tooltips — Denote's own freeze on large collections. |
+| `534-appearance.el` | optional | Padding, shared faces, `lin`, `pulsar`, text scaling. |
 
 ### Infrastructure
 
 | Module | | Purpose |
 |--------|---|---------|
-| `07-git.el` | required | Auto-commit *and push* on idle and on exit, for notes and for this repo. |
-| `14-typing-analytics.el` | required | keyfreq and keylog. Data is gitignored. |
-| `16-org-export.el` | required | PDF export and LaTeX preamble. |
+| `207-git.el` | required | Auto-commit *and push* on idle and on exit, for notes and for this repo. |
+| `114-typing-analytics.el` | required | keyfreq and keylog. Data is gitignored. |
+| `716-org-export.el` | required | PDF export and LaTeX preamble. |
 
 ---
 
@@ -431,10 +431,10 @@ x  Export      PDF / batch by any keyword / batch by all keywords / ODT / DOCX
 v  View        centre text / writing mode / indent / emphasis markers /
                tooltips / theme / padding / detach to frame
 t  Tools       Zotero / spelling / Readwise / inbox / Obsidian import
-l  Philosophy  five note types                     (19-philosophy-notes.el)
-z  Zettelkasten                                    (22-zettelkasten.el)
-p  Projects                                        (28-writing-projects.el)
-!  Maintenance                                     (26-maintenance.el)
+l  Philosophy  five note types                     (419-philosophy-notes.el)
+z  Zettelkasten                                    (422-zettelkasten.el)
+p  Projects                                        (428-writing-projects.el)
+!  Maintenance                                     (826-maintenance.el)
 h  Function help — opens function_helper.org
 ```
 
@@ -501,7 +501,7 @@ has none, otherwise appends a `* HH:MM` heading to the existing file:
 ```
 
 No metrics placeholder. Metrics are front-matter keywords added later
-by `C-c n c w`, so a file created without `05b-journal-metrics.el` is
+by `C-c n c w`, so a file created without `405b-journal-metrics.el` is
 simply a journal with no metrics rather than a template with a hole in
 it.
 
@@ -614,7 +614,7 @@ right tool for the moment, goes through exactly the same path.
 | Source in the vault | Destination |
 |---------------------|-------------|
 | `YYYY-MM-DD.md` (a daily note) | the journal note for that date, under `* Obsidian`; the note is created if the day has none |
-| any other note | `~/notes/inbox/`, for review with `25-inbox-review.el` |
+| any other note | `~/notes/inbox/`, for review with `425-inbox-review.el` |
 | images linked from the note | copied into `~/notes/attachments/` with the note's identifier as prefix |
 | the Markdown file itself | moved to `Imported2Emacs/<year>` inside the vault |
 
@@ -760,9 +760,9 @@ wrong — eight places across four modules tested a `-journal` slug — and
 the fix is why a journal can now be retitled to "Obrona licencjatu"
 without disappearing from four reports.
 
-**One owner per variable.** `org-agenda-files` belongs to `37-tasks.el`
-and `28-writing-projects.el` delegates to it; `visual-fill-column-*`
-belongs to `10-visual-fill.el` and nothing else may touch it. Two
+**One owner per variable.** `org-agenda-files` belongs to `437-tasks.el`
+and `428-writing-projects.el` delegates to it; `visual-fill-column-*`
+belongs to `510-visual-fill.el` and nothing else may touch it. Two
 modules setting one variable means the load order decides the
 behaviour.
 
@@ -792,19 +792,19 @@ From an audit on 2026-08-31, recorded rather than silently carried:
 
 1. **Twenty-one privately-named symbols are called across module
    boundaries.** The double-dash convention has stopped being reliable.
-   Worst case: `27-denote-identifiers.el` is a library by every measure
+   Worst case: `227-denote-identifiers.el` is a library by every measure
    and half its exported API is named as internal.
-2. **`28-writing-projects.el` and `37-tasks.el` reference each other.**
+2. **`428-writing-projects.el` and `437-tasks.el` reference each other.**
    Both directions are guarded, but the arrow from `28` to its own
    extension is backwards; `28` already has the hook mechanism to avoid
    it.
 3. ~~**`18-zotero-transient.el` is a menu with no other content**~~ --
    resolved 2026-10-25zg: the menu is at the bottom of
-   `17-bibliography.el`, whose commands it runs.
+   `417-bibliography.el`, whose commands it runs.
 4. **`#+INCLUDE:` paths break on rename**; Denote identifier links do
    not. Known limitation of the writing-project and transclusion export
    path.
-5. **The help text in `08-keybindings.el` is a hand-maintained snapshot
+5. **The help text in `208-keybindings.el` is a hand-maintained snapshot
    of facts that live in three other places** — the bindings
    themselves, `which-key`, and `function_helper.org`. It has drifted
    twice. `hooks/lint.py` now catches keys it advertises that nothing
@@ -817,7 +817,17 @@ From an audit on 2026-08-31, recorded rather than silently carried:
 init.el                  module load order, with the reasoning
 custom.el                Customize-managed settings; the faces block is
                          deliberately empty — see the note at the top
-modules/                 the configuration
+modules/                 the configuration, one folder per group of MODULES.org:
+  000-loader/            000-core.el: the loader, settings, silos, dates
+  100-emacs/             Emacs itself, whatever the notes
+  200-foundation/        what everything else needs
+  300-notes-core/        the daily way of writing notes
+  400-notes-extensions/  optional additions to the notes
+  500-look/              the default look
+  600-look-modifications/ changes to that look
+  700-output/            PDF, DOCX, sites
+  800-overview/          reports on the collection
+MODULES.org              which group each module is in, and why
 function_helper.org      user-facing command reference (C-c n h)
 CHANGELOG.md             session log: months, conventions, lessons learned
 changelog/               the sessions, one file per month: what changed and why

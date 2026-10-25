@@ -1,6 +1,6 @@
 ;;; test-session.el --- ERT tests for what a restart brings back -*- lexical-binding: t; -*-
 
-;; Tests: 00-core 01-ui
+;; Tests: 000-core 101-ui
 
 ;;; Commentary:
 
@@ -8,10 +8,10 @@
 ;;
 ;; - a split showing " *Old buffer *Warnings**": Emacs 30 puts a
 ;;   placeholder in a tab's window whose buffer was killed;
-;;   `my/tab-bar-restore-windows' (01-ui.el) closes such a window unless
+;;   `my/tab-bar-restore-windows' (101-ui.el) closes such a window unless
 ;;   the buffer visited a file;
 ;; - setters of saved options run again when a theme loads, as if
-;;   changed by hand; `my/settings--live-p' (00-core.el) is nil while a
+;;   changed by hand; `my/settings--live-p' (000-core.el) is nil while a
 ;;   theme is enabled;
 ;; - old files left in ~/.emacs.d next to their new copies;
 ;;   `my/var--trash-old' moves them to the trash.
@@ -26,14 +26,14 @@
 (require 'ert)
 (require 'cl-lib)
 
-;; An Emacs built without graphical support has no scroll bars; 01-ui.el
+;; An Emacs built without graphical support has no scroll bars; 101-ui.el
 ;; turns them off at load.
 (unless (fboundp 'scroll-bar-mode)
   (defalias 'scroll-bar-mode #'ignore))
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "01-ui")
+(my/test-load-modules "101-ui")
 
 ;; ============================================================
 ;; WINDOWS OF KILLED BUFFERS

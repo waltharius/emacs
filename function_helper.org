@@ -103,21 +103,21 @@ most-used spelling commands: =s= Correct previous, =a= Add to dict
 (both =:transient t=, so the menu stays open after use). Both also have
 direct global bindings that skip this menu entirely — =C-c s= and
 =C-c S=, see [[#global-keybindings][Global Keybindings]].  Since
-2026-10-16 =s= and =a= are appended after =,= by =03-spelling.el=,
-and =!= Maintenance by =26-maintenance.el= -- also after =,=, which
-=12-transient.el= owns, so neither depends on the other.  Order in the
+2026-10-16 =s= and =a= are appended after =,= by =303-spelling.el=,
+and =!= Maintenance by =826-maintenance.el= -- also after =,=, which
+=212-transient.el= owns, so neither depends on the other.  Order in the
 column: =v t z l , ! s a=.
 
-=l=, =z= and =p= are not defined in =12-transient.el= itself: they are
-appended at load time by =19-philosophy-notes.el=,
-=22-zettelkasten.el= and =28-writing-projects.el= respectively, which
-is why all three modules must load *after* =12-transient.el=. They go
+=l=, =z= and =p= are not defined in =212-transient.el= itself: they are
+appended at load time by =419-philosophy-notes.el=,
+=422-zettelkasten.el= and =428-writing-projects.el= respectively, which
+is why all three modules must load *after* =212-transient.el=. They go
 through =my/transient-append=, which reports and skips instead of
 signalling when the prefix, the anchor key or transient itself is
 missing — so removing any one module leaves the rest of the menu
 intact.
 
-Module: =modules/12-transient.el=
+Module: =modules/200-foundation/212-transient.el=
 
 *** When two modules want one key
 :PROPERTIES:
@@ -147,10 +147,10 @@ Before Emacs runs, the pre-commit check =menukeys= (=hooks/lint.py=)
 reads every menu definition and every addition in =modules/= and fails
 on a key given to two different commands of one menu.  A key taken
 over on purpose goes through =my/transient-replace= (=g= of
-=41-notes-search.el=) and is not a conflict.  Reserved keys need no
+=341-notes-search.el=) and is not a conflict.  Reserved keys need no
 list of their own: the modules' code is the list the check reads.
 
-Function: =my/transient-skipped-report= | Variable: =my/transient-skipped= | Module: =modules/12-transient.el=
+Function: =my/transient-skipped-report= | Variable: =my/transient-skipped= | Module: =modules/200-foundation/212-transient.el=
 
 ** C-c n c — Create / Capture
 :PROPERTIES:
@@ -160,7 +160,7 @@ Function: =my/transient-skipped-report= | Variable: =my/transient-skipped= | Mod
 Create notes and manage captures. Note types in the first column,
 capture commands in the second. <<p-1>>
 
-The Capture column (=i c m=) is inserted by =06-capture.el= since
+The Capture column (=i c m=) is inserted by =306-capture.el= since
 2026-10-19, as a whole column before the Quit column; without that
 module the menu has no Capture column.
 
@@ -198,7 +198,7 @@ not common enough to be worth getting wrong by default; the indexer
 verifies the declared language against a detector and logs
 disagreements, which is the right place for that check.
 
-Function: =my/denote-base= | Module: =modules/05-notes.el=
+Function: =my/denote-base= | Module: =modules/200-foundation/205-notes.el=
 
 *** j — Journal today
 :PROPERTIES:
@@ -227,7 +227,7 @@ have been three formats:
 
 All three are readable; only schema 2 is written.
 
-Function: =my/denote-journal= | Module: =modules/05-notes.el=
+Function: =my/denote-journal= | Module: =modules/200-foundation/205-notes.el=
 
 *** J — Journal date
 :PROPERTIES:
@@ -247,7 +247,7 @@ also what =my/journal-set-metrics-for-date= calls when it is asked for a
 day that has no journal at all. It refuses to overwrite an existing
 file.
 
-Function: =my/denote-journal-date= | Module: =modules/05-notes.el=
+Function: =my/denote-journal-date= | Module: =modules/200-foundation/205-notes.el=
 
 *** w — Metrics today
 :PROPERTIES:
@@ -299,7 +299,7 @@ value seeds the prompt, and the write phase removes the =* Metryki=
 subtree or the legacy drawer and stamps =#+schema:=. Nothing is migrated
 in bulk by this command — see [[#fn-my-journal-migrate-metrics-format][my/journal-migrate-metrics-format]] for that.
 
-Function: =my/journal-set-metrics= | Module: =modules/05b-journal-metrics.el=
+Function: =my/journal-set-metrics= | Module: =modules/400-notes-extensions/405b-journal-metrics.el=
 
 *** M-x my/journal-migrate-metrics-format
 :PROPERTIES:
@@ -320,7 +320,7 @@ convert in =*journal-migration*= and writes nothing. =C-u= writes.
 3500-file case and produces one very large commit, so by default only
 schema 1 files are touched, of which there are a handful.
 
-Function: =my/journal-migrate-metrics-format= | Module: =modules/05b-journal-metrics.el=
+Function: =my/journal-migrate-metrics-format= | Module: =modules/400-notes-extensions/405b-journal-metrics.el=
 
 *** M-x my/journal-metrics-reminder
 :PROPERTIES:
@@ -341,7 +341,7 @@ it to =C-c n c j= would re-ask on every append during the day. A message
 that appears when you come back to the file later costs nothing and
 arrives at roughly the right time.
 
-Function: =my/journal-metrics-reminder= | Module: =modules/05b-journal-metrics.el=
+Function: =my/journal-metrics-reminder= | Module: =modules/400-notes-extensions/405b-journal-metrics.el=
 
 *** M-x my/notes-normalize-front-matter-gap
 :PROPERTIES:
@@ -365,7 +365,7 @@ changed.
 
 Dry run without a prefix argument, =C-u= to write. Not on a key.
 
-Function: =my/notes-normalize-front-matter-gap= | Module: =modules/05b-journal-metrics.el=
+Function: =my/notes-normalize-front-matter-gap= | Module: =modules/400-notes-extensions/405b-journal-metrics.el=
 
 *** W — Metrics for date
 :PROPERTIES:
@@ -384,7 +384,7 @@ series with no record of why it is there. The cursor is left at the end
 of the buffer afterwards, which is the cheapest available prompt to
 actually write the day up.
 
-Function: =my/journal-set-metrics-for-date= | Module: =modules/05b-journal-metrics.el=
+Function: =my/journal-set-metrics-for-date= | Module: =modules/400-notes-extensions/405b-journal-metrics.el=
 
 *** e — Essay
 :PROPERTIES:
@@ -398,7 +398,7 @@ that must match existing notes exactly, since it is what later gathers
 the essay's material. Inserts scaffold: Metadata, Essay Plan,
 Bibliography, Working Notes. Always saved in =pks= silo.
 
-Function: =my/denote-essay= | Module: =modules/05-notes.el=
+Function: =my/denote-essay= | Module: =modules/200-foundation/205-notes.el=
 
 *** L — Linked note
 :PROPERTIES:
@@ -413,7 +413,7 @@ right in split window.
 
 *Warning:* only works from a Denote =.org= file with =#+identifier:=.
 
-Function: =my/denote-linked-note= | Module: =modules/05-notes.el=
+Function: =my/denote-linked-note= | Module: =modules/200-foundation/205-notes.el=
 
 *** i — Ideas capture
 :PROPERTIES:
@@ -427,7 +427,7 @@ Confirming with =C-c C-c= asks which existing capture heading the entry
 belongs to — see [[#capture-filing][Capture Filing]]. The default is to keep it as a new
 heading, so a plain =RET= at the prompt behaves as before.
 
-Function: =my/capture-idea= | Module: =modules/06-capture.el=
+Function: =my/capture-idea= | Module: =modules/300-notes-core/306-capture.el=
 
 *** c — Capture menu
 :PROPERTIES:
@@ -454,7 +454,7 @@ ends with. See [[#capture-filing][Capture Filing]].
 *Warning:* destructive — deletes the original heading, no automatic undo.
 Commit captures.org before running on important entries.
 
-Function: =my/capture-promote-to-note= | Module: =modules/06-capture.el=
+Function: =my/capture-promote-to-note= | Module: =modules/300-notes-core/306-capture.el=
 
 ** C-c n f — Find / Search
 :PROPERTIES:
@@ -465,29 +465,29 @@ Search, navigate, and review notes. =f/g/n/b= locate specific notes;
 =d/t/r= give overview/serendipity views; =h= opens historical
 dashboards (dynamic submenu).
 
-The Overview column holds only =q= Quit in =12-transient.el=; the
+The Overview column holds only =q= Quit in =212-transient.el=; the
 modules insert their entries before it, in load order (since
 2026-10-19):
 
 | Key | Contributed by |
 |-----+----------------|
-| =d= Dashboard, =t= Tag stats, =r= Random note | =15-workspace.el= |
-| =h= History → | =21-dashboards.el= |
-| =j= Journal gaps | =35-journal-gaps.el= |
-| =s= Statistics | =36-notes-stats.el= |
+| =d= Dashboard, =t= Tag stats, =r= Random note | =815-workspace.el= |
+| =h= History → | =821-dashboards.el= |
+| =j= Journal gaps | =835-journal-gaps.el= |
+| =s= Statistics | =836-notes-stats.el= |
 
-Until then =d t r= were declared in =12-transient.el=, =h= and =s= were
+Until then =d t r= were declared in =212-transient.el=, =h= and =s= were
 anchored on =r= and =t=, and =j= on =h=: Journal gaps disappeared
 without the history module, Statistics without the dashboard.
 
-=g= and =n= come from =41-notes-search.el=. =g= is a *replacement*: the
-entry declared in =12-transient.el= runs the plain
-=consult-denote-grep=, and =41-notes-search.el= takes the key over at
+=g= and =n= come from =341-notes-search.el=. =g= is a *replacement*: the
+entry declared in =212-transient.el= runs the plain
+=consult-denote-grep=, and =341-notes-search.el= takes the key over at
 load time through =my/transient-replace=. Deleting that module
 therefore restores the plain command on the next start rather than
 leaving a void command behind; =n= disappears with it.
 
-Module: =modules/12-transient.el=
+Module: =modules/200-foundation/212-transient.el=
 
 *** f — Find file
 :PROPERTIES:
@@ -586,7 +586,7 @@ ignores hidden directories by default.
 Denote's own file listing always skipped dot directories, which is why
 =denote-open-or-create= was never affected.
 
-Function: =my/notes-grep= | Module: =modules/41-notes-search.el=
+Function: =my/notes-grep= | Module: =modules/300-notes-core/341-notes-search.el=
 
 *** n — Find by title/tag
 :PROPERTIES:
@@ -617,7 +617,7 @@ prefix matching would only add false hits. Values are sluggified the way
 Denote sluggifies them, which is why =title:"prawo pracy"= finds
 =--prawo-pracy--=.
 
-Function: =my/notes-find-by-name= | Module: =modules/41-notes-search.el=
+Function: =my/notes-find-by-name= | Module: =modules/300-notes-core/341-notes-search.el=
 
 *** b — Backlinks
 :PROPERTIES:
@@ -665,7 +665,7 @@ Column buffers left over from a wider layout are killed on refresh.
 Files listed are the =.org= files of the silos whose names do not start
 with a dot (=my/denote-org-file-regexp=): an Emacs lock file
 (=.#NAME.org=, made while a buffer has unsaved changes, where
-=create-lockfiles= is on -- 00-core.el turns it off) was listed as a
+=create-lockfiles= is on -- 000-core.el turns it off) was listed as a
 line of its own until 2026-10-25.
 
 Tests: =tests/test-workspace.el=
@@ -714,7 +714,7 @@ layout.
 **** The HUB and Zettelkasten sections
 
 *HUB* lists notes carrying the =hub= keyword in their file name, across
-every silo. What counts as a hub is owned by =33-denote-hubs.el= (see
+every silo. What counts as a hub is owned by =333-denote-hubs.el= (see
 [[#fn-my-denote-add-to-hub][Add to HUB]]), so the section calls
 =my/denote-hub-files= when that module is loaded and falls back to its
 own file-name scan when it is not. Resolution happens at call time, so
@@ -799,7 +799,7 @@ Functions: =my/open-notes-dashboard=, =my/render-notes-dashboard=,
 =my/dashboard--render-column=, =my/dashboard-insert-file-link=,
 =my/denote-file-metadata=, =my/denote-file-signature=,
 =my/denote-hub-notes=, =my/denote-signature-notes= |
-Module: =modules/15-workspace.el=
+Module: =modules/800-overview/815-workspace.el=
 
 *** t — Tag stats
 :PROPERTIES:
@@ -808,7 +808,7 @@ Module: =modules/15-workspace.el=
 
 Tag usage statistics across the notes collection.
 
-Function: =my/notes-explore= | Module: =modules/15-workspace.el=
+Function: =my/notes-explore= | Module: =modules/800-overview/815-workspace.el=
 
 *** r — Random note
 :PROPERTIES:
@@ -824,11 +824,11 @@ Function: =denote-explore-random-note= (denote-explore package)
 :CUSTOM_ID: menu-notes-history
 :END:
 
-Dynamically appended by =21-dashboards.el= after =12-transient.el=
+Dynamically appended by =821-dashboards.el= after =212-transient.el=
 loads (via =transient-append-suffix=), the same mechanism used by
 Philosophy (see [[#menu-notes-philosophy][Philosophy]] below). If the
 module is removed from =init.el=, this entry disappears automatically
-without editing =12-transient.el=.
+without editing =212-transient.el=.
 
 Both dashboards read the Denote =#+identifier:= (=YYYYMMDDTHHMMSS=)
 from front matter, not the file name directly, and scan across all
@@ -902,7 +902,7 @@ that but would also stop =find-file= from working inside it, which is
 the more common need — reading a note usually leads to following a
 link out of it.
 
-Module: =modules/21-dashboards.el=
+Module: =modules/800-overview/821-dashboards.el=
 
 **** This Day in History (years)
 
@@ -946,13 +946,13 @@ for the chosen day across any month/year combination.
 Functions: =my/dashboards--read-day-of-month=,
 =my/dashboards--collect-this-day-history=,
 =my/dashboards--collect-same-day-every-month= |
-Module: =modules/21-dashboards.el=
+Module: =modules/800-overview/821-dashboards.el=
 
 Functions: =my/dashboards-open-this-day-history=,
 =my/dashboards-open-this-day-history-journals=,
 =my/dashboards-open-same-day-every-month=,
 =my/dashboards-open-same-day-every-month-journals=
-Module: =modules/21-dashboards.el=
+Module: =modules/800-overview/821-dashboards.el=
 
 ** C-c n i — Insert
 :PROPERTIES:
@@ -960,15 +960,15 @@ Module: =modules/21-dashboards.el=
 :END:
 
 Insert links, timestamps, and other content at point. =t=, =i=, =I=,
-=u= and =H= are appended dynamically by =20-transclusion.el=,
-=31-org-images.el=, =32-web-links.el= and =33-denote-hubs.el=; =H= is
+=u= and =H= are appended dynamically by =420-transclusion.el=,
+=331-org-images.el=, =332-web-links.el= and =333-denote-hubs.el=; =H= is
 the one entry that writes into another file rather than at point.
 =u= sits in the Link column, after =L=, since 2026-10-19: it was
 anchored on =I= of the images module and vanished without it. =w=
 is declared here rather than appended, because its module,
-=05-notes.el=, is mandatory and there is nothing to degrade around.
+=205-notes.el=, is mandatory and there is nothing to degrade around.
 
-Module: =modules/12-transient.el=
+Module: =modules/200-foundation/212-transient.el=
 
 *** t — Transclusion submenu
 :PROPERTIES:
@@ -1007,7 +1007,7 @@ first use.
 Full guide with workflow and examples:
 =~/notes/docu/…org-transclusion-przyklady…org=
 
-Module: =modules/20-transclusion.el=
+Module: =modules/400-notes-extensions/420-transclusion.el=
 
 **** a — Add transclusion (wizard)
 :PROPERTIES:
@@ -1053,7 +1053,7 @@ A source open with unsaved changes is refused for heading and paragraph
 mode: save it first.  The =#+transclude:= link is made by Org's
 =org-link-make-string=, so a title ending in =]= still gives one link.
 
-Function: =my/denote-transclude-insert= | Module: =modules/20-transclusion.el=
+Function: =my/denote-transclude-insert= | Module: =modules/400-notes-extensions/420-transclusion.el=
 
 **** A — Add all in buffer
 :PROPERTIES:
@@ -1166,7 +1166,7 @@ Function: =denote-link= (Denote package)
 
 Inserts current time in =HH:MM= format at point.
 
-Function: =insert-current-time= | Module: =modules/05-notes.el=
+Function: =insert-current-time= | Module: =modules/200-foundation/205-notes.el=
 
 *** d — Date (YYYY-MM-DD)
 :PROPERTIES:
@@ -1175,7 +1175,7 @@ Function: =insert-current-time= | Module: =modules/05-notes.el=
 
 Inserts current date in =YYYY-MM-DD= format at point.
 
-Function: =insert-current-date= | Module: =modules/05-notes.el=
+Function: =insert-current-date= | Module: =modules/200-foundation/205-notes.el=
 
 *** w — Week's days (links)
 :PROPERTIES:
@@ -1242,9 +1242,9 @@ without a conversion step.
 Helper functions in the same module, usable on their own:
 =my/journal-midday=, =my/journal-week-monday=, =my/journal-week-days=
 and =my/journal-week-label= (=%G-W%V=, e.g. =2026-W35=).  They count
-days with the [[#dates][date functions of 00-core.el]].
+days with the [[#dates][date functions of 000-core.el]].
 
-Function: =my/journal-insert-week-links= | Module: =modules/05-notes.el=
+Function: =my/journal-insert-week-links= | Module: =modules/200-foundation/205-notes.el=
 
 *** i — Image from disk
 :PROPERTIES:
@@ -1268,7 +1268,7 @@ it is, at full resolution and without recompression.
 The echo area reports source size, stored size and what was done, e.g.
 =…-0.png 4.2M → 148k (rescaled, 256-colour palette)=.
 
-Function: =my/org-image-insert= | Module: =modules/31-org-images.el=
+Function: =my/org-image-insert= | Module: =modules/300-notes-core/331-org-images.el=
 
 **** How the file is named
 
@@ -1287,13 +1287,13 @@ PNG and a JPEG and they must not both claim =-0=.
 
 Reusing the note's identifier means two files under =~/notes/= carry the
 same one. The attachment folder is therefore hidden from Denote through
-the shared list of =00-core.el= (=my/denote-exclude-directory-function=,
+the shared list of =000-core.el= (=my/denote-exclude-directory-function=,
 next to the inbox and the disabled silos), so Denote prompts, backlinks
 and keyword completion never see it.  It follows
 =my/org-image-attachments-directory= at once when that changes.  (It
 used to be appended to the regexp as a bare name: unanchored, and lost
 whenever the shared list rebuilt the regexp.)
-=26-maintenance.el= and =27-denote-identifiers.el= read =.org= files
+=826-maintenance.el= and =227-denote-identifiers.el= read =.org= files
 only, so images were already invisible to them.
 
 The link is relative (=[[file:../attachments/…]]=), which survives a
@@ -1330,7 +1330,7 @@ out looking like JPEG; raise it if photographs come out banded.
 | =my/org-image-jpeg-quality=    | quality when JPEG is chosen      |      85 |
 | =org-image-actual-width=       | width of the *preview* on screen | =(1100)= |
 
-The last one lives in =modules/11-org-appearance.el= and is a display
+The last one lives in =modules/500-look/511-org-appearance.el= and is a display
 setting, not a storage setting. Displaying more pixels than the stored
 file has only upscales a bitmap, so raise it and
 =my/org-image-max-pixels= together or neither. A single image can
@@ -1384,7 +1384,7 @@ Opens =~/notes/attachments/= in Dired, creating it if it is not there
 yet. Useful for spotting orphans: the identifier prefix of every file
 names the note it was inserted into.
 
-Function: =my/org-image-attachments-dired= | Module: =modules/31-org-images.el=
+Function: =my/org-image-attachments-dired= | Module: =modules/300-notes-core/331-org-images.el=
 
 **** M-x my/org-image-recompress-attachments
 :PROPERTIES:
@@ -1403,7 +1403,7 @@ converted to JPEG, and may band. Deleting that file and inserting it
 again gives a better result, because the insertion path can choose the
 format.
 
-Function: =my/org-image-recompress-attachments= | Module: =modules/31-org-images.el=
+Function: =my/org-image-recompress-attachments= | Module: =modules/300-notes-core/331-org-images.el=
 *** u — Web link (auto title)
 :PROPERTIES:
 :CUSTOM_ID: fn-my-insert-web-link
@@ -1416,7 +1416,7 @@ already contains one, org-web-tools offers it as default.
 Without org-web-tools the command says so (until 2026-10-25 it failed
 with "wrong-type-argument commandp").
 
-Function: =my/insert-web-link= | Module: =modules/32-web-links.el= | Tests: =tests/test-web-links.el=
+Function: =my/insert-web-link= | Module: =modules/300-notes-core/332-web-links.el= | Tests: =tests/test-web-links.el=
 
 *** H — Add to HUB
 :PROPERTIES:
@@ -1472,7 +1472,7 @@ added as an entry of its own and the other entry is never rewritten.
 Links are made by Org's =org-link-make-string=, so a title ending in
 =]= still gives one link.
 
-Function: =my/denote-add-to-hub= | Module: =modules/33-denote-hubs.el=
+Function: =my/denote-add-to-hub= | Module: =modules/300-notes-core/333-denote-hubs.el=
 
 **** Entries stay in chronological order
 :PROPERTIES:
@@ -1692,7 +1692,7 @@ to =my-notes-docu= or =my-notes-journal= to change that.
 
 **** Not the same thing as a writing-project hub
 
-=28-writing-projects.el= also has hubs: scaffolding files under
+=428-writing-projects.el= also has hubs: scaffolding files under
 =~/projects/= that hold tasks, clock entries and materials sections for
 one deadline. Those are not Denote notes and are not found by keyword.
 The two live in separate namespaces — =my/writing--hub-*= there,
@@ -1706,7 +1706,7 @@ modules end up redefining each other's helpers (see the
 :END:
 
 Rename, retag, move between silos, and delete notes.
-Module: =modules/12-transient.el=
+Module: =modules/200-foundation/212-transient.el=
 
 *** r — Rename file
 :PROPERTIES:
@@ -1729,7 +1729,7 @@ adding nothing but the prompt behaviour described in
 [[#keyword-prompts][Keyword Prompts]]; which file is acted on and how front matter is
 rewritten stays Denote's business.
 
-Function: =my/denote-keywords-edit= | Module: =modules/05-notes.el=
+Function: =my/denote-keywords-edit= | Module: =modules/200-foundation/205-notes.el=
 
 *** ! — Deletion questions on/off (this session)
 :PROPERTIES:
@@ -1755,7 +1755,7 @@ Not deletions, so not asked here: promoting a capture (the text moves
 into a note), extracting from the inbox (the text moves into a new
 note), rejecting an inbox note (it moves to =inbox-odrzucone/=).
 
-Function: =my/confirm-deletion-toggle-session=, =my/confirm-deletion-p= | Module: =modules/00-core.el=
+Function: =my/confirm-deletion-toggle-session=, =my/confirm-deletion-p= | Module: =modules/000-loader/000-core.el=
 
 *** c — Change silo
 :PROPERTIES:
@@ -1807,7 +1807,7 @@ delete or re-create the other).
 - The visiting buffer is repointed at the new path with
   =set-visited-file-name=, so no reopening is needed.
 - Silo membership is defined by =my/denote-silo-alist=; add an entry
-  there when a new silo is added to =00-core.el=.
+  there when a new silo is added to =000-core.el=.
 - Silo scanning is non-recursive, matching the flat layout of the
   silos in this configuration.
 
@@ -1818,10 +1818,10 @@ or outgoing links.
 Functions: =my/denote-move-to-silo=, =my/denote--file-title=,
 =my/denote--silo-note-files=, =my/denote--current-silo=,
 =my/denote--titles-equal-p=, =my/denote--relocate=, =my/denote--delete-file=
-| Variable: =my/denote-silo-alist= | Module: =modules/05-notes.el=
+| Variable: =my/denote-silo-alist= | Module: =modules/200-foundation/205-notes.el=
 
 Identifiers are read with =my/denote--file-identifier=, which lives in
-=modules/27-denote-identifiers.el= — see [[#symbol-collisions][One symbol, one owner]].
+=modules/200-foundation/227-denote-identifiers.el= — see [[#symbol-collisions][One symbol, one owner]].
 
 *** d — Delete note
 :PROPERTIES:
@@ -1867,12 +1867,12 @@ and not yet saved still counts.
 
 =my/denote-delete-attachments= controls the offer: =ask= (default),
 =always=, or =never=. The discovery lives in
-=my/org-image-note-attachments= (=31-org-images.el=), the module that
+=my/org-image-note-attachments= (=331-org-images.el=), the module that
 owns the attachments directory; with that module absent the note is
 deleted on its own, as before.
 
-Function: =my/denote-delete-note= | Module: =modules/05-notes.el=
-Function: =my/org-image-note-attachments= | Module: =modules/31-org-images.el=
+Function: =my/denote-delete-note= | Module: =modules/200-foundation/205-notes.el=
+Function: =my/org-image-note-attachments= | Module: =modules/300-notes-core/331-org-images.el=
 
 ** C-c n x — Export
 :PROPERTIES:
@@ -1881,22 +1881,22 @@ Function: =my/org-image-note-attachments= | Module: =modules/31-org-images.el=
 
 Export notes to PDF using LuaLaTeX. Output mirrors silo structure in
 =~/notes/pdf/=. Single-file export also available as global =C-c p=.
-Module: =modules/16-org-export.el=
+Module: =modules/700-output/716-org-export.el=
 
 Every entry is inserted by its module before =q= Quit, the one entry
-=12-transient.el= declares, in load order (since 2026-10-19):
+=212-transient.el= declares, in load order (since 2026-10-19):
 
 | Key | Contributed by |
 |-----+----------------|
-| =p= PDF, =P= Batch ANY, =Q= Batch ALL (and the global =C-c p=) | =16-org-export.el= |
-| =O= ODT, =W= DOCX, =?= Check office setup | =29-writing-export.el= |
-| =b= Blog (Hugo) → | =46-blog.el= |
-| =r= Repo docs (Hugo) → | =47-repo-docs.el= |
+| =p= PDF, =P= Batch ANY, =Q= Batch ALL (and the global =C-c p=) | =716-org-export.el= |
+| =O= ODT, =W= DOCX, =?= Check office setup | =729-writing-export.el= |
+| =b= Blog (Hugo) → | =746-blog.el= |
+| =r= Repo docs (Hugo) → | =747-repo-docs.el= |
 
-Until then =p P Q= and =C-c p= were declared in =12-transient.el= and
-=08-keybindings.el=, and the others were appended after =Q= -- each
+Until then =p P Q= and =C-c p= were declared in =212-transient.el= and
+=208-keybindings.el=, and the others were appended after =Q= -- each
 right after it, so they showed in reverse order, and all vanished
-without =16-org-export.el=.
+without =716-org-export.el=.
 
 *** p — Export to PDF
 :PROPERTIES:
@@ -1938,7 +1938,7 @@ re-registered by =my/--register-latex-classes=.
 Requires =PlaypenSansHebrew-Regular.ttf= and =PlaypenSansHebrew-Bold.ttf=
 installed; without them fontspec stops with a readable "font not found".
 
-Function: =my/org-export-to-pdf= | Module: =modules/16-org-export.el=
+Function: =my/org-export-to-pdf= | Module: =modules/700-output/716-org-export.el=
 
 **** How links and footnote numbers look
 
@@ -1978,7 +1978,7 @@ description, or its target when it has none
 document): a link to a note means nothing in a PDF or ODT.  Blog and
 repository-docs exports turn it off and link to their pages instead.
 
-Function: =my/org-export-pdf-by-keyword= | Module: =modules/16-org-export.el=
+Function: =my/org-export-pdf-by-keyword= | Module: =modules/700-output/716-org-export.el=
 
 *** Q — Batch PDF — ALL keywords
 :PROPERTIES:
@@ -1989,7 +1989,7 @@ Exports all notes carrying *all* given keywords simultaneously
 (whole keywords, as =P=). More selective than =P=; useful for scoped sets
 (e.g. =esej= + =project=).
 
-Function: =my/org-export-pdf-by-all-keywords= | Module: =modules/16-org-export.el=
+Function: =my/org-export-pdf-by-all-keywords= | Module: =modules/700-output/716-org-export.el=
 
 *** b — Blog (Hugo) →
 :PROPERTIES:
@@ -1998,7 +1998,7 @@ Function: =my/org-export-pdf-by-all-keywords= | Module: =modules/16-org-export.e
 
 Publishes notes to one or more Hugo sites; a section keyword such as
 =blog= or =pubdoc= decides where a note goes. Present only when
-=modules/46-blog.el= is loaded. Full description: [[#blog][Blog (C-c n x b)]].
+=modules/700-output/746-blog.el= is loaded. Full description: [[#blog][Blog (C-c n x b)]].
 
 *** r — Repo docs (Hugo) →
 :PROPERTIES:
@@ -2007,7 +2007,7 @@ Publishes notes to one or more Hugo sites; a section keyword such as
 
 The Markdown files of the NixOS repository (=~/nixos=) as a separate
 Hugo site, laid out by the repository's folders. Present only when
-=modules/47-repo-docs.el= is loaded. Full description:
+=modules/700-output/747-repo-docs.el= is loaded. Full description:
 [[#repo-docs][Repo docs (C-c n x r)]].
 
 ** C-c n v — View
@@ -2017,30 +2017,30 @@ Hugo site, laid out by the repository's folders. Present only when
 
 Toggle visual appearance settings for comfortable writing.
 
-No entry of the Toggle column is defined in =12-transient.el= except
+No entry of the Toggle column is defined in =212-transient.el= except
 =q= Quit, at its bottom.  The modules insert theirs before =q= at load
 time through =my/transient-insert=, so removing or turning off the
 module that contributes one leaves the rest of the submenu intact.
 Until 2026-10-16 the column held =c w i e= itself and the others were
-appended after =e=, which belongs to =11-org-appearance.el= since.
+appended after =e=, which belongs to =511-org-appearance.el= since.
 
 | Key | Contributed by |
 |-----+----------------|
-| =c= Center text | =10-visual-fill.el= |
-| =i= Indent headings, =e= Emphasis markers | =11-org-appearance.el= |
-| =w= Writing mode | =13-centered-writing.el= |
-| =T= Link tooltips | =30-link-tooltips.el= |
-| =t= Theme light/dark, =y= Pick a theme, =p= Padding, =W= Text width, =S= Font size | =34-appearance.el= |
-| =m= Images in buffer | =44-image-display.el= |
+| =c= Center text | =510-visual-fill.el= |
+| =i= Indent headings, =e= Emphasis markers | =511-org-appearance.el= |
+| =w= Writing mode | =313-centered-writing.el= |
+| =T= Link tooltips | =630-link-tooltips.el= |
+| =t= Theme light/dark, =y= Pick a theme, =p= Padding, =W= Text width, =S= Font size | =534-appearance.el= |
+| =m= Images in buffer | =644-image-display.el= |
 
 Order, which is load order: =c i e w T t y p W S m q=.  The Detach
 column (=f=, =F=) is appended after the Toggle column by
-=23-fixed-tabs.el= (since 2026-10-19).
+=323-fixed-tabs.el= (since 2026-10-19).
 
 =t= and =T= are different entries.  A key taken twice is no longer
 silent: see [[#menu-key-collisions][When two modules want one key]].
 
-Module: =modules/12-transient.el= / =modules/13-centered-writing.el=
+Module: =modules/200-foundation/212-transient.el= / =modules/300-notes-core/313-centered-writing.el=
 
 *** c — Center text
 :PROPERTIES:
@@ -2049,7 +2049,7 @@ Module: =modules/12-transient.el= / =modules/13-centered-writing.el=
 
 Toggles centered text layout (=visual-fill-column= + centering).
 
-Function: =my/toggle-visual-fill-column-center= | Module: =modules/13-centered-writing.el=
+Function: =my/toggle-visual-fill-column-center= | Module: =modules/300-notes-core/313-centered-writing.el=
 
 *** w — Writing mode
 :PROPERTIES:
@@ -2077,14 +2077,14 @@ of uniform line heights the correction never runs.
 stop drawing the images at all — =C-c u i=, see
 [[#image-display][Inline Images On and Off]].
 
-Function: =my/toggle-writeroom= | Module: =modules/13-centered-writing.el=
+Function: =my/toggle-writeroom= | Module: =modules/300-notes-core/313-centered-writing.el=
 
 **** Mode line: the front seam
 :PROPERTIES:
 :CUSTOM_ID: mode-line-front-segments
 :END:
 
-=01-ui.el= owns =mode-line-format= and offers two seams to other
+=101-ui.el= owns =mode-line-format= and offers two seams to other
 modules. =mode-line-misc-info= sits at the far right, after every
 minor-mode lighter, and in an Org buffer in a split window it is past
 the window edge — which is why the earlier =W= indicator looked as if it
@@ -2101,11 +2101,11 @@ A module adds a symbol whose value is a mode-line construct:
 =format-mode-line=. The variable is not placed in the format directly:
 in mode-line syntax a list whose first element is a symbol is the
 conditional =(SYMBOL THEN ELSE)=, so a bare list of segment symbols
-would be read as a condition. =13-centered-writing.el= falls back to
-=mode-line-misc-info= when =01-ui.el= is not loaded.
+would be read as a condition. =313-centered-writing.el= falls back to
+=mode-line-misc-info= when =101-ui.el= is not loaded.
 
 Functions: =my/mode-line-front-render= | Variable:
-=my/mode-line-front-segments= | Module: =modules/01-ui.el=
+=my/mode-line-front-segments= | Module: =modules/100-emacs/101-ui.el=
 
 *** m — Images in buffer
 :PROPERTIES:
@@ -2116,7 +2116,7 @@ Shows or hides inline images in the whole buffer, and records the
 choice in the note. Full description: [[#image-display][Inline Images On and Off]].
 Same command as =C-c u i=.
 
-Function: =my/image-display-toggle= | Module: =modules/44-image-display.el=
+Function: =my/image-display-toggle= | Module: =modules/600-look-modifications/644-image-display.el=
 
 *** i — Indent headings
 :PROPERTIES:
@@ -2125,7 +2125,7 @@ Function: =my/image-display-toggle= | Module: =modules/44-image-display.el=
 
 Toggles =org-indent-mode=, visually indenting body text under headings.
 
-Function: =my/toggle-org-indent= | Module: =modules/11-org-appearance.el=
+Function: =my/toggle-org-indent= | Module: =modules/500-look/511-org-appearance.el=
 
 *** e — Emphasis markers
 :PROPERTIES:
@@ -2134,7 +2134,7 @@ Function: =my/toggle-org-indent= | Module: =modules/11-org-appearance.el=
 
 Toggles visibility of Org emphasis markers (=*bold*=, =/italic/=, etc.).
 
-Function: =my/toggle-emphasis-markers= | Module: =modules/11-org-appearance.el=
+Function: =my/toggle-emphasis-markers= | Module: =modules/500-look/511-org-appearance.el=
 
 *** T — Link tooltips
 :PROPERTIES:
@@ -2145,7 +2145,7 @@ Chooses what the mouse tooltip over a =denote:= link shows. Prompts
 for =identifier=, =path= or =default=. See [[#link-tooltips][Link Tooltips]] for why the
 default is not =path=.
 
-Function: =my/link-tooltip-set-style= | Module: =modules/30-link-tooltips.el=
+Function: =my/link-tooltip-set-style= | Module: =modules/600-look-modifications/630-link-tooltips.el=
 
 *** t — Theme light/dark
 :PROPERTIES:
@@ -2156,7 +2156,7 @@ Switches between =modus-operandi-tinted= (light) and
 =modus-vivendi-tinted= (dark). Also =<f5>= and =C-c u t=. See
 [[#theme][Theme]] for what survives the switch and how.
 
-Function: =modus-themes-toggle= | Module: =modules/09-theme.el=
+Function: =modus-themes-toggle= | Module: =modules/500-look/509-theme.el=
 
 *** p — Padding
 :PROPERTIES:
@@ -2167,7 +2167,7 @@ Turns =spacious-padding-mode= on or off: frame border, window dividers,
 fringe margins and the hairline mode line. Worth turning off when screen
 space is tight. Also =C-c u p=. See [[#appearance][Appearance layer]].
 
-Function: =my/toggle-spacious-padding= | Module: =modules/34-appearance.el=
+Function: =my/toggle-spacious-padding= | Module: =modules/500-look/534-appearance.el=
 
 ** C-c n t — Tools
 :PROPERTIES:
@@ -2176,25 +2176,25 @@ Function: =my/toggle-spacious-padding= | Module: =modules/34-appearance.el=
 
 External tool integrations and spelling. New external integrations
 should be added here rather than at top level.
-Module: =modules/12-transient.el=
+Module: =modules/200-foundation/212-transient.el=
 
-The *Integrations* column holds only =q= Quit in =12-transient.el=.
+The *Integrations* column holds only =q= Quit in =212-transient.el=.
 Every other entry is inserted before =q= by the module it opens, with
 =my/transient-insert=, so a module that is absent or turned off takes
 its entry with it and leaves the rest of the column in place:
 
 | Key | Contributed by |
 |-----+----------------|
-| =z= Bibliography | =17-bibliography.el= |
-| =r= Readwise | =24-readwise.el= |
-| =i= Inbox | =25-inbox-review.el= |
-| =m= Markdown | =40-markdown.el= |
-| =o= Obsidian import | =42-obsidian-import.el= |
+| =z= Bibliography | =417-bibliography.el= |
+| =r= Readwise | =424-readwise.el= |
+| =i= Inbox | =425-inbox-review.el= |
+| =m= Markdown | =440-markdown.el= |
+| =o= Obsidian import | =442-obsidian-import.el= |
 
 Quit is the anchor because no module owns it.  Until 2026-10-16 the
 entries were appended after =z=, so without the Zotero module the
 other four disappeared too.  The key =z= stayed when the menu moved
-into 17-bibliography.el (2026-10-25zg), so that the hand keeps it.
+into 417-bibliography.el (2026-10-25zg), so that the hand keeps it.
 
 *** z — Bibliography
 :PROPERTIES:
@@ -2207,7 +2207,7 @@ See [[#menu-zotero-detail][Bibliography menu detail]] below.
 The old name of the menu, =my/zotero-menu= (until 2026-10-25zg), is
 kept as an obsolete alias.
 
-Function: =my/bibliography-menu= | Module: =modules/17-bibliography.el= | Tests: =tests/test-bibliography-menu.el= (every entry runs a command that exists; the key, the Tools entry and the old name open it)
+Function: =my/bibliography-menu= | Module: =modules/400-notes-extensions/417-bibliography.el= | Tests: =tests/test-bibliography-menu.el= (every entry runs a command that exists; the key, the Tools entry and the old name open it)
 
 *** i — Inbox (migrated notes)
 :PROPERTIES:
@@ -2217,15 +2217,15 @@ Function: =my/bibliography-menu= | Module: =modules/17-bibliography.el= | Tests:
 Opens the review queue for notes migrated from Obsidian.
 See [[#menu-inbox][Inbox review detail]] below.
 
-Function: =my/inbox-menu= | Module: =modules/25-inbox-review.el=
+Function: =my/inbox-menu= | Module: =modules/400-notes-extensions/425-inbox-review.el=
 
 *** Spelling commands
 :PROPERTIES:
 :CUSTOM_ID: menu-spelling
 :END:
 
-The Spelling column is not declared in =12-transient.el=:
-=03-spelling.el= inserts it as a whole group before the first column
+The Spelling column is not declared in =212-transient.el=:
+=303-spelling.el= inserts it as a whole group before the first column
 (=my/transient-insert= with the coordinate =(0 0)=), so without the
 module the Tools menu has no Spelling column and nothing else changes.
 
@@ -2244,7 +2244,7 @@ was on when the command started -- the logical line, so with
 correction that makes a word longer used to leave point on the last
 letter typed.
 
-Module: =modules/03-spelling.el=
+Module: =modules/300-notes-core/303-spelling.el=
 
 **** Personal dictionary in the settings folder
 :PROPERTIES:
@@ -2292,8 +2292,8 @@ settings folder or of the option), then =~/.hunspell_personal=, once
 per machine — a word removed from the shared file later does not come
 back from there.  Started by =my/spell--dictionary-startup= from
 [[#fn-desktop-after-startup-hook][my/desktop-after-startup-hook]], and run once the start-up pull of
-=07-git.el= is done (=my/auto-commit-after-startup-pull=; at once
-without =07-git.el= or with pulling off), so that the second machine
+=207-git.el= is done (=my/auto-commit-after-startup-pull=; at once
+without =207-git.el= or with pulling off), so that the second machine
 extends the file the first one pushed rather than creating an untracked
 file of the same name (the pull would refuse to overwrite it).  If
 Hunspell started meanwhile, it already uses the file (named at load):
@@ -2326,7 +2326,7 @@ configuration (=emacs -Q --batch -l tests/test-spelling-dictionary.el -f
 ert-run-tests-batch-and-exit=).  By hand: TESTPLAN R18.
 
 Function: =my/spell-edit-personal-dictionary=, =my/spell--dictionary-prepare=, =my/spell--dictionary-merge=, =my/spell--dictionary-sync=, =my/spell--dictionary-startup= |
-Variable: =my/spell-personal-dictionary= | Module: =modules/03-spelling.el=
+Variable: =my/spell-personal-dictionary= | Module: =modules/300-notes-core/303-spelling.el=
 
 **** Live checking and the startup guard
 :PROPERTIES:
@@ -2398,21 +2398,21 @@ to =DICPATH=, so a converted copy anywhere else (formerly
 Check from a shell: =head -c 300 /etc/profiles/per-user/$USER/share/hunspell/pl_PL.aff | grep SET=
 must print =SET UTF-8=.
 
-Module: =modules/03-spelling.el=
+Module: =modules/300-notes-core/303-spelling.el=
 
 Function: =my/toggle-flyspell= | Variable: =my/flyspell-desktop-restoring= |
-Module: =modules/03-spelling.el=
+Module: =modules/300-notes-core/303-spelling.el=
 
 ** C-c n l — Philosophy
 :PROPERTIES:
 :CUSTOM_ID: menu-notes-philosophy
 :END:
 
-Dynamically appended by =19-philosophy-notes.el= after =12-transient.el=
+Dynamically appended by =419-philosophy-notes.el= after =212-transient.el=
 loads (via =transient-append-suffix=). Five note types, each saved in
 =pks= silo with a type keyword plus optional epoch/tradition keyword.
 
-Module: =modules/19-philosophy-notes.el=
+Module: =modules/400-notes-extensions/419-philosophy-notes.el=
 
 | Key | Note type  | Command                        | Denote keyword |
 |-----+------------+--------------------------------+----------------|
@@ -2451,7 +2451,7 @@ Epoch/tradition keywords offered at creation: =starożytność=,
 Opens this file in a new tab. Uses =tab-bar-new-tab= + =find-file= +
 =org-overview= (collapses all headings on open).
 
-Function: =my/open-function-helper= | Module: =modules/12-transient.el=
+Function: =my/open-function-helper= | Module: =modules/200-foundation/212-transient.el=
 
 * Fixed Tabs (routing commands to named tabs)
 :PROPERTIES:
@@ -2520,9 +2520,9 @@ global value, and skips the switch when the target tab is already
 current (which would otherwise push a redundant entry onto the tab
 switching history).
 
-Functions: =my/fixed-tab-goto= (=01-ui.el=),
+Functions: =my/fixed-tab-goto= (=101-ui.el=),
 =my/fixed-tab-refresh-advice=, =my/fixed-tab--install= |
-Variable: =my/fixed-tab-commands= | Module: =modules/23-fixed-tabs.el=
+Variable: =my/fixed-tab-commands= | Module: =modules/300-notes-core/323-fixed-tabs.el=
 
 ** Windows of killed buffers when a tab comes back
 :PROPERTIES:
@@ -2542,7 +2542,7 @@ only window of a frame is never closed.  Nothing changes on Emacs 29.
 
 Tests: =tests/test-session.el=.
 
-Function: =my/tab-bar-restore-windows= | Module: =modules/01-ui.el=
+Function: =my/tab-bar-restore-windows= | Module: =modules/100-emacs/101-ui.el=
 
 ** Detaching to a separate frame (C-c n v f / F)
 :PROPERTIES:
@@ -2600,7 +2600,7 @@ optional =SIGNATURE= file name component.
   =my/zettel--in-pks=, a macro binding =denote-directory= to
   =my-notes-pks=. Journal and docu notes therefore never receive a
   signature, and sequence lookups never offer them. This mirrors the
-  silo-switching pattern of =my/denote-base= in =05-notes.el=. The
+  silo-switching pattern of =my/denote-base= in =205-notes.el=. The
   rationale is that a journal is time-structured while a Zettelkasten
   is idea-structured; mixing them makes both harder to navigate.
 - *Alphanumeric scheme* (=denote-sequence-scheme= is ='alphanumeric=):
@@ -2724,7 +2724,7 @@ cosmetic.
  
 =d= / =p= / =P= list *file names* in Dired. That is inherent to Dired,
 which lists a directory. Two things make it readable, both enabled
-globally in =04-denote.el=: =denote-dired-mode= font-locks the file
+globally in =204-denote.el=: =denote-dired-mode= font-locks the file
 name components (identifier, signature, title, keywords) in distinct
 faces, and =dired-hide-details-mode= strips the
 permission/owner/size/date columns.
@@ -2772,7 +2772,7 @@ reparented. The hierarchy view has no such problem because it is
 computed on each invocation, but it also cannot be saved into a note.
  
 Functions: =my/zettel-hierarchy=, =my/zettel-hierarchy-prefix=
-| Module: =modules/22-zettelkasten.el=
+| Module: =modules/400-notes-extensions/422-zettelkasten.el=
 
 =l= differs from the ordinary =C-c d l= (=denote-link=) only in
 narrowing minibuffer completion to files that *have* a signature.
@@ -2815,7 +2815,7 @@ to one branch gives a self-updating table of contents for that thread:
 Refresh with =C-c C-x C-u= on the =#+BEGIN= line.
 
 Functions: =my/zettel-*=, =my/zettelkasten-menu=, =my/zettel--in-pks=
-| Module: =modules/22-zettelkasten.el= | Upstream manual:
+| Module: =modules/400-notes-extensions/422-zettelkasten.el= | Upstream manual:
 https://protesilaos.com/emacs/denote-sequence
 
 * Readwise (C-c n t r)
@@ -2961,7 +2961,7 @@ buttons beneath each quote:
 
 Each quote line shows its id, location and a clickable Readwise URL.
 
-=z= needs =22-zettelkasten.el=.  Without it the key refuses before
+=z= needs =422-zettelkasten.el=.  Without it the key refuses before
 anything is written, the list offers no =[zettel]= button, and the
 other actions work as before -- Readwise does not require the
 Zettelkasten module.
@@ -3062,7 +3062,7 @@ Token comes from =auth-source=:
 
 : machine readwise.io login apikey password YOUR-TOKEN
 
-Module: =modules/24-readwise.el=
+Module: =modules/400-notes-extensions/424-readwise.el=
 
 * Inbox: migrated Obsidian notes (C-c n t i)
 :PROPERTIES:
@@ -3128,9 +3128,9 @@ the identifier survives in the file name, but =#+title:=,
 is visible to every Denote command, dashboard and search. Half-reviewed
 imports showing up there would defeat the point of staging, so the
 module hides the inbox and its rejects through the shared list of
-=00-core.el= (see [[#silo-disabled][Switching a silo off]]), following
+=000-core.el= (see [[#silo-disabled][Switching a silo off]]), following
 =my/inbox-directory= and =my/inbox-reject-directory= at once when they
-change.  Without =00-core.el= it sets
+change.  Without =000-core.el= it sets
 =denote-excluded-directories-regexp= to ="inbox"=, which also matches
 =inbox-odrzucone/= as a substring.
 
@@ -3198,7 +3198,7 @@ Org buffer via =M-x=.
 | =my/inbox-silos=              | Silos =p= / =d= can accept into  |
 | =my/inbox-journal-directory=  | Silo scanned for link repair     |
 
-Module: =modules/25-inbox-review.el=
+Module: =modules/400-notes-extensions/425-inbox-review.el=
 
 * Writing Projects (C-c n p)
 :PROPERTIES:
@@ -3336,7 +3336,7 @@ most of its life set wrongly. One comparison covers both.
 ** Agenda is project hubs only
 
 =org-agenda-files= is the hub file of every project, rebuilt by =U= and
-on project creation. The previous setting in =05-notes.el= pointed at
+on project creation. The previous setting in =205-notes.el= pointed at
 the three silos plus the capture file, so every agenda build read some
 3,700 notes to find no tasks at all — or worse, to find the =TODO=
 examples in =docu/= and present them as work.
@@ -3374,7 +3374,7 @@ works before enabling:
 :   /org/gnome/Mutter/IdleMonitor/Core \
 :   org.gnome.Mutter.IdleMonitor.GetIdletime
 
-=04-denote.el= used to set =org-clock-persist-file= to nil. That block
+=204-denote.el= used to set =org-clock-persist-file= to nil. That block
 is now inert: a nil file name makes =org-clock-persistence-insinuate=
 fail on the first clock change.
 
@@ -3406,7 +3406,7 @@ Syncthing replicating =.git/= across devices can corrupt it — index,
 locks and packfiles are written concurrently with no atomicity
 guarantees. =~/notes/.stignore= excludes =.git= for the same reason.
 
-Module: =modules/28-writing-projects.el=
+Module: =modules/400-notes-extensions/428-writing-projects.el=
 
 * Tasks & Agenda (f8, C-c n A)
 :PROPERTIES:
@@ -3534,7 +3534,7 @@ that never empties stops being read.
 the writing projects and independent of the notes folder and the
 silos: tasks span every collection, and switching or moving the notes
 folder must not switch the task list or start an empty one.  Like the
-notes it is a git repository committed automatically by =07-git.el=
+notes it is a git repository committed automatically by =207-git.el=
 (=my/tasks--repository-directories= joins its sources; a folder that is
 not a repository is skipped).  Not a Denote silo: nothing here has an
 identifier and nothing here is a note.  Not under =~/.emacs.d/= either,
@@ -3560,11 +3560,11 @@ deleted by hand.  The result is a report that waits for an answer
 ([[#notes-reports][Reports that wait for an answer]]): DONE, REFUSED
 when the new folder already holds other files, FAILED when the copy
 differs.  When saved agenda entries point into the old folder (the
-habit file was saved there by an older version of =38-habits.el=), the
+habit file was saved there by an older version of =438-habits.el=), the
 report offers to remove them, since the planner's files are read
 anyway and the entries show every habit twice.
 
-Function: =my/tasks-check-planner-move=, =my/tasks--repository-directories= | Module: =modules/37-tasks.el=
+Function: =my/tasks-check-planner-move=, =my/tasks--repository-directories= | Module: =modules/400-notes-extensions/437-tasks.el=
 
 The file is written with the same =#+todo:= keyword set as a project
 hub, so a task refiled from one to the other keeps its state instead
@@ -3583,12 +3583,12 @@ name in it is relative to the notes folder, so it follows that folder:
 switched to another collection, the agenda reads that collection's
 file of the same name.  An absolute name stays where it is.
 
-=28-writing-projects.el= used to set the variable itself and now
+=428-writing-projects.el= used to set the variable itself and now
 delegates: =my/writing-projects-update-agenda-files= calls this
 module's version when it is loaded. Pressing =U= in either menu
 therefore produces the complete list rather than whichever half
 belongs to the menu that was open. Without this module,
-=28-writing-projects.el= still sets the variable on its own.
+=428-writing-projects.el= still sets the variable on its own.
 
 The list is also rebuilt before every =org-agenda= call, so a project
 created during the session appears immediately. The cost is one
@@ -3606,9 +3606,9 @@ The silos are still not in the list, and that is deliberate; see
 
 Add a function returning files to =my/tasks-agenda-file-functions=
 (=add-hook=). Nothing else is needed, and this module need not know
-what the file is for. =38-habits.el= joins the agenda this way.
+what the file is for. =438-habits.el= joins the agenda this way.
 
-Not by pushing onto =my/tasks-extra-agenda-files=, as =38-habits.el=
+Not by pushing onto =my/tasks-extra-agenda-files=, as =438-habits.el=
 used to: that option is the user's, and a module's entry in it was
 saved with it the next time it was saved — as an absolute path which,
 after the notes folder moved, kept the agenda reading the old folder.
@@ -3665,7 +3665,7 @@ record nothing.
 A buffer with no file gets no link at all. A link to nowhere is worse
 than no link, because it looks like it should work.
 
-Module: =modules/37-tasks.el=
+Module: =modules/400-notes-extensions/437-tasks.el=
 
 * Habits (f9, C-c n H)
 :PROPERTIES:
@@ -3847,7 +3847,7 @@ either module has to be correct on its own.
   only its own backups — so one of the two has to be the source of
   truth for any given habit.
 
-Module: =modules/38-habits.el=
+Module: =modules/400-notes-extensions/438-habits.el=
 
 * Auto-commit and Push (C-c v a)
 :PROPERTIES:
@@ -3921,7 +3921,7 @@ discarded, so a file name is never interpreted and a failure never
 passes for an answer.  File names in commit messages keep their Polish
 letters (=core.quotePath=false=).
 
-Function: =my/auto-commit-now=, =my/auto-commit-repository-async=, =my/auto-commit-all= | Module: =modules/07-git.el=
+Function: =my/auto-commit-now=, =my/auto-commit-repository-async=, =my/auto-commit-all= | Module: =modules/200-foundation/207-git.el=
 
 =C-c v ?= (=my/auto-commit-status=) says, for every repository, whether
 its work is on the server.
@@ -3954,7 +3954,7 @@ again.  (Until 2026-10-19 that frame handler set the once-only flag,
 so the later exit committed nothing; and staying after answering no
 to the question did the same.)
 
-Function: =my/auto-commit-exit-commit= | Module: =modules/07-git.el=
+Function: =my/auto-commit-exit-commit= | Module: =modules/200-foundation/207-git.el=
 
 ** When it stops
 :PROPERTIES:
@@ -4039,9 +4039,9 @@ Code that has to see the pulled files calls
 =my/auto-commit-after-startup-pull= with a function: run when the pull
 is done, or at once when none runs.  =my/auto-commit-pull-done-hook=
 runs at the same moment, with the echo-area lines of the pull.  The
-personal dictionary (=03-spelling.el=) is the first user.
+personal dictionary (=303-spelling.el=) is the first user.
 
-Function: =my/auto-commit-after-startup-pull= | Variable: =my/auto-commit-pull-done-hook=, =my/auto-commit-startup-pull-wait= | Module: =modules/07-git.el=
+Function: =my/auto-commit-after-startup-pull= | Variable: =my/auto-commit-pull-done-hook=, =my/auto-commit-startup-pull-wait= | Module: =modules/200-foundation/207-git.el=
 
 | Result in the echo area   | Meaning                                              |
 |---------------------------+------------------------------------------------------|
@@ -4074,9 +4074,9 @@ Push a function onto =my/auto-commit-repository-sources=. Each function
 returns a list of directories. A list of functions rather than a list
 of directories, so that the set can be *computed*: the number of
 writing projects changes during a session, and
-=39-project-git.el= contributes them by calling
+=439-project-git.el= contributes them by calling
 =my/project-git-repositories= rather than by naming them;
-=37-tasks.el= adds the planner folder, =00-core.el= the settings
+=437-tasks.el= adds the planner folder, =000-core.el= the settings
 folder.  A variable for modules, not an
 option: as a =defcustom= holding a lambda it showed in Customize as an
 uneditable Lisp expression.
@@ -4098,7 +4098,7 @@ there is three days old and Magit shows "Unmerged into origin/main
 (32)", the commits exist and were never pushed. That is the failure
 this section exists to remove.
 
-Module: =modules/07-git.el=
+Module: =modules/200-foundation/207-git.el=
 
 * The Agenda Dispatcher (C-c a)
 :PROPERTIES:
@@ -4193,7 +4193,7 @@ whether it has fallen behind, and says so before any editing starts.
 project file checks it against its remote (at most every
 =my/project-git-check-interval=), and =C-c n p G= is in the menu.  Off:
 none of that.  The projects stay in the automatic commits of
-=07-git.el= either way.
+=207-git.el= either way.
 
 ** The menu
 
@@ -4328,7 +4328,7 @@ Every git command, its output and its exit status go to
 which turns any failure into a return code with no explanation — the
 same lesson as the image converter in [[#fn-my-org-image-insert][Image Attachments]].
 
-Module: =modules/39-project-git.el=
+Module: =modules/400-notes-extensions/439-project-git.el=
 
 * Office Export — ODT and DOCX (C-c n x)
 :PROPERTIES:
@@ -4357,7 +4357,7 @@ here, for two reasons found by testing rather than assumed:
 - Its Org reader is a reimplementation. =#+INCLUDE: "f.org::*Heading"=
   is unsupported — pandoc warns and *omits the content*. =:only-contents
   t= is ignored, so the heading comes through anyway. Both are how
-  =20-transclusion.el= writes INCLUDE pairs, so an assembled manuscript
+  =420-transclusion.el= writes INCLUDE pairs, so an assembled manuscript
   would export short without failing.
 - It renders citations with its own citeproc. PDF goes through Org and
   citeproc-el; routing DOCX through pandoc lets one source produce two
@@ -4406,7 +4406,7 @@ footnotes.
 | =my/office-project-subdirectory=| Subdirectory inside a project  |
 | =my/office-convert-timeout=     | Seconds to wait for LibreOffice |
 
-Module: =modules/29-writing-export.el=
+Module: =modules/700-output/729-writing-export.el=
 
 * Citation Key Checker (C-c b c)
 :PROPERTIES:
@@ -4618,8 +4618,8 @@ tracking, so the shortened form may appear where the full one belongs.
 :CUSTOM_ID: document-viewers
 :END:
 
-Module: =modules/17b-document-viewers.el= (optional, group 100; split
-from 17-bibliography.el on 2026-10-25zd).  PDF files open in pdf-tools,
+Module: =modules/100-emacs/117b-document-viewers.el= (optional, group 100; split
+from 417-bibliography.el on 2026-10-25zd).  PDF files open in pdf-tools,
 EPUB files in nov.
 
 pdf-tools needs a server, =epdfinfo=, built from source.  It is not
@@ -4645,9 +4645,9 @@ was loaded asks nothing).
 
 Also accessible from =C-c n t z=. The =C-c x= binding remains active
 for direct access without going through the notes menu.
-Module: =modules/17-bibliography.el= (until 2026-10-25zg a module of
+Module: =modules/400-notes-extensions/417-bibliography.el= (until 2026-10-25zg a module of
 its own, 18-zotero-transient.el, off on a new machine).  Every entry is
-citar's, citar-denote's or 17-bibliography's, so the menu works with a
+citar's, citar-denote's or 417-bibliography's, so the menu works with a
 .bib from any program; Zotero's own part is the attachments folder
 ([[#zotero-attachments][Zotero's attachments folder]]).
 
@@ -4742,7 +4742,7 @@ again when a file changes size or time; a reference then renders in
 milliseconds.  A key not in the files is an error naming it, and
 nothing is inserted.
 
-Function: =my/insert-short-reference=, =my/insert-full-reference=, =my/reference-render= | Module: =modules/17-bibliography.el= | Tests: =tests/test-references.el=
+Function: =my/insert-short-reference=, =my/insert-full-reference=, =my/reference-render= | Module: =modules/400-notes-extensions/417-bibliography.el= | Tests: =tests/test-references.el=
 
 ** The citation under point, as it will export
 :PROPERTIES:
@@ -4790,7 +4790,7 @@ The switch =my/cite-preview-mode= (on by default; =C-c n , m= or
 through =org-mode-hook=, and turns ElDoc on where it was off; off, it
 takes both away again.  No key, no menu entry.
 
-Function: =my/cite-preview-at-point=, =my/reference-render-citation=, =my/reference-missing= | Module: =modules/50-cite-preview.el=, =modules/17-bibliography.el= | Tests: =tests/test-cite-preview.el=
+Function: =my/cite-preview-at-point=, =my/reference-render-citation=, =my/reference-missing= | Module: =modules/400-notes-extensions/450-cite-preview.el=, =modules/400-notes-extensions/417-bibliography.el= | Tests: =tests/test-cite-preview.el=
 
 ** , — Where the bibliography is
 :PROPERTIES:
@@ -4803,7 +4803,7 @@ two options say where the bibliography's data is:
 | Option                         | Default                        | Meaning                                         |
 |--------------------------------+--------------------------------+-------------------------------------------------|
 | =my/bibliography-files=        | =("refs.bib")=                 | /Bibliography files (.bib, from Zotero or any other program)/: Better BibTeX's export, JabRef's file, one written by hand; several are read together |
-| =my/zotero-storage-directory=  | =~/Zotero/storage/=           | Zotero's attachments, where =C-c x f= finds the PDF; nil for none.  Only with 17c-zotero.el loaded |
+| =my/zotero-storage-directory=  | =~/Zotero/storage/=           | Zotero's attachments, where =C-c x f= finds the PDF; nil for none.  Only with 417c-zotero.el loaded |
 
 A *relative* bibliography name is relative to the notes folder and
 follows it, so =refs.bib= beside the notes moves with them; an
@@ -4816,15 +4816,15 @@ different files.  It also points =citar-notes-paths= at the silo with
 role =notes=, again when the silos change.  A file that does not exist
 is named once per session in *Messages*; =C-c x ?= lists it too.
 
-Function: =my/bibliography-apply=, =my/bibliography-settings=, =my/bibliography-file-list= | Module: =modules/17-bibliography.el=
+Function: =my/bibliography-apply=, =my/bibliography-settings=, =my/bibliography-file-list= | Module: =modules/400-notes-extensions/417-bibliography.el=
 
 ** Zotero's attachments folder
 :PROPERTIES:
 :CUSTOM_ID: zotero-attachments
 :END:
 
-Module: =modules/17c-zotero.el= (optional, off on a new machine, as
-the modules needing another program are; split from 17-bibliography.el
+Module: =modules/400-notes-extensions/417c-zotero.el= (optional, off on a new machine, as
+the modules needing another program are; split from 417-bibliography.el
 on 2026-10-25zg).  =my/zotero-apply= sets =citar-library-paths= to
 =my/zotero-storage-directory=, once citar is loaded and again when the
 option changes.  citar finds the file of a reference there and in the
@@ -4868,7 +4868,7 @@ folder, or in the bundled one while the user's does not exist.
 =my/csl-check-setup= counts bundled files as present and says when they
 are the ones in use.
 
-Function: =my/csl-apply=, =my/csl-check-setup= | Module: =modules/17-bibliography.el=
+Function: =my/csl-apply=, =my/csl-check-setup= | Module: =modules/400-notes-extensions/417-bibliography.el=
 
 * Capture System
 :PROPERTIES:
@@ -4876,7 +4876,7 @@ Function: =my/csl-apply=, =my/csl-check-setup= | Module: =modules/17-bibliograph
 :END:
 
 Captures land in the file defined by =my-journal-captures= (variable
-in =00-core.el=). Template =j= creates an entry under =* Ideas= with a
+in =000-core.el=). Template =j= creates an entry under =* Ideas= with a
 =:SOURCE:= property linking back to the originating note.
 
 The right-side window behaviour is implemented via
@@ -4893,7 +4893,7 @@ the commands stay.  The template is added to =org-capture-templates=
 rather than set as the whole list, as it was until then: templates of
 other modules or of Customize are kept.
 
-Module: =modules/06-capture.el=
+Module: =modules/300-notes-core/306-capture.el=
 
 * Session Management (desktop)
 :PROPERTIES:
@@ -4923,8 +4923,8 @@ Registered on it, in run order:
 
 | Module | Depth | What it does |
 |--------+-------+--------------|
-| =03-spelling.el= | -90 | Clears the Hunspell block and activates flyspell in every restored buffer |
-| =15-workspace.el= | 0 | Opens the notes dashboard in its tab |
+| =303-spelling.el= | -90 | Clears the Hunspell block and activates flyspell in every restored buffer |
+| =815-workspace.el= | 0 | Opens the notes dashboard in its tab |
 
 =add-hook= prepends, so without an explicit depth the module loaded
 last runs first. Each function is called through
@@ -4936,11 +4936,11 @@ spell checking blocked for a whole session. With =debug-on-error= set,
 errors are not caught (=condition-case-unless-debug=), so the debugger
 still opens on them.
 
-Both registrations are guarded: without =01-ui.el= they degrade to a
+Both registrations are guarded: without =101-ui.el= they degrade to a
 message or to =emacs-startup-hook=, rather than to silence.
 
 This exists because the two consumers used to solve the problem
-separately, inside =15-workspace.el= — two hooks, two timers, and a
+separately, inside =815-workspace.el= — two hooks, two timers, and a
 "does the Dashboard tab exist already?" test whose only purpose was to
 stop them colliding. Spell checking also passed through that file, so
 removing the dashboard module disabled it. A module that owns the
@@ -4949,7 +4949,7 @@ what anyone does with that fact.
 
 Functions: =my/desktop--run-startup-hook=, =my/desktop--run-startup-function= | Variables:
 =my/desktop-after-startup-hook=, =my/desktop-startup-delay= |
-Module: =modules/01-ui.el=
+Module: =modules/100-emacs/101-ui.el=
 
 Three-layer strategy:
 
@@ -5031,7 +5031,7 @@ Both this report and =my/desktop-trim-buffers= read the same
 =my/desktop--classify-buffers=, so the two cannot disagree. A report
 that contradicted the actual behaviour would be worse than no report.
 
-Function: =my/desktop-show-protected= | Module: =modules/01-ui.el=
+Function: =my/desktop-show-protected= | Module: =modules/100-emacs/101-ui.el=
 
 ** Dashboard restoration at startup
 :PROPERTIES:
@@ -5052,7 +5052,7 @@ content is derived from the notes on disk anyway. Set
 
 Functions: =my/desktop-trim-buffers=, =my/desktop--protected-buffers=,
 =my/desktop--tab-buffers= | Variable: =my/desktop-tab-protect-depth=
-(customize group =my/desktop=) | Module: =modules/01-ui.el=
+(customize group =my/desktop=) | Module: =modules/100-emacs/101-ui.el=
 
 ** C-c d k — Pin/unpin buffer against trim
 :PROPERTIES:
@@ -5073,7 +5073,7 @@ Can also be set permanently per-file via a file-local variable:
 ;; End:
 #+end_example
 
-Function: =my/desktop-toggle-keep-buffer= | Module: =modules/01-ui.el=
+Function: =my/desktop-toggle-keep-buffer= | Module: =modules/100-emacs/101-ui.el=
 
 ** C-c d s — Save session now
 :PROPERTIES:
@@ -5084,7 +5084,7 @@ Saves the desktop immediately without waiting for exit. Note: the
 trim (and its buffer killing) also runs here, because it hangs on
 =desktop-save-hook=.
 
-Function: =my/desktop-save-now= | Module: =modules/01-ui.el=
+Function: =my/desktop-save-now= | Module: =modules/100-emacs/101-ui.el=
 
 * Undo and Backup History
 :PROPERTIES:
@@ -5214,7 +5214,7 @@ put there as written in the option: once Customize had saved it as
 =~/notes= (as typed), no note matched and notes were backed up under
 =~/.emacs.d/backups/= instead.
 
-Function: =my/notes--root-regexp= | Module: =modules/00-core.el=
+Function: =my/notes--root-regexp= | Module: =modules/000-loader/000-core.el=
 
 =M-x diff-backup= diffs the current file against its most recent
 backup. Older versions open with =C-x C-f= like any text file.
@@ -5232,7 +5232,7 @@ Hovering the mouse over a =denote:= link used to stall Emacs for as
 long as it took to list the whole =denote-directory=. This section
 explains the cause and what was traded away to remove it.
 
-Module: =modules/30-link-tooltips.el=
+Module: =modules/600-look-modifications/630-link-tooltips.el=
 
 ** The cause
 
@@ -5292,7 +5292,7 @@ next refontified.
 
 ** Why this cache is allowed
 
-=04-denote.el= states that nothing caches =denote-directory-files=,
+=204-denote.el= states that nothing caches =denote-directory-files=,
 because a stale cache in a tree Syncthing writes into would advertise
 notes that no longer exist. That still holds. The cache in this module
 is keyed by identifier, is read only by the tooltip, is dropped whole
@@ -5334,7 +5334,7 @@ buffer. To see what it currently costs:
 If the count is far above the number of real notes, the tree contains
 directories that should not be scanned at all — =.git=, Syncthing's
 =.stversions=, attachment folders. =denote-excluded-directories-regexp=
-is set to ="inbox"= in =25-inbox-review.el=; widening it there helps
+is set to ="inbox"= in =425-inbox-review.el=; widening it there helps
 every Denote operation, not only tooltips.
 
 * Keyword Prompts
@@ -5346,11 +5346,11 @@ Every prompt for tags in this configuration goes through one function,
 =my/notes-read-keywords=, so that they all complete against the same
 vocabulary and all behave the same way.
 
-Function: =my/notes-read-keywords= | Module: =modules/05-notes.el=
+Function: =my/notes-read-keywords= | Module: =modules/200-foundation/205-notes.el=
 
 Callers: =my/denote-base=, =my/denote-essay=, =my/denote-linked-note=
-(05-notes.el), =my/capture-promote-to-note= (06-capture.el), Readwise
-quote promotion (24-readwise.el). =my/denote-keywords-edit= applies the
+(205-notes.el), =my/capture-promote-to-note= (306-capture.el), Readwise
+quote promotion (424-readwise.el). =my/denote-keywords-edit= applies the
 same prompt behaviour to Denote's own =denote-rename-file-keywords=,
 which is what =C-c n d k= runs.
 
@@ -5368,7 +5368,7 @@ its own keyword.
 
 =denote-keywords-prompt= is Denote's own prompt. It completes against
 the vocabulary Denote infers from existing file names
-(=denote-infer-keywords= is =t=, set in 04-denote.el), removes
+(=denote-infer-keywords= is =t=, set in 204-denote.el), removes
 duplicates and returns a list. Calling it rather than writing a private
 prompt is what keeps these commands and =denote-rename-file-keywords=
 identical to each other, and identical as Denote changes.
@@ -5448,7 +5448,7 @@ against how often old ones are reused.
 #+end_src
 
 The keywords offered before any note uses them are an option,
-/Starting keywords/ (=my-denote-keywords=, 00-core.el, group Notes),
+/Starting keywords/ (=my-denote-keywords=, 000-core.el, group Notes),
 passed to =denote-known-keywords=.  Keywords found in existing note
 file names are offered as well (=denote-infer-keywords=), so the list
 matters mostly for a new notes folder.  An added keyword is offered at
@@ -5484,10 +5484,10 @@ differently when the theme changes.
 
 | Layer | Owns | Where |
 |-------+------+-------|
-| Colour | every foreground and background | =modus-themes-common-palette-overrides= in =09-theme.el= |
-| Size, weight, typeface of headings | =org-level-0..8= and the agenda headings | =modus-themes-headings= in =09-theme.el= |
-| Font families | =default=, =fixed-pitch=, =variable-pitch= | =03b-fonts.el= |
-| The residue | a handful of faces no override reaches | =my/theme--custom-faces= in =09-theme.el= |
+| Colour | every foreground and background | =modus-themes-common-palette-overrides= in =509-theme.el= |
+| Size, weight, typeface of headings | =org-level-0..8= and the agenda headings | =modus-themes-headings= in =509-theme.el= |
+| Font families | =default=, =fixed-pitch=, =variable-pitch= | =503b-fonts.el= |
+| The residue | a handful of faces no override reaches | =my/theme--custom-faces= in =509-theme.el= |
 
 The split is not arbitrary. A *height* means the same thing under a
 light and a dark theme; a *colour* does not. A face spec that mixes them
@@ -5495,9 +5495,9 @@ light and a dark theme; a *colour* does not. A face spec that mixes them
 broken in the other.
 
 *Do not put Org faces in custom.el.* =M-x customize-face= writes there
-and its result will beat =09-theme.el= for that face, which is fine for
+and its result will beat =509-theme.el= for that face, which is fine for
 trying something out and wrong as a resting place. Move anything worth
-keeping into =09-theme.el= and delete it from =custom.el=.
+keeping into =509-theme.el= and delete it from =custom.el=.
 
 ** Why colour is a palette override and not a hex value
 
@@ -5529,7 +5529,7 @@ override targets.
 
 ** Fonts: three base faces, one per-silo override
 
-=03b-fonts.el= sets three faces for the whole session:
+=503b-fonts.el= sets three faces for the whole session:
 
 | Variable | Default | Face |
 |----------+---------+------|
@@ -5579,7 +5579,7 @@ journal entry stays monospaced without anything saying so.
 *** Matching is by directory prefix
 
 Against the *start* of the visited file name, using the silo variables
-from =00-core.el=. The previous test was a substring search for
+from =000-core.el=. The previous test was a substring search for
 =journal= anywhere in the path, which matched
 =~/notes/pks/20260101T090000--journal-app.org=.
 
@@ -5592,14 +5592,14 @@ Faces are a screen concern. =my/org-export-to-pdf= emits LaTeX and
 hands it to lualatex, which knows nothing about faces. The journal font
 in a PDF comes from =my/latex-journal-font= ([[#latex-journal-font][The journal font in PDF]]) in the
 =journal-article= class built by =my/--latex-preamble=
-(=16-org-export.el=).
+(=716-org-export.el=).
 
 Note the two different criteria: the screen font is chosen by
 *directory*, the LaTeX class by the =:journal:= *filetag*. For journal
 notes they agree, because journal notes carry that tag. For =pks= and
 =docu= there is nothing to disagree about yet — both export through
 =article=. Giving them distinct PDF fonts means adding classes in
-=16-org-export.el=, not editing =my/font-silo-styles=.
+=716-org-export.el=, not editing =my/font-silo-styles=.
 
 *** An uninstalled family fails silently
 
@@ -5609,7 +5609,7 @@ text in question, or =M-x describe-font=.
 
 ** What used to go wrong
 
-*Every heading in every note was handwritten.* =03b-fonts.el= set the
+*Every heading in every note was handwritten.* =503b-fonts.el= set the
 *global* =variable-pitch= face to Playpen Sans Hebrew, on the
 understanding that journals were the only place a proportional font
 appeared. They were not: =modus-themes-headings= asks for
@@ -5627,7 +5627,7 @@ face. Roughly two thirds of those specs needed no replacement at all:
 twelve existed only to add =:inherit fixed-pitch=, which is exactly what
 =modus-themes-mixed-fonts= does and it was already enabled.
 
-*=11-org-appearance.el= erased attributes it claimed to preserve.* It
+*=511-org-appearance.el= erased attributes it claimed to preserve.* It
 called =set-face-attribute= with =:foreground 'unspecified= on seven Org
 faces, under a comment saying this left the colour to =custom.el=. It
 does the opposite: =unspecified= *erases* the attribute.
@@ -5656,11 +5656,11 @@ Two further traps worth remembering:
   quirk until you notice which marker was used.
 - Quote blocks only get the =org-quote= face when
   =org-fontify-quote-and-verse-blocks= is non-nil, which
-  =11-org-appearance.el= sets (01-ui.el until 2026-10-25zc).
+  =511-org-appearance.el= sets (101-ui.el until 2026-10-25zc).
 
 ** org-modern
 
-=11-org-appearance.el= runs =org-modern= (GNU ELPA), replacing
+=511-org-appearance.el= runs =org-modern= (GNU ELPA), replacing
 =org-bullets=. It styles headline stars, tags, TODO keywords,
 priorities, timestamps and table rules using text properties rather than
 character composition, so the styled text stays editable and searchable.
@@ -5676,16 +5676,16 @@ matching change elsewhere:
   pairs from =prettify-symbols-alist= first — one or the other, never
   both.
 - =org-modern-block-fringe= is nil. The bracket is drawn in the fringe,
-  which =10-visual-fill.el= places inside the margins of a centred
-  column and =34-appearance.el= widens for padding; it would float at an
+  which =510-visual-fill.el= places inside the margins of a centred
+  column and =534-appearance.el= widens for padding; it would float at an
   unpredictable distance from what it brackets. The block background
-  from =09-theme.el= marks blocks instead.
+  from =509-theme.el= marks blocks instead.
 
 =org-tags-column= is 0 and =org-auto-align-tags= nil: with tags rendered
 as labels, a right-aligned column becomes a gap between headline and
 label.
 
-Labels depend on =line-spacing=, which =11-org-appearance.el= sets to
+Labels depend on =line-spacing=, which =511-org-appearance.el= sets to
 0.2 — inside the 0.1–0.4 range upstream recommends. Raising it
 misaligns them.
 
@@ -5714,7 +5714,7 @@ again.
 Around a hundred themes, browsable, with the choice surviving a
 restart.
 
-Module: =modules/09-theme.el=
+Module: =modules/500-look/509-theme.el=
 
 ** Keys
 
@@ -5794,19 +5794,19 @@ the =user= theme and would pin the pink across a light/dark toggle
 Takes effect on the next theme load (=C-c u t= twice, or a restart).
 
 Variable: =modus-operandi-tinted-palette-overrides= | Module:
-=modules/09-theme.el=
+=modules/500-look/509-theme.el=
 
 ** What survives a theme load, and how
 
 A theme reassigns every face it covers, so anything set outside it has
 to be re-applied. =my/theme-after-load-hook= fires for *any* theme
 from any family, through =enable-theme-functions= (Emacs 29+, with a
-fallback to the Modus hook). =03b-fonts.el= adds =my/fonts-apply=
+fallback to the Modus hook). =503b-fonts.el= adds =my/fonts-apply=
 there, because =default= is one of the faces a theme reassigns.
 
 Add to it sparingly. *A face that inherits from a face the theme
 styles needs no hook at all* — which is how the shared faces in
-=34-appearance.el= work, and why there is no runtime
+=534-appearance.el= work, and why there is no runtime
 =custom-set-faces= block here any more. See [[#org-faces][Org Faces and Fonts]].
 
 ** Padding and theme loading
@@ -5878,10 +5878,10 @@ reason about.
 
 The cosmetic layer, plus the interactive controls for size and width.
 Nothing here changes what a command does; removing
-=34-appearance.el= from =init.el= leaves a working but plainer Emacs.
+=534-appearance.el= from =init.el= leaves a working but plainer Emacs.
 
-Modules: =modules/34-appearance.el= (padding, faces, motion),
-=modules/03b-fonts.el= (size), =modules/10-visual-fill.el= (width)
+Modules: =modules/500-look/534-appearance.el= (padding, faces, motion),
+=modules/500-look/503b-fonts.el= (size), =modules/500-look/510-visual-fill.el= (width)
 
 ** The full C-c u prefix
 
@@ -5901,7 +5901,7 @@ git, =w= is workspace, =t= is tabs.
 ** Adjusting the base font size — C-c u f
 
 Enters a repeat map. =+= and =-= change the size by half a point, =0=
-returns to the value compiled into =03b-fonts.el=, and any other key
+returns to the value compiled into =503b-fonts.el=, and any other key
 leaves. The chosen size is written to =my/ui-state-file= immediately,
 so it survives a restart without editing a file.
 
@@ -5947,7 +5947,7 @@ the gap. If notes read as too narrow, lower it in
 
 ** lin
 
-=02-editing.el= enables =global-hl-line-mode=, giving every buffer the
+=102-editing.el= enables =global-hl-line-mode=, giving every buffer the
 same highlight at the same intensity. The line means two different
 things: a reminder of where point is in a note, and *the selection
 itself* in the inbox review queue, the maintenance reports, the
@@ -5974,8 +5974,8 @@ display engine does not have them.
 Six the dashboards use instead of hex values in =propertize=:
 =my/dashboard-title=, =-section=, =-note=, =-tag-button=, =-tags=,
 =-hint=. Two more for the mode line, defined where their segment is:
-=my/modeline-word-count= (=01-ui.el=) and =my/writing-mode-indicator=
-(=13-centered-writing.el=).
+=my/modeline-word-count= (=101-ui.el=) and =my/writing-mode-indicator=
+(=313-centered-writing.el=).
 
 All eight inherit and name no colour. A literal
 ='(:foreground "#888888")= in a =propertize= call is correct under one
@@ -5983,8 +5983,8 @@ theme and muddy under the other, and can only be found later by
 grepping for hex digits; a named face is greppable, appears in
 =M-x list-faces-display=, and can be customised without editing code.
 
-The dashboard faces live in =34-appearance.el= rather than
-=15-workspace.el= so neither module needs the other — an undefined
+The dashboard faces live in =534-appearance.el= rather than
+=815-workspace.el= so neither module needs the other — an undefined
 face renders as =default= rather than signalling.
 
 ** What was considered and rejected
@@ -5992,7 +5992,7 @@ face renders as =default= rather than signalling.
 | Package | Why not |
 |---------+---------|
 | =doom-modeline= | would need the word-count and pin segments rebuilt as doom segments; icon-heavy look pulls against this direction |
-| =centaur-tabs= | buffer tabs, competing with the workspace model =23-fixed-tabs.el= builds on =tab-bar= |
+| =centaur-tabs= | buffer tabs, competing with the workspace model =323-fixed-tabs.el= builds on =tab-bar= |
 | =modern-tab-bar= | the right tool, but on neither GNU ELPA nor MELPA — =:ensure t= fails at startup |
 | =beacon= | overlaps =pulsar=, and configures itself with a literal hex colour |
 | =mini-frame= | child frames are the least reliable part of Wayland/PGTK, and it would sit between which-key and every transient menu |
@@ -6032,11 +6032,11 @@ that reads front matter.
 
 ** How they are read
 
-=my/note-keyword= and =my/note-keyword-number= (=00-core.el=) scan the
+=my/note-keyword= and =my/note-keyword-number= (=000-core.el=) scan the
 first four kilobytes with a regexp. Deliberately not
 =org-collect-keywords=: these run from =org-mode-hook=, before Org has
 finished setting the buffer up, and must not depend on Org internals
-being ready. =10-visual-fill.el= already scanned for =#+filetags:= the
+being ready. =510-visual-fill.el= already scanned for =#+filetags:= the
 same way.
 
 A malformed value yields nil and the default, so a typo in a note
@@ -6056,7 +6056,7 @@ it is yours.
 =~/.emacs.d/ui-state.el=, a plist. Choices made interactively, which
 belong to the session rather than to the configuration.
 
-Module: =modules/00-core.el=
+Module: =modules/000-loader/000-core.el=
 
 | Key | Set by |
 |-----+--------|
@@ -6075,7 +6075,7 @@ the desktop either: this has to work when no session is restored.
 Read once at startup, written on every change. *Safe to delete*: every
 reader falls back to a compiled-in default. Deleting it resets the
 theme to the first light one, the font to the size in
-=03b-fonts.el= and the width to =my-fill-column=.
+=503b-fonts.el= and the width to =my-fill-column=.
 
 * Session and desktop diagnostics
 :PROPERTIES:
@@ -6087,7 +6087,7 @@ failure is close to invisible: the message scrolls past as the frame
 disappears, and the next start quietly restores whatever was last
 written successfully.
 
-Module: =modules/01-ui.el=
+Module: =modules/100-emacs/101-ui.el=
 
 | Command | Reports |
 |---------+---------|
@@ -6123,7 +6123,7 @@ is not a defence; frameset restore overrides that too.
 
 Two things re-assert themselves afterwards:
 =my/frame-bars-apply= on =desktop-after-read-hook= (tool bar
-and scroll bar off; [[#frame-bars][Frame bars]], 01b-frame-bars.el),
+and scroll bar off; [[#frame-bars][Frame bars]], 501b-frame-bars.el),
 and the theme, loaded from =emacs-startup-hook=
 which runs strictly later.
 
@@ -6135,7 +6135,7 @@ which runs strictly later.
 Two signals, both independent of the title: the =journal= Denote
 keyword, and the date in the file name.
 
-Module: =modules/05-notes.el=
+Module: =modules/200-foundation/205-notes.el=
 
 | Function | Answers |
 |----------+---------|
@@ -6186,7 +6186,7 @@ change:
 | Thing | Effect |
 |-------+--------|
 | Syncthing | 3,500 renames propagate as delete-plus-create; =.stversions= fills up |
-| Attachments | named from the old title slug ([[#fn-my-org-image-insert][31-org-images.el]]); nothing breaks, but names stop matching |
+| Attachments | named from the old title slug ([[#fn-my-org-image-insert][331-org-images.el]]); nothing breaks, but names stop matching |
 | Existing PDFs | keep the old file names; new exports use the new |
 
 The mechanism is Denote's own Dired batch rename that reads front
@@ -6203,7 +6203,7 @@ between Denote 2 and 3.
 A report of what is *missing* from the journal series, as opposed to
 [[#menu-notes-history][This Day in History]] which shows what is there.
 
-Module: =modules/35-journal-gaps.el= | Tests: =tests/test-journal-gaps.el=
+Module: =modules/800-overview/835-journal-gaps.el= | Tests: =tests/test-journal-gaps.el=
 
 The window is counted in calendar days, each encoded at midday on its
 own (=my/journal-gaps--dates=).  Until 2026-10-25 it stepped back 86400
@@ -6255,7 +6255,7 @@ the file was absent.
 
 ** Which fields count as required
 
-Derived from =my/journal-metrics-fields= (=05b-journal-metrics.el=),
+Derived from =my/journal-metrics-fields= (=405b-journal-metrics.el=),
 not listed again. A field added there starts being reported as missing
 without touching this module, and a field removed there stops being
 reported. A second copy of that list would drift silently: the report
@@ -6295,17 +6295,17 @@ been written rather than to how many days are covered.
 
 | Missing module | Effect |
 |----------------+--------|
-| =05b-journal-metrics.el= | the metrics half turns off; days with no entry are still listed |
-| =05-notes.el= | a missing day can be opened but not created |
-| =21-dashboards.el= | the menu entry is skipped |
-| =23-fixed-tabs.el= | the report opens in the current window instead of the tab named by =my/journal-gaps-tab-name= (default =Stats=) |
+| =405b-journal-metrics.el= | the metrics half turns off; days with no entry are still listed |
+| =205-notes.el= | a missing day can be opened but not created |
+| =821-dashboards.el= | the menu entry is skipped |
+| =323-fixed-tabs.el= | the report opens in the current window instead of the tab named by =my/journal-gaps-tab-name= (default =Stats=) |
 
 * Dates: calendar days in one place
 :PROPERTIES:
 :CUSTOM_ID: dates
 :END:
 
-Module: =modules/00-core.el= (DATES; since 2026-10-26a).  A time value
+Module: =modules/000-loader/000-core.el= (DATES; since 2026-10-26a).  A time value
 in Emacs is an instant, and a date exists only through a time zone; a
 day is not always 86400 seconds -- in Central Europe the day summer
 time ends has 25 hours, the day it begins 23 -- so near midnight on
@@ -6327,9 +6327,9 @@ saving flag left to Emacs; differences are =time-to-days= numbers.  A
 duration -- notes changed in the last seven days -- is not a date and
 stays in seconds.
 
-Users: 05-notes (the week of a journal note), 28-writing-projects (days
-to a deadline), 35-journal-gaps (the days of the report),
-36-notes-stats (streaks, days since the first entry), 38-habits (the
+Users: 205-notes (the week of a journal note), 428-writing-projects (days
+to a deadline), 835-journal-gaps (the days of the report),
+836-notes-stats (streaks, days since the first entry), 438-habits (the
 day after a derived habit's last date).  Before, three of them encoded
 dates themselves and two stepped by 86400 seconds (CHANGELOG.md, lesson
 L15).
@@ -6344,12 +6344,12 @@ after midnight); the week of a journal note across both transitions in
 :CUSTOM_ID: frame-bars
 :END:
 
-Module: =modules/01b-frame-bars.el= (optional, group 500; split from
-01-ui.el on 2026-10-25zc).  The tool bar and the scroll bars are off,
+Module: =modules/500-look/501b-frame-bars.el= (optional, group 500; split from
+101-ui.el on 2026-10-25zc).  The tool bar and the scroll bars are off,
 the menu bar is on.  The tool bar is a row of icons for commands this
 configuration reaches through =C-c n=; the scroll bar repeats the
 percentage the mode line shows; both take space the centred text
-column of 10-visual-fill.el has to give back.  The menu bar stays: it
+column of 510-visual-fill.el has to give back.  The menu bar stays: it
 is the one surface that lists what a mode can do without knowing a key
 for it.
 
@@ -6372,7 +6372,7 @@ again after a desktop read, no error without =scroll-bar-mode=).
 
 Windows open *side by side*, not stacked.
 
-Module: =modules/01-ui.el=
+Module: =modules/100-emacs/101-ui.el=
 
 ** The two variables that decide it
 
@@ -6444,7 +6444,7 @@ If windows still stack:
 
 | Check | Meaning |
 |-------+---------|
-| =C-h v split-height-threshold= says 80, not nil | =01-ui.el= has not been reloaded — restart |
+| =C-h v split-height-threshold= says 80, not nil | =101-ui.el= has not been reloaded — restart |
 | it says nil, and =C-x 1= then following a link splits right | the layout was already split and was being reused |
 | it says nil and =C-x 1= does not help | something else is calling =split-window-below= directly |
 
@@ -6459,7 +6459,7 @@ The thresholds are the global default. For a specific buffer —
 =*Help*= always at the bottom, a compilation buffer always on the
 right — the mechanism is =display-buffer-alist=, which matches on
 buffer name and takes precedence. Nothing in this configuration uses
-it yet; =06-capture.el= documents one place that deliberately bypasses
+it yet; =306-capture.el= documents one place that deliberately bypasses
 it.
 
 * Notes statistics (C-c n f s)
@@ -6470,7 +6470,7 @@ it.
 One screen answering "how big is this thing, and is it healthy", with
 the interesting numbers clickable.
 
-Module: =modules/36-notes-stats.el= | also =C-c w s= | Tests: =tests/test-notes-stats.el=
+Module: =modules/800-overview/836-notes-stats.el= | also =C-c w s= | Tests: =tests/test-notes-stats.el=
 
 In the exported Org file links are built by =org-link-make-string=, so a
 title ending in a bracket stays inside its link, and a =|= in a title,
@@ -6483,17 +6483,17 @@ In a tab of its own, named by =my/notes-stats-tab-name= (default
 =Stats=). The drill-down lists and the Org export open there too, so
 the report and everything reached from it stay in one place.
 
-It used to open in the History tab of =21-dashboards.el=, which meant
+It used to open in the History tab of =821-dashboards.el=, which meant
 that asking for statistics replaced whatever was being read there.
-Under the model of =23-fixed-tabs.el= a tab is a place, and these are
+Under the model of =323-fixed-tabs.el= a tab is a place, and these are
 two different places: History holds the list-and-preview panes for
 reading old entries, Stats holds figures about the collection.
-=my/journal-gaps= (=35-journal-gaps.el=) moved to the same tab for the
+=my/journal-gaps= (=835-journal-gaps.el=) moved to the same tab for the
 same reason, through its own =my/journal-gaps-tab-name= so that neither
 module depends on the other.
 
 Set either option to nil to open the report in the current window and
-leave tabs alone. With =23-fixed-tabs.el= absent, that is what happens
+leave tabs alone. With =323-fixed-tabs.el= absent, that is what happens
 anyway.
 
 ** Sections
@@ -6504,7 +6504,7 @@ anyway.
 | Notes by directory | =.org= files grouped by top-level directory — journal, pks, docu, inbox, (root) |
 | On disk | every file of every type, same grouping — attachments, pdf, html, refs.bib |
 | Zettelkasten | sequenced notes (a Denote signature, read by =denote-retrieve-filename-signature=, with or without a title), top-level sequences, deepest and average signature depth |
-| Journal | first entry (clickable), days elapsed, coverage, streaks, days missing metrics -- journal notes as 05-notes recognises them (=my/journal-file-date=: the =journal= keyword, the date from the title or the identifier; until 2026-10-25 a pattern of its own wanted "DATE-journal" in the title and missed the notes made since the title lost that suffix) |
+| Journal | first entry (clickable), days elapsed, coverage, streaks, days missing metrics -- journal notes as 205-notes recognises them (=my/journal-file-date=: the =journal= keyword, the date from the title or the identifier; until 2026-10-25 a pattern of its own wanted "DATE-journal" in the title and missed the notes made since the title lost that suffix) |
 | Keywords | distinct, assignments, singletons and no-keyword notes (both clickable), top 12 |
 | Notes created | per month for the last 12, then per year for the whole history |
 | Content | words, links, notes linking to nothing, notes nothing links to — after =c= |
@@ -6620,7 +6620,7 @@ scheme: =1= is 1, =1a= is 2, =1a1= is 3.
 
 ** Dot directories are excluded, and this used to be broken
 
-=my/denote-scan-exclude-regexp= (=27-denote-identifiers.el=) is now
+=my/denote-scan-exclude-regexp= (=227-denote-identifiers.el=) is now
 =/\.= — *any* directory whose name starts with a dot. It used to name
 three: =.backups=, =.autosaves=, =.git=.
 
@@ -6702,10 +6702,10 @@ that is removed stops being offered.
 
 | Missing | Effect |
 |---------+--------|
-| =27-denote-identifiers.el= | hard error: no file list to measure |
-| =26-maintenance.el= | hard error: the keyword field is parsed there |
-| =34-appearance.el= | bars and buttons render in default faces |
-| =35-journal-gaps.el= | the metrics line is omitted |
+| =227-denote-identifiers.el= | hard error: no file list to measure |
+| =826-maintenance.el= | hard error: the keyword field is parsed there |
+| =534-appearance.el= | bars and buttons render in default faces |
+| =835-journal-gaps.el= | the metrics line is omitted |
 | =denote-explore= | =e= says so |
 
 The two hard dependencies signal rather than measuring nothing and
@@ -6720,7 +6720,7 @@ not.
 How a capture joins a thread that already exists, and what promotion
 makes of the result.
 
-Module: =modules/06-capture.el=
+Module: =modules/300-notes-core/306-capture.el=
 
 ** The problem
 
@@ -6790,7 +6790,7 @@ templates, exactly like the destination prompt, and runs before it
 
 Functions: =my/capture--ask-source=, =my/capture--read-keep-source=,
 =my/capture--source-real-p= | Option: =my/capture-source-link-default=
-| Module: =modules/06-capture.el=
+| Module: =modules/300-notes-core/306-capture.el=
 
 ** The source line
 
@@ -6878,9 +6878,9 @@ The check =modules= of =hooks/lint.py= enforces the rules marked
 :END:
 
 #+begin_src emacs-lisp
-;;; 24-readwise.el --- Import Readwise highlights -*- lexical-binding: t; -*-
+;;; 424-readwise.el --- Import Readwise highlights -*- lexical-binding: t; -*-
 
-;; MyPKS-Requires: 01-ui 05-notes 22-zettelkasten
+;; MyPKS-Requires: 101-ui 205-notes 422-zettelkasten
 ;; MyPKS-Optional: yes
 ;; Docs: ~/.emacs.d/function_helper.org::#menu-readwise
 
@@ -6891,14 +6891,14 @@ The check =modules= of =hooks/lint.py= enforces the rules marked
 
 ;; ...
 
-(provide '24-readwise)
-;;; 24-readwise.el ends here
+(provide '424-readwise)
+;;; 424-readwise.el ends here
 #+end_src
 
 | Line                 | Meaning                                                          |
 |----------------------+------------------------------------------------------------------|
 | first line           | file name, one-line description, lexical binding                 |
-| =MyPKS-Requires:=    | modules this one cannot work without, separated by spaces; empty when it needs only 00-core.el, which is never listed |
+| =MyPKS-Requires:=    | modules this one cannot work without, separated by spaces; empty when it needs only 000-core.el, which is never listed |
 | =MyPKS-Optional:=    | =yes=: may be turned off; =no=: part of the core                 |
 | =MyPKS-Switch:=      | the module's switch, a global minor mode it defines (only modules that have one; the =loader= check verifies it) |
 | =MyPKS-Provides:=    | the slot(s) the module fills, lower-case words: =spelling= -- another module could fill it instead, and the two are never loaded together ([[#module-slots][Slots]]) |
@@ -6912,7 +6912,7 @@ Read from Emacs, without loading the module:
 #+begin_src emacs-lisp
 (require 'lisp-mnt)
 (with-temp-buffer
-  (insert-file-contents "~/.emacs.d/modules/24-readwise.el")
+  (insert-file-contents "~/.emacs.d/modules/400-notes-extensions/424-readwise.el")
   (list (lm-summary)
         (lm-header "MyPKS-Requires")    ; nil when empty
         (lm-header "MyPKS-Optional")))
@@ -6929,16 +6929,19 @@ reads these headers to decide /which/ modules load -- see [[#loader][The loader]
 
 Checked:
 
-1. The file is named =NN-name.el=: two digits, at most one letter,
-   lower-case words joined by hyphens.
-2. The first line is =;;; NN-name.el --- Description -*- lexical-binding: t; -*-=.
+1. The file is named =GNN-name.el=: three digits, the first that of
+   its group in =MODULES.org=, at most one letter, lower-case words
+   joined by hyphens; it lies in the folder of its group,
+   =modules/G00-group/= (=modules/200-foundation/205-notes.el=; since
+   2026-10-26c, checked by =groups=).
+2. The first line is =;;; GNN-name.el --- Description -*- lexical-binding: t; -*-=.
 3. =;;; Commentary:= and =;;; Code:= are there, the file ends with
-   =(provide 'NN-name)= and =;;; NN-name.el ends here=.
+   =(provide 'GNN-name)= and =;;; GNN-name.el ends here=.
 4. Before =;;; Code:= stand =MyPKS-Requires:=, =MyPKS-Optional:= (=yes=
    or =no=) and a =Docs:= line; the =anchors= check makes sure the
    section it names exists.
 5. =MyPKS-Requires= names existing modules, never the module itself,
-   never 00-core.el.
+   never 000-core.el.
 6. Every =defgroup= has a parent among the =mypks-= areas, so that its
    options appear in the settings menu (=C-c n , ,=).
 7. Every use of another module's function or variable that is not
@@ -6953,8 +6956,8 @@ Not checked yet -- the target, reached module by module (BACKLOG.org,
 10. Menu entries only through =my/transient-append=,
     =my/transient-insert= or =my/transient-replace=, called from the
     module itself, and anchored on an entry of the menu's own module
-    (12-transient.el), never on another optional module's entry.
-    Reached 2026-10-19e for every menu of 12-transient.el: it names no
+    (212-transient.el), never on another optional module's entry.
+    Reached 2026-10-19e for every menu of 212-transient.el: it names no
     optional module's command any more.  Not checked mechanically yet;
     a taken key is (=menukeys=, [[#menu-key-collisions][below]]).
 11. Key bindings in the module they call.
@@ -6977,9 +6980,9 @@ Not checked yet -- the target, reached module by module (BACKLOG.org,
 :CUSTOM_ID: loader
 :END:
 
-=init.el= loads =00-core.el= by path and then names every other module
+=init.el= loads =000-core.el= by path and then names every other module
 once, in load order, in one list handed to =my/modules-load=
-(00-core.el).  The order is still written by hand, with the reasons
+(000-core.el).  The order is still written by hand, with the reasons
 where it is not numeric; what changed is who decides whether a module
 loads at all.  Before anything is loaded, =my/modules--plan= reads each
 module's header and leaves out:
@@ -7002,14 +7005,14 @@ line and left everything after it unloaded.
 
 *=my/modules-off=* (/Modules turned off on this machine/, at the top of
 =C-c n , ,=) is the list of optional modules not loaded.  It is an
-option, so it lives in this machine's =custom.el=, which =00-core.el=
+option, so it lives in this machine's =custom.el=, which =000-core.el=
 reads before the loader runs.  Changing it in Customize takes effect at
 the next start.
 
 *Renamed modules keep their place in it.*  The list names modules by
 file name, so a module renamed or merged into another would come back
 on, or leave a name that turns nothing off.  =my/modules-renamed= in
-00-core.el is the table of such changes, (OLD . NEW), NEW nil for a
+000-core.el is the table of such changes, (OLD . NEW), NEW nil for a
 module removed; every start reads =my/modules-off= through it (a chain
 of renames is followed to its end), and the saved setting takes the new
 names the next time =C-c n , m= saves it.  An entry stays in the table
@@ -7042,8 +7045,8 @@ one-line description, and turns the chosen one on or off:
   follows at the next start.
 
 The order needs no dependency sort: =MyPKS-Requires= says what a module
-uses while running, and =08-keybindings= needs the menus of
-=12-transient=, which loads later.  The pre-commit check =loader=
+uses while running, and =208-keybindings= needs the menus of
+=212-transient=, which loads later.  The pre-commit check =loader=
 fails when a file in =modules/= is missing from the list (it would never
 load), listed twice, or when a =MyPKS-Switch= names a mode the module
 does not define.
@@ -7054,22 +7057,22 @@ does not define.
 :END:
 
 Some places can be filled by one module or another: spell checking by
-03-spelling (flyspell) or by a module built on jinx, as Doom's
+303-spelling (flyspell) or by a module built on jinx, as Doom's
 completion modules are alternatives to one another.  Each such module
 names the place in its header, =;; MyPKS-Provides: spelling=.
 
 | When                         | What happens                                              |
 |------------------------------+-----------------------------------------------------------|
-| start-up, two of a slot on   | the first in =init.el='s order loads; the other is left out and named in the start-up warning (/not loaded, provides spelling, which 03-spelling already provides/) |
+| start-up, two of a slot on   | the first in =init.el='s order loads; the other is left out and named in the start-up warning (/not loaded, provides spelling, which 303-spelling already provides/) |
 | =C-c n , m=, turning one on  | a question names the module filling the slot now; yes turns that one off (with what needs it, as turning off always does) and the chosen one on; no changes nothing |
-| =C-c n , m=, the list        | a module left out for its slot shows /not loaded: spelling is 03-spelling's/ |
+| =C-c n , m=, the list        | a module left out for its slot shows /not loaded: spelling is 303-spelling's/ |
 
 The pre-commit check =loader= holds the rules: a slot is lower-case
 words joined by hyphens; a module filling a slot is optional (a core
 module cannot give way); at most one module per slot starts on a new
 machine -- the others carry =MyPKS-Default: off=.
 
-Slots on 2026-10-25: =spelling= (03-spelling).
+Slots on 2026-10-25: =spelling= (303-spelling).
 
 *The module map.*  Which group each module belongs to -- Loader,
 Emacs, Foundation, Notes core, Notes extensions, Look, Look
@@ -7098,7 +7101,7 @@ warning, turning the other on with yes and with no);
 Tests: =tests/test-loader.el= -- stand-in modules for every case above,
 run in a fresh =emacs -Q --batch=.
 
-Function: =my/modules-load=, =my/modules-toggle= | Variable: =my/modules-off= | Module: =modules/00-core.el=
+Function: =my/modules-load=, =my/modules-toggle= | Variable: =my/modules-off= | Module: =modules/000-loader/000-core.el=
 
 ** A module's switch
 :PROPERTIES:
@@ -7129,27 +7132,27 @@ module's loading together.
 
 | Switch                    | Module                  | On: adds                                       |
 |---------------------------+-------------------------+------------------------------------------------|
-| =my/readwise-mode=        | =24-readwise.el=        | =C-c r s=, =C-c r o=, =C-c r r=, Tools → =r=   |
-| =my/obsidian-import-mode= | =42-obsidian-import.el= | Tools → =o=                                    |
-| =my/drill-mode=           | =43-drill.el=           | =C-c n r=, the deck keyword in keyword prompts |
-| =my/typing-analytics-mode= | =14-typing-analytics.el= | command counts (keyfreq), the keystroke log if =my/keylog-enabled=, =C-c y k/s/t/T= |
-| =my/project-git-mode=     | =39-project-git.el=     | publishing new projects, the staleness check on opening a project file, =C-c n p G= |
-| =my/tasks-mode=           | =37-tasks.el=           | the task template, =<f8>=, =C-c a=, the agenda files, =A= in the main menu; off empties =org-agenda-files= |
-| =my/habits-mode=          | =38-habits.el=          | the habit template, =<f9>=, the habit file in the agenda, =H= and tasks → =h= |
-| =my/journal-metrics-mode= | =05b-journal-metrics.el= | Create → =w=, =W= |
-| =my/dashboards-mode=      | =21-dashboards.el=      | Find → =h= (History) |
-| =my/zettelkasten-mode=    | =22-zettelkasten.el=    | =C-c n z= |
-| =my/maintenance-mode=     | =26-maintenance.el=     | =C-c n != |
-| =my/maintenance-repairs-mode= | =26b-maintenance-repairs.el= | =K= in =C-c n !=, the keyword buttons of =k= |
-| =my/web-links-mode=       | =32-web-links.el=       | Insert → =u= |
-| =my/capture-mode=         | =06-capture.el=         | the Ideas template (=j=), =C-c c=, Create → Capture column, the right-hand window and the questions at =C-c C-c= |
-| =my/journal-gaps-module-mode= | =35-journal-gaps.el= | Find → =j= |
-| =my/notes-stats-module-mode= | =36-notes-stats.el=  | Find → =s=, =C-c w s= |
-| =my/image-display-mode=   | =44-image-display.el=   | View → =m=, =C-c u i= |
-| =my/blog-mode=            | =46-blog.el=            | export on save, the autostart sites (after start-up, or at once when turned on later), Export → =b=, Settings → =b=; off also cancels pending exports and stops its Hugo servers |
-| =my/repo-docs-mode=       | =47-repo-docs.el=       | regeneration on save while the preview runs, Export → =r=; off also stops the preview server |
-| =my/packages-mode=        | =49-packages.el=        | Maintenance → the Emacs packages column (=U=, =B=, =L=) |
-| =my/cite-preview-mode=    | =50-cite-preview.el=    | the citation under point in the echo area, in every Org buffer (ElDoc) |
+| =my/readwise-mode=        | =424-readwise.el=        | =C-c r s=, =C-c r o=, =C-c r r=, Tools → =r=   |
+| =my/obsidian-import-mode= | =442-obsidian-import.el= | Tools → =o=                                    |
+| =my/drill-mode=           | =443-drill.el=           | =C-c n r=, the deck keyword in keyword prompts |
+| =my/typing-analytics-mode= | =114-typing-analytics.el= | command counts (keyfreq), the keystroke log if =my/keylog-enabled=, =C-c y k/s/t/T= |
+| =my/project-git-mode=     | =439-project-git.el=     | publishing new projects, the staleness check on opening a project file, =C-c n p G= |
+| =my/tasks-mode=           | =437-tasks.el=           | the task template, =<f8>=, =C-c a=, the agenda files, =A= in the main menu; off empties =org-agenda-files= |
+| =my/habits-mode=          | =438-habits.el=          | the habit template, =<f9>=, the habit file in the agenda, =H= and tasks → =h= |
+| =my/journal-metrics-mode= | =405b-journal-metrics.el= | Create → =w=, =W= |
+| =my/dashboards-mode=      | =821-dashboards.el=      | Find → =h= (History) |
+| =my/zettelkasten-mode=    | =422-zettelkasten.el=    | =C-c n z= |
+| =my/maintenance-mode=     | =826-maintenance.el=     | =C-c n != |
+| =my/maintenance-repairs-mode= | =826b-maintenance-repairs.el= | =K= in =C-c n !=, the keyword buttons of =k= |
+| =my/web-links-mode=       | =332-web-links.el=       | Insert → =u= |
+| =my/capture-mode=         | =306-capture.el=         | the Ideas template (=j=), =C-c c=, Create → Capture column, the right-hand window and the questions at =C-c C-c= |
+| =my/journal-gaps-module-mode= | =835-journal-gaps.el= | Find → =j= |
+| =my/notes-stats-module-mode= | =836-notes-stats.el=  | Find → =s=, =C-c w s= |
+| =my/image-display-mode=   | =644-image-display.el=   | View → =m=, =C-c u i= |
+| =my/blog-mode=            | =746-blog.el=            | export on save, the autostart sites (after start-up, or at once when turned on later), Export → =b=, Settings → =b=; off also cancels pending exports and stops its Hugo servers |
+| =my/repo-docs-mode=       | =747-repo-docs.el=       | regeneration on save while the preview runs, Export → =r=; off also stops the preview server |
+| =my/packages-mode=        | =149-packages.el=        | Maintenance → the Emacs packages column (=U=, =B=, =L=) |
+| =my/cite-preview-mode=    | =450-cite-preview.el=    | the citation under point in the echo area, in every Org buffer (ElDoc) |
 
 How a module writes one, with two helpers:
 
@@ -7163,17 +7166,17 @@ How a module writes one, with two helpers:
   "Readwise import as a module ..."
   :global t :init-value t :group 'my/readwise
   (my/module-keys my/readwise-mode my/readwise--keys)
-  (with-eval-after-load '12-transient
+  (with-eval-after-load '212-transient
     (when (fboundp 'my/transient-entries)
       (my/transient-entries my/readwise-mode my/readwise--menu-entries))))
 
 (my/readwise-mode (if my/readwise-mode 1 -1))
 #+end_src
 
-- =my/module-keys= (00-core.el) binds the keys when on and releases
+- =my/module-keys= (000-core.el) binds the keys when on and releases
   them when off -- only a key that still runs the module's command: one
   rebound to something else since is left alone.
-- =my/transient-entries= (12-transient.el) adds the entries when on and
+- =my/transient-entries= (212-transient.el) adds the entries when on and
   removes them when off, again only those that still run the module's
   own command (=my/transient-remove=).  A column left without entries
   is not drawn.  An entry turned on again goes to the end of its
@@ -7185,12 +7188,12 @@ How a module writes one, with two helpers:
   =add-hook=/=remove-hook=, a named function each (rule 12 needs that:
   a nameless function cannot be removed).
 - *One exception: backups.*  A module's folders stay in the automatic
-  commits of =07-git.el= when it is off (=my/auto-commit-repository-sources=
+  commits of =207-git.el= when it is off (=my/auto-commit-repository-sources=
   is extended at load, outside the switch): the switch turns off what
   the module does, not the backup of what it already wrote.  Decided
   2026-10-19, with the planner and the writing projects.
 - A capture template goes in with =my/settings-capture-template= and out
-  with =my/settings-capture-template-remove= (00-core.el), both by the
+  with =my/settings-capture-template-remove= (000-core.el), both by the
   template's target; a key taken from an option goes through
   =my/settings-bind-key= with nil when off.
 
@@ -7199,7 +7202,7 @@ The entry lists are quoted data; the contract check reads the menu in
 hard dependency, and =menukeys= checks their keys like any other
 menu entry.
 
-Function: =my/module-keys=, =my/transient-entries=, =my/transient-remove= | Module: =modules/00-core.el=, =modules/12-transient.el=
+Function: =my/module-keys=, =my/transient-entries=, =my/transient-remove= | Module: =modules/000-loader/000-core.el=, =modules/200-foundation/212-transient.el=
 
 ** Dependencies: hard and guarded
 :PROPERTIES:
@@ -7222,10 +7225,10 @@ is:
 
 ;; refused with a message for the rest of the body
 (unless (fboundp 'my/denote-silo-identifier-table)
-  (user-error "27-denote-identifiers.el is not loaded"))
+  (user-error "227-denote-identifiers.el is not loaded"))
 
 ;; deferred until the other module is there
-(with-eval-after-load '12-transient
+(with-eval-after-load '212-transient
   (my/transient-append 'my/notes-menu "x" '("H" "Habits" my/habits-menu)))
 
 ;; a variable named, not read
@@ -7257,8 +7260,8 @@ that date); the cases are kept as tests in
 Every other use is /hard/, and the check asks for one of two fixes:
 
 #+begin_example
-24-readwise.el: uses my/zettel-adopt (and 1 more) from 22-zettelkasten.el
-without a guard; add 22-zettelkasten to MyPKS-Requires, or test
+424-readwise.el: uses my/zettel-adopt (and 1 more) from 422-zettelkasten.el
+without a guard; add 422-zettelkasten to MyPKS-Requires, or test
 (fboundp 'my/zettel-adopt) first
 #+end_example
 
@@ -7275,12 +7278,12 @@ working.  When it is wrong all the same, the pair goes into
 :CUSTOM_ID: module-contract-core
 :END:
 
-Core, =MyPKS-Optional: no= (9): =00-core=, =01-ui=, =02-editing=, =04-denote=, =05-notes=, =07-git=, =08-keybindings=, =12-transient=, =27-denote-identifiers=.
+Core, =MyPKS-Optional: no= (9): =000-core=, =101-ui=, =102-editing=, =204-denote=, =205-notes=, =207-git=, =208-keybindings=, =212-transient=, =227-denote-identifiers=.
 
-These are the configuration itself (00-core, 01-ui, 02-editing,
-04-denote, 05-notes, 07-git, the key bindings and the main menu) and
-what they need.  Modules were core only because 12-transient.el or
-08-keybindings.el named their commands; moving those entries into the
+These are the configuration itself (000-core, 101-ui, 102-editing,
+204-denote, 205-notes, 207-git, the key bindings and the main menu) and
+what they need.  Modules were core only because 212-transient.el or
+208-keybindings.el named their commands; moving those entries into the
 modules (rule 10) made them optional: the bibliography and Zotero
 first (2026-10-16d), then spelling, centred text, Org appearance and
 the writing mode (2026-10-16e), then capture, PDF export, the
@@ -7290,54 +7293,54 @@ Optional (47):
 
 | Module | What | Requires |
 |---+---+---|
-| =01b-frame-bars= | Tool bar and scroll bar off, menu bar on | -- |
-| =02b-bold-marker= | Obsidian-style inline markers for org-mode | -- |
-| =03-spelling= | Spell checking configuration | -- |
-| =03b-fonts= | Font configuration, per silo | -- |
-| =05b-journal-metrics= | Structured daily metrics for journal notes | =05-notes= |
-| =06-capture= | Org-capture for ideas | =05-notes= |
-| =09-theme= | Theme configuration and light/dark switching | -- |
-| =10-visual-fill= | Visual fill column: single source of truth | -- |
-| =11-org-appearance= | Org-mode visual enhancements; quote blocks and block-marker symbols | -- |
-| =13-centered-writing= | Simple centered cursor for writing | -- |
-| =14-typing-analytics= | Track typing patterns for ergonomic analysis | -- |
-| =15-workspace= | Notes dashboard and workspace tools | =01-ui= =27-denote-identifiers= |
-| =16-org-export= | Org export and PDF settings | -- |
-| =17-bibliography= | Citations with citar: the .bib files, CSL, references, the menu (C-c x) | -- |
-| =17b-document-viewers= | PDF and EPUB viewers: pdf-tools and nov | -- |
-| =17c-zotero= | Zotero's attachments folder for citar | =17-bibliography= |
-| =19-philosophy-notes= | Philosophy note types (Denote) | -- |
-| =20-transclusion= | Obsidian-style transclusion for Denote notes | -- |
-| =21-dashboards= | Historical note dashboards | =01-ui= |
-| =22-zettelkasten= | Folgezettel sequences with denote-sequence | -- |
-| =23-fixed-tabs= | Route commands to their own named tab | =01-ui= =05-notes= |
-| =24-readwise= | Import Readwise highlights | =01-ui= =05-notes= |
-| =25-inbox-review= | Review migrated Obsidian notes | =27-denote-identifiers= |
-| =26-maintenance= | Integrity checks, the Maintenance menu, identifier and link repairs | =27-denote-identifiers= |
-| =26b-maintenance-repairs= | Renaming or removing a keyword across the collection | =26-maintenance= =27-denote-identifiers= |
-| =28-writing-projects= | Writing projects: registry, membership, progress | -- |
-| =29-writing-export= | ODT and DOCX export | =28-writing-projects= |
-| =30-link-tooltips= | Cheap mouse tooltips over denote: links | -- |
-| =31-org-images= | Image attachments for notes | -- |
-| =32-web-links= | Insert web links with fetched titles | -- |
-| =33-denote-hubs= | Collect notes under Denote hub notes | -- |
-| =34-appearance= | Visual layer: padding, faces, motion cues | =03b-fonts= =09-theme= =10-visual-fill= |
-| =35-journal-gaps= | Days without a journal entry, or without metrics | -- |
-| =36-notes-stats= | Summary statistics for the collection | =04-denote= =05-notes= =26-maintenance= =27-denote-identifiers= |
-| =37-tasks= | Tasks: background capture, project routing, agenda files | -- |
-| =38-habits= | Habits: define, log without leaving the buffer, derive | -- |
-| =39-project-git= | Project repositories: remote, fetch, staleness | -- |
-| =40-markdown= | Markdown notes alongside Org | -- |
-| =41-notes-search= | Advanced search across the notes | -- |
-| =42-obsidian-import= | Import notes written in Obsidian | -- |
-| =43-drill= | Spaced repetition with org-drill | -- |
-| =44-image-display= | Hide inline images while writing | -- |
-| =45-standard-pages= | Standard pages of prose | -- |
-| =46-blog= | Publish selected notes as Hugo sites | -- |
-| =47-repo-docs= | Documentation of git repositories as one Hugo site | -- |
-| =48-settings-tools= | Favourite and recently changed settings | -- |
-| =49-packages= | Upgrade the installed packages, with a copy to go back to | -- |
-| =50-cite-preview= | The citation under point shown as it will export | =17-bibliography= |
+| =501b-frame-bars= | Tool bar and scroll bar off, menu bar on | -- |
+| =302b-bold-marker= | Obsidian-style inline markers for org-mode | -- |
+| =303-spelling= | Spell checking configuration | -- |
+| =503b-fonts= | Font configuration, per silo | -- |
+| =405b-journal-metrics= | Structured daily metrics for journal notes | =205-notes= |
+| =306-capture= | Org-capture for ideas | =205-notes= |
+| =509-theme= | Theme configuration and light/dark switching | -- |
+| =510-visual-fill= | Visual fill column: single source of truth | -- |
+| =511-org-appearance= | Org-mode visual enhancements; quote blocks and block-marker symbols | -- |
+| =313-centered-writing= | Simple centered cursor for writing | -- |
+| =114-typing-analytics= | Track typing patterns for ergonomic analysis | -- |
+| =815-workspace= | Notes dashboard and workspace tools | =101-ui= =227-denote-identifiers= |
+| =716-org-export= | Org export and PDF settings | -- |
+| =417-bibliography= | Citations with citar: the .bib files, CSL, references, the menu (C-c x) | -- |
+| =117b-document-viewers= | PDF and EPUB viewers: pdf-tools and nov | -- |
+| =417c-zotero= | Zotero's attachments folder for citar | =417-bibliography= |
+| =419-philosophy-notes= | Philosophy note types (Denote) | -- |
+| =420-transclusion= | Obsidian-style transclusion for Denote notes | -- |
+| =821-dashboards= | Historical note dashboards | =101-ui= |
+| =422-zettelkasten= | Folgezettel sequences with denote-sequence | -- |
+| =323-fixed-tabs= | Route commands to their own named tab | =101-ui= =205-notes= |
+| =424-readwise= | Import Readwise highlights | =101-ui= =205-notes= |
+| =425-inbox-review= | Review migrated Obsidian notes | =227-denote-identifiers= |
+| =826-maintenance= | Integrity checks, the Maintenance menu, identifier and link repairs | =227-denote-identifiers= |
+| =826b-maintenance-repairs= | Renaming or removing a keyword across the collection | =826-maintenance= =227-denote-identifiers= |
+| =428-writing-projects= | Writing projects: registry, membership, progress | -- |
+| =729-writing-export= | ODT and DOCX export | =428-writing-projects= |
+| =630-link-tooltips= | Cheap mouse tooltips over denote: links | -- |
+| =331-org-images= | Image attachments for notes | -- |
+| =332-web-links= | Insert web links with fetched titles | -- |
+| =333-denote-hubs= | Collect notes under Denote hub notes | -- |
+| =534-appearance= | Visual layer: padding, faces, motion cues | =503b-fonts= =509-theme= =510-visual-fill= |
+| =835-journal-gaps= | Days without a journal entry, or without metrics | -- |
+| =836-notes-stats= | Summary statistics for the collection | =204-denote= =205-notes= =826-maintenance= =227-denote-identifiers= |
+| =437-tasks= | Tasks: background capture, project routing, agenda files | -- |
+| =438-habits= | Habits: define, log without leaving the buffer, derive | -- |
+| =439-project-git= | Project repositories: remote, fetch, staleness | -- |
+| =440-markdown= | Markdown notes alongside Org | -- |
+| =341-notes-search= | Advanced search across the notes | -- |
+| =442-obsidian-import= | Import notes written in Obsidian | -- |
+| =443-drill= | Spaced repetition with org-drill | -- |
+| =644-image-display= | Hide inline images while writing | -- |
+| =645-standard-pages= | Standard pages of prose | -- |
+| =746-blog= | Publish selected notes as Hugo sites | -- |
+| =747-repo-docs= | Documentation of git repositories as one Hugo site | -- |
+| =148-settings-tools= | Favourite and recently changed settings | -- |
+| =149-packages= | Upgrade the installed packages, with a copy to go back to | -- |
+| =450-cite-preview= | The citation under point shown as it will export | =417-bibliography= |
 
 * One symbol, one owner
 :PROPERTIES:
@@ -7349,7 +7352,7 @@ name replaces the first silently, and the module that loses is the one
 whose author never opened the other file.
 
 This has already happened once. =my/denote--silo-files= was defined in
-=05-notes.el= taking a directory and in =27-denote-identifiers.el=
+=205-notes.el= taking a directory and in =227-denote-identifiers.el=
 taking nothing; =init.el= loads 27 after 05, so moving a note between
 silos failed with =Wrong number of arguments=. =my/denote--file-identifier=
 was duplicated in the same two files with matching behaviour, which
@@ -7371,7 +7374,7 @@ A symbol defined twice is one way a module can be wrong while still
 loading. A symbol *called* and never defined is the other, and it is
 quieter: parens balance, the file loads, and the error appears only when
 the one key that uses it is pressed. That is how
-=my/maintenance--set-keywords= reached 26-maintenance.el without
+=my/maintenance--set-keywords= reached 826-maintenance.el without
 existing.
 
 Byte-compilation reports it:
@@ -7413,8 +7416,8 @@ Two habits help where the checks cannot:
 
 
 The same over =defvar=, =defconst= and =defcustom= prints only
-=vertico-preselect=, which is deliberate: =05-notes.el= and
-=06-capture.el= each carry a bare =(defvar vertico-preselect)= to mark a
+=vertico-preselect=, which is deliberate: =205-notes.el= and
+=306-capture.el= each carry a bare =(defvar vertico-preselect)= to mark a
 variable belonging to Vertico as special for that file. That declares
 rather than defines, and repeating it is harmless.
 
@@ -7422,15 +7425,15 @@ rather than defines, and repeating it is harmless.
 
 | Helper | Owner | Also called from |
 |--------+-------+------------------|
-| =my/denote--file-identifier= | =27-denote-identifiers.el= | 05-notes.el, 25-inbox-review.el |
-| =my/notes-read-keywords= | =05-notes.el= | 06-capture.el, 24-readwise.el |
-| =my/notes--completion-keys= | =05-notes.el= | 06-capture.el |
-| =my/fixed-tab-goto= | =01-ui.el= | 15-workspace.el, 21-dashboards.el |
-| =my/transient-append= | =12-transient.el= | every module adding a menu entry |
-| =my/transient-insert= | =12-transient.el= | the modules filling Create → Capture, Find → Overview, Export, Tools → Integrations and View → Toggle; 03-spelling.el and 06-capture.el (a whole column) |
-| =my/transient-replace= | =12-transient.el= | 41-notes-search.el |
-| =my/transient-entries= | =12-transient.el= | the modules with a switch ([[#module-switch][A module's switch]]) |
-| =my/module-keys= | =00-core.el= | the modules with a switch |
+| =my/denote--file-identifier= | =227-denote-identifiers.el= | 205-notes.el, 425-inbox-review.el |
+| =my/notes-read-keywords= | =205-notes.el= | 306-capture.el, 424-readwise.el |
+| =my/notes--completion-keys= | =205-notes.el= | 306-capture.el |
+| =my/fixed-tab-goto= | =101-ui.el= | 815-workspace.el, 821-dashboards.el |
+| =my/transient-append= | =212-transient.el= | every module adding a menu entry |
+| =my/transient-insert= | =212-transient.el= | the modules filling Create → Capture, Find → Overview, Export, Tools → Integrations and View → Toggle; 303-spelling.el and 306-capture.el (a whole column) |
+| =my/transient-replace= | =212-transient.el= | 341-notes-search.el |
+| =my/transient-entries= | =212-transient.el= | the modules with a switch ([[#module-switch][A module's switch]]) |
+| =my/module-keys= | =000-core.el= | the modules with a switch |
 
 Resolution is at call time, so load order does not constrain these —
 only whether the owning module is loaded at all. Callers that would
@@ -7440,8 +7443,8 @@ fail with a sentence instead.
 ** Still outstanding
 
 Reading Denote front matter is implemented independently in
-=15-workspace.el=, =21-dashboards.el=, =25-inbox-review.el=,
-=28-writing-projects.el=, =16-org-export.el= and =29-writing-export.el=,
+=815-workspace.el=, =821-dashboards.el=, =425-inbox-review.el=,
+=428-writing-projects.el=, =716-org-export.el= and =729-writing-export.el=,
 each with its own regexp for =^#+title:=. The names differ, so nothing
 collides, but it is the same duplication one step short of the failure
 above.
@@ -7454,21 +7457,21 @@ above.
 Looking after the collection rather than writing in it: finding what the
 migration broke, and repairing it.
 
-Modules: =modules/26-maintenance.el= (the reports, the menu, identifier
-and link repairs), =modules/26b-maintenance-repairs.el= (renaming or
+Modules: =modules/800-overview/826-maintenance.el= (the reports, the menu, identifier
+and link repairs), =modules/800-overview/826b-maintenance-repairs.el= (renaming or
 removing a keyword, =K=; split off 2026-10-25v).
 
 ** The menu
 
 Two columns: /Reports (read only)/ and /Repairs (rename files)/.  =K=
-is added to the repairs column by 26b-maintenance-repairs.el; without
+is added to the repairs column by 826b-maintenance-repairs.el; without
 it the column holds =R=, =I= and =W=, and the keywords listed by =k=
 are plain text instead of buttons.  The package entries (=U=, =B=,
-=L=) are added by 49-packages.el.
+=L=) are added by 149-packages.el.
 
 | Key | Command | Does |
 |-----+---------+------|
-| =i= | =my/denote-check-identifiers= | notes sharing an identifier (27-denote-identifiers.el) |
+| =i= | =my/denote-check-identifiers= | notes sharing an identifier (227-denote-identifiers.el) |
 | =g= | =my/denote-check-signatures= | notes sharing a Folgezettel signature |
 | =b= | =my/denote-check-broken-links= | =denote:= links whose target does not exist |
 | =l= | =my/denote-find-self-links= | notes linking to their own identifier |
@@ -7479,7 +7482,7 @@ are plain text instead of buttons.  The package entries (=U=, =B=,
 | =I= | =my/denote-fix-duplicates= | walk duplicate identifier groups, one confirmation each |
 | =W= | =my/denote-repair-suspect-links= | point each link found by =w= at the note its text names, one question each |
 | =K= | =my/maintenance-rename-keyword= | rename or remove one keyword across the collection |
-| =U= | =my/packages-upgrade= | upgrade the installed Emacs packages, the package folder copied first ([[#packages-upgrade][Package upgrades]], 49-packages.el) |
+| =U= | =my/packages-upgrade= | upgrade the installed Emacs packages, the package folder copied first ([[#packages-upgrade][Package upgrades]], 149-packages.el) |
 | =B= | =my/packages-restore= | put the packages back as in a copy |
 | =L= | =my/packages-list-backups= | the copies, with their size |
 
@@ -7537,7 +7540,7 @@ of truth for that field.
 
 ** Renaming a keyword everywhere
 
-Module: =modules/26b-maintenance-repairs.el= (switch
+Module: =modules/800-overview/826b-maintenance-repairs.el= (switch
 =my/maintenance-repairs-mode=).
 
 =K= asks for the keyword and its replacement, then opens a review list
@@ -7589,13 +7592,13 @@ that starts a rename of it.
 ** Scope: inbox yes, attachments no
 
 Everything here reads =my/denote--all-files= from
-=27-denote-identifiers.el=, which walks =my-notes-dir= directly and
+=227-denote-identifiers.el=, which walks =my-notes-dir= directly and
 returns =.org= files only.
 
 *The staging inbox is included.* A keyword renamed everywhere except
 there would come back one note at a time as notes are filed — a failure
 surfacing weeks later, attached to nothing. Denote's own file listing
-would have excluded it, since =25-inbox-review.el= sets
+would have excluded it, since =425-inbox-review.el= sets
 =denote-excluded-directories-regexp= to ="inbox"=.
 
 *Attachments are not.* A PDF or an image carries an identifier so links
@@ -7669,9 +7672,9 @@ within it.  This module upgrades the installed packages with that way
 back.  It is no lock file -- pinned versions are a separate decision
 (BACKLOG.org, /Packages pinned/).
 
-Module: =modules/49-packages.el=, switch =my/packages-mode=.  Its
+Module: =modules/100-emacs/149-packages.el=, switch =my/packages-mode=.  Its
 column, Emacs packages, is in the Maintenance menu of
-=26-maintenance.el=; without that module the commands remain for M-x.
+=826-maintenance.el=; without that module the commands remain for M-x.
 
 *** U — Upgrade (copy first)
 :PROPERTIES:
@@ -7699,7 +7702,7 @@ column, Emacs packages, is in the Maintenance menu of
 The weekly workflow installs the newest packages every Monday on a
 clean machine: when it is green, an upgrade here is likely to go well.
 
-Function: =my/packages-upgrade= | Module: =modules/49-packages.el=
+Function: =my/packages-upgrade= | Module: =modules/100-emacs/149-packages.el=
 
 *** B — Go back to a copy
 :PROPERTIES:
@@ -7717,7 +7720,7 @@ mv ~/.emacs.d/elpa ~/.emacs.d/elpa-replaced-$(date +%F-%H%M%S)
 cp -a ~/.emacs.d/elpa-backups/elpa-YYYY-MM-DD-HHMMSS ~/.emacs.d/elpa
 #+end_src
 
-Function: =my/packages-restore= | Module: =modules/49-packages.el=
+Function: =my/packages-restore= | Module: =modules/100-emacs/149-packages.el=
 
 *** L — List the copies
 :PROPERTIES:
@@ -7728,7 +7731,7 @@ The copies, newest first, with their size.  Nothing deletes them: a
 copy is as large as the package folder, removed by hand (with the
 replaced folders) when no longer wanted.
 
-Function: =my/packages-list-backups= | Module: =modules/49-packages.el=
+Function: =my/packages-list-backups= | Module: =modules/100-emacs/149-packages.el=
 
 * Standard Pages
 :PROPERTIES:
@@ -7741,8 +7744,8 @@ znormalizowana=). Shown in the mode line beside the word count, so the
 figure a commission or a requirement is written in is on screen while
 writing rather than worked out afterwards.
 
-Module: =modules/45-standard-pages.el= | mode line owned by
-=modules/01-ui.el=
+Module: =modules/600-look-modifications/645-standard-pages.el= | mode line owned by
+=modules/100-emacs/101-ui.el=
 
 =my/standard-page-characters= holds the divisor; some literary contracts
 use 1600, which is one setting away.
@@ -7784,7 +7787,7 @@ the whole buffer do not evict each other.
 =M-x my/standard-pages-report= prints the exact figures: prose
 characters, words, pages, and the divisor in use.
 
-Function: =my/standard-pages-report= | Module: =modules/45-standard-pages.el=
+Function: =my/standard-pages-report= | Module: =modules/600-look-modifications/645-standard-pages.el=
 
 * Inline Emphasis Markers
 :PROPERTIES:
@@ -7795,7 +7798,7 @@ Obsidian-style emphasis: typing a trigger character straight after a
 word wraps that word in Org markup, with no selecting and no second
 keystroke.
 
-Module: =modules/02b-bold-marker.el= | Org buffers only
+Module: =modules/300-notes-core/302b-bold-marker.el= | Org buffers only
 
 | Typed | Becomes | Meaning |
 |-------+---------+---------|
@@ -7851,7 +7854,7 @@ typed by hand stays =*ważne*=.  Until 2026-10-25 the check looked
 before the word's last letter instead of its first, and the result was
 =**ważne**=.
 
-Function: =my/inline-marker-expand-backward= | Module: =modules/02b-bold-marker.el= | Tests: =tests/test-bold-marker.el=
+Function: =my/inline-marker-expand-backward= | Module: =modules/300-notes-core/302b-bold-marker.el= | Tests: =tests/test-bold-marker.el=
 
 * Inline Images On and Off
 :PROPERTIES:
@@ -7862,7 +7865,7 @@ Function: =my/inline-marker-expand-backward= | Module: =modules/02b-bold-marker.
 the whole buffer. In an Org note the decision is written into the
 note's =#+startup:= line, so the note opens the same way next time.
 
-Module: =modules/44-image-display.el= | menu: [[#fn-my-image-display-toggle][C-c n v m]] | key table:
+Module: =modules/600-look-modifications/644-image-display.el= | menu: [[#fn-my-image-display-toggle][C-c n v m]] | key table:
 [[#global-keybindings][Global Keybindings]]
 
 ** Why a command of its own
@@ -7892,11 +7895,11 @@ file through Syncthing, git and any other editor.
 One of the two tokens is always written rather than the line being
 removed, so a note that has been decided about says so, instead of
 silently falling back to =org-startup-with-inline-images= (=t=, set in
-=11-org-appearance.el=). Other tokens already on the line are kept in
+=511-org-appearance.el=). Other tokens already on the line are kept in
 place.
 
 *The buffer is left modified and unsaved*, matching
-=my/text-width-save-to-note= in =10-visual-fill.el=: the command
+=my/text-width-save-to-note= in =510-visual-fill.el=: the command
 changes the note, saving it stays a separate decision.
 
 With a prefix argument (=C-u C-c u i=) the front matter is not touched
@@ -7909,16 +7912,16 @@ session-only: markdown-mode has no startup keyword, so there is nowhere
 in a =.md= file to record the choice without inventing a convention
 only this configuration would understand. The global default for
 Markdown notes is =my/markdown-display-images-on-open=
-(=40-markdown.el=).
+(=440-markdown.el=).
 
 ** Degradation
 
 | Missing module | Effect |
 |----------------+--------|
-| =12-transient.el= | no =m= entry; =C-c u i= still works |
-| =40-markdown.el= | no Markdown buffer exists to toggle |
-| =00-core.el= | the choice is applied but not recorded |
-| =31-org-images.el= | none; no code is shared, on purpose |
+| =212-transient.el= | no =m= entry; =C-c u i= still works |
+| =440-markdown.el= | no Markdown buffer exists to toggle |
+| =000-core.el= | the choice is applied but not recorded |
+| =331-org-images.el= | none; no code is shared, on purpose |
 
 * Global Keybindings
 :PROPERTIES:
@@ -7927,100 +7930,100 @@ Markdown notes is =my/markdown-display-images-on-open=
 
 Bindings set outside the transient menu itself. Audited against every
 =global-set-key=/=define-key=/=:bind= in the repo as of this revision —
-=modules/08-keybindings.el= carries a hand-maintained copy of this
+=modules/200-foundation/208-keybindings.el= carries a hand-maintained copy of this
 table (=my/show-keybindings-help=, =C-c h k=), including the transient
 menu contents; re-audit both together if bindings change, rather than
 hand-editing either from memory.
 
 | Binding   | Function                      | Set in module                            |
 |-----------+-------------------------------+------------------------------------------|
-| C-c n     | =my/notes-menu=                 | =12-transient.el=                          |
-| C-c n z   | =my/zettelkasten-menu=          | =22-zettelkasten.el= (appended)            |
-| C-c c     | =org-capture=                   | =06-capture.el=                            |
-| C-c x     | =my/bibliography-menu=          | =17-bibliography.el=                       |
-| C-c b c   | =my/cite-check-keys=            | =17-bibliography.el=                       |
-| C-c r s   | =my/readwise-sync=              | =24-readwise.el=                           |
-| C-c r r   | =my/readwise-review=            | =24-readwise.el=                           |
-| C-c r o   | =my/readwise-open-directory=    | =24-readwise.el=                           |
-| C-c X     | =my/inbox-extract=              | =25-inbox-review.el= (inbox notes only)    |
-| C-c p     | =my/org-export-to-pdf=          | =16-org-export.el=                         |
-| C-c d f   | =denote-open-or-create=         | =08-keybindings.el=                        |
-| C-c d l   | =denote-link=                   | =08-keybindings.el=                        |
-| C-c d b   | =denote-backlinks=              | =08-keybindings.el=                        |
-| C-c d r   | =denote-rename-file=            | =08-keybindings.el=                        |
-| C-c d t   | =denote-rename-file-keywords=   | =08-keybindings.el=                        |
-| C-c d s   | =my/desktop-save-now=           | =01-ui.el=                                 |
-| C-c d k   | =my/desktop-toggle-keep-buffer= | =01-ui.el=                                 |
-| C-c t n   | =tab-bar-new-tab=               | =01-ui.el=                                 |
-| C-c t c   | =tab-bar-close-tab=             | =01-ui.el=                                 |
-| C-c t o   | =tab-bar-switch-to-tab=         | =01-ui.el=                                 |
-| C-c t r   | =tab-bar-rename-tab=            | =01-ui.el=                                 |
-| C-c w d   | =my/open-notes-dashboard=       | =15-workspace.el=                          |
-| C-c w x   | =my/notes-explore=              | =15-workspace.el=                          |
-| C-c w r   | =denote-explore-random-note=    | =15-workspace.el=                          |
-| C-c y k   | =keyfreq-show=                  | =14-typing-analytics.el=                   |
-| C-c y s   | =my/keylog-status=              | =14-typing-analytics.el=                   |
-| C-c y t   | =my/keylog-disable=             | =14-typing-analytics.el=                   |
-| C-c y T   | =my/keylog-enable=              | =14-typing-analytics.el=                   |
-| <f8>      | =my/task-capture=               | =37-tasks.el=                              |
-| <f9>      | =my/habit-log=                  | =38-habits.el=                             |
-| C-x g     | =magit-status=                  | =07-git.el=                                |
-| C-x M-g   | =magit-dispatch=                | =07-git.el=                                |
-| C-c g s   | =magit-status=                  | =07-git.el=                                |
-| C-c g l   | =magit-log-current=             | =07-git.el=                                |
-| C-c g b   | =magit-blame=                   | =07-git.el=                                |
-| C-c v s   | =my/notes-git-status=           | =07-git.el=                                |
-| C-c v c   | =my/commit-notes-now=           | =07-git.el=                                |
-| C-c v S   | =my/config-git-status=          | =07-git.el=                                |
-| C-c v C   | =my/commit-config-now=          | =07-git.el=                                |
-| C-c v d   | =magit-diff-buffer-file=        | =07-git.el=                                |
-| C-c v h   | =magit-log-buffer-file=         | =07-git.el=                                |
-| C-c v ?   | =my/auto-commit-status=         | =07-git.el=                                |
-| C-;       | =flyspell-correct-wrapper=      | =03-spelling.el= (flyspell-mode-map)       |
-| C-c f b   | =my/spell-check-visible=        | =03-spelling.el=                           |
-| C-a       | =mark-whole-buffer=             | =02-editing.el= (rebind)                   |
-| C-f       | =isearch-forward=               | =02-editing.el= (rebind)                   |
-| C-s       | =save-buffer=                   | =02-editing.el= (rebind)                   |
-| C-z       | =undo=                          | =02-editing.el= (rebind)                   |
-| C-x C-b   | =ibuffer=                       | =02-editing.el=                            |
-| C-x u     | =vundo=                         | =02-editing.el=                            |
-| C-S-z     | =undo-redo=                     | =02-editing.el=                            |
-| M-Q       | =my/unfill-region=              | =02-editing.el=                            |
-| C-c o i   | =open-init-el-bottom-split=     | =08-keybindings.el=                        |
-| C-c e b   | =eval-buffer=                   | =08-keybindings.el=                        |
-| C-c e r   | =eval-region=                   | =08-keybindings.el=                        |
-| C-c h k   | =my/show-keybindings-help=      | =08-keybindings.el=                        |
-| C-c s     | =my/spell-correct-previous=     | =03-spelling.el=                           |
-| C-c S     | =my/spell-add-previous-to-dict= | =03-spelling.el=                           |
-| C-c m c   | =my/notes-create-menu=          | =08-keybindings.el=                        |
-| C-c m w   | =my/toggle-writeroom=           | =13-centered-writing.el=                   |
-| C-c m k   | =my/denote-keywords-edit=       | =08-keybindings.el= (duplicate of C-c d t) |
-| <f4>      | =my/theme-cycle-light=          | =09-theme.el=                              |
-| <f5>      | =my/theme-cycle-dark=           | =09-theme.el=                              |
-| S-<f4>    | =my/theme-cycle-all=            | =09-theme.el=                              |
-| C-c u t   | =my/theme-toggle=               | =09-theme.el=                              |
-| C-c u T   | =my/theme-select=               | =09-theme.el=                              |
-| C-c u m   | =my/theme-favourite-toggle=     | =09-theme.el=                              |
-| C-c u M   | =my/theme-cycle-favourites=     | =09-theme.el=                              |
-| C-c u C   | =my/theme-classify=             | =09-theme.el=                              |
-| C-c u R   | =my/theme-repair=               | =09-theme.el=                              |
-| C-c n f j | =my/journal-gaps=               | =35-journal-gaps.el=                       |
-| C-c n f s | =my/notes-stats=                | =36-notes-stats.el=                        |
-| C-c w s   | =my/notes-stats=                | =36-notes-stats.el=                        |
-| C-c u p   | =my/toggle-spacious-padding=    | =34-appearance.el=                         |
-| C-c u f   | =my/font-size-adjust=           | =03b-fonts.el= (all frames)                |
-| C-c u s   | =my/text-scale-save-to-note=    | =03b-fonts.el=                             |
-| C-c u w   | =my/text-width-adjust=          | =10-visual-fill.el=                        |
-| C-c u i   | =my/image-display-toggle=       | =44-image-display.el=                      |
-| C-c u +   | =text-scale-increase=           | =34-appearance.el= (this buffer)           |
-| C-c u -   | =text-scale-decrease=           | =34-appearance.el= (this buffer)           |
-| C-c u 0   | =my/text-scale-reset=           | =34-appearance.el=                         |
-| C-M-=     | =default-text-scale-increase=   | =34-appearance.el= (all frames)            |
-| C-M--     | =default-text-scale-decrease=   | =34-appearance.el= (all frames)            |
-| C-x b     | =consult-buffer=                | =01-ui.el=                                 |
-| M-g g     | =consult-goto-line=             | =01-ui.el=                                 |
-| M-g i     | =consult-imenu=                 | =01-ui.el=                                 |
-| M-s l     | =consult-line=                  | =01-ui.el=                                 |
+| C-c n     | =my/notes-menu=                 | =212-transient.el=                          |
+| C-c n z   | =my/zettelkasten-menu=          | =422-zettelkasten.el= (appended)            |
+| C-c c     | =org-capture=                   | =306-capture.el=                            |
+| C-c x     | =my/bibliography-menu=          | =417-bibliography.el=                       |
+| C-c b c   | =my/cite-check-keys=            | =417-bibliography.el=                       |
+| C-c r s   | =my/readwise-sync=              | =424-readwise.el=                           |
+| C-c r r   | =my/readwise-review=            | =424-readwise.el=                           |
+| C-c r o   | =my/readwise-open-directory=    | =424-readwise.el=                           |
+| C-c X     | =my/inbox-extract=              | =425-inbox-review.el= (inbox notes only)    |
+| C-c p     | =my/org-export-to-pdf=          | =716-org-export.el=                         |
+| C-c d f   | =denote-open-or-create=         | =208-keybindings.el=                        |
+| C-c d l   | =denote-link=                   | =208-keybindings.el=                        |
+| C-c d b   | =denote-backlinks=              | =208-keybindings.el=                        |
+| C-c d r   | =denote-rename-file=            | =208-keybindings.el=                        |
+| C-c d t   | =denote-rename-file-keywords=   | =208-keybindings.el=                        |
+| C-c d s   | =my/desktop-save-now=           | =101-ui.el=                                 |
+| C-c d k   | =my/desktop-toggle-keep-buffer= | =101-ui.el=                                 |
+| C-c t n   | =tab-bar-new-tab=               | =101-ui.el=                                 |
+| C-c t c   | =tab-bar-close-tab=             | =101-ui.el=                                 |
+| C-c t o   | =tab-bar-switch-to-tab=         | =101-ui.el=                                 |
+| C-c t r   | =tab-bar-rename-tab=            | =101-ui.el=                                 |
+| C-c w d   | =my/open-notes-dashboard=       | =815-workspace.el=                          |
+| C-c w x   | =my/notes-explore=              | =815-workspace.el=                          |
+| C-c w r   | =denote-explore-random-note=    | =815-workspace.el=                          |
+| C-c y k   | =keyfreq-show=                  | =114-typing-analytics.el=                   |
+| C-c y s   | =my/keylog-status=              | =114-typing-analytics.el=                   |
+| C-c y t   | =my/keylog-disable=             | =114-typing-analytics.el=                   |
+| C-c y T   | =my/keylog-enable=              | =114-typing-analytics.el=                   |
+| <f8>      | =my/task-capture=               | =437-tasks.el=                              |
+| <f9>      | =my/habit-log=                  | =438-habits.el=                             |
+| C-x g     | =magit-status=                  | =207-git.el=                                |
+| C-x M-g   | =magit-dispatch=                | =207-git.el=                                |
+| C-c g s   | =magit-status=                  | =207-git.el=                                |
+| C-c g l   | =magit-log-current=             | =207-git.el=                                |
+| C-c g b   | =magit-blame=                   | =207-git.el=                                |
+| C-c v s   | =my/notes-git-status=           | =207-git.el=                                |
+| C-c v c   | =my/commit-notes-now=           | =207-git.el=                                |
+| C-c v S   | =my/config-git-status=          | =207-git.el=                                |
+| C-c v C   | =my/commit-config-now=          | =207-git.el=                                |
+| C-c v d   | =magit-diff-buffer-file=        | =207-git.el=                                |
+| C-c v h   | =magit-log-buffer-file=         | =207-git.el=                                |
+| C-c v ?   | =my/auto-commit-status=         | =207-git.el=                                |
+| C-;       | =flyspell-correct-wrapper=      | =303-spelling.el= (flyspell-mode-map)       |
+| C-c f b   | =my/spell-check-visible=        | =303-spelling.el=                           |
+| C-a       | =mark-whole-buffer=             | =102-editing.el= (rebind)                   |
+| C-f       | =isearch-forward=               | =102-editing.el= (rebind)                   |
+| C-s       | =save-buffer=                   | =102-editing.el= (rebind)                   |
+| C-z       | =undo=                          | =102-editing.el= (rebind)                   |
+| C-x C-b   | =ibuffer=                       | =102-editing.el=                            |
+| C-x u     | =vundo=                         | =102-editing.el=                            |
+| C-S-z     | =undo-redo=                     | =102-editing.el=                            |
+| M-Q       | =my/unfill-region=              | =102-editing.el=                            |
+| C-c o i   | =open-init-el-bottom-split=     | =208-keybindings.el=                        |
+| C-c e b   | =eval-buffer=                   | =208-keybindings.el=                        |
+| C-c e r   | =eval-region=                   | =208-keybindings.el=                        |
+| C-c h k   | =my/show-keybindings-help=      | =208-keybindings.el=                        |
+| C-c s     | =my/spell-correct-previous=     | =303-spelling.el=                           |
+| C-c S     | =my/spell-add-previous-to-dict= | =303-spelling.el=                           |
+| C-c m c   | =my/notes-create-menu=          | =208-keybindings.el=                        |
+| C-c m w   | =my/toggle-writeroom=           | =313-centered-writing.el=                   |
+| C-c m k   | =my/denote-keywords-edit=       | =208-keybindings.el= (duplicate of C-c d t) |
+| <f4>      | =my/theme-cycle-light=          | =509-theme.el=                              |
+| <f5>      | =my/theme-cycle-dark=           | =509-theme.el=                              |
+| S-<f4>    | =my/theme-cycle-all=            | =509-theme.el=                              |
+| C-c u t   | =my/theme-toggle=               | =509-theme.el=                              |
+| C-c u T   | =my/theme-select=               | =509-theme.el=                              |
+| C-c u m   | =my/theme-favourite-toggle=     | =509-theme.el=                              |
+| C-c u M   | =my/theme-cycle-favourites=     | =509-theme.el=                              |
+| C-c u C   | =my/theme-classify=             | =509-theme.el=                              |
+| C-c u R   | =my/theme-repair=               | =509-theme.el=                              |
+| C-c n f j | =my/journal-gaps=               | =835-journal-gaps.el=                       |
+| C-c n f s | =my/notes-stats=                | =836-notes-stats.el=                        |
+| C-c w s   | =my/notes-stats=                | =836-notes-stats.el=                        |
+| C-c u p   | =my/toggle-spacious-padding=    | =534-appearance.el=                         |
+| C-c u f   | =my/font-size-adjust=           | =503b-fonts.el= (all frames)                |
+| C-c u s   | =my/text-scale-save-to-note=    | =503b-fonts.el=                             |
+| C-c u w   | =my/text-width-adjust=          | =510-visual-fill.el=                        |
+| C-c u i   | =my/image-display-toggle=       | =644-image-display.el=                      |
+| C-c u +   | =text-scale-increase=           | =534-appearance.el= (this buffer)           |
+| C-c u -   | =text-scale-decrease=           | =534-appearance.el= (this buffer)           |
+| C-c u 0   | =my/text-scale-reset=           | =534-appearance.el=                         |
+| C-M-=     | =default-text-scale-increase=   | =534-appearance.el= (all frames)            |
+| C-M--     | =default-text-scale-decrease=   | =534-appearance.el= (all frames)            |
+| C-x b     | =consult-buffer=                | =101-ui.el=                                 |
+| M-g g     | =consult-goto-line=             | =101-ui.el=                                 |
+| M-g i     | =consult-imenu=                 | =101-ui.el=                                 |
+| M-s l     | =consult-line=                  | =101-ui.el=                                 |
 
 *On the consult bindings:* the usual setup rebinds =C-s= to
 =consult-line=. It is not done here — =C-s= is =save-buffer= — and
@@ -8038,7 +8041,7 @@ module each one drives, not gathered in one place — see
 working without the prefix until any other key is pressed.
 
 *Note:* there is no =C-c F ...= spelling prefix — an earlier revision
-of this table and of =08-keybindings.el= documented one that was never
+of this table and of =208-keybindings.el= documented one that was never
 actually bound anywhere.
 
 Of the spelling commands, =correct-previous= and =add-to-dict= now have
@@ -8049,7 +8052,7 @@ and =C-c n a= remain as well: they carry =:transient t= and so leave
 the menu open, which suits correcting several words in a row, while the
 direct bindings suit a single fix.
 
-** Pairs typed together (02-editing.el)
+** Pairs typed together (102-editing.el)
 
 =electric-pair-mode= types the closing half of a pair with the opening
 one, and steps over it when the closing half is typed: double quotes,
@@ -8138,7 +8141,7 @@ written anyway — a repository README, a document that came from
 Obsidian, something a collaborator sent — and should look and behave
 like the rest of the notes while it is open.
 
-Module: =modules/40-markdown.el=
+Module: =modules/400-notes-extensions/440-markdown.el=
 
 ** What already worked before the module existed
 :PROPERTIES:
@@ -8171,7 +8174,7 @@ is what makes =RET= on a link work inside a =.md= buffer.
 *The centred column and the spell checker were already there.*
 =markdown-mode= derives from =text-mode=, and both
 =my/visual-fill-notes-setup= ([[#per-note-appearance][Per-note
-appearance]]) and the flyspell hook in =03-spelling.el= are gated on
+appearance]]) and the flyspell hook in =303-spelling.el= are gated on
 =text-mode=.
 
 ** What the module adds
@@ -8191,7 +8194,7 @@ as two different applications:
 | src block fontification        | =markdown-fontify-code-blocks-natively= |
 
 Heading sizes use the same figures as =modus-themes-headings= in
-=09-theme.el= — 1.3, 1.2, 1.1, then 1.0 — so a level-two heading is
+=509-theme.el= — 1.3, 1.2, 1.1, then 1.0 — so a level-two heading is
 the same size in both formats. The scaling is re-applied from
 =my/theme-after-load-hook=, for the reason =my/fonts-apply= is: a
 theme reassigns every face it covers when it loads.
@@ -8224,11 +8227,11 @@ these already — headings and emphasis are markdown-mode's job and it
 does not care where a file lives — but two layers of this configuration
 are keyed to location and skip them:
 
-- =my/visual-fill-notes-setup= (=10-visual-fill.el=) turns the text
+- =my/visual-fill-notes-setup= (=510-visual-fill.el=) turns the text
   column *off* outside =~/notes/=, on purpose, as a signal that the
   notes tree has been left. =visual-line-mode= is still on, so the text
   wrapped at the window edge, across a full-width frame.
-- =my/notes-font-setup= (=03b-fonts.el=) applies a typeface per silo. A
+- =my/notes-font-setup= (=503b-fonts.el=) applies a typeface per silo. A
   file in no silo kept =default= — JetBrains Mono — while its headings
   still inherited =variable-pitch=. Proportional headings over
   monospaced prose is the mismatch that reads as "unformatted".
@@ -8275,7 +8278,7 @@ syntax. Markdown notes are outside all of them, deliberately:
   facilities.
 - *No journal machinery.* Journal entries come from an Org template;
   metrics, dashboards and gap reports read Org front matter.
-- *No =word*= auto-wrap.* =02b-bold-marker.el= stays gated on
+- *No =word*= auto-wrap.* =302b-bold-marker.el= stays gated on
   =org-mode=: Markdown bold is =**= and the trigger would produce
   broken markup.
 
@@ -8311,7 +8314,7 @@ The =let= that binds =denote-use-file-type= is preceded by a valueless
 =(defvar denote-use-file-type)= in the module. Without it the binding
 compiles as a lexical one — a local variable nothing reads — and the
 command would silently produce Org notes. Same pattern as
-=vertico-preselect= in =05-notes.el=; see [[#symbol-collisions][One symbol, one
+=vertico-preselect= in =205-notes.el=; see [[#symbol-collisions][One symbol, one
 owner]].
 
 ** C-c n t m — Markdown menu
@@ -8515,7 +8518,7 @@ of the =org-drill= package (installed from MELPA; see [[#drill-package-source][P
 file name carries the Denote keyword =karty= (=my/drill-keyword=); the
 set of decks is read from the file names each time and never stored.
 
-Module: =modules/43-drill.el=
+Module: =modules/400-notes-extensions/443-drill.el=
 
 ** Card format
 :PROPERTIES:
@@ -8581,7 +8584,7 @@ then =my/drill-buffer=, or place point on the subject heading and use
 | =n=   | New card here    |
 
 Appended to the main menu by =my/transient-append=, anchored on =x=.
-Without =12-transient.el= the commands remain available through =M-x=.
+Without =212-transient.el= the commands remain available through =M-x=.
 
 ** Package source
 :PROPERTIES:
@@ -8645,7 +8648,7 @@ minutes) keep their defaults: =org-drill-maximum-items-per-session= and
   over a large deck pauses once while the IDs are created.
 - A =SCHEDULED= date and =DRILL_*= properties on every reviewed card.
   Decks must therefore stay out of =org-agenda-files=, owned by
-  [[#tasks][37-tasks.el]]; otherwise every card appears in the agenda.
+  [[#tasks][437-tasks.el]]; otherwise every card appears in the agenda.
 - The SM5 matrix of optimal factors in =~/.emacs.d/persist/=, updated at
   the end of each session. Ignored by git: learning data, not
   configuration.
@@ -8667,7 +8670,7 @@ specific to a Denote notes tree: which notes go to which site and
 section, how =denote:= links between them are resolved, what is
 refused, and exporting only what changed.
 
-Module: =modules/46-blog.el=. Site files (Hugo configuration,
+Module: =modules/700-output/746-blog.el=. Site files (Hugo configuration,
 layouts, section pages): =hugo/= in this repository, see
 [[#blog-templates][Site files from the repository]].
 
@@ -8691,7 +8694,7 @@ git. Geekdoc needs the archive: its repository holds sources that need
 an npm build, the release bundle holds the built theme.
 
 *Pinned, with a digest.*  A third element of =:theme= is the SHA-256 of
-the archive: the download is checked with =my/check-sha256= (00-core.el)
+the archive: the download is checked with =my/check-sha256= (000-core.el)
 before =tar= sees it, and another digest stops the install with a
 message naming both values.  The default Geekdoc entry names one
 release (=v4.1.4=), not =releases/latest/=, so the theme changes only
@@ -8983,11 +8986,11 @@ site at the root of its host; =relref= is still available.
 
 The replacement link export is active only for exports started from
 this module. PDF, ODT and =C-c C-e= exports are unchanged, and the
-denote-link filter of =16-org-export.el= is switched off for the blog
+denote-link filter of =716-org-export.el= is switched off for the blog
 export only (see the CHANGELOG entry of session 2026-09-23a for why).
 
 Transclusions reach the page through the =#+INCLUDE:= line that
-=20-transclusion.el= pairs with each =#+transclude:=, so transcluding a
+=420-transclusion.el= pairs with each =#+transclude:=, so transcluding a
 private note into a published one is caught by the include rule.
 
 A private note's description text is still published, since it is part
@@ -9106,7 +9109,7 @@ servers of sites turned off to =s=.  A site added to =my/blog-sites=
 later is not in an explicit list: it starts on a machine only once
 turned on there.
 
-Function: =my/blog-toggle-autostart= | Variable: =my/blog-autostart= | Module: =modules/46-blog.el=
+Function: =my/blog-toggle-autostart= | Variable: =my/blog-autostart= | Module: =modules/700-output/746-blog.el=
 
 ** Reports
 :PROPERTIES:
@@ -9259,7 +9262,7 @@ hard: a changed one may need a reload bypassing the cache
 *Publishing asks, and refuses a home folder* (SAFETY.org, 1.5 and F2).
 The upload mirrors =public/= with =rsync --delete=: the folder named by
 =:remote= ends up holding the build and nothing else.  The question
-before it says so.  =my/upload-destination-problem= (00-core.el, shared
+before it says so.  =my/upload-destination-problem= (000-core.el, shared
 with the repository docs) refuses a destination
 that is a home folder or the root -- an empty path after the host
 (=user@server:= is that user's home there), =~=, =~user=, =/=,
@@ -9277,17 +9280,17 @@ be published.
 Modified buffers under =~/notes/= are saved before an export started
 by hand: the export reads files from disk.
 
-Function: =my/blog-export-current= | Module: =modules/46-blog.el=
+Function: =my/blog-export-current= | Module: =modules/700-output/746-blog.el=
 
-Function: =my/blog-export-all=, =my/blog-export-all-full= | Module: =modules/46-blog.el=
+Function: =my/blog-export-all=, =my/blog-export-all-full= | Module: =modules/700-output/746-blog.el=
 
-Function: =my/blog-export-all-dry-run= | Module: =modules/46-blog.el=
+Function: =my/blog-export-all-dry-run= | Module: =modules/700-output/746-blog.el=
 
-Function: =my/blog-publish= | Module: =modules/46-blog.el=
+Function: =my/blog-publish= | Module: =modules/700-output/746-blog.el=
 
-Function: =my/blog-sync-site= | Module: =modules/46-blog.el=
+Function: =my/blog-sync-site= | Module: =modules/700-output/746-blog.el=
 
-Function: =my/blog-place-file=, =my/blog-unplace-file= | Module: =modules/46-blog.el=
+Function: =my/blog-place-file=, =my/blog-unplace-file= | Module: =modules/700-output/746-blog.el=
 
 ** Menu (C-c n x b)
 :PROPERTIES:
@@ -9395,7 +9398,7 @@ of the same name in two repositories (both have a =README.md=) never
 mix.  The files are edited in place, in the repository, and committed
 there by hand. The site is only a way of reading them.
 
-Module: =modules/47-repo-docs.el=, switch =my/repo-docs-mode=. Site:
+Module: =modules/700-output/747-repo-docs.el=, switch =my/repo-docs-mode=. Site:
 =~/projects/nixos-docs-site/=, generated in full; nothing in it is
 edited by hand.
 
@@ -9464,7 +9467,7 @@ named in the report; with none present, nothing is generated.
 :END:
 
 A silo lives under =~/notes/=: synced by Syncthing, auto-committed on
-idle by =07-git.el=, and full of Denote file names that silo commands
+idle by =207-git.el=, and full of Denote file names that silo commands
 rename, index and count. The NixOS repository is a separate git
 repository whose commits are made deliberately, and its files are called
 =README.md= and =BACKUPS.md=. Making it a silo would hand it to machinery
@@ -9565,7 +9568,7 @@ Completes over the documents of the repositories by site path
 opens the chosen file. Paths, not titles, are the candidates: seven
 =README.md= files stay seven distinct choices.
 
-Function: =my/repo-docs-find= | Module: =modules/47-repo-docs.el=
+Function: =my/repo-docs-find= | Module: =modules/700-output/747-repo-docs.el=
 
 *** v — Preview in browser
 :PROPERTIES:
@@ -9578,14 +9581,14 @@ buffer's file — or the home page when the site has no page for it.
 While the server runs, saving any document of the repositories
 regenerates the site and the browser reloads.
 
-Function: =my/repo-docs-preview= | Module: =modules/47-repo-docs.el=
+Function: =my/repo-docs-preview= | Module: =modules/700-output/747-repo-docs.el=
 
 *** s — Stop the preview
 :PROPERTIES:
 :CUSTOM_ID: fn-my-repo-docs-stop
 :END:
 
-Function: =my/repo-docs-stop= | Module: =modules/47-repo-docs.el=
+Function: =my/repo-docs-stop= | Module: =modules/700-output/747-repo-docs.el=
 
 *** g — Regenerate the site
 :PROPERTIES:
@@ -9595,14 +9598,14 @@ Function: =my/repo-docs-stop= | Module: =modules/47-repo-docs.el=
 Regenerates without starting anything, and reports pages, files written
 and removed, and unresolved links.
 
-Function: =my/repo-docs-regenerate= | Module: =modules/47-repo-docs.el=
+Function: =my/repo-docs-regenerate= | Module: =modules/700-output/747-repo-docs.el=
 
 *** o — Site folder
 :PROPERTIES:
 :CUSTOM_ID: fn-my-repo-docs-open-site
 :END:
 
-Function: =my/repo-docs-open-site= | Module: =modules/47-repo-docs.el=
+Function: =my/repo-docs-open-site= | Module: =modules/700-output/747-repo-docs.el=
 
 *** l — Last report
 :PROPERTIES:
@@ -9613,7 +9616,7 @@ The last regeneration in =*Repo docs*=: counts, repositories missing on
 this machine, and every relative link to a document that has no page,
 as =source -> target=. =q= closes.
 
-Function: =my/repo-docs-report= | Module: =modules/47-repo-docs.el=
+Function: =my/repo-docs-report= | Module: =modules/700-output/747-repo-docs.el=
 
 ** Addresses and publishing
 :PROPERTIES:
@@ -9636,21 +9639,21 @@ succeeded rsync mirrors it with =--delete=; both run with argument
 lists, no shell, their output in =*Repo docs publish*=.  A home folder
 or the root as destination is refused before anything runs and again
 at the upload itself — the rule of the blog
-(=my/upload-destination-problem=, 00-core.el; SAFETY.org 1.5).
+(=my/upload-destination-problem=, 000-core.el; SAFETY.org 1.5).
 
 *** w — Open on the server
 :PROPERTIES:
 :CUSTOM_ID: fn-my-repo-docs-open-on-server
 :END:
 
-Function: =my/repo-docs-open-on-server= | Module: =modules/47-repo-docs.el=
+Function: =my/repo-docs-open-on-server= | Module: =modules/700-output/747-repo-docs.el=
 
 *** p — Publish to the server
 :PROPERTIES:
 :CUSTOM_ID: fn-my-repo-docs-publish
 :END:
 
-Function: =my/repo-docs-publish= | Module: =modules/47-repo-docs.el=
+Function: =my/repo-docs-publish= | Module: =modules/700-output/747-repo-docs.el=
 
 ** Menu (C-c n x r)
 :PROPERTIES:
@@ -9668,7 +9671,7 @@ Function: =my/repo-docs-publish= | Module: =modules/47-repo-docs.el=
 | =w= | Open on the server |
 | =p= | Publish to the server |
 
-Function: =my/repo-docs-menu= | Module: =modules/47-repo-docs.el=
+Function: =my/repo-docs-menu= | Module: =modules/700-output/747-repo-docs.el=
 
 * Typing analytics (C-c y)
 :PROPERTIES:
@@ -9725,7 +9728,7 @@ times come from =float-time=; enabling twice starts one idle timer, not
 two, and disabling stops it.  The old names =keylog-*= are obsolete
 aliases of =my/keylog-*=.
 
-Function: =my/keylog-enable=, =my/keylog-disable=, =my/keylog-status= | Module: =modules/14-typing-analytics.el= | Tests: =tests/test-typing-analytics.el=
+Function: =my/keylog-enable=, =my/keylog-disable=, =my/keylog-status= | Module: =modules/100-emacs/114-typing-analytics.el= | Tests: =tests/test-typing-analytics.el=
 
 * Settings (C-c n ,)
 :PROPERTIES:
@@ -9753,9 +9756,9 @@ on a button acts, /State/ → /Save for future sessions/ (or the
 | =C-c n , r= | recently changed settings, newest first           |
 | =C-c n , z= | undo a recent change: the value before it         |
 | =C-c n , m= | modules on this machine: on, off, state ([[#loader][The loader]]) |
-| =C-c n , b= | blog sites started on this machine (=46-blog.el=, [[#blog-autostart][Autostart]]) |
+| =C-c n , b= | blog sites started on this machine (=746-blog.el=, [[#blog-autostart][Autostart]]) |
 
-Function: =my/settings-menu= | Module: =modules/12-transient.el=
+Function: =my/settings-menu= | Module: =modules/200-foundation/212-transient.el=
 
 ** Favourite and recently changed settings
 :PROPERTIES:
@@ -9786,7 +9789,7 @@ says so.  The record is written under a temporary name and renamed when
 complete; a record file that cannot be read is kept as
 =recent-settings.eld.unreadable= and a new record starts beside it.
 
-Function: =my/settings-favourites-open=, =my/settings-favourite-add=, =my/settings-favourite-remove=, =my/settings-recent-open=, =my/settings-recent-undo= | Module: =modules/48-settings-tools.el=
+Function: =my/settings-favourites-open=, =my/settings-favourite-add=, =my/settings-favourite-remove=, =my/settings-recent-open=, =my/settings-recent-undo= | Module: =modules/100-emacs/148-settings-tools.el=
 
 ** a — Open the settings
 :PROPERTIES:
@@ -9796,7 +9799,7 @@ Function: =my/settings-favourites-open=, =my/settings-favourite-add=, =my/settin
 =C-c n , ,= opens the group =mypks= ("MyPKS"). Named MyPKS rather than
 PKS because =pks/= is already a silo.
 
-Function: =my/settings= | Module: =modules/00-core.el=
+Function: =my/settings= | Module: =modules/000-loader/000-core.el=
 
 ** The settings folder, and the settings of this machine
 :PROPERTIES:
@@ -9826,7 +9829,7 @@ reports it.  The environment variable =MYPKS_DIR= overrides the setting.
 *Backup.*  The default folder is in no git repository.  Set it to a
 folder in the notes repository (for example =~/notes/.mypks/=) and the
 automatic commits push the settings with the notes; or run =git init=
-in it, and =07-git.el= commits it like the notes
+in it, and =207-git.el= commits it like the notes
 (=my/settings--repository-directories=).  The start-up report says
 which applies.
 
@@ -9889,10 +9892,10 @@ Tests: =tests/test-core-settings.el= (precedence, host names, a damaged
 file), each case in a fresh =emacs -Q --batch=:
 =emacs -Q --batch -l tests/test-core-settings.el -f ert-run-tests-batch-and-exit=.
 
-Loaded at the top of =00-core.el=, before any option is defined;
+Loaded at the top of =000-core.el=, before any option is defined;
 =init.el= no longer loads a custom file itself.
 
-Function: =my/settings-folder=, =my/host-settings-open=, =my/host-settings-copy-from=, =my/host-settings-use= | Module: =modules/00-core.el=
+Function: =my/settings-folder=, =my/host-settings-open=, =my/host-settings-copy-from=, =my/host-settings-use= | Module: =modules/000-loader/000-core.el=
 
 ** Files Emacs writes while it works
 :PROPERTIES:
@@ -9914,7 +9917,7 @@ live in the settings folder:
 
 [[https://github.com/emacscollective/no-littering][no-littering]] (MELPA)
 points several hundred packages' file variables at these two folders;
-it loads in =00-core.el= after this machine's settings folder is known
+it loads in =000-core.el= after this machine's settings folder is known
 and before =custom.el=, so a file name saved in Customize still wins.
 Files this configuration names itself use =my/var-file= and
 =my/etc-file=.
@@ -9945,7 +9948,7 @@ start -- the packages keep their old files, and a FAILED report at every
 start says so, with what use-package said (kept by
 =my/var--load-no-littering= in =my/var--no-littering-problems=; it
 reports failures only as warnings); the files named with =my/var-file=
-move anyway, into =var/=, which 00-core.el creates itself.
+move anyway, into =var/=, which 000-core.el creates itself.
 
 *A fresh package list before installing* (=my/package--refresh-before-first-install=,
 advice on =package-install=): package.el installs from the list of
@@ -9992,7 +9995,7 @@ no-littering is installed.
 | =backups/=, =autosaves/=                          | =var/backups/=, =var/autosaves/=        |
 | =notes-root.eld=                                  | =var/notes-root.eld=                    |
 | =~/.emacs.keyfreq=                                | =var/keyfreq.el=                        |
-| =keys= (keylog, 14-typing-analytics.el)           | =var/keys=                              |
+| =keys= (keylog, 114-typing-analytics.el)           | =var/keys=                              |
 | =tramp=, =url/=, =eshell/=, =network-security.data=, =ielm-history.eld=, =nov-places=, =request/=, =abbrev_defs=, =projects=, =auto-save-list/= | no-littering's names in =var/= (=abbrev.el= in =etc/=) |
 
 Still in =~/.emacs.d=: =elpa/= and =eln-cache/= (installed and compiled
@@ -10002,12 +10005,12 @@ code), =mypks-local.eld= (which settings folder to read).
 =~/.emacs.d= -- =(locate-user-emacs-file "x")= or =(expand-file-name
 "x" user-emacs-directory)= -- is a file of the repository (code,
 documentation, bundled styles, site templates), or one of the
-installation's own files 00-core.el reads (=mypks-local.eld= and the
+installation's own files 000-core.el reads (=mypks-local.eld= and the
 older places of the settings).  State goes to =my/var-file=, data
 shared by the machines to =my/etc-file= or the settings folder.  A
 module that writes files says which in its header (=MyPKS-Writes:=).
 
-Function: =my/var-file=, =my/etc-file=, =my/var--setup=, =my/var--move-old-files= | Module: =modules/00-core.el=
+Function: =my/var-file=, =my/etc-file=, =my/var--setup=, =my/var--move-old-files= | Module: =modules/000-loader/000-core.el=
 
 ** The tree
 :PROPERTIES:
@@ -10042,13 +10045,13 @@ other Customize buffer is sorted as before.
 too (/Notes folder/, /Silos/, /Ask before deleting notes/), so the tree
 reads in words.  The symbol stays what =C-h v= and the custom file use.
 
-The root and area groups are defined in =00-core.el=. A module names
-its area with =:group= in its own =defgroup=; without =00-core.el= the
+The root and area groups are defined in =000-core.el=. A module names
+its area with =:group= in its own =defgroup=; without =000-core.el= the
 area is merely undefined and the module works unchanged. Groups hold no
 values, so moving an option to another group never touches a saved
 setting.
 
-Function: =my/settings--keep-order=, =my/settings--tree-groups= | Module: =modules/00-core.el=
+Function: =my/settings--keep-order=, =my/settings--tree-groups= | Module: =modules/000-loader/000-core.el=
 
 ** When a change takes effect
 :PROPERTIES:
@@ -10098,7 +10101,7 @@ For a module: =(defcustom my/x ... :set (my/settings-apply-on-set
 module's own load.  During start-up the setter only stores the value;
 the module applies its options itself when it is complete.
 
-Function: =my/settings-apply-on-set=, =my/settings-set-needs-restart=, =my/settings-reevaluate-dependents=, =my/settings-bind-key=, =my/settings-capture-template=, =my/silos-apply= | Module: =modules/00-core.el=
+Function: =my/settings-apply-on-set=, =my/settings-set-needs-restart=, =my/settings-reevaluate-dependents=, =my/settings-bind-key=, =my/settings-capture-template=, =my/silos-apply= | Module: =modules/000-loader/000-core.el=
 
 ** What is not here yet
 :PROPERTIES:
@@ -10189,7 +10192,7 @@ search, journal front-matter normalisation, project scans, the inbox,
 the statistics' largest-notes ranking. Adding a silo is adding an
 entry; there is no limit. The Hugo sites name silos by *key* in
 =:silos= (=my/blog--silo-of=); a folder that is not a silo (the inbox)
-is named by its folder. Only the screen fonts of =03b-fonts.el= still
+is named by its folder. Only the screen fonts of =503b-fonts.el= still
 follow the three roles; see the font entry in =BACKLOG.org=.
 
 *** Switching a silo off
@@ -10214,7 +10217,7 @@ again when it is back: Denote links by identifier.
 
 *Denote's excluded folders are one shared list.*
 =denote-excluded-directories-regexp= is a single variable, and the
-inbox (=25-inbox-review.el=), the attachments (=31-org-images.el=) and
+inbox (=425-inbox-review.el=), the attachments (=331-org-images.el=) and
 disabled silos all need folders hidden. A module adds a fixed folder
 with =my/denote-exclude-directory=, or a function returning folders
 with =my/denote-exclude-directory-function=; the function is asked
@@ -10245,7 +10248,7 @@ silo, /l/ ask at the next start, /n/ never ask (the folder goes to
 =my/silo-orphans-ignored=).  Adding saves =my/silos= with a key made
 from the folder name.  =M-x my/silo-report-orphans= asks on demand.
 
-Function: =my/silo-report-orphans=, =my/silos--confirm-removals=, =my/denote-exclude-directory=, =my/denote-exclude-directory-function=, =my/denote-excluded-names=, =my/notes-read-silo-dir= | Module: =modules/00-core.el=, =modules/05-notes.el=
+Function: =my/silo-report-orphans=, =my/silos--confirm-removals=, =my/denote-exclude-directory=, =my/denote-exclude-directory-function=, =my/denote-excluded-names=, =my/notes-read-silo-dir= | Module: =modules/000-loader/000-core.el=, =modules/200-foundation/205-notes.el=
 
 *** Moving the notes root
 :PROPERTIES:
@@ -10295,7 +10298,7 @@ module from loading.
 *disabled* until =my/notes-allow-delete-old-root= is turned on, and then
 asks twice regardless of the deletion settings.
 
-Function: =my/notes-check-root-move=, =my/notes--check-root-move-safely=, =my/notes-delete-old-root= | Module: =modules/00-core.el=
+Function: =my/notes-check-root-move=, =my/notes--check-root-move-safely=, =my/notes-delete-old-root= | Module: =modules/000-loader/000-core.el=
 
 *** Reports that wait for an answer
 :PROPERTIES:
@@ -10321,7 +10324,7 @@ stays, disabled).  Used by the move of the
 notes folder, the removal of a silo and the folders with notes that are
 not silos.
 
-Function: =my/notes-report=, =my/notes-open-silo-settings= | Module: =modules/00-core.el=
+Function: =my/notes-report=, =my/notes-open-silo-settings= | Module: =modules/000-loader/000-core.el=
 
 Functions for modules: =my/silo-dir= (by key), =my/silo-dir-by-role=,
 =my/silo-by-role=, =my/silo-keys= and =my/silo-dirs= (optionally
@@ -10332,10 +10335,10 @@ is in), =my/notes-path= (a path under the root),
 =my/notes-ensure-directory-of= (the folder of a file about to be
 written), =my/notes-files= (files of a folder that may not exist yet).
 
-Function: =my/silo-dir=, =my/silo-dir-by-role=, =my/silo-keys=, =my/silo-dirs=, =my/silo-of=, =my/notes-path=, =my/notes-ensure-directory-of=, =my/notes-files= | Module: =modules/00-core.el=
+Function: =my/silo-dir=, =my/silo-dir-by-role=, =my/silo-keys=, =my/silo-dirs=, =my/silo-of=, =my/notes-path=, =my/notes-ensure-directory-of=, =my/notes-files= | Module: =modules/000-loader/000-core.el=
 
 
-*Settings of 04-denote.el tested* (=tests/test-denote-settings.el=):
+*Settings of 204-denote.el tested* (=tests/test-denote-settings.el=):
 Denote's folder is the notes folder; an =elisp:= link in a note asks
 before it runs (=org-link-elisp-confirm-function=); electric indentation
 is off in Org, by the named =my/org-no-electric-indent= on the hook (a

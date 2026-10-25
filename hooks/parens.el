@@ -55,14 +55,14 @@ DIRECTORY when git is unavailable or ROOT is not a repository."
                  (mapcar (lambda (path) (expand-file-name path root))
                          (seq-filter
                           (lambda (path)
-                            (string-match-p "\\`modules/[^/]+\\.el\\'" path))
+                            (string-match-p "\\`modules/\\([^/]+/\\)?[^/]+\\.el\\'" path))
                           ;; `process-lines' signals on a non-zero exit,
                           ;; which `ignore-errors' turns into the fallback.
                           (process-lines "git" "-c" "core.quotePath=false"
                                          "ls-files" "--cached" "--others"
                                          "--exclude-standard" "--" "modules/"))))
                 #'string<)))
-      (directory-files directory t "\\.el\\'")))
+      (directory-files-recursively directory "\\.el\\'")))
 
 (let* ((here (file-name-directory (or load-file-name buffer-file-name)))
        (root (directory-file-name (file-name-directory (directory-file-name here))))

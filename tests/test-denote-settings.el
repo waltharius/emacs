@@ -1,10 +1,10 @@
-;;; test-denote-settings.el --- ERT tests for the settings of 04-denote -*- lexical-binding: t; -*-
+;;; test-denote-settings.el --- ERT tests for the settings of 204-denote -*- lexical-binding: t; -*-
 
-;; Tests: 04-denote
+;; Tests: 204-denote
 
 ;;; Commentary:
 
-;; 04-denote sets Denote and Org up; it has one function of its own.
+;; 204-denote sets Denote and Org up; it has one function of its own.
 ;; Tested is what the rest relies on: Denote's folder is the notes
 ;; folder; an `elisp:' link in a note asks before it runs (a note from
 ;; elsewhere could carry one); electric indentation is off in Org, by
@@ -23,7 +23,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "04-denote")
+(my/test-load-modules "204-denote")
 
 (ert-deftest my/ds-test-denote-folder-is-the-notes-folder ()
   "Denote's folder is the notes folder."

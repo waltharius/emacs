@@ -1,10 +1,10 @@
-;;; test-settings-tools.el --- ERT tests for favourite and recent settings of 48-settings-tools -*- lexical-binding: t; -*-
+;;; test-settings-tools.el --- ERT tests for favourite and recent settings of 148-settings-tools -*- lexical-binding: t; -*-
 
-;; Tests: 48-settings-tools
+;; Tests: 148-settings-tools
 
 ;;; Commentary:
 
-;; 48-settings-tools.el keeps favourite settings and records every change
+;; 148-settings-tools.el keeps favourite settings and records every change
 ;; made through Customize -- in a Customize buffer or by
 ;; `customize-set-variable' / `customize-save-variable' -- with the value
 ;; before, in a file of this machine, so that a change can be undone
@@ -21,7 +21,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "48-settings-tools")
+(my/test-load-modules "148-settings-tools")
 
 (defgroup my/st-test nil "Options of the settings-tools tests." :group 'mypks)
 (defcustom my/st-test-width 70 "A test option." :type 'integer :group 'my/st-test)

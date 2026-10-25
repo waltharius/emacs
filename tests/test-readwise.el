@@ -1,10 +1,10 @@
-;;; test-readwise.el --- ERT tests for the token, the sync and the promotion of 24-readwise -*- lexical-binding: t; -*-
+;;; test-readwise.el --- ERT tests for the token, the sync and the promotion of 424-readwise -*- lexical-binding: t; -*-
 
-;; Tests: 24-readwise
+;; Tests: 424-readwise
 
 ;;; Commentary:
 
-;; 24-readwise.el reads the Readwise token through auth-source, fetches
+;; 424-readwise.el reads the Readwise token through auth-source, fetches
 ;; the export endpoint page by page, writes one Org file per book, and
 ;; turns a quote into a note in the pks silo or adds it to one: the
 ;; eleventh module of TESTING.org, *Every module tested*, part 3, and the
@@ -34,7 +34,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "01-ui" "05-notes" "24-readwise")
+(my/test-load-modules "101-ui" "205-notes" "424-readwise")
 
 ;; ============================================================
 ;; FIXTURE
@@ -538,7 +538,7 @@ next test's."
       (delete-directory dir t))))
 
 (ert-deftest my/rw-test-promote-with-denote-loaded ()
-  "With Denote loaded first, as at a start where 04-denote runs before,
+  "With Denote loaded first, as at a start where 204-denote runs before,
 the new note is in pks too, not in Denote's own folder."
   (skip-unless (require 'denote nil t))
   (my/rw-test--with-tree
@@ -595,7 +595,7 @@ space of the first line until 2026-10-24.)"
           (should (= 1 (my/rw-test--count "^#\\+end_quote$" text))))))))
 
 (ert-deftest my/rw-test-zettel-refused-without-module ()
-  "Without 22-zettelkasten the zettel action is refused before anything
+  "Without 422-zettelkasten the zettel action is refused before anything
 is asked or written."
   (should-not (fboundp 'my/zettel-adopt))
   (my/rw-test--with-tree

@@ -1,9 +1,9 @@
-;;; test-auto-commit.el --- ERT tests for the background git of 07-git -*- lexical-binding: t; -*-
+;;; test-auto-commit.el --- ERT tests for the background git of 207-git -*- lexical-binding: t; -*-
 
-;; Tests: 07-git
+;; Tests: 207-git
 
 ;;; Commentary:
-;; The automatic commits of 07-git.el against real repositories: a bare
+;; The automatic commits of 207-git.el against real repositories: a bare
 ;; "server" and two clones in a temporary folder, one standing for this
 ;; machine, the other for the second machine.  No network, no Magit, no
 ;; rest of the configuration:
@@ -25,12 +25,12 @@
 (require 'subr-x)
 
 ;; ============================================================
-;; STAND-INS FOR 00-core.el
+;; STAND-INS FOR 000-core.el
 ;; ============================================================
 
 (defvar my-notes-dir nil)
 
-(unless (featurep '00-core)
+(unless (featurep '000-core)
   (defun my/settings-apply-on-set (function)
     "Stand-in: store the value; call FUNCTION outside of loading."
     (lambda (symbol value)
@@ -42,7 +42,7 @@
 (setq use-package-always-ensure nil
       use-package-ensure-function #'ignore)
 
-(load (expand-file-name "../modules/07-git.el"
+(load (expand-file-name "../modules/200-foundation/207-git.el"
                         (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
 

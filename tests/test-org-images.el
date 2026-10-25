@@ -1,12 +1,12 @@
-;;; test-org-images.el --- ERT tests for image attachments of 31-org-images -*- lexical-binding: t; -*-
+;;; test-org-images.el --- ERT tests for image attachments of 331-org-images -*- lexical-binding: t; -*-
 
-;; Tests: 31-org-images
+;; Tests: 331-org-images
 
 ;;; Commentary:
 
-;; 31-org-images.el copies images into the attachments folder under the
+;; 331-org-images.el copies images into the attachments folder under the
 ;; note's identifier, links them, recompresses them in place on request,
-;; and tells 05-notes.el which attachments a note being deleted owns:
+;; and tells 205-notes.el which attachments a note being deleted owns:
 ;; the sixth module of TESTING.org, *Every module tested*, part 3.  On
 ;; real files in a temporary notes folder.  ImageMagick is not needed:
 ;; the tests store images as they are, or stand in for the converter --
@@ -26,7 +26,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "04-denote" "31-org-images")
+(my/test-load-modules "204-denote" "331-org-images")
 
 ;; ============================================================
 ;; FIXTURE

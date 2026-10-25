@@ -1,10 +1,10 @@
 ;;; test-inbox-review.el --- ERT tests for accepting, rejecting and extracting inbox notes -*- lexical-binding: t; -*-
 
-;; Tests: 25-inbox-review
+;; Tests: 425-inbox-review
 
 ;;; Commentary:
 
-;; 25-inbox-review.el moves notes migrated from Obsidian out of the
+;; 425-inbox-review.el moves notes migrated from Obsidian out of the
 ;; staging inbox into a silo, rewrites [[wikilinks]] to them, settles an
 ;; identifier they share with a filed note, rejects notes to a folder of
 ;; their own, and carves text out into new notes: the fourth module of
@@ -24,7 +24,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "27-denote-identifiers" "25-inbox-review")
+(my/test-load-modules "227-denote-identifiers" "425-inbox-review")
 
 ;; ============================================================
 ;; FIXTURE

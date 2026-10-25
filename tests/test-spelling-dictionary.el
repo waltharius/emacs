@@ -1,6 +1,6 @@
-;;; test-spelling-dictionary.el --- ERT tests for the personal dictionary of 03-spelling -*- lexical-binding: t; -*-
+;;; test-spelling-dictionary.el --- ERT tests for the personal dictionary of 303-spelling -*- lexical-binding: t; -*-
 
-;; Tests: 03-spelling
+;; Tests: 303-spelling
 
 ;;; Commentary:
 ;; The personal dictionary in the settings folder: reading Hunspell's
@@ -27,15 +27,15 @@
 (require 'subr-x)
 
 ;; ============================================================
-;; STAND-INS FOR 00-core.el
+;; STAND-INS FOR 000-core.el
 ;; ============================================================
-;; Only what 03-spelling.el uses at load, pointed at a temporary
+;; Only what 303-spelling.el uses at load, pointed at a temporary
 ;; folder.  With the real core loaded they are left alone.
 
 (defconst my/spell-test--root (make-temp-file "mypks-spell-" t)
   "Temporary folder for the whole run.")
 
-(unless (featurep '00-core)
+(unless (featurep '000-core)
   (defconst my/settings-directory
     (file-name-as-directory (expand-file-name "settings" my/spell-test--root)))
   (defconst my/host-directory
@@ -54,7 +54,7 @@
   "Reports shown through the stand-in `my/notes-report'.")
 
 ;; Special here as well, so that the `let's below bind what the module
-;; reads: a bare `defvar' in 03-spelling.el is local to that file.
+;; reads: a bare `defvar' in 303-spelling.el is local to that file.
 (defvar ispell-process)
 (defvar ispell-personal-dictionary)
 
@@ -62,7 +62,7 @@
 (setq use-package-always-ensure nil
       use-package-ensure-function #'ignore)
 
-(load (expand-file-name "../modules/03-spelling.el"
+(load (expand-file-name "../modules/300-notes-core/303-spelling.el"
                         (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
 

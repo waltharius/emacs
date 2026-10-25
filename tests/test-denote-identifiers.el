@@ -1,10 +1,10 @@
 ;;; test-denote-identifiers.el --- ERT tests for finding and changing Denote identifiers -*- lexical-binding: t; -*-
 
-;; Tests: 27-denote-identifiers
+;; Tests: 227-denote-identifiers
 
 ;;; Commentary:
 
-;; 27-denote-identifiers.el renames notes and rewrites `denote:' links
+;; 227-denote-identifiers.el renames notes and rewrites `denote:' links
 ;; in every note when it changes an identifier: the third module of
 ;; TESTING.org, *Every module tested*, part 3.  On real files in a
 ;; temporary notes folder with three silos and a staging inbox.
@@ -21,7 +21,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "27-denote-identifiers")
+(my/test-load-modules "227-denote-identifiers")
 
 ;; ============================================================
 ;; FIXTURE
