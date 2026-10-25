@@ -1,17 +1,17 @@
-;;; test-frame-chrome.el --- ERT tests for 01b-frame-chrome -*- lexical-binding: t; -*-
+;;; test-frame-bars.el --- ERT tests for 01b-frame-bars -*- lexical-binding: t; -*-
 
-;; Tests: 01b-frame-chrome
+;; Tests: 01b-frame-bars
 
 ;;; Commentary:
 
-;; 01b-frame-chrome turns the tool bar and the scroll bars off and keeps
+;; 01b-frame-bars turns the tool bar and the scroll bars off and keeps
 ;; the menu bar, at load and again after a desktop restore.  Tested: the
 ;; state after load; bars turned on by a restored frameset are turned
 ;; off again by `desktop-after-read-hook'; an Emacs without
 ;; `scroll-bar-mode' (emacs-nox) is not stopped.
 ;;
 ;;   emacs -Q --batch --eval '(package-initialize)' -l ert \
-;;     -l tests/test-frame-chrome.el -f ert-run-tests-batch-and-exit
+;;     -l tests/test-frame-bars.el -f ert-run-tests-batch-and-exit
 ;;
 ;; or all tests at once: hooks/check-all.
 
@@ -22,7 +22,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "01b-frame-chrome")
+(my/test-load-modules "01b-frame-bars")
 
 (ert-deftest my/fc-test-state-after-load ()
   "After load the tool bar is off and the menu bar on."
@@ -47,9 +47,9 @@ system, the bars are set without an error."
         (progn
           (fmakunbound 'scroll-bar-mode)
           (tool-bar-mode 1)
-          (my/restore-chrome-preferences)
+          (my/frame-bars-apply)
           (should-not tool-bar-mode))
       (fset 'scroll-bar-mode saved))))
 
-(provide 'test-frame-chrome)
-;;; test-frame-chrome.el ends here
+(provide 'test-frame-bars)
+;;; test-frame-bars.el ends here

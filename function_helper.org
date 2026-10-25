@@ -6091,8 +6091,8 @@ whatever init has already done. Setting them in =default-frame-alist=
 is not a defence; frameset restore overrides that too.
 
 Two things re-assert themselves afterwards:
-=my/restore-chrome-preferences= on =desktop-after-read-hook= (tool bar
-and scroll bar off; [[#frame-chrome][Frame chrome]], 01b-frame-chrome.el),
+=my/frame-bars-apply= on =desktop-after-read-hook= (tool bar
+and scroll bar off; [[#frame-bars][Frame bars]], 01b-frame-bars.el),
 and the theme, loaded from =emacs-startup-hook=
 which runs strictly later.
 
@@ -6269,12 +6269,12 @@ been written rather than to how many days are covered.
 | =21-dashboards.el= | the menu entry is skipped |
 | =23-fixed-tabs.el= | the report opens in the current window instead of the tab named by =my/journal-gaps-tab-name= (default =Stats=) |
 
-* Frame chrome
+* Frame bars
 :PROPERTIES:
-:CUSTOM_ID: frame-chrome
+:CUSTOM_ID: frame-bars
 :END:
 
-Module: =modules/01b-frame-chrome.el= (optional, group 500; split from
+Module: =modules/01b-frame-bars.el= (optional, group 500; split from
 01-ui.el on 2026-10-25zc).  The tool bar and the scroll bars are off,
 the menu bar is on.  The tool bar is a row of icons for commands this
 configuration reaches through =C-c n=; the scroll bar repeats the
@@ -6285,14 +6285,14 @@ for it.
 
 A restored desktop brings back the bars of the frameset it saved
 ([[#desktop-diagnostics][A frameset overrides what init already set]]),
-so =my/restore-chrome-preferences= runs again from
+so =my/frame-bars-apply= runs again from
 =desktop-after-read-hook=.  An Emacs built without a window system has
 no =scroll-bar-mode=; the module then sets the tool bar only.
 
 For one session: =M-x tool-bar-mode=, =M-x scroll-bar-mode=.  For good:
 turn the module off; Emacs then draws all three bars, as by default.
 
-Tests: =tests/test-frame-chrome.el= (the state after load, the bars off
+Tests: =tests/test-frame-bars.el= (the state after load, the bars off
 again after a desktop read, no error without =scroll-bar-mode=).
 
 * Window splitting
@@ -7221,7 +7221,7 @@ Optional (47):
 
 | Module | What | Requires |
 |---+---+---|
-| =01b-frame-chrome= | Tool bar and scroll bar off, menu bar on | -- |
+| =01b-frame-bars= | Tool bar and scroll bar off, menu bar on | -- |
 | =02b-bold-marker= | Obsidian-style inline markers for org-mode | -- |
 | =03-spelling= | Spell checking configuration | -- |
 | =03b-fonts= | Font configuration, per silo | -- |

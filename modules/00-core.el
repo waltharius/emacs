@@ -2566,7 +2566,8 @@ requires must already be loaded."
         (append (assoc-delete-all name my/modules--skipped)
                 (list (cons name reason)))))
 
-(defconst my/modules-renamed nil
+(defconst my/modules-renamed
+  '(("01b-frame-chrome" . "01b-frame-bars"))   ; 2026-10-25zf
   "Modules renamed or removed: alist of (OLD . NEW), NEW nil for removed.
 A machine's `my/modules-off' names modules by file name, so a module
 that is renamed would come back on there, and one merged into another
