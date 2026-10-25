@@ -6938,6 +6938,13 @@ machine -- the others carry =MyPKS-Default: off=.
 
 Slots on 2026-10-25: =spelling= (03-spelling).
 
+*The module map.*  Which group each module belongs to -- Emacs,
+Foundation, Notes core, Notes extensions, Look, Look modifications,
+Output, Overview -- is planned in =MODULES.org= at the root of the
+repository, with the questions that place a module and the rule that a
+module requires only modules of its own group or a lower one.  The
+lint check =groups= (advisory until the move) reads it.
+
 Tests: =tests/test-loader.el= (left out at start-up, the state, the
 warning, turning the other on with yes and with no);
 =tests/hooks/test_lint.py= (the rules of the check).

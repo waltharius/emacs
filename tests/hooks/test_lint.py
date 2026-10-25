@@ -328,3 +328,62 @@ class Slots(unittest.TestCase):
         name, text = self.mod("03-x")
         text += ";; MyPKS-Provides: spelling\n"
         self.assertEqual(lint.slot_problems([(name, text), self.mod("04-y", "spelling")]), [])
+
+
+class Groups(unittest.TestCase):
+    """The module map: tables read from Org, groups, requirements pointing down."""
+
+    ORG = """#+title: x
+* Groups
+| Group | Name | Question |
+|-------+------+----------|
+|   100 | Emacs | a |
+|   200 | Foundation | b |
+* Map
+| Module | Group | Plan |
+|--------+-------+------|
+| 01-a   |   100 | keep |
+| 02-b   |   200 | keep |
+* The move
+| not | a | map |
+|-----+---+-----|
+| x   | y | z   |
+"""
+
+    def mod(self, name, requires=""):
+        return (name + ".el", f";;; {name}.el --- x\n;; MyPKS-Requires: {requires}\n"
+                              ";; MyPKS-Optional: yes\n;;; Commentary:\n;;; Code:\n")
+
+    def test_tables_read(self):
+        self.assertEqual(lint.org_section_table(self.ORG, "Map"),
+                         [["01-a", "100", "keep"], ["02-b", "200", "keep"]])
+        self.assertEqual([r[0] for r in lint.org_section_table(self.ORG, "Groups")], ["100", "200"])
+        self.assertIsNone(lint.org_section_table(self.ORG, "Nothing"))
+
+    def rows(self):
+        return lint.org_section_table(self.ORG, "Map")
+
+    def test_down_is_fine(self):
+        self.assertEqual(lint.group_problems({100, 200}, self.rows(),
+                                             [self.mod("01-a"), self.mod("02-b", "01-a")]), [])
+
+    def test_up_refused(self):
+        problems = lint.group_problems({100, 200}, self.rows(),
+                                       [self.mod("01-a", "02-b"), self.mod("02-b")])
+        self.assertEqual(len(problems), 1)
+        self.assertIn("01-a (100) requires 02-b (200)", problems[0])
+
+    def test_missing_from_map(self):
+        problems = lint.group_problems({100, 200}, self.rows(),
+                                       [self.mod("01-a"), self.mod("02-b"), self.mod("03-c")])
+        self.assertEqual(problems, ["MODULES.org: 03-c is not in the map"])
+
+    def test_row_without_file(self):
+        problems = lint.group_problems({100, 200}, self.rows(), [self.mod("01-a")])
+        self.assertEqual(problems, ["MODULES.org: 02-b has no file in modules/"])
+
+    def test_unknown_group_and_twice(self):
+        rows = [["01-a", "100"], ["01-a", "100"], ["02-b", "900"]]
+        problems = lint.group_problems({100, 200}, rows, [self.mod("01-a"), self.mod("02-b")])
+        self.assertTrue(any("twice" in p for p in problems))
+        self.assertTrue(any("'900'" in p for p in problems))

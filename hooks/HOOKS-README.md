@@ -165,11 +165,12 @@ compile` adds every warning of this Emacs to the list.
 | `menus` | Is every command `function_helper.org` mentions reachable from a menu or a key — or listed, with its reason, under *Commands without a menu entry*? | yes |
 | `modules` | Does every module keep the module contract -- headers, `provide`, every hard dependency declared, nothing core needing something optional, no circles? Is `MyPKS-Tests: weekly` only on modules whose code calls nothing that changes files, runs a program or reaches the network (a list of names in `hooks/module_contract.py`, `CHANGES_FILES`, recognised as the head of a form or as `#'NAME`, not in comments, strings or quoted data)? | yes |
 | `codefolder` | Is every file a module names in `~/.emacs.d` (`locate-user-emacs-file`, `expand-file-name` with `user-emacs-directory`) a file of the repository, or one of the installation files 00-core.el reads? State belongs in `my/var-file`. | yes (since 2026-10-19) |
-| `loader` | Is every file in `modules/` in init.el's list for `my/modules-load`, once, and does every `MyPKS-Switch` header name a mode its module defines? | yes (since 2026-10-19) |
+| `loader` | Is every file in `modules/` in init.el's list for `my/modules-load`, once, and does every `MyPKS-Switch` header name a mode its module defines?  Is every slot (`MyPKS-Provides`) lower-case words, on an optional module, with at most one module per slot starting on a new machine (since 2026-10-25q)? | yes (since 2026-10-19) |
 | `menukeys` | Is any key of a menu given to two different commands -- in the menu's definition or by the modules adding to it? | yes (since 2026-10-19) |
 | `private` | Is a `--` symbol called from outside its module? | yes (since 2026-10-18) |
 | `personal` | Does a file git would commit contain a string from the private list `private-strings.txt` in the settings folder? | yes; *skipped*, with the path, when the list does not exist |
 | `coverage` | Is every command a menu runs mentioned in `function_helper.org`? | no — advisory |
+| `groups` | Reads the tables under `* Groups` and `* Map` of `MODULES.org`: is every module in the map once, in one of the groups, and does every `MyPKS-Requires` point to a module of the same or a lower group?  Reads hard dependencies only; a guarded use is not seen. | no — advisory until the move (2026-10-25r) |
 | `tests` | Which modules does no test file name in its `;; Tests:` header, and is a module staged without any of its test files? Modules marked `MyPKS-Tests: weekly` are left out of both. (TESTING.org) | no — advisory |
 
 A check that cannot read its input -- git cannot list the files, outside

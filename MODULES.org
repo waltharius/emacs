@@ -1,0 +1,126 @@
+#+title: Module map
+#+startup: showall
+
+Where each module belongs, decided item by item before anything moves
+(BACKLOG.org, /Module map/).  This file is the plan; the move follows
+it, by a script, with the weekly checks green before and after.  The
+lint check =groups= reads the two tables below and reports, until the
+move, what the plan would break.
+
+* Principles
+Taken from established practice in software design, each turned into a
+rule a check can hold:
+
+1. *By feature, not by kind of code.*  A module is one thing the user
+   sees -- the bibliography, the journal metrics -- not "all menus" or
+   "all hooks" ("package by feature" against "package by layer").  The
+   module contract has said so since 2026-10-16: one functionality, one
+   module.
+2. *Dependencies point one way.*  A module may require modules of its
+   own group and of lower groups, never of a higher one (Robert
+   Martin's acyclic and stable dependencies principles).  Checked by
+   =groups= on =MyPKS-Requires=, the hard dependencies; a guarded use
+   (=fboundp= and kin) degrades without the other module and may point
+   anywhere.
+3. *What changes together, and what is always used together, is one
+   module* (the common closure and common reuse principles): the reason
+   to merge two modules.  A part that could be swapped for another is
+   the reason to split one.
+4. *Places that can be filled by one module or another are slots*
+   (=MyPKS-Provides=, since 2026-10-25q), as Doom's completion modules
+   are alternatives.
+
+* Groups
+One folder per group, as Doom Emacs keeps its modules in category
+folders; file names keep the group's hundred (=modules/300-notes-core/305-notes.el=),
+so that a file names its group outside its folder too.  Every full
+name stays unique: a feature name is global in Emacs.
+
+A module goes in the group of the *first* question answered yes:
+
+| Group | Name                | Question                                                        |
+|-------+---------------------+-----------------------------------------------------------------|
+|   100 | Emacs               | Does it change Emacs itself, whatever the notes?                |
+|   200 | Foundation          | Can it not be turned off -- does everything else need it?       |
+|   300 | Notes core          | Is it part of the daily way of writing notes?                   |
+|   400 | Notes extensions    | Does it add or replace something optional in the notes?         |
+|   500 | Look                | Does it set the default look?                                   |
+|   600 | Look modifications  | Does it change the look 500 sets?                               |
+|   700 | Output              | Does it make something outside Emacs: PDF, DOCX, sites?         |
+|   800 | Overview            | Does it read the collection and report on it?                   |
+
+Decided 2026-10-25: the eight groups, English names, 700 Output added
+to the owner's first seven, slots from the start.
+
+* Map
+/Status/: =decided= by the owner, =proposed= until then.  /Plan/:
+=keep=, =merge INTO=, =split=, with the reason in the note.
+
+| Module                | Group | Plan                    | Status   | Note                                                                 |
+|-----------------------+-------+-------------------------+----------+----------------------------------------------------------------------|
+| 00-core               |   200 | keep                    | proposed | the loader, settings, silos                                          |
+| 01-ui                 |   100 | split                   | proposed | sessions and completion stay in 100; the look goes to 500           |
+| 02-editing            |   100 | keep                    | proposed |                                                                      |
+| 02b-bold-marker       |   300 | keep                    | proposed |                                                                      |
+| 03-spelling           |   300 | keep                    | proposed | slot =spelling=; a jinx module would fill it instead                 |
+| 03b-fonts             |   500 | keep                    | proposed |                                                                      |
+| 04-denote             |   200 | keep                    | proposed |                                                                      |
+| 05-notes              |   200 | keep                    | proposed | core (cannot be turned off) and needed by 08, 12 and 23 -- in 300 it would break rule 2 |
+| 05b-journal-metrics   |   300 | keep                    | proposed |                                                                      |
+| 06-capture            |   300 | keep                    | proposed |                                                                      |
+| 07-git                |   200 | keep                    | proposed | automatic commits of everything                                      |
+| 08-keybindings        |   200 | keep                    | proposed |                                                                      |
+| 09-theme              |   500 | keep                    | proposed |                                                                      |
+| 10-visual-fill        |   500 | keep                    | proposed |                                                                      |
+| 11-org-appearance     |   500 | keep                    | proposed |                                                                      |
+| 12-transient          |   200 | keep                    | proposed |                                                                      |
+| 13-centered-writing   |   300 | keep                    | proposed | the writing mode, used daily                                         |
+| 14-typing-analytics   |   100 | keep                    | proposed |                                                                      |
+| 15-workspace          |   800 | keep                    | proposed |                                                                      |
+| 16-org-export         |   700 | keep                    | proposed |                                                                      |
+| 17-bibliography       |   400 | keep                    | proposed |                                                                      |
+| 18-zotero-transient   |   400 | merge 17-bibliography   | proposed | 99 lines of menu for 17, nothing else; always used with it           |
+| 19-philosophy-notes   |   400 | keep                    | proposed |                                                                      |
+| 20-transclusion       |   400 | keep                    | proposed |                                                                      |
+| 21-dashboards         |   800 | keep                    | proposed |                                                                      |
+| 22-zettelkasten       |   400 | keep                    | proposed |                                                                      |
+| 23-fixed-tabs         |   300 | keep                    | proposed | routes the notes commands to tabs; needs 05-notes, so not 100        |
+| 24-readwise           |   400 | keep                    | proposed |                                                                      |
+| 25-inbox-review       |   400 | keep                    | proposed |                                                                      |
+| 26-maintenance        |   800 | keep                    | proposed | 36-notes-stats needs it; it also repairs (renames keywords), so a split into report and repairs is possible |
+| 27-denote-identifiers |   200 | keep                    | proposed | core                                                                 |
+| 28-writing-projects   |   400 | keep                    | proposed |                                                                      |
+| 29-writing-export     |   700 | keep                    | proposed |                                                                      |
+| 30-link-tooltips      |   600 | keep                    | proposed |                                                                      |
+| 31-org-images         |   300 | keep                    | proposed |                                                                      |
+| 32-web-links          |   300 | keep                    | proposed |                                                                      |
+| 33-denote-hubs        |   300 | keep                    | proposed |                                                                      |
+| 34-appearance         |   500 | keep                    | proposed |                                                                      |
+| 35-journal-gaps       |   800 | keep                    | proposed |                                                                      |
+| 36-notes-stats        |   800 | keep                    | proposed |                                                                      |
+| 37-tasks              |   300 | keep                    | proposed | not yet asked: 300 if daily, 400 if optional                         |
+| 38-habits             |   400 | keep                    | decided  | 2026-10-25                                                           |
+| 39-project-git        |   400 | keep                    | proposed |                                                                      |
+| 40-markdown           |   400 | keep                    | proposed |                                                                      |
+| 41-notes-search       |   300 | keep                    | proposed |                                                                      |
+| 42-obsidian-import    |   400 | keep                    | proposed |                                                                      |
+| 43-drill              |   400 | keep                    | proposed |                                                                      |
+| 44-image-display      |   600 | keep                    | proposed |                                                                      |
+| 45-standard-pages     |   600 | keep                    | proposed |                                                                      |
+| 46-blog               |   700 | keep                    | proposed |                                                                      |
+| 47-repo-docs          |   700 | keep                    | proposed |                                                                      |
+| 48-settings-tools     |   100 | keep                    | proposed |                                                                      |
+| 49-packages           |   100 | keep                    | proposed |                                                                      |
+| 50-cite-preview       |   400 | keep                    | proposed |                                                                      |
+
+* The move
+When every row is decided:
+1. Merges and splits first, one per patch, each with its tests.
+2. Then the move by a script: =git mv= (history kept, =git log
+   --follow=), new names in =provide=, =MyPKS-Requires=, =init.el=, the
+   tests, =with-eval-after-load=, =function_helper.org= and
+   =my/modules-off= of each machine (an alias from the old names, so a
+   saved setting keeps working).  The weekly checks green before and
+   after.
+3. Then =groups= blocks instead of advising, and checks folders against
+   this table.

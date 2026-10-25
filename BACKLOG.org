@@ -547,6 +547,12 @@ which the weekly load tests do not exercise.  Then: a maintained
 alternative (org-fc, org-srs: not yet looked at) or a fork.
 
 * Module map
+*Started 2026-10-25r*: the map is =MODULES.org= -- principles, eight
+groups (decided: English names, 700 Output added, slots from the start;
+slots done 2026-10-25q), a row per module, proposed until decided; the
+lint check =groups= (advisory) reports what the plan would break.
+Next: the owner decides the rows; then merges and splits, then the move.
+
 Asked 2026-10-22: the modules grew one feature at a time, and many
 small ones are always wanted together.  Agreed: after the function
 tests of the modules that touch data (so that those tests show the

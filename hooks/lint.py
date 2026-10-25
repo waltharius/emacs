@@ -864,6 +864,90 @@ def check_changelog_files(directory=None, index=None):
     return problems
 
 
+MODULES_MAP = os.path.join(ROOT, "MODULES.org")
+
+
+def org_section_table(text, heading):
+    """Return the rows of the first table under the top heading HEADING.
+
+    Each row is a list of stripped cells; the header row and rule lines
+    are left out (the header is the first row, before the first rule)."""
+    m = re.search(r"^\* " + re.escape(heading) + r"[ \t]*$", text, re.M)
+    if not m:
+        return None
+    rest = text[m.end():]
+    nxt = re.search(r"^\* ", rest, re.M)
+    body = rest[:nxt.start()] if nxt else rest
+    rows = []
+    seen_rule = False
+    for line in body.splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            if rows or seen_rule:
+                if rows:
+                    break
+            continue
+        if re.match(r"^\|[-+]+\|?$", line):
+            seen_rule = True
+            continue
+        if seen_rule:
+            rows.append([c.strip() for c in line.strip("|").split("|")])
+    return rows
+
+
+def group_problems(groups, rows, texts):
+    """Problems of the module map: GROUPS (numbers), ROWS of the map,
+    TEXTS a list of (file name, text) of modules/.
+
+    Every module in the map once, every row a module, every group one of
+    GROUPS; and a module requires (MyPKS-Requires) only modules of its
+    own group or a lower one."""
+    problems = []
+    group_of = {}
+    for row in rows:
+        if len(row) < 2:
+            problems.append(f"MODULES.org: a row without a group: {row}")
+            continue
+        name, group = row[0], row[1]
+        if name in group_of:
+            problems.append(f"MODULES.org: {name} is in the map twice")
+        if not group.isdigit() or int(group) not in groups:
+            problems.append(f"MODULES.org: {name}: group '{group}' is not one of {sorted(groups)}")
+            continue
+        group_of[name] = int(group)
+    names = [n[:-3] for n, _ in texts]
+    for name in names:
+        if name not in group_of and name not in [r[0] for r in rows]:
+            problems.append(f"MODULES.org: {name} is not in the map")
+    for name in group_of:
+        if name not in names:
+            problems.append(f"MODULES.org: {name} has no file in modules/")
+    for file_name, text in texts:
+        name = file_name[:-3]
+        if name not in group_of:
+            continue
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import module_contract
+        for other in module_contract.requires(text):
+            if other in group_of and group_of[other] > group_of[name]:
+                problems.append(f"{name} ({group_of[name]}) requires {other} "
+                                f"({group_of[other]}): a group needs only its own and lower ones")
+    return problems
+
+
+def check_groups():
+    """The module map in MODULES.org against modules/: see group_problems."""
+    if not os.path.exists(MODULES_MAP):
+        raise Skip("no MODULES.org")
+    text = open(MODULES_MAP, encoding="utf-8").read()
+    group_rows = org_section_table(text, "Groups")
+    rows = org_section_table(text, "Map")
+    if not group_rows or rows is None:
+        return ["MODULES.org: no table under '* Groups' or '* Map'"]
+    groups = {int(r[0]) for r in group_rows if r and r[0].isdigit()}
+    return group_problems(groups, rows, list(modules()))
+
+
 CHECKS = {
     "duplicates": (check_duplicate_defs, "one symbol defined in two modules"),
     "private": (check_private_symbols, "`--' symbols used across module boundaries"),
@@ -879,6 +963,7 @@ CHECKS = {
     "codefolder": (check_code_folder, "files named in ~/.emacs.d that the repository does not hold"),
     "loader": (check_loader, "every module in init.el's list once; every MyPKS-Switch defined; slots"),
     "tests": (check_tests, "modules without a test; modules changed without one of their tests"),
+    "groups": (check_groups, "the module map (MODULES.org): every module in a group, requirements pointing down"),
     "personal": (check_personal_strings, "personal strings (private-strings.txt) in files git would commit"),
 }
 
@@ -887,7 +972,7 @@ CHECKS = {
 # them, and since 2026-10-18e it blocks, so that a new call to another
 # module's `--' function stops the commit instead of starting a new
 # backlog.
-ADVISORY = {"coverage", "tests"}
+ADVISORY = {"coverage", "tests", "groups"}
 
 
 def main(argv):
