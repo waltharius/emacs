@@ -354,7 +354,8 @@ startup. Optional ones can be removed.
 | `24-readwise.el` | required | Incremental import of Readwise highlights. |
 | `25-inbox-review.el` | required | Review queue for notes migrated from Obsidian. |
 | `42-obsidian-import.el` | optional | Front end for `tools/obsidian_import.py`: dry run, import, report (`C-c n t o`). |
-| `26-maintenance.el` | required | Integrity checks, keyword inventory, keyword renames. |
+| `26-maintenance.el` | optional | Integrity checks, keyword inventory, identifier and link repairs; the Maintenance menu. |
+| `26b-maintenance-repairs.el` | optional | Renaming or removing a keyword across the collection. |
 | `27-denote-identifiers.el` | required | Duplicate identifiers, broken links, self-links. |
 | `49-packages.el` | optional | Upgrade the installed packages after copying the package folder; go back to a copy (`C-c n !`, `U` `B` `L`). |
 | `50-cite-preview.el` | optional | The citation under point shown in the echo area as the export will render it (ElDoc). |
