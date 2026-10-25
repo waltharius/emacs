@@ -45,7 +45,7 @@
 (defvar ispell-pdict-modified-p)
 (declare-function ispell-kill-ispell "ispell" (&optional no-error clear))
 (declare-function ispell-send-string "ispell" (string))
-(declare-function ispell-find-hunspell-dictionaries "ispell" ())
+(declare-function ispell-find-hunspell-dictionaries "ispell" (&optional dictionary))
 (declare-function ispell-hunspell-add-multi-dic "ispell" (dict))
 (declare-function ispell-init-process "ispell" ())
 (declare-function ispell-set-spellchecker-params "ispell" ())

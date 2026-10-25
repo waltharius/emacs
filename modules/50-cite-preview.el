@@ -50,7 +50,7 @@
 (declare-function org-cite-citation-style "oc")
 (declare-function org-cite-csl--parse-reference "oc-csl")
 (declare-function org-cite-csl--create-structure-params "oc-csl")
-(declare-function citeproc-citation-create "ext:citeproc")
+(declare-function citeproc-citation-create "ext:citeproc-cite")
 (declare-function my/reference-missing "17-bibliography")
 (declare-function my/reference-render-citation "17-bibliography")
 (defvar my/csl-default-style)
