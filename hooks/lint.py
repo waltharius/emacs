@@ -474,8 +474,46 @@ def load_list():
     return re.findall(r'^\s*"([0-9][^"]*)"', body, re.M)
 
 
+def slot_problems(texts):
+    """Problems with the slots of TEXTS, a list of (file name, text).
+
+    A slot (`;; MyPKS-Provides: spelling') is a place one module fills
+    and another could fill instead; the loader never loads two modules
+    of one slot together (00-core.el).  Checked here: a slot is one or
+    more lower-case words; a module providing one is optional (a core
+    module cannot give way to another); at most one module per slot
+    starts on a new machine -- the others say `MyPKS-Default: off'."""
+    problems = []
+    starting = {}
+    for name, text in texts:
+        head = text.split(";;; Code:", 1)[0]
+        m = re.search(r"^;+[ \t]*MyPKS-Provides:[ \t]*(.*)$", head, re.M | re.I)
+        if not m:
+            continue
+        slots = m.group(1).split()
+        if not slots:
+            problems.append(f"{name}: MyPKS-Provides names no slot")
+        for slot in slots:
+            if not re.fullmatch(r"[a-z][a-z0-9-]*", slot):
+                problems.append(f"{name}: slot '{slot}' -- lower-case words joined by hyphens")
+        optional = re.search(r"^;+[ \t]*MyPKS-Optional:[ \t]*yes[ \t]*$", head, re.M | re.I)
+        if not optional:
+            problems.append(f"{name}: provides a slot but is not optional -- "
+                            "a core module cannot give way to another")
+        default_off = re.search(r"^;+[ \t]*MyPKS-Default:[ \t]*off[ \t]*$", head, re.M | re.I)
+        if not default_off:
+            for slot in slots:
+                starting.setdefault(slot, []).append(name[:-3] if name.endswith(".el") else name)
+    for slot, names in sorted(starting.items()):
+        if len(names) > 1:
+            problems.append(f"slot '{slot}': {', '.join(names)} would all start on a new machine "
+                            "-- all but one need MyPKS-Default: off")
+    return problems
+
+
 def check_loader():
-    """Every module in init.el's list once; every MyPKS-Switch defined."""
+    """Every module in init.el's list once; every MyPKS-Switch defined;
+    slots well formed, at most one module per slot starting by default."""
     names = load_list()
     if names is None:
         return ["init.el has no (my/modules-load ...) list"]
@@ -497,6 +535,7 @@ def check_loader():
         if m and not re.search(r"^\(define-minor-mode\s+" + re.escape(m.group(1)) + r"\s",
                                text, re.M):
             problems.append(f"{name}: MyPKS-Switch names {m.group(1)}, which it does not define")
+    problems.extend(slot_problems(list(modules())))
     return problems
 
 
@@ -838,7 +877,7 @@ CHECKS = {
     "modules": (check_module_contract, "module contract: headers, provide, declared dependencies"),
     "menukeys": (check_menu_keys, "one key given to two different entries of one menu"),
     "codefolder": (check_code_folder, "files named in ~/.emacs.d that the repository does not hold"),
-    "loader": (check_loader, "every module in init.el's list once; every MyPKS-Switch defined"),
+    "loader": (check_loader, "every module in init.el's list once; every MyPKS-Switch defined; slots"),
     "tests": (check_tests, "modules without a test; modules changed without one of their tests"),
     "personal": (check_personal_strings, "personal strings (private-strings.txt) in files git would commit"),
 }

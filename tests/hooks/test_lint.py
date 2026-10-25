@@ -289,3 +289,42 @@ class Tests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Slots(unittest.TestCase):
+    """MyPKS-Provides: slots well formed, optional, one starting module per slot."""
+
+    def mod(self, name, provides=None, optional="yes", default=None):
+        head = f";;; {name}.el --- x\n;; MyPKS-Requires:\n;; MyPKS-Optional: {optional}\n"
+        if provides is not None:
+            head += f";; MyPKS-Provides: {provides}\n"
+        if default:
+            head += f";; MyPKS-Default: {default}\n"
+        return (name + ".el", head + ";;; Commentary:\n;;; Code:\n")
+
+    def test_one_per_slot(self):
+        self.assertEqual(lint.slot_problems([self.mod("03-spelling", "spelling"),
+                                             self.mod("51-jinx", "spelling", default="off")]), [])
+
+    def test_two_starting(self):
+        problems = lint.slot_problems([self.mod("03-spelling", "spelling"),
+                                       self.mod("51-jinx", "spelling")])
+        self.assertEqual(len(problems), 1)
+        self.assertIn("03-spelling, 51-jinx", problems[0])
+
+    def test_core_refused(self):
+        self.assertTrue(lint.slot_problems([self.mod("02-x", "spelling", optional="no")]))
+
+    def test_bad_name(self):
+        self.assertTrue(lint.slot_problems([self.mod("03-x", "Spelling_check")]))
+
+    def test_empty(self):
+        self.assertTrue(lint.slot_problems([self.mod("03-x", "")]))
+
+    def test_without_slot_nothing(self):
+        self.assertEqual(lint.slot_problems([self.mod("03-x"), self.mod("04-y")]), [])
+
+    def test_slot_only_in_code_ignored(self):
+        name, text = self.mod("03-x")
+        text += ";; MyPKS-Provides: spelling\n"
+        self.assertEqual(lint.slot_problems([(name, text), self.mod("04-y", "spelling")]), [])

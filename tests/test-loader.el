@@ -16,6 +16,8 @@
 ;;   07-g  signals an error while loading: start-up goes on
 ;;   08-h  has a switch, my/h-mode
 ;;   09-i  needs a module that is not in the list at all
+;;   10-j  provides the slot `spelling', has a switch
+;;   11-k  provides `spelling' too: left out while 10-j is on
 ;;
 ;; 00-core.el reads the modules folder once, at load, from
 ;; `user-emacs-directory', so the checks run in a fresh `emacs -Q
@@ -44,24 +46,32 @@
     ("07-g" "yes" "" nil "(error \"boom in g\")")
     ("08-h" "yes" "" "my/h-mode"
      "(define-minor-mode my/h-mode \"h\" :global t :init-value t)\n(my/h-mode (if my/h-mode 1 -1))")
-    ("09-i" "yes" "99-missing" nil ""))
-  "(NAME OPTIONAL REQUIRES SWITCH BODY) of each stand-in module.")
+    ("09-i" "yes" "99-missing" nil "")
+    ("10-j" "yes" "" "my/j-mode"
+     "(define-minor-mode my/j-mode \"j\" :global t :init-value t)\n(my/j-mode (if my/j-mode 1 -1))"
+     "spelling")
+    ("11-k" "yes" "" nil "" "spelling"))
+  "(NAME OPTIONAL REQUIRES SWITCH BODY [PROVIDES]) of each stand-in module.
+10-j and 11-k fill the same slot, spelling: 11-k is left out.")
 
 (defconst my/loader-test--checks
   "(defvar test-loaded nil)
 (setq my/modules-off '(\"04-d\"))
-(my/modules-load '(\"01-a\" \"02-b\" \"03-c\" \"04-d\" \"05-e\" \"06-f\" \"07-g\" \"08-h\" \"09-i\"))
-(check \"loaded in init.el order\" (equal my/modules-loaded '(\"00-core\" \"01-a\" \"02-b\" \"03-c\" \"08-h\")))
+(my/modules-load '(\"01-a\" \"02-b\" \"03-c\" \"04-d\" \"05-e\" \"06-f\" \"07-g\" \"08-h\" \"09-i\" \"10-j\" \"11-k\"))
+(check \"loaded in init.el order\" (equal my/modules-loaded '(\"00-core\" \"01-a\" \"02-b\" \"03-c\" \"08-h\" \"10-j\")))
+(check \"slot: the second module left out, named with the holder\" (equal (cdr (assoc \"11-k\" my/modules--skipped)) '(slot \"spelling\" . \"10-j\")))
+(check \"slot: state\" (equal (my/modules--state \"11-k\") \"not loaded: spelling is 10-j's\"))
 (check \"02-b loaded although its requirement loads later\" (member \"02-b\" test-loaded))
 (check \"reasons\" (equal (mapcar (lambda (e) (cons (car e) (if (consp (cdr e)) (cadr e) (cdr e)))) my/modules--skipped)
-                        '((\"04-d\" . off) (\"05-e\" . needs) (\"06-f\" . needs) (\"07-g\" . failed) (\"09-i\" . needs))))
+                        '((\"04-d\" . off) (\"05-e\" . needs) (\"06-f\" . needs) (\"07-g\" . failed) (\"09-i\" . needs) (\"11-k\" . slot))))
 (check \"failed message kept\" (equal (cddr (assoc \"07-g\" my/modules--skipped)) \"boom in g\"))
 (let ((warned nil) (said nil))
   (cl-letf (((symbol-function 'display-warning) (lambda (_ m &rest _) (setq warned m)))
             ((symbol-function 'message) (lambda (f &rest a) (setq said (apply #'format f a)))))
     (my/modules--warn))
-  (check \"start-up line counts loaded, off, not loaded\" (equal said \"Modules: 5 loaded, 1 off on this machine, 4 not loaded -- C-c n , m lists them\"))
-  (check \"warning lists failed and needs, not off\" (and (string-match-p \"07-g: FAILED.*boom\" warned) (string-match-p \"05-e: not loaded, needs 04-d\" warned) (not (string-match-p \"04-d: turned off\" warned)))))
+  (check \"start-up line counts loaded, off, not loaded\" (equal said \"Modules: 6 loaded, 1 off on this machine, 5 not loaded -- C-c n , m lists them\"))
+  (check \"warning lists failed and needs, not off\" (and (string-match-p \"07-g: FAILED.*boom\" warned) (string-match-p \"05-e: not loaded, needs 04-d\" warned) (not (string-match-p \"04-d: turned off\" warned))))
+  (check \"warning names the slot\" (string-match-p \"11-k: not loaded, provides spelling, which 10-j already provides\" warned)))
 (check \"states\" (equal (mapcar #'my/modules--state '(\"01-a\" \"04-d\" \"05-e\" \"07-g\" \"08-h\")) '(\"core\" \"off\" \"not loaded: needs a module that is off\" \"FAILED at start-up\" \"on\")))
 (check \"dependants of 04-d\" (equal (my/modules--dependants \"04-d\" my/modules-order) '(\"05-e\" \"06-f\")))
 ;; Turning off 08-h: switch off now, saved off.
@@ -78,7 +88,20 @@
   ;; Turning off 04-d asks about its dependants and turns all off.
   (my/modules-toggle \"04-d\")
   (check \"04-d off with dependants\" (equal (sort (copy-sequence my/modules-off) #'string<) '(\"04-d\" \"05-e\" \"06-f\")))
-  (check \"core refused\" (condition-case nil (progn (my/modules-toggle \"01-a\") nil) (user-error t))))
+  (check \"core refused\" (condition-case nil (progn (my/modules-toggle \"01-a\") nil) (user-error t)))
+  ;; Turning 11-k on asks, turns 10-j off (its switch too), loads 11-k.
+  (let ((asked nil))
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (q) (setq asked q) t))
+              ((symbol-function 'y-or-n-p) (lambda (&rest _) t)))
+      (my/modules-toggle \"11-k\"))
+    (check \"slot: turning 11-k on asks about 10-j\" (and asked (string-match-p \"same place as 10-j\" asked)))
+    (check \"slot: 10-j off, 11-k on and loaded\" (and (member \"10-j\" my/modules-off) (not my/j-mode)
+                                                     (not (member \"11-k\" my/modules-off))
+                                                     (member \"11-k\" my/modules-loaded))))
+  ;; Answered no: nothing changes.
+  (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) nil)))
+    (check \"slot: no changes nothing\" (and (condition-case nil (progn (my/modules-toggle \"10-j\") nil) (user-error t))
+                                             (member \"10-j\" my/modules-off)))))
 "
   "The checks, run in the child Emacs after 00-core.el.")
 
@@ -107,6 +130,7 @@
                       (format ";; MyPKS-Requires: %s\n;; MyPKS-Optional: %s\n"
                               (nth 2 m) (nth 1 m))
                       (if (nth 3 m) (format ";; MyPKS-Switch: %s\n" (nth 3 m)) "")
+                      (if (nth 5 m) (format ";; MyPKS-Provides: %s\n" (nth 5 m)) "")
                       "\n;;; Commentary:\n;;; Code:\n"
                       (format "(push %S test-loaded)\n%s\n(provide '%s)\n"
                               (nth 0 m) (nth 4 m) (nth 0 m)))))
@@ -137,7 +161,7 @@
          (failed (seq-filter (lambda (l) (string-prefix-p "FAIL " l))
                              (split-string output "\n"))))
     (should (null failed))
-    (should (= passed 14))))
+    (should (= passed 20))))
 
 (provide 'test-loader)
 ;;; test-loader.el ends here

@@ -2,6 +2,7 @@
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
+;; MyPKS-Provides: spelling
 ;; Docs: ~/.emacs.d/function_helper.org::#menu-spelling
 
 ;;; Commentary:

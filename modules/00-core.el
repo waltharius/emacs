@@ -2397,6 +2397,17 @@ been bound there since, that binding is left alone."
 ;;   ;; MyPKS-Requires: 05-notes 27-denote-identifiers   modules it needs
 ;;   ;; MyPKS-Optional: yes                               may be left out
 ;;   ;; MyPKS-Switch: my/readwise-mode                    its on/off switch
+;;   ;; MyPKS-Provides: spelling                          a slot it fills
+;;
+;; A SLOT is a place one module fills and another could fill instead
+;; (spell checking: 03-spelling with flyspell, or a module built on
+;; jinx), as Doom's completion modules are alternatives.  Two modules
+;; providing one slot are never loaded together: at start-up the first
+;; in init.el's order loads and the other is left out and reported;
+;; turning one on with `my/modules-toggle' turns the other off, after a
+;; question.  The pre-commit check `loader' allows at most one module
+;; per slot to start on a new machine (the others say MyPKS-Default:
+;; off).
 ;;
 ;; For each module in the list:
 ;;   - core (Optional: no): loaded, and an error stops start-up as
@@ -2445,7 +2456,8 @@ modules cannot be turned off."
 
 (defvar my/modules--skipped nil
   "Modules not loaded this session: alist of (NAME . REASON).
-REASON is `off', (needs . MODULES) or (failed . MESSAGE).")
+REASON is `off', (needs . MODULES), (slot SLOT . HOLDER) or
+\(failed . MESSAGE).")
 
 (defvar my/modules--info-cache (make-hash-table :test #'equal)
   "NAME -> plist read from the module's header.")
@@ -2454,7 +2466,8 @@ REASON is `off', (needs . MODULES) or (failed . MESSAGE).")
   "Return what the header of module NAME says, as a plist.
 :summary (the first line's description), :requires (list of module
 names), :optional (non-nil when it may be left out), :switch (the symbol
-of its switch, or nil), :file.  Nil when there is no such file."
+of its switch, or nil), :provides (list of the slots it fills), :file.
+Nil when there is no such file."
   (or (gethash name my/modules--info-cache)
       (let ((file (expand-file-name (concat name ".el") my/modules-directory)))
         (when (file-readable-p file)
@@ -2464,27 +2477,40 @@ of its switch, or nil), :file.  Nil when there is no such file."
                      ;; not read.
                      (insert-file-contents file nil 0 4000)
                      (let ((requires (lm-header "MyPKS-Requires"))
-                           (switch (lm-header "MyPKS-Switch")))
+                           (switch (lm-header "MyPKS-Switch"))
+                           (provides (lm-header "MyPKS-Provides")))
                        (list :file file
                              :summary (lm-summary)
                              :requires (and requires (split-string requires))
                              :optional (equal (lm-header "MyPKS-Optional") "yes")
                              :switch (and switch (not (string-empty-p switch))
-                                          (intern switch)))))
+                                          (intern switch))
+                             :provides (and provides (split-string provides)))))
                    my/modules--info-cache)))))
 
 (defun my/modules--plan (names)
   "Return the modules among NAMES this start leaves out: alist (NAME . REASON).
-Optional modules in `my/modules-off', modules without a file, and,
-repeatedly, optional modules needing one of those or one not in NAMES
-at all.  Core modules are never left out here: a core module that
-cannot load stops start-up when it is loaded."
+Optional modules in `my/modules-off', modules without a file, a module
+providing a slot an earlier module of NAMES already fills (see the
+commentary above), and, repeatedly, optional modules needing one of
+those or one not in NAMES at all.  Core modules are never left out
+here: a core module that cannot load stops start-up when it is loaded."
   (let ((out nil) (changed t))
     (dolist (name names)
       (let ((info (my/module-info name)))
         (cond ((null info) (push (cons name '(failed . "no such file")) out))
               ((and (plist-get info :optional) (member name my/modules-off))
                (push (cons name 'off) out)))))
+    ;; One module per slot: the first in NAMES that is not left out.
+    (let ((holders nil))
+      (dolist (name names)
+        (unless (assoc name out)
+          (dolist (slot (plist-get (my/module-info name) :provides))
+            (let ((holder (cdr (assoc slot holders))))
+              (cond ((null holder) (push (cons slot name) holders))
+                    ((plist-get (my/module-info name) :optional)
+                     (unless (assoc name out)
+                       (push (cons name (cons 'slot (cons slot holder))) out)))))))))
     (while changed
       (setq changed nil)
       (dolist (name names)
@@ -2559,6 +2585,9 @@ requires must already be loaded."
       ('off (format "%s: turned off on this machine" name))
       (`(needs . ,missing) (format "%s: not loaded, needs %s, which was not loaded"
                                    name (string-join missing ", ")))
+      (`(slot ,slot . ,holder)
+       (format "%s: not loaded, provides %s, which %s already provides -- turn one off (C-c n , m)"
+               name slot holder))
       (`(failed . ,msg) (format "%s: FAILED while loading -- %s" name msg)))))
 
 (defun my/modules--warn ()
@@ -2618,8 +2647,10 @@ is where a start says what it loaded (asked 2026-10-22)."
      ((not (plist-get info :optional)) "core")
      ((and (member name my/modules-off) loaded) "off from the next start")
      ((member name my/modules-off) "off")
-     ((consp skipped) (if (eq (car skipped) 'needs) "not loaded: needs a module that is off"
-                        "FAILED at start-up"))
+     ((consp skipped) (pcase (car skipped)
+                        ('needs "not loaded: needs a module that is off")
+                        ('slot (format "not loaded: %s is %s's" (cadr skipped) (cddr skipped)))
+                        (_ "FAILED at start-up")))
      ((not loaded) "on from the next start")
      ((and switch (boundp switch) (not (symbol-value switch))) "loaded, switched off")
      (t "on"))))
@@ -2631,9 +2662,19 @@ module it needs, and its switch, if loaded, on.  What choosing NAME in
   (let ((switch (plist-get (my/module-info name) :switch))
         (skipped (cdr (assoc name my/modules--skipped))))
     (and (not (member name my/modules-off))
-         (not (eq (car-safe skipped) 'needs))
+         (not (memq (car-safe skipped) '(needs slot)))
          (not (and switch (boundp switch) (member name my/modules-loaded)
                    (not (symbol-value switch)))))))
+
+(defun my/modules--slot-rivals (name names)
+  "Return the modules among NAMES, on now, that fill a slot NAME provides."
+  (let ((slots (plist-get (my/module-info name) :provides)))
+    (and slots
+         (seq-filter (lambda (other)
+                       (and (not (equal other name))
+                            (my/modules--on-p other)
+                            (seq-intersection slots (plist-get (my/module-info other) :provides))))
+                     names))))
 
 (defun my/modules--set-off (names off)
   "Add NAMES to `my/modules-off' when OFF, else remove them; save it."
@@ -2698,6 +2739,19 @@ be loaded at once."
                          "Switched off now; not loaded from the next start."
                        "Gone from the next start; modules with a switch are off now."))))
       ;; ---- turning on
+      ;; A module filling the same slot is turned off first, with what
+      ;; needs it (`my/modules--slot-rivals').
+      (let ((rivals (my/modules--slot-rivals name names)))
+        (when rivals
+          (unless (yes-or-no-p (format "%s fills the same place as %s.  Turn %s off? "
+                                       name (string-join rivals ", ")
+                                       (string-join rivals ", ")))
+            (user-error "Nothing changed"))
+          (dolist (rival rivals)
+            (my/modules-toggle rival))
+          ;; Its slot is free now: no longer "left out for the slot".
+          (when (eq (car-safe (cdr (assoc name my/modules--skipped))) 'slot)
+            (setq my/modules--skipped (assoc-delete-all name my/modules--skipped)))))
       ;; Every requirement that is off, or not loaded -- also one left
       ;; out at start-up only because it needed another module that was
       ;; off.
