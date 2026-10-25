@@ -130,6 +130,20 @@ class ChangelogFiles(unittest.TestCase):
             problems = self.run_check({"2026-10.md": text, "2026-09.md": SEPTEMBER})
             self.assertTrue(any("not of the form" in p for p in problems), heading)
 
+    def test_letters_past_z(self):
+        """After z come za to zz, in order; two letters before z are refused."""
+        late = OCTOBER.replace("---\n## Session 2026-10-20b",
+                               "## Session 2026-10-20zb — Later\n\n---\n"
+                               "## Session 2026-10-20za — Late\n\n---\n"
+                               "## Session 2026-10-20z — Last letter\n\n---\n"
+                               "## Session 2026-10-20b")
+        self.assertEqual(self.run_check({"2026-10.md": late, "2026-09.md": SEPTEMBER}), [])
+        for label in ("20aa", "20zza"):
+            text = OCTOBER.replace("---\n## Session 2026-10-20b",
+                                   f"## Session 2026-10-{label} — Wrong\n\n---\n## Session 2026-10-20b")
+            problems = self.run_check({"2026-10.md": text, "2026-09.md": SEPTEMBER})
+            self.assertTrue(any("not of the form" in p for p in problems), label)
+
     def test_month_not_in_table(self):
         problems = self.run_check({"2026-10.md": OCTOBER, "2026-09.md": SEPTEMBER,
                                    "2026-11.md": "## Session 2026-11-01a — New\n"})
