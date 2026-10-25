@@ -1,6 +1,6 @@
 ;;; test-maintenance.el --- ERT tests for keyword renaming and the checks of 26-maintenance -*- lexical-binding: t; -*-
 
-;; Tests: 26-maintenance
+;; Tests: 26-maintenance 26b-maintenance-repairs
 
 ;;; Commentary:
 
@@ -22,7 +22,8 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "27-denote-identifiers" "26-maintenance")
+(my/test-load-modules "05-notes" "12-transient" "27-denote-identifiers" "26-maintenance"
+                      "26b-maintenance-repairs")
 
 ;; ============================================================
 ;; FIXTURE
@@ -235,6 +236,40 @@ suffix to an existing note is not."
         (my/denote-check-broken-links))
       (should (= 1 (length groups)))
       (should (string-prefix-p "20991231T000000" (car (car groups)))))))
+
+(ert-deftest my/maint-test-menu-columns-and-switch ()
+  "The Maintenance menu has its reports and its repairs; K, the keyword
+repair, follows the switch of 26b-maintenance-repairs, the reports stay."
+  (should (eq (my/transient--layout-command (transient-get-suffix 'my/notes-maintenance-menu "k"))
+              #'my/maintenance-keyword-inventory))
+  (should (eq (my/transient--layout-command (transient-get-suffix 'my/notes-maintenance-menu "K"))
+              #'my/maintenance-rename-keyword))
+  (unwind-protect
+      (progn
+        (my/maintenance-repairs-mode -1)
+        (should-not (ignore-errors (transient-get-suffix 'my/notes-maintenance-menu "K")))
+        (should (transient-get-suffix 'my/notes-maintenance-menu "k")))
+    (my/maintenance-repairs-mode 1))
+  (should (transient-get-suffix 'my/notes-maintenance-menu "K")))
+
+(ert-deftest my/maint-test-inventory-buttons-need-the-repairs ()
+  "In the keyword inventory a keyword is a button starting its rename
+only while the renaming command exists."
+  (my/maint-test--with-notes
+    (my/maint-test--note pks "20261025T100000--a__filozofia" '("filozofia"))
+    (cl-flet ((buttons ()
+                (my/maintenance-keyword-inventory)
+                (with-current-buffer "*Denote Keyword Inventory*"
+                  (prog1 (let ((n 0)) (goto-char (point-min))
+                              (while (forward-button 1 nil nil t) (setq n (1+ n)))
+                              n)
+                    (kill-buffer)))))
+      (should (= (buttons) 1))
+      (let ((def (symbol-function 'my/maintenance-rename-keyword)))
+        (unwind-protect
+            (progn (fmakunbound 'my/maintenance-rename-keyword)
+                   (should (= (buttons) 0)))
+          (fset 'my/maintenance-rename-keyword def))))))
 
 (provide 'test-maintenance)
 ;;; test-maintenance.el ends here

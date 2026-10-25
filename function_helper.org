@@ -6995,6 +6995,7 @@ module's loading together.
 | =my/dashboards-mode=      | =21-dashboards.el=      | Find → =h= (History) |
 | =my/zettelkasten-mode=    | =22-zettelkasten.el=    | =C-c n z= |
 | =my/maintenance-mode=     | =26-maintenance.el=     | =C-c n != |
+| =my/maintenance-repairs-mode= | =26b-maintenance-repairs.el= | =K= in =C-c n !=, the keyword buttons of =k= |
 | =my/web-links-mode=       | =32-web-links.el=       | Insert → =u= |
 | =my/capture-mode=         | =06-capture.el=         | the Ideas template (=j=), =C-c c=, Create → Capture column, the right-hand window and the questions at =C-c C-c= |
 | =my/journal-gaps-module-mode= | =35-journal-gaps.el= | Find → =j= |
@@ -7140,7 +7141,7 @@ first (2026-10-16d), then spelling, centred text, Org appearance and
 the writing mode (2026-10-16e), then capture, PDF export, the
 dashboard and fixed tabs (2026-10-19e).
 
-Optional (44):
+Optional (45):
 
 | Module | What | Requires |
 |---+---+---|
@@ -7165,7 +7166,8 @@ Optional (44):
 | =23-fixed-tabs= | Route commands to their own named tab | =01-ui= =05-notes= |
 | =24-readwise= | Import Readwise highlights | =01-ui= =05-notes= |
 | =25-inbox-review= | Review migrated Obsidian notes | =27-denote-identifiers= |
-| =26-maintenance= | Integrity checks and collection-wide repairs | =27-denote-identifiers= |
+| =26-maintenance= | Integrity checks, the Maintenance menu, identifier and link repairs | =27-denote-identifiers= |
+| =26b-maintenance-repairs= | Renaming or removing a keyword across the collection | =26-maintenance= =27-denote-identifiers= |
 | =28-writing-projects= | Writing projects: registry, membership, progress | -- |
 | =29-writing-export= | ODT and DOCX export | =28-writing-projects= |
 | =30-link-tooltips= | Cheap mouse tooltips over denote: links | -- |
@@ -7305,9 +7307,17 @@ above.
 Looking after the collection rather than writing in it: finding what the
 migration broke, and repairing it.
 
-Module: =modules/26-maintenance.el=
+Modules: =modules/26-maintenance.el= (the reports, the menu, identifier
+and link repairs), =modules/26b-maintenance-repairs.el= (renaming or
+removing a keyword, =K=; split off 2026-10-25v).
 
 ** The menu
+
+Two columns: /Reports (read only)/ and /Repairs (rename files)/.  =K=
+is added to the repairs column by 26b-maintenance-repairs.el; without
+it the column holds =R=, =I= and =W=, and the keywords listed by =k=
+are plain text instead of buttons.  The package entries (=U=, =B=,
+=L=) are added by 49-packages.el.
 
 | Key | Command | Does |
 |-----+---------+------|
@@ -7379,6 +7389,9 @@ changes an identifier, because Denote treats the file name as the source
 of truth for that field.
 
 ** Renaming a keyword everywhere
+
+Module: =modules/26b-maintenance-repairs.el= (switch
+=my/maintenance-repairs-mode=).
 
 =K= asks for the keyword and its replacement, then opens a review list
 of every note that uses it. Nothing is written until a decision is made

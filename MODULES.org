@@ -94,7 +94,8 @@ decided by 2026-10-25 ("the rest OK", with the changes noted).  /Plan/:
 | 23-fixed-tabs         |   300 | keep                    | decided  | 2026-10-25: routes the notes commands to tabs; needs 05-notes |
 | 24-readwise           |   400 | keep                    | decided  |                                                                      |
 | 25-inbox-review       |   400 | keep                    | decided  |                                                                      |
-| 26-maintenance        |   800 | split                   | decided  | 2026-10-25: reports and repairs, two modules; the Maintenance menu (C-c n !) gets two columns, Reports and Repairs.  36-notes-stats requires the reports part |
+| 26-maintenance        |   800 | keep                    | decided  | 2026-10-25: the reports and the Maintenance menu; split 2026-10-25v, the repairs are 26b; the Maintenance menu (C-c n !) gets two columns, Reports and Repairs.  36-notes-stats requires the reports part |
+| 26b-maintenance-repairs |   800 | keep                    | decided  | 2026-10-25v: renaming or removing a keyword across the collection, K in the repairs column; requires 26 |
 | 27-denote-identifiers |   200 | keep                    | decided  | core                                                                 |
 | 28-writing-projects   |   400 | keep                    | decided  |                                                                      |
 | 29-writing-export     |   700 | keep                    | decided  |                                                                      |

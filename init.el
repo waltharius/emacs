@@ -97,6 +97,9 @@
    "27-denote-identifiers"   ; Identifier integrity after md files moved to org format
    "25-inbox-review"         ; Inbox review for old notes from Obsidian
    "26-maintenance"          ; Integrity checks and repairs (C-c n !)
+   ;; Optional: renaming a keyword across the collection, K in the
+   ;; repairs column of the Maintenance menu (26-maintenance.el's).
+   "26b-maintenance-repairs" ; Keyword repairs (C-c n ! K)
    "28-writing-projects"     ; Writing projects (C-c n p)
    "29-writing-export"       ; ODT/DOCX export via ox-odt + LibreOffice
    "30-link-tooltips"        ; Cheap mouse tooltips over denote: links
