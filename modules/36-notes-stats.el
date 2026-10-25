@@ -71,8 +71,8 @@
 ;;
 ;; DEPENDENCIES
 ;;   27-denote-identifiers.el  `my/denote-all-files' (hard)
-;;   26-maintenance.el         `my/maintenance-file-keywords' (hard),
-;;                             `my/maintenance-rename-keyword' (soft)
+;;   26-maintenance.el         `my/maintenance-file-keywords' (hard)
+;;   26b-maintenance-repairs.el `my/maintenance-rename-keyword' (soft)
 ;;   34-appearance.el          shared faces (soft)
 ;;   35-journal-gaps.el        metrics completeness (soft)
 ;;   denote-explore            the `e' key (soft)
@@ -88,8 +88,8 @@
 
 (declare-function my/denote-all-files "27-denote-identifiers" ())
 (declare-function my/maintenance-file-keywords "26-maintenance" (file))
-(declare-function my/maintenance-rename-keyword "26-maintenance" (&optional k r))
-(declare-function my/fixed-tab-goto "01-ui" (name))
+(declare-function my/maintenance-rename-keyword "26b-maintenance-repairs" (&optional keyword replacement))
+(declare-function my/fixed-tab-goto "01-ui" (name &optional position))
 (declare-function my/journal-gaps-required-keys "35-journal-gaps" ())
 (declare-function my/journal-gaps-missing-keys "35-journal-gaps" (file required))
 (declare-function my/org-export-to-pdf "16-org-export" ())
