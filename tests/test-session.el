@@ -90,6 +90,14 @@
          (push (my/settings--live-p) my/session-test--seen)
          (set-default-toplevel-value symbol value)))
 
+(ert-deftest my/session-test-lazy-restore-quiet ()
+  "A buffer restored lazily prints to *Messages*, not to the echo area:
+the advice is on `desktop-lazy-create-buffer' and runs it with
+`inhibit-message'."
+  (should (advice-member-p #'my/desktop--lazy-quietly 'desktop-lazy-create-buffer))
+  (should (my/desktop--lazy-quietly (lambda () inhibit-message)))
+  (should (equal (my/desktop--lazy-quietly #'list 1 2) '(1 2))))
+
 (ert-deftest my/session-test-theme-is-no-change ()
   "A saved option handed back by `enable-theme' is not a change by hand."
   (let ((after-init-time (or after-init-time (current-time)))

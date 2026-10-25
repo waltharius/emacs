@@ -4961,9 +4961,14 @@ Three-layer strategy:
 
 The trim limit is =my/desktop-max-buffers= (currently *10*); the eager
 limit is =desktop-restore-eager= (currently *10*). To keep more
-buffers between sessions, change only =my/desktop-max-buffers= — with
-the trim limit equal to the eager limit, the lazy layer is dormant,
-and raising the trim limit re-activates it automatically.
+buffers between sessions, change only =my/desktop-max-buffers=.  The
+lazy layer runs although the two limits are equal: buffers kept by
+=my/desktop-keep-buffer= and by the tabs are saved beyond the trim
+limit.  While a buffer is restored lazily its messages go to
+*Messages* only (=my/desktop--lazy-quietly=, since 2026-10-26b): a long
+line wrapped the echo area to two lines and back, every window changed
+height and the centred column was laid out again -- the screen jumped
+once per buffer.
 
 ** Trim: what counts as "old"
 :PROPERTIES:
