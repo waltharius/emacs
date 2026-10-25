@@ -137,9 +137,9 @@
 ;; Also under the notes menu: C-c n t r
 
 ;; ============================================================
-;; ZOTERO / BIBLIOGRAPHY (already defined in 18-zotero-transient.el)
+;; BIBLIOGRAPHY (defined in 17-bibliography.el)
 ;; ============================================================
-;; C-c x = my/zotero-menu (transient) — also reachable via C-c n t z
+;; C-c x = my/bibliography-menu (transient) — also reachable via C-c n t z
 
 ;; ============================================================
 ;; SPELLING (already defined in 02-editing.el / 03-spelling.el)

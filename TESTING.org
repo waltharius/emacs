@@ -124,7 +124,8 @@ or reaches the network (=CHANGES_FILES= in =hooks/module_contract.py=;
 it reads names in the code, not behaviour -- rule 7).  Not marked,
 though they write nothing, because what they do matters: 02-editing
 (it reloads buffers after a pull), 02b-bold-marker (it changes typed
-text), 18-zotero-transient (it inserts formatted references),
+text), 18-zotero-transient (it inserts formatted references; merged into
+17-bibliography on 2026-10-25zg),
 32-web-links (network), 35-journal-gaps (a report relied on).
 
 Marked on 2026-10-24: 03b-fonts, 09-theme, 10-visual-fill,

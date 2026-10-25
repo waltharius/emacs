@@ -351,9 +351,9 @@ startup. Optional ones can be removed.
 
 | Module | | Purpose |
 |--------|---|---------|
-| `17-bibliography.el` | optional | Citar, the `.bib` files, CSL, references as text, the citation key check. |
+| `17-bibliography.el` | optional | Citar, the `.bib` files (from Zotero or any other program), CSL, references as text, the citation key check, the bibliography menu (`C-c x`). |
 | `17b-document-viewers.el` | optional | PDF (`pdf-tools`) and EPUB (`nov`) viewers. |
-| `18-zotero-transient.el` | required | The bibliography menu (`C-c x`). |
+| `17c-zotero.el` | optional, off on a new machine | Zotero's attachments folder, where `C-c x f` finds a reference's PDF. |
 | `24-readwise.el` | required | Incremental import of Readwise highlights. |
 | `25-inbox-review.el` | required | Review queue for notes migrated from Obsidian. |
 | `42-obsidian-import.el` | optional | Front end for `tools/obsidian_import.py`: dry run, import, report (`C-c n t o`). |
@@ -798,9 +798,9 @@ From an audit on 2026-08-31, recorded rather than silently carried:
    Both directions are guarded, but the arrow from `28` to its own
    extension is backwards; `28` already has the hook mechanism to avoid
    it.
-3. **`18-zotero-transient.el` is a menu with no other content**, unlike
-   every other module, which declares its menu at the bottom of its own
-   file.
+3. ~~**`18-zotero-transient.el` is a menu with no other content**~~ --
+   resolved 2026-10-25zg: the menu is at the bottom of
+   `17-bibliography.el`, whose commands it runs.
 4. **`#+INCLUDE:` paths break on rename**; Denote identifier links do
    not. Known limitation of the writing-project and transclusion export
    path.

@@ -141,7 +141,7 @@
 
 ;; The Integrations column is filled by the modules themselves, each
 ;; inserting its entry before "q" with `my/transient-insert':
-;; 18-zotero-transient.el (z), 24-readwise.el (r), 25-inbox-review.el
+;; 17-bibliography.el (z), 24-readwise.el (r), 25-inbox-review.el
 ;; (i), 40-markdown.el (m), 42-obsidian-import.el (o).  Quit is the
 ;; anchor because it is the one entry no module owns.  The Spelling
 ;; column is inserted before it, as a group, by 03-spelling.el.
