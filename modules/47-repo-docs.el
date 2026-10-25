@@ -659,8 +659,8 @@ Links are rewritten line by line outside fenced code blocks; see
 
 (defvar org-hugo-base-dir)
 (defvar org-export-filter-parse-tree-functions)
-(declare-function org-hugo-link "ox-hugo" (link desc info))
-(declare-function org-hugo-slug "ox-hugo" (str &optional allow-double-hyphens))
+(declare-function org-hugo-link "ext:ox-hugo" (link desc info))
+(declare-function org-hugo-slug "ext:ox-hugo" (str &optional allow-double-hyphens))
 (declare-function org-export-define-derived-backend "ox")
 (declare-function org-export-get-backend "ox" (name))
 (declare-function org-export-as "ox")

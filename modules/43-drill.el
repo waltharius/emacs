@@ -62,10 +62,10 @@
 (require 'subr-x)
 (require 'transient)
 
-(declare-function org-drill "org-drill" (&optional scope drill-match resume-p cram))
-(declare-function org-drill-cram "org-drill" (&optional scope drill-match))
-(declare-function org-drill-tree "org-drill" ())
-(declare-function org-drill-resume "org-drill" ())
+(declare-function org-drill "ext:org-drill" (&optional scope drill-match resume-p cram))
+(declare-function org-drill-cram "ext:org-drill" (&optional scope drill-match))
+(declare-function org-drill-tree "ext:org-drill" ())
+(declare-function org-drill-resume "ext:org-drill" ())
 (declare-function denote-directory-files "denote"
                   (&optional files-matching-regexp omit-current text-only
                              exclude-regexp has-identifier))

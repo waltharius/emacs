@@ -257,7 +257,7 @@ Logging runs only while both are on."
     ("C-c y T" . my/keylog-enable))   ; on for this session
   "Global keys of this module, for `my/module-keys'.")
 
-(declare-function keyfreq-table-save "keyfreq" (table &optional mustsave))
+(declare-function keyfreq-table-save "ext:keyfreq" (table &optional mustsave))
 (defvar keyfreq-table)
 
 (define-minor-mode my/typing-analytics-mode

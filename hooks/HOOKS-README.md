@@ -113,6 +113,7 @@ and by hand from *Actions → weekly → Run workflow*:
 |---|---|
 | First start on a clean machine (`tests/weekly/install.el`) | every module loads and every package installs from the archives, as at a new user's first start; nothing is cached, so a package withdrawn or renamed in the archives shows here |
 | Byte compilation (`tests/weekly/compile.el`) | every module compiled after the whole configuration loaded; a warning not listed in `tests/weekly/compile-warnings.txt` fails -- a misspelt function, a wrong number of arguments, a variable never defined, something obsolete |
+| Declarations (`tests/weekly/declarations.el`) | every `declare-function` form in `modules/` names a file that defines the function with the same argument list (Emacs's `check-declare`); a declaration left behind after a function moved or gained an argument fails. Exceptions, with their reason, in `tests/weekly/declare-exceptions.txt` |
 | Module tests (`tests/weekly/test-modules.el`) | for every module: it loads alone with what it declares; the others load without it; its switch goes off and on leaving nothing behind and doubling nothing (TESTING.org, *Every module tested*, part 2) |
 
 On a machine where the configuration runs, every package is installed
@@ -122,6 +123,7 @@ left to the workflow):
 ```sh
 bash hooks/check-weekly             # byte compilation and module tests, about 3 minutes
 bash hooks/check-weekly compile     # only the byte compilation
+bash hooks/check-weekly declarations # only the declare-function check
 bash hooks/check-weekly 24-readwise # the module tests of one module
 ```
 
