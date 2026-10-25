@@ -71,6 +71,8 @@ A module loaded already is not loaded again."
 
 (defun my/test-date (offset)
   "The calendar date OFFSET days from today, as \"YYYY-MM-DD\".
+Written apart from the date functions of 00-core.el on purpose, so
+that tests of code using them compare with dates they did not compute.
 Counted in calendar days, from midday: steps of 86400 seconds from
 now land on the wrong date near midnight on the two days a year whose
 length is not 24 hours -- in Central Europe 23:23 on the day summer

@@ -269,13 +269,8 @@ likely to be opened."
 ;; ============================================================
 
 (defun my/notes-stats--day-number (date)
-  "Return DATE (YYYY-MM-DD) as an absolute day number."
-  (time-to-days
-   (encode-time (list 0 0 12
-                      (string-to-number (substring date 8 10))
-                      (string-to-number (substring date 5 7))
-                      (string-to-number (substring date 0 4))
-                      nil -1 nil))))
+  "Return DATE (YYYY-MM-DD) as an absolute day number (`my/date-day-number')."
+  (my/date-day-number date))
 
 (defun my/notes-stats--percent (part whole)
   "Return PART of WHOLE as a percentage string, or a dash when WHOLE is 0."
@@ -412,7 +407,7 @@ yesterday is still a streak at nine in the morning."
   (if (null days)
       (cons 0 0)
     (let* ((numbers (mapcar #'my/notes-stats--day-number days))
-           (today (time-to-days (current-time)))
+           (today (my/date-day-number (current-time)))
            (longest 1) (run 1) (previous (car numbers)))
       (dolist (n (cdr numbers))
         (setq run (if (= n (1+ previous)) (1+ run) 1))
@@ -798,7 +793,7 @@ be read down the column."
     (if (null journal-days)
         (my/notes-stats--line "Entries" "none found")
       (let* ((first-day (car journal-days))
-             (elapsed (1+ (- (time-to-days (current-time))
+             (elapsed (1+ (- (my/date-day-number (current-time))
                              (my/notes-stats--day-number first-day))))
              (covered (length journal-days))
              (streaks (my/notes-stats--streaks journal-days)))
@@ -817,7 +812,7 @@ be read down the column."
         (when (and (fboundp 'my/journal-gaps-required-keys)
                    (fboundp 'my/journal-gaps-missing-keys))
           (let* ((required (my/journal-gaps-required-keys))
-                 (cutoff (- (time-to-days (current-time)) 365))
+                 (cutoff (- (my/date-day-number (current-time)) 365))
                  (recent (seq-filter
                           (lambda (d) (> (my/notes-stats--day-number d) cutoff))
                           journal-days))
@@ -1031,7 +1026,7 @@ PDF font can be relied on to have."
     (if (null journal-days)
         (insert "No journal notes found.\n")
       (let* ((first-day (car journal-days))
-             (elapsed (1+ (- (time-to-days (current-time))
+             (elapsed (1+ (- (my/date-day-number (current-time))
                              (my/notes-stats--day-number first-day))))
              (covered (length journal-days))
              (streaks (my/notes-stats--streaks journal-days)))

@@ -841,13 +841,12 @@ modification time."
 
 (defun my/writing--days-until (date)
   "Return calendar days from today until DATE, an Org date string.
-Negative once the date has passed, 0 on the day itself.  Counted in
-calendar days: until 2026-10-25 it was seconds divided by 86400 and
-rounded up, one day too many late in the evening before a 25-hour
-day."
+Negative once the date has passed, 0 on the day itself
+\(`my/date-days-between', 00-core.el).  Until 2026-10-25 it was seconds
+divided by 86400 and rounded up, one day too many late in the evening
+before a 25-hour day."
   (when date
-    (- (time-to-days (org-time-string-to-time date))
-       (time-to-days (current-time)))))
+    (my/date-days-between (current-time) (org-time-string-to-time date))))
 
 (defun my/writing-project-stats (slug)
   "Return a plist of progress figures for SLUG."

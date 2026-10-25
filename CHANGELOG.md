@@ -192,6 +192,27 @@ be empty. `.+` makes the match fail on the correct line, so the search
 succeeds further down the buffer on some unrelated line. Use `.*` and
 treat an empty capture as absent. See Session 2026-07-26a, E.
 
+### L15 — One calendar, in one place
+
+A rule every module needs -- here: a day is not always 86400 seconds --
+belongs in one function, not in a copy per module.  On 2026-10-25, the
+day summer time ended, two tests failed at 23:23; the search for the
+cause found the same mistake in 38-habits and 28-writing-projects, and
+the month before 35-journal-gaps had skipped a day the same way; three
+modules had their own copy of the midday encoding that avoids it.  Each
+copy was a place for the bug and for its tests.
+
+Days are counted with the date functions of `00-core.el` (DATES):
+`my/date-add-days`, `my/date-days-between`, `my/date-day-number`,
+`my/date-to-time`, `my/date-of`, `my/date-weekday`, tested once in
+`tests/test-dates.el` on both transition days and at the ends of
+months and years.  A module does not add seconds to get a date, nor
+encode a date itself; a duration (the last seven days of changes) is
+not a date and stays in seconds.  A test's own "today plus N"
+(`my/test-date`) is computed independently of the library, so that the
+library is checked against something it did not compute.  See Session
+2026-10-26a, and TESTING.org rule 16.
+
 ## File Ownership Map (current)
 
 | Concern                                             | Owning file              |

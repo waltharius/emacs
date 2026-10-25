@@ -1240,9 +1240,9 @@ without a conversion step.
 | =my/journal-week-current-text= | ="ten wpis"=                               |
 
 Helper functions in the same module, usable on their own:
-=my/journal-date-encode=, =my/journal-midday=,
-=my/journal-week-monday=, =my/journal-week-days= and
-=my/journal-week-label= (=%G-W%V=, e.g. =2026-W35=).
+=my/journal-midday=, =my/journal-week-monday=, =my/journal-week-days=
+and =my/journal-week-label= (=%G-W%V=, e.g. =2026-W35=).  They count
+days with the [[#dates][date functions of 00-core.el]].
 
 Function: =my/journal-insert-week-links= | Module: =modules/05-notes.el=
 
@@ -6294,6 +6294,45 @@ been written rather than to how many days are covered.
 | =05-notes.el= | a missing day can be opened but not created |
 | =21-dashboards.el= | the menu entry is skipped |
 | =23-fixed-tabs.el= | the report opens in the current window instead of the tab named by =my/journal-gaps-tab-name= (default =Stats=) |
+
+* Dates: calendar days in one place
+:PROPERTIES:
+:CUSTOM_ID: dates
+:END:
+
+Module: =modules/00-core.el= (DATES; since 2026-10-26a).  A time value
+in Emacs is an instant, and a date exists only through a time zone; a
+day is not always 86400 seconds -- in Central Europe the day summer
+time ends has 25 hours, the day it begins 23 -- so near midnight on
+those days "plus 86400 seconds" lands on the same date or skips one.
+Every module counts days with these functions:
+
+| Function | Returns |
+|----------+---------|
+| =my/date-of= | the date of a time value, or of now, as "YYYY-MM-DD" |
+| =my/date-to-time= | a date as a time value at midday, for =format-time-string= |
+| =my/date-add-days= | the date N calendar days later (earlier when negative) |
+| =my/date-day-number= | days since the start of year 1, of a date or a time value |
+| =my/date-days-between= | calendar days from one date or time to another |
+| =my/date-weekday= | the ISO weekday, 1 Monday to 7 Sunday |
+
+Days are added by =encode-time= with the day out of range (Emacs
+carries 32 October into 1 November), at midday and with the daylight
+saving flag left to Emacs; differences are =time-to-days= numbers.  A
+duration -- notes changed in the last seven days -- is not a date and
+stays in seconds.
+
+Users: 05-notes (the week of a journal note), 28-writing-projects (days
+to a deadline), 35-journal-gaps (the days of the report),
+36-notes-stats (streaks, days since the first entry), 38-habits (the
+day after a derived habit's last date).  Before, three of them encoded
+dates themselves and two stepped by 86400 seconds (CHANGELOG.md, lesson
+L15).
+
+Tests: =tests/test-dates.el= (both transition days, month and year
+ends, February of a leap year, instants late in the evening and just
+after midnight); the week of a journal note across both transitions in
+=tests/test-notes.el=.
 
 * Frame bars
 :PROPERTIES:
