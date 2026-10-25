@@ -283,11 +283,11 @@ included, since staged notes link to filed ones and to each other."
 (defun my/maintenance-file-keywords (file)
   "Return FILE's keywords, read from its file name, as a list of strings.
 
-The inverse of the name builder of 26b-maintenance-repairs.el.  Both find the keyword
-field at the first double underscore of the base name: a title slug
-never contains one, so it is a reliable boundary, and having the two
-agree by construction is what stops a rename from computing a name for a
-file it misread."
+The inverse of the name builder of 26b-maintenance-repairs.el.  Both
+find the keyword field at the first double underscore of the base
+name: a title slug never contains one, so it is a reliable boundary,
+and having the two agree by construction is what stops a rename from
+computing a name for a file it misread."
   (let ((base (file-name-base file)))
     (when (string-match "__" base)
       (split-string (substring base (match-end 0)) "_" t))))
