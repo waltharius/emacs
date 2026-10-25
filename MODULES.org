@@ -46,6 +46,7 @@ A module goes in the group of the *first* question answered yes:
 
 | Group | Name                | Question                                                        |
 |-------+---------------------+-----------------------------------------------------------------|
+|   000 | Loader              | Is it what loads, switches and orders every other module?       |
 |   100 | Emacs               | Does it change Emacs itself, whatever the notes?                |
 |   200 | Foundation          | Can it not be turned off -- does everything else need it?       |
 |   300 | Notes core          | Is it part of the daily way of writing notes?                   |
@@ -56,7 +57,13 @@ A module goes in the group of the *first* question answered yes:
 |   800 | Overview            | Does it read the collection and report on it?                   |
 
 Decided 2026-10-25: the eight groups, English names, 700 Output added
-to the owner's first seven, slots from the start.
+to the owner's first seven, slots from the start.  Decided 2026-10-25y:
+group 000 for the loader alone.  Every module, those of 100 included,
+uses 00-core -- =my/var-file=, the settings, the silos -- and nothing
+is under it; in 200 it stood above 100 and every module of 100 broke
+rule 2 against it (01-ui, 02-editing, 14-typing-analytics: hard uses,
+found 2026-10-25 by the module graph).  Nothing but the loader goes in
+000.
 
 * Map
 /Status/: =decided= by the owner, =proposed= until then.  Every row
@@ -65,7 +72,7 @@ decided by 2026-10-25 ("the rest OK", with the changes noted).  /Plan/:
 
 | Module                | Group | Plan                    | Status   | Note                                                                 |
 |-----------------------+-------+-------------------------+----------+----------------------------------------------------------------------|
-| 00-core               |   200 | keep                    | decided  | the loader, settings, silos                                          |
+| 00-core               |   000 | keep                    | decided  | the loader, settings, silos; 2026-10-25y: in 000, under every group  |
 | 01-ui                 |   100 | split                   | decided  | 2026-10-25: sessions and completion stay in 100 (Emacs); the look goes to a new module in 500 (Look) |
 | 02-editing            |   100 | keep                    | decided  |                                                                      |
 | 02b-bold-marker       |   300 | keep                    | decided  |                                                                      |
