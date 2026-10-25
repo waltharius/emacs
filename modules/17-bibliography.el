@@ -16,8 +16,10 @@
 ;; Workflow:
 ;;   1. M-x my/zotero-menu (C-c x) → n  — create note from Zotero ref, PDF opens on the right
 ;;   2. M-x my/zotero-menu (C-c x) → f  — reopen PDF on the right for the current note
-;;   3. M-x my/zotero-menu (C-c x) → R  — insert full bibliography at point
-;;   4. M-x my/zotero-menu (C-c x) → S  — insert short reference (Author, Title, Year) at point
+;;   3. M-x my/zotero-menu (C-c x) → R  — insert the full reference at point,
+;;      in the export style
+;;   4. M-x my/zotero-menu (C-c x) → S  — insert a short reference at point:
+;;      Given Family, /Title/ (Year)
 
 ;;; Code:
 
@@ -216,12 +218,17 @@ layout parameters, and the export fails far away from the cause with
          (goto-char (point-min))
          (search-forward opening-tag nil t))))
 
+(defun my/csl--style-file (name)
+  "Return the style file NAME to use, absolute, or nil if there is none.
+The user's styles folder first, then the bundled copy."
+  (seq-find (lambda (file) (my/csl--valid-file-p file "<style"))
+            (list (expand-file-name name my/csl-styles-dir)
+                  (expand-file-name name my/csl-bundled-styles-dir))))
+
 (defun my/csl--default-style-file ()
   "Return the default style file to use, absolute, or nil if there is none.
 The user's styles folder first, then the bundled copy."
-  (seq-find (lambda (file) (my/csl--valid-file-p file "<style"))
-            (list (expand-file-name my/csl-default-style my/csl-styles-dir)
-                  (expand-file-name my/csl-default-style my/csl-bundled-styles-dir))))
+  (my/csl--style-file my/csl-default-style))
 
 (defun my/csl--locales-dir ()
   "Return the locales folder to use: the user's when it has the Polish locale."
@@ -433,51 +440,178 @@ present, and the report says when they are the ones in use."
     (message "No #+reference found in this note")))
 
 ;; ============================================================
-;; HELPER: Insert full bibliography entry at point
+;; REFERENCES AS TEXT, rendered by CSL
 ;; ============================================================
-;; Prompts to select a reference, then inserts a formatted
-;; bibliography line at point, e.g.:
-;; Cioran, Emil. /O niedogodności narodzin/. Warszawa: Aletheia, 2021.
+;; C-c x S and C-c x R put a reference into a note as text, for notes
+;; that stay plain text; a citation to be exported is [cite:@key]
+;; (C-c x i).  Both go through citeproc-el with a CSL style -- the
+;; machinery that renders citations on export -- rather than through
+;; fields glued together here: names come out as "Kamil Bałuk i Wacław
+;; Krupiński" (BibLaTeX stores "Bałuk, Kamil and Krupiński, Wacław"),
+;; "and" in the language of the note, braces and dates handled, editors
+;; named when there is no author.  Until 2026-10-25 the fields were
+;; inserted raw: "Bałuk, Kamil and Krupiński, Wacław. /Title/ (2018).".
+;;
+;; The short reference has a style of its own, bundled in csl/styles/
+;; (Given Family, /Title/ (Year)); the full one uses the export style,
+;; so it reads as the entry of the exported bibliography does.  Either
+;; can be another CSL style, put in `my/csl-styles-dir'.
+;;
+;; The entries are read from the bibliography files as the export reads
+;; them (`citeproc-hash-itemgetter-from-any'), not from citar's cache:
+;; citar keeps only the fields its own templates name, so a place of
+;; publication, a translator or a language would be missing.  Read once,
+;; and again when a file changes.
 
-(defun my/insert-full-reference ()
-  "Select a reference and insert full bibliography at point."
-  (interactive)
-  (let* ((key (car (citar-select-refs)))
-         (author   (citar-get-value "author" key))
-         (title    (citar-get-value "title" key))
-         (publisher (citar-get-value "publisher" key))
-         (location  (citar-get-value "location" key))
-         (year     (or (citar-get-value "year" key)
-                       (citar-get-value "date" key)))
-         (location-publisher
-          (cond ((and location publisher) (concat location ": " publisher))
-                (publisher publisher)
-                (location location)
-                (t nil)))
-         (ref (concat author ". /" title "/."
-                      (when location-publisher (concat " " location-publisher ","))
-                      (when year (concat " " year))
-                      ".")))
-    (insert ref)))
+(defcustom my/reference-short-style "mypks-short-reference.csl"
+  "CSL style of the short reference `my/insert-short-reference' inserts.
+A file in `my/csl-styles-dir', or bundled in csl/styles/ as the default
+is.  The default gives \"Given Family i Given Family, /Title/ (Year)\",
+\"and\" in the language of the note.  Takes effect at once."
+  :type 'string
+  :tag "Style of the short reference (C-c x S)"
+  :group 'my/bibliography)
 
-;; ============================================================
-;; HELPER: Insert short reference (Author, Title, Year) at point
-;; ============================================================
-;; Inserts a compact reference, e.g.:
-;; Cioran, Emil. /O niedogodności narodzin/ (2021).
+(defcustom my/reference-full-style nil
+  "CSL style of the full reference `my/insert-full-reference' inserts.
+Nil: the export style, `my/csl-default-style', so that the reference
+reads as the entry of an exported bibliography.  Otherwise a file in
+`my/csl-styles-dir' or bundled in csl/styles/.  Takes effect at once."
+  :type '(choice (const :tag "The export style" nil)
+                 (string :tag "CSL style file"))
+  :tag "Style of the full reference (C-c x R)"
+  :group 'my/bibliography)
 
-(defun my/insert-short-reference ()
-  "Select a reference and insert short Author, Title (Year) at point."
-  (interactive)
-  (let* ((key (car (citar-select-refs)))
-         (author (citar-get-value "author" key))
-         (title  (citar-get-value "title" key))
-         (year   (or (citar-get-value "year" key)
-                     (citar-get-value "date" key)))
-         (ref (concat author ". /" title "/"
-                      (when year (concat " (" year ")"))
-                      ".")))
-    (insert ref)))
+(declare-function citeproc-create "ext:citeproc")
+(declare-function citeproc-clear "ext:citeproc")
+(declare-function citeproc-append-citations "ext:citeproc")
+(declare-function citeproc-citation-create "ext:citeproc")
+(declare-function citeproc-render-bib "ext:citeproc")
+(declare-function citeproc-hash-itemgetter-from-any "ext:citeproc")
+(declare-function citeproc-locale-getter-from-dir "ext:citeproc")
+(declare-function citar-select-refs "ext:citar")
+(declare-function org-collect-keywords "org")
+(defvar org-cite-csl-bibtex-titles-to-sentence-case)
+(defvar org-export-default-language)
+
+(defvar my/reference--items nil
+  "(STAMP . GETTER): the entries of the bibliography files, read once.
+STAMP names the files with their size and time of change; a different
+stamp reads them again.")
+
+(defvar my/reference--processors nil
+  "Alist of ((STYLE STAMP LOCALE GETTER) . PROCESSOR) already built.")
+
+(defun my/reference--file-stamp (files)
+  "Return FILES with their time of change and size, to notice an edit."
+  (mapcar (lambda (file)
+            (let ((attrs (file-attributes file)))
+              (list file
+                    (file-attribute-modification-time attrs)
+                    (file-attribute-size attrs))))
+          files))
+
+(defun my/reference--itemgetter ()
+  "Return a citeproc item getter for the bibliography files.
+Read as the export reads them, and kept until a file changes."
+  (let ((files (seq-filter #'file-readable-p (my/bibliography-file-list))))
+    (unless files
+      (user-error "No bibliography file to read: %s (C-c x , to set one)"
+                  (mapconcat #'abbreviate-file-name (my/bibliography-file-list) ", ")))
+    (let ((stamp (my/reference--file-stamp files)))
+      (unless (equal stamp (car my/reference--items))
+        (setq my/reference--processors nil
+              my/reference--items
+              (cons stamp
+                    ;; The second argument as the export passes it
+                    ;; (Org 9.7 and later have the option).
+                    (citeproc-hash-itemgetter-from-any
+                     files
+                     (and (boundp 'org-cite-csl-bibtex-titles-to-sentence-case)
+                          (not org-cite-csl-bibtex-titles-to-sentence-case))))))
+      (cdr my/reference--items))))
+
+(defun my/reference--locale ()
+  "Return the language references are rendered in, as the export does.
+The note's #+language: keyword in an Org buffer, else the default
+language of the export, else English."
+  (or (and (derived-mode-p 'org-mode)
+           (let ((value (cadar (org-collect-keywords '("LANGUAGE")))))
+             (and value (not (string-empty-p (string-trim value)))
+                  (string-trim value))))
+      (and (boundp 'org-export-default-language) org-export-default-language)
+      "en"))
+
+(defun my/reference--processor (style-name locale)
+  "Return a citeproc processor for the CSL style STYLE-NAME in LOCALE."
+  (unless (require 'citeproc nil t)
+    (user-error "citeproc is not installed (M-x package-install RET citeproc)"))
+  (let* ((style (or (my/csl--style-file style-name)
+                    (user-error "No CSL style %s in %s nor in %s"
+                                style-name my/csl-styles-dir my/csl-bundled-styles-dir)))
+         (getter (my/reference--itemgetter))
+         (key (list style (my/reference--file-stamp (list style)) locale getter)))
+    (or (cdr (assoc key my/reference--processors))
+        (let ((processor (citeproc-create
+                          style getter
+                          (citeproc-locale-getter-from-dir (my/csl--locales-dir))
+                          locale)))
+          (push (cons key processor) my/reference--processors)
+          processor))))
+
+(defun my/reference-render (keys style-name &optional format separator)
+  "Return the references to KEYS, a list of citation keys, as text.
+Rendered in the CSL style STYLE-NAME, in the language of the current
+buffer (`my/reference--locale').  FORMAT is a citeproc output format,
+`org' by default; SEPARATOR joins several references, a new line by
+default.  An unknown key is an error naming it."
+  (let* ((processor (my/reference--processor style-name (my/reference--locale)))
+         (getter (my/reference--itemgetter))
+         ;; The getter answers (KEY . nil) for a key it does not hold.
+         (missing (seq-remove (lambda (key) (cdar (funcall getter (list key))))
+                              keys)))
+    (when missing
+      (user-error "Not in the bibliography: %s" (string-join missing ", ")))
+    ;; Cited rather than added as uncited: `citeproc-clear' empties
+    ;; the citations but keeps uncited keys, so a reused processor would
+    ;; print every key asked for before.
+    (citeproc-clear processor)
+    (citeproc-append-citations
+     (list (citeproc-citation-create
+            :cites (mapcar (lambda (key) (list (cons 'id key))) keys)))
+     processor)
+    (car (citeproc-render-bib processor (or format 'org) 'no-links t
+                              (lambda (items _params)
+                                (string-join items (or separator "\n")))))))
+
+(defun my/reference--select ()
+  "Ask for references with citar; return their keys."
+  (unless (fboundp 'citar-select-refs)
+    (user-error "citar is not installed"))
+  (or (citar-select-refs)
+      (user-error "No reference chosen")))
+
+(defun my/reference--insert (keys style-name separator)
+  "Insert the references to KEYS in STYLE-NAME, joined by SEPARATOR.
+Org markup (/italic/) in Org buffers, plain text elsewhere."
+  (insert (my/reference-render keys style-name
+                               (if (derived-mode-p 'org-mode) 'org 'plain)
+                               separator)))
+
+(defun my/insert-short-reference (keys)
+  "Insert a short reference to each of KEYS at point.
+Interactively, KEYS are chosen with citar.  In the style
+`my/reference-short-style': Given Family i Given Family, /Title/ (Year),
+several joined by \"; \"."
+  (interactive (list (my/reference--select)))
+  (my/reference--insert keys my/reference-short-style "; "))
+
+(defun my/insert-full-reference (keys)
+  "Insert the full reference to each of KEYS at point, one per line.
+Interactively, KEYS are chosen with citar.  In `my/reference-full-style',
+by default the export style, as an exported bibliography lists it."
+  (interactive (list (my/reference--select)))
+  (my/reference--insert keys (or my/reference-full-style my/csl-default-style) "\n"))
 
 ;; ============================================================
 ;; PDF-TOOLS — native PDF viewer

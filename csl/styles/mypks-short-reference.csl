@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0" demote-non-dropping-particle="never">
+  <info>
+    <title>MyPKS short reference</title>
+    <id>https://github.com/waltharius/emacs/blob/main/csl/styles/mypks-short-reference.csl</id>
+    <author>
+      <name>MyPKS</name>
+    </author>
+    <category citation-format="author-date"/>
+    <summary>Given Family and Given Family, Title (Year): the short reference
+      inserted into plain-text notes by C-c x S (17-bibliography.el).
+      Not meant for export; exported citations use the document's style.</summary>
+    <updated>2026-10-25T00:00:00+00:00</updated>
+    <rights license="https://www.gnu.org/licenses/gpl-3.0.html">GNU General Public License, version 3 or later</rights>
+  </info>
+  <!-- citeproc-el (2026-01) gives and="text" the first term named
+       "and" whatever its form, and with the en-US locale of 2026-01 that
+       is the symbol form: "Kamil Bałuk & Wacław Krupiński" in an English
+       note.  The symbol form is given the word here, so either form
+       reads "and". -->
+  <locale xml:lang="en">
+    <terms>
+      <term name="and" form="symbol">and</term>
+    </terms>
+  </locale>
+  <macro name="contributors">
+    <choose>
+      <if variable="author">
+        <names variable="author">
+          <name and="text" delimiter=", " delimiter-precedes-last="never"
+                et-al-min="3" et-al-use-first="1" initialize="false"/>
+        </names>
+      </if>
+      <else-if variable="editor">
+        <names variable="editor">
+          <name and="text" delimiter=", " delimiter-precedes-last="never"
+                et-al-min="3" et-al-use-first="1" initialize="false"/>
+          <label form="short" prefix=" (" suffix=")"/>
+        </names>
+      </else-if>
+    </choose>
+  </macro>
+  <macro name="reference">
+    <group delimiter=", ">
+      <text macro="contributors"/>
+      <text variable="title" font-style="italic"/>
+    </group>
+    <date variable="issued" prefix=" (" suffix=")">
+      <date-part name="year"/>
+    </date>
+  </macro>
+  <citation>
+    <layout>
+      <text macro="reference"/>
+    </layout>
+  </citation>
+  <bibliography>
+    <layout>
+      <text macro="reference"/>
+    </layout>
+  </bibliography>
+</style>

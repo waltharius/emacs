@@ -36,6 +36,8 @@
     ;; 22-zettelkasten, 40-markdown (the CI run of 0071/0072 stopped
     ;; with "Cannot load org-transclusion" and "denote-sequence").
     (org-transclusion) (denote-sequence) (markdown-mode) (visual-fill-column)
+    ;; test-references renders references with citeproc (2026-10-25f).
+    (citeproc)
     ;; Not the transient built into Emacs: the one the configuration
     ;; really runs with comes from the archives with Magit (0.13 on the
     ;; owner's machine, 2026-10-20), and its menu entries have another

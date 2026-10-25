@@ -4615,8 +4615,8 @@ Module: =modules/18-zotero-transient.el=
 | e   | =citar-open-entry=          | Open BibTeX entry in refs.bib            |
 | u   | =citar-open-links=          | Open URL or DOI in browser               |
 | i   | =citar-insert-citation=     | Insert in-text citation [cite:@key]      |
-| R   | =my/insert-full-reference=  | Insert full bibliography at point        |
-| S   | =my/insert-short-reference= | Insert short reference (Author, Title)   |
+| R   | =my/insert-full-reference=  | Insert the full reference, export style  |
+| S   | =my/insert-short-reference= | Insert a short reference: Author, Title (Year) |
 | c   | =my/cite-check-keys=        | Keys used in notes but absent from refs.bib |
 | C   | =my/cite-rename-key=        | Rename a citation key across the notes   |
 | ?   | =my/csl-check-setup=        | Report whether CSL export is ready       |
@@ -4641,6 +4641,64 @@ The size test matters: a failed =curl -O= leaves a perfectly readable
 from the cause with =Wrong type argument: numberp, nil=.
 
 Run it before submitting anything, and after changing a style.
+
+** S, R — A reference as text
+:PROPERTIES:
+:CUSTOM_ID: reference-as-text
+:END:
+
+For a note that stays plain text — a reading log, a journal entry —
+where a =[cite:@key]= would only be expanded by an export.  A text that
+will be exported cites with =i= instead ([[#citing-howto][Citing and the bibliography]]).
+
+| Key | Inserts                                  | Example (a note with =#+language: pl=)                         |
+|-----+------------------------------------------+-----------------------------------------------------------------|
+| S   | Given Family, /Title/ (Year)             | =Kamil Bałuk i Wacław Krupiński, /Wodecki: tak mi wyszło/ (2018)= |
+| R   | the entry an exported bibliography holds | =Bałuk, Kamil, i Wacław Krupiński. /Wodecki: tak mi wyszło/. Wydawnictwo Agora, 2018.= |
+
+Both ask with citar; several references chosen at once are joined by
+=;= (short) or one per line (full).  The text is rendered by citeproc-el
+with a CSL style — the same machinery and the same entries as the
+export — so names, dates and editors follow the style rather than the
+raw BibLaTeX fields (=Bałuk, Kamil and Krupiński, Wacław=):
+
+- *Names*: given name first; two authors joined by the language's word
+  for "and"; three or more shortened to the first and /et al./; an
+  editor, with /red./ or /ed./, when there is no author; BibLaTeX's
+  extended name format (=family=Gogh, given=Vincent, prefix=van=) and
+  names in braces (institutions) understood.
+- *Language*: the note's =#+language:=, else =org-export-default-language=
+  (/en/ unless set), as the export decides.  Outside Org (a Markdown
+  note) the latter, and no /italic/ markers.
+- *Year*: from =date= (=2018-05-01= → 2018) or =year=.
+- *Title*: as the .bib holds it.  An entry without a language (Zotero's
+  /Language/ field, exported as =langid=) has its title turned to
+  sentence case, as the export does; Better BibTeX may already have
+  title-cased it, which is where "Tak Mi Wyszło" comes from.
+
+| Option                      | Default                       | Meaning                                        |
+|-----------------------------+-------------------------------+------------------------------------------------|
+| =my/reference-short-style= | =mypks-short-reference.csl=   | CSL style of =S=                               |
+| =my/reference-full-style=  | nil (the export style)        | CSL style of =R=                               |
+
+A style is looked up in =my/csl-styles-dir= first, then in =csl/styles/=
+of this repository, so a changed copy of =mypks-short-reference.csl=
+beside the notes wins.  That style is the configuration's own (GPL, not
+from the CSL repository); it names the English word "and" in both term
+forms, because citeproc-el takes the first term called "and" whatever
+its form, and with the en-US locale of 2026-01 that is the symbol =&=.
+Exports in English with the Chicago style show =&= for the same reason
+(BACKLOG, /Small items/).
+
+The entries are read from =my/bibliography-files= with
+=citeproc-hash-itemgetter-from-any=, as Org's export reads them, not
+from citar's cache, which keeps only the fields citar's own templates
+name.  Read once (about a second for a 1.6 MB file measured here) and
+again when a file changes size or time; a reference then renders in
+milliseconds.  A key not in the files is an error naming it, and
+nothing is inserted.
+
+Function: =my/insert-short-reference=, =my/insert-full-reference=, =my/reference-render= | Module: =modules/17-bibliography.el= | Tests: =tests/test-references.el=
 
 ** , — Where the bibliography is
 :PROPERTIES:
@@ -4683,6 +4741,8 @@ new and empty notes folder — the copies in =csl/= of this repository are
 used instead: =chicago-notes-bibliography.csl=, =locales-pl-PL.xml= and
 =locales-en-US.xml=, unchanged from the Citation Style Language
 repositories, CC BY-SA 3.0 (=csl/README.md= names sources and dates).
+=mypks-short-reference.csl= is the configuration's own style for =C-c x S=
+([[#reference-as-text][A reference as text]]).
 *Messages* says once per session which bundled file is in use; when no
 style is found at all, a warning says what to put where.
 

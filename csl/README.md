@@ -14,9 +14,15 @@ files there always win.
 
 Downloaded unchanged on 2026-10-14 from the `master` branches.
 
+`styles/mypks-short-reference.csl` is not from these repositories: it
+is this configuration's own style for the short reference `C-c x S`
+inserts into a note (17-bibliography.el, `my/reference-short-style`),
+under the licence of this repository.  Used for that only, never for
+export.
+
 ## Licence
 
-These files are not covered by the licence of this repository.  They
+These files (all but `mypks-short-reference.csl`) are not covered by the licence of this repository.  They
 are the work of the Citation Style Language project and its
 contributors, licensed under the Creative Commons
 Attribution-ShareAlike 3.0 Unported licence

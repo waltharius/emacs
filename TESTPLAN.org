@@ -644,6 +644,22 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R49. References inserted as text [0/4]
+With the real =refs.bib= exported by Zotero.
+- [ ] In a pks note (=#+language: pl=), =C-c x S=, the Bałuk and
+      Krupiński book: =Kamil Bałuk i Wacław Krupiński, /Wodecki: tak mi
+      wyszło/ (2018)= -- no full stop, no "and".  =C-c x R= on the same
+      book: the line =#+print_bibliography:= gives for it in a PDF.
+- [ ] A book with three or more authors, one with only an editor, one
+      by an institution: "et al.", "(red.)", the institution's name as
+      Zotero has it.
+- [ ] A note with =#+language: en=: "and" between two authors, not
+      "&".  In a Markdown note: no slashes around the title.
+- [ ] Change a title in Zotero, wait for the export, =C-c x S= again
+      without restarting: the new title.  The first =C-c x S= of a
+      session takes about a second (the file is read), the next ones
+      none.
+
 ** R48. ODT and DOCX export on this machine [0/3]
 The tests play LibreOffice with shell scripts; one real conversion
 (LibreOffice 24.2, Ubuntu 24.04) gave a Word 2007+ file.  This checks the
