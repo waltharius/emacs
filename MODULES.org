@@ -59,14 +59,14 @@ to the owner's first seven, slots from the start.
 | Module                | Group | Plan                    | Status   | Note                                                                 |
 |-----------------------+-------+-------------------------+----------+----------------------------------------------------------------------|
 | 00-core               |   200 | keep                    | proposed | the loader, settings, silos                                          |
-| 01-ui                 |   100 | split                   | proposed | sessions and completion stay in 100; the look goes to 500           |
+| 01-ui                 |   100 | split                   | decided  | 2026-10-25: sessions and completion stay in 100 (Emacs); the look goes to a new module in 500 (Look) |
 | 02-editing            |   100 | keep                    | proposed |                                                                      |
 | 02b-bold-marker       |   300 | keep                    | proposed |                                                                      |
 | 03-spelling           |   300 | keep                    | proposed | slot =spelling=; a jinx module would fill it instead                 |
 | 03b-fonts             |   500 | keep                    | proposed |                                                                      |
 | 04-denote             |   200 | keep                    | proposed |                                                                      |
-| 05-notes              |   200 | keep                    | proposed | core (cannot be turned off) and needed by 08, 12 and 23 -- in 300 it would break rule 2 |
-| 05b-journal-metrics   |   300 | keep                    | proposed |                                                                      |
+| 05-notes              |   200 | keep                    | decided  | 2026-10-25: core (cannot be turned off) and needed by 08, 12 and 23 |
+| 05b-journal-metrics   |   400 | keep                    | decided  | 2026-10-25: an extension of the notes core, kept apart from 05 so that it can be off and its fields changed without touching 05; fields to be set from the settings menu, kept locally (BACKLOG, /Journal metrics configurable/) |
 | 06-capture            |   300 | keep                    | proposed |                                                                      |
 | 07-git                |   200 | keep                    | proposed | automatic commits of everything                                      |
 | 08-keybindings        |   200 | keep                    | proposed |                                                                      |
@@ -78,16 +78,16 @@ to the owner's first seven, slots from the start.
 | 14-typing-analytics   |   100 | keep                    | proposed |                                                                      |
 | 15-workspace          |   800 | keep                    | proposed |                                                                      |
 | 16-org-export         |   700 | keep                    | proposed |                                                                      |
-| 17-bibliography       |   400 | keep                    | proposed |                                                                      |
-| 18-zotero-transient   |   400 | merge 17-bibliography   | proposed | 99 lines of menu for 17, nothing else; always used with it           |
+| 17-bibliography       |   400 | split                   | decided  | 2026-10-25: two modules, by package: citar (citations, CSL, references from any .bib) and Zotero (what only Zotero gives: the attachments folder, the Zotero menu); a .bib may come from elsewhere than Zotero.  Open: where the PDF viewer (pdf-tools) goes |
+| 18-zotero-transient   |   400 | merge Zotero module     | decided  | 2026-10-25: its menu goes to the module of the package each entry belongs to (C-c x stays with Zotero) |
 | 19-philosophy-notes   |   400 | keep                    | proposed |                                                                      |
 | 20-transclusion       |   400 | keep                    | proposed |                                                                      |
 | 21-dashboards         |   800 | keep                    | proposed |                                                                      |
 | 22-zettelkasten       |   400 | keep                    | proposed |                                                                      |
-| 23-fixed-tabs         |   300 | keep                    | proposed | routes the notes commands to tabs; needs 05-notes, so not 100        |
+| 23-fixed-tabs         |   300 | keep                    | decided  | 2026-10-25: routes the notes commands to tabs; needs 05-notes |
 | 24-readwise           |   400 | keep                    | proposed |                                                                      |
 | 25-inbox-review       |   400 | keep                    | proposed |                                                                      |
-| 26-maintenance        |   800 | keep                    | proposed | 36-notes-stats needs it; it also repairs (renames keywords), so a split into report and repairs is possible |
+| 26-maintenance        |   800 | split                   | decided  | 2026-10-25: reports and repairs, two modules; the Maintenance menu gets two columns, Reports and Repairs.  36-notes-stats requires the reports part |
 | 27-denote-identifiers |   200 | keep                    | proposed | core                                                                 |
 | 28-writing-projects   |   400 | keep                    | proposed |                                                                      |
 | 29-writing-export     |   700 | keep                    | proposed |                                                                      |
@@ -98,7 +98,7 @@ to the owner's first seven, slots from the start.
 | 34-appearance         |   500 | keep                    | proposed |                                                                      |
 | 35-journal-gaps       |   800 | keep                    | proposed |                                                                      |
 | 36-notes-stats        |   800 | keep                    | proposed |                                                                      |
-| 37-tasks              |   300 | keep                    | proposed | not yet asked: 300 if daily, 400 if optional                         |
+| 37-tasks              |   400 | keep                    | decided  | 2026-10-25: an extension of the system, like habits |
 | 38-habits             |   400 | keep                    | decided  | 2026-10-25                                                           |
 | 39-project-git        |   400 | keep                    | proposed |                                                                      |
 | 40-markdown           |   400 | keep                    | proposed |                                                                      |

@@ -590,6 +590,25 @@ keys); 03 stays separate so that a jinx module can replace it -- which
 needs a way to say two modules fill the same place; 01 split into Pure
 Emacs (sessions) and the look; 08 and 12 Must have.
 
+* Journal metrics configurable
+Asked 2026-10-25, with the module map: the fields of the journal
+metrics (05b-journal-metrics.el, =my/journal-metrics-fields=, today a
+=defvar= in the code) set from the settings menu and kept locally, so
+that an update of 05 or 05b never loses a user's own fields.  Notes for
+the decision:
+- Customize is Emacs's own mechanism for that: a =defcustom= saved by
+  the user lives in the settings folder, and an update of the module
+  changes only its default.
+- But a saved list is frozen whole: a field added to the default by an
+  update never reaches someone who saved the list.  Hence the usual
+  shape: the shipped fields in the code, and two options beside them --
+  fields added by the user, and shipped fields turned off by name.
+- Customize saves per machine (=hosts/<host>/custom.el=), and the
+  journal is one for all machines: the fields belong with the data
+  shared by every machine, at the root of the settings folder (as the
+  personal dictionary does, 2026-10-18a), or the same values must be
+  saved on each machine.  To decide.
+
 * Templates as files
 Asked 2026-10-22: templates kept as files that modules use when they
 need them, instead of text written into the code -- one template may
