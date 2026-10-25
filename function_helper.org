@@ -6936,6 +6936,16 @@ option, so it lives in this machine's =custom.el=, which =00-core.el=
 reads before the loader runs.  Changing it in Customize takes effect at
 the next start.
 
+*Renamed modules keep their place in it.*  The list names modules by
+file name, so a module renamed or merged into another would come back
+on, or leave a name that turns nothing off.  =my/modules-renamed= in
+00-core.el is the table of such changes, (OLD . NEW), NEW nil for a
+module removed; every start reads =my/modules-off= through it (a chain
+of renames is followed to its end), and the saved setting takes the new
+names the next time =C-c n , m= saves it.  An entry stays in the table
+for good: a machine may start with a settings file older than the
+rename (since 2026-10-25ze; tests/test-loader.el).
+
 *=C-c n , m=* (=my/modules-toggle=) lists every module with its state and
 one-line description, and turns the chosen one on or off:
 

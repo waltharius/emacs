@@ -10,7 +10,7 @@
 ;;   01-a  core
 ;;   02-b  needs 03-c, which loads after it -- must load all the same
 ;;   03-c  plain optional
-;;   04-d  turned off on this machine
+;;   04-d  turned off on this machine, under an old name (my/modules-renamed)
 ;;   05-e  needs 04-d: left out
 ;;   06-f  needs 05-e: left out in turn
 ;;   07-g  signals an error while loading: start-up goes on
@@ -56,8 +56,10 @@
 
 (defconst my/loader-test--checks
   "(defvar test-loaded nil)
-(setq my/modules-off '(\"04-d\"))
+(setq my/modules-renamed '((\"04-old\" . \"04-older\") (\"04-older\" . \"04-d\") (\"98-gone\")))
+(setq my/modules-off '(\"04-old\" \"98-gone\" \"04-d\"))
 (my/modules-load '(\"01-a\" \"02-b\" \"03-c\" \"04-d\" \"05-e\" \"06-f\" \"07-g\" \"08-h\" \"09-i\" \"10-j\" \"11-k\"))
+(check \"renamed: a chain followed to 04-d, a removed name dropped, no second entry\" (equal my/modules-off '(\"04-d\")))
 (check \"loaded in init.el order\" (equal my/modules-loaded '(\"00-core\" \"01-a\" \"02-b\" \"03-c\" \"08-h\" \"10-j\")))
 (check \"slot: the second module left out, named with the holder\" (equal (cdr (assoc \"11-k\" my/modules--skipped)) '(slot \"spelling\" . \"10-j\")))
 (check \"slot: state\" (equal (my/modules--state \"11-k\") \"not loaded: spelling is 10-j's\"))
@@ -161,7 +163,7 @@
          (failed (seq-filter (lambda (l) (string-prefix-p "FAIL " l))
                              (split-string output "\n"))))
     (should (null failed))
-    (should (= passed 20))))
+    (should (= passed 21))))
 
 (provide 'test-loader)
 ;;; test-loader.el ends here

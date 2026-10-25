@@ -2566,9 +2566,35 @@ requires must already be loaded."
         (append (assoc-delete-all name my/modules--skipped)
                 (list (cons name reason)))))
 
+(defconst my/modules-renamed nil
+  "Modules renamed or removed: alist of (OLD . NEW), NEW nil for removed.
+A machine's `my/modules-off' names modules by file name, so a module
+that is renamed would come back on there, and one merged into another
+would turn nothing off.  `my/modules-load' reads the list through this
+table at every start: OLD stands for NEW, and a removed name is
+dropped.  The saved setting is rewritten the next time it is saved
+\(`my/modules-toggle').  A rename never takes an entry out: a machine
+may start a version written before it.")
+
+(defun my/modules--renamed-off (names)
+  "Return NAMES with the renames of `my/modules-renamed' applied.
+A chain of renames is followed to its end; a removed name is dropped,
+and so is a second entry for one module."
+  (let ((out nil))
+    (dolist (name names)
+      (let ((seen nil))
+        (while (and name (assoc name my/modules-renamed) (not (member name seen)))
+          (push name seen)
+          (setq name (cdr (assoc name my/modules-renamed)))))
+      (when (and name (not (member name out)))
+        (push name out)))
+    (nreverse out)))
+
 (defun my/modules-load (names)
   "Load the modules NAMES, in this order; see the commentary above.
-00-core.el, which defines this, counts as loaded."
+00-core.el, which defines this, counts as loaded.  `my/modules-off' is
+first read through `my/modules-renamed'."
+  (setq my/modules-off (my/modules--renamed-off my/modules-off))
   (setq my/modules-order (cons "00-core" names))
   (unless (member "00-core" my/modules-loaded)
     (my/modules--loaded "00-core"))
