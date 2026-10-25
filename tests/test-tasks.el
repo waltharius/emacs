@@ -203,11 +203,11 @@ from today, without a second question."
     (cl-letf (((symbol-function 'completing-read) (lambda (&rest _) "none")))
       (should-not (my/tasks--read-date)))
     (cl-letf (((symbol-function 'completing-read) (lambda (&rest _) "tomorrow")))
-      (should (equal (format-time-string "%F" (my/tasks--read-date))
-                     (format-time-string "%F" (time-add nil (* 24 3600))))))
+      (should (equal (format-time-string "%F" (my/tasks--read-date)) (my/test-date 1))))
+    ;; Calendar days (`my/test-date'), not 86400-second steps from now,
+    ;; which miss by a day near midnight on the day summer time ends.
     (cl-letf (((symbol-function 'completing-read) (lambda (&rest _) "next week")))
-      (should (equal (format-time-string "%F" (my/tasks--read-date))
-                     (format-time-string "%F" (time-add nil (* 7 24 3600))))))))
+      (should (equal (format-time-string "%F" (my/tasks--read-date)) (my/test-date 7))))))
 
 (ert-deftest my/tasks-test-empty-task-refused ()
   "An empty task is refused before anything is captured."

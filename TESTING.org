@@ -103,6 +103,17 @@ says how a test shows it.  Running them: =bash hooks/check-all=
     does not read, so it never saw a Denote link at all; taking the
     branch out changed nothing, and that is how it showed.  The test
     is fixed before the code is believed.  (2026-10-23j and k.)
+16. *Dates are calendar dates, never steps of 86400 seconds.*  A day
+    is not always 24 hours: in Central Europe the day summer time ends
+    has 25, the day it begins 23, and near midnight on them "now minus
+    86400 seconds" is the same date or two days back.  A test gets
+    "today plus N" from =my/test-date= (tests/helper.el); a test of
+    date code also runs it on such a day, under
+    =my/test-with-time-zone= with =my/test-central-europe=.  Code adds
+    days to midday, or counts them with =time-to-days=.  (2026-10-25zh:
+    two tests failed on the owner's machine at 23:23 on 2026-10-25,
+    and the search for the cause found 38-habits and
+    28-writing-projects doing the same.)
 
 * Modules whose weekly tests are enough (2026-10-24)
 Asked by the owner: does every module, the cosmetic ones too, need

@@ -840,12 +840,14 @@ modification time."
           n))))
 
 (defun my/writing--days-until (date)
-  "Return whole days from today until DATE, an Org date string.
-Negative once the date has passed."
+  "Return calendar days from today until DATE, an Org date string.
+Negative once the date has passed, 0 on the day itself.  Counted in
+calendar days: until 2026-10-25 it was seconds divided by 86400 and
+rounded up, one day too many late in the evening before a 25-hour
+day."
   (when date
-    (ceiling (/ (- (float-time (org-time-string-to-time date))
-                   (float-time))
-                86400.0))))
+    (- (time-to-days (org-time-string-to-time date))
+       (time-to-days (current-time)))))
 
 (defun my/writing-project-stats (slug)
   "Return a plist of progress figures for SLUG."

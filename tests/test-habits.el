@@ -59,8 +59,10 @@
   (with-temp-buffer (insert-file-contents file) (buffer-string)))
 
 (defun my/habits-test--day (offset)
-  "Return the date OFFSET days from today as \"YYYY-MM-DD\"."
-  (format-time-string "%Y-%m-%d" (time-add nil (days-to-time offset))))
+  "Return the date OFFSET days from today as \"YYYY-MM-DD\".
+In calendar days (`my/test-date'): 86400-second steps failed at 23:23
+on the day summer time ended."
+  (my/test-date offset))
 
 (defun my/habits-test--file-with (entries)
   "Write the habit file: its template, then ENTRIES under the heading."
@@ -241,6 +243,18 @@ keeps it), deriving puts it back, so the entry stays a habit."
           (my/habit-derive "journal entry")
         (advice-remove 'org-schedule #'my/habits-test--drop-repeater)))
     (should (string-match-p "\\`2026-10-21 .* \\.\\+1d/3d\\'" (my/habits-test--scheduled "journal entry")))))
+
+(ert-deftest my/habits-test-day-after-on-a-25-hour-day ()
+  "Deriving on the day summer time ends schedules the next day: in
+Central Europe 2026-10-25 has 25 hours, and its midnight plus 86400
+seconds is still 2026-10-25."
+  (my/test-with-time-zone my/test-central-europe
+    (with-temp-buffer
+      (org-mode)
+      (insert "* TODO Read\nSCHEDULED: <2026-10-20 .+1d>\n")
+      (goto-char (point-min))
+      (let ((org-log-done nil)) (my/habits--set-scheduled "2026-10-25" ".+1d"))
+      (should (string-match-p "SCHEDULED: <2026-10-26 [^>]*\\.\\+1d>" (buffer-string))))))
 
 (ert-deftest my/habits-test-derive-refuses ()
   "A source with no dates, or no habit of that name: refused, the file
