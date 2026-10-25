@@ -6134,7 +6134,13 @@ between Denote 2 and 3.
 A report of what is *missing* from the journal series, as opposed to
 [[#menu-notes-history][This Day in History]] which shows what is there.
 
-Module: =modules/35-journal-gaps.el=
+Module: =modules/35-journal-gaps.el= | Tests: =tests/test-journal-gaps.el=
+
+The window is counted in calendar days, each encoded at midday on its
+own (=my/journal-gaps--dates=).  Until 2026-10-25 it stepped back 86400
+seconds at a time, and run in the first hour after midnight on the day
+after summer time began, the 23-hour day was skipped -- one missing day
+left out of a report of missing days.
 
 ** Two kinds of gap, and they are not the same thing
 

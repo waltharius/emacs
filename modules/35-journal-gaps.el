@@ -186,8 +186,27 @@ are covered."
 (defvar-local my/journal-gaps--filter 'all
   "Which rows the current report shows: `all', `no-entry' or `no-metrics'.")
 
-(defun my/journal-gaps--scan (days)
-  "Return a list of gap records for the last DAYS days.
+(defun my/journal-gaps--dates (days &optional now)
+  "Return the last DAYS dates as (DATE . TIME), today first.
+DATE is YYYY-MM-DD, TIME midday of that day.  Counted in calendar days
+from NOW (default: the current time), each day encoded on its own: by
+steps of 86400 seconds, as until 2026-10-25, a day of 23 hours (the
+start of summer time) was skipped when the report ran in the first hour
+after midnight -- a missing journal day left out of a report of missing
+days."
+  (let ((today (decode-time now)))
+    (mapcar (lambda (offset)
+              (let ((time (encode-time
+                           (list 0 0 12
+                                 (- (decoded-time-day today) offset)
+                                 (decoded-time-month today)
+                                 (decoded-time-year today)
+                                 nil -1 nil))))
+                (cons (format-time-string "%Y-%m-%d" time) time)))
+            (number-sequence 0 (1- days)))))
+
+(defun my/journal-gaps--scan (days &optional now)
+  "Return a list of gap records for the last DAYS days before NOW.
 Each record is (DATE WEEKDAY KIND DETAIL FILE), where KIND is
 `no-entry' or `no-metrics'.  Complete days produce no record: this is a
 report of what is missing, and a row per satisfactory day would bury
@@ -195,12 +214,10 @@ the answer."
   (let* ((files    (my/journal-gaps--file-map))
          (required (my/journal-gaps-required-keys))
          (earliest (car (sort (hash-table-keys files) #'string<)))
-         (today    (time-convert nil 'integer))
          records)
-    (dotimes (offset days)
-      (let* ((time (time-add today (* -86400 offset)))
-             (date (format-time-string "%Y-%m-%d" time))
-             (weekday (format-time-string "%a" time))
+    (dolist (day (my/journal-gaps--dates days now))
+      (let* ((date (car day))
+             (weekday (format-time-string "%a" (cdr day)))
              (file (gethash date files)))
         ;; Nothing was missed before the series began.
         ;;
