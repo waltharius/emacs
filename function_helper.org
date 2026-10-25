@@ -7647,7 +7647,13 @@ After a wrap, =C-= moves the opening marker one word further left, and
 repeats. The state is dropped as soon as point leaves the end of the
 wrapped span, so the key is only ever live immediately after a wrap.
 
-Function: =my/inline-marker-expand-backward= | Module: =modules/02b-bold-marker.el=
+*Markup typed by hand.*  When the same marker already stands before
+the word, the typed one closes it and nothing is wrapped: =*ważne*=
+typed by hand stays =*ważne*=.  Until 2026-10-25 the check looked
+before the word's last letter instead of its first, and the result was
+=**ważne**=.
+
+Function: =my/inline-marker-expand-backward= | Module: =modules/02b-bold-marker.el= | Tests: =tests/test-bold-marker.el=
 
 * Inline Images On and Off
 :PROPERTIES:

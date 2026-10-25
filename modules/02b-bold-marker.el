@@ -38,8 +38,8 @@
 ;;   The trigger fires only when:
 ;;     - The buffer is in org-mode (or a derived mode).
 ;;     - The character immediately before the trigger is a word constituent.
-;;     - The same trigger character does not already appear immediately before
-;;       that word character (prevents double-wrapping).
+;;     - The same trigger character does not already stand before the
+;;       word: *word* typed by hand stays *word* (prevents double-wrapping).
 ;;
 ;; PART 2 - Expand marked region backward (C-=):
 ;;   After auto-wrap fires, pressing C-= moves the opening marker one word
@@ -192,10 +192,17 @@ and `my/inline-marker-open-char\=' for
            ;; --- a bare word -----------------------------------------
            ((and before
                  (eq ?w (char-syntax before))
-                 ;; The same trigger must not already precede the word.
-                 (not (save-excursion
-                        (backward-char 2)
-                        (eq (char-after) trigger))))
+                 ;; The same trigger must not already precede the word:
+                 ;; then the typed character closes markup written by
+                 ;; hand, *word*, and stays as it is.  Checked at the
+                 ;; start of the word; until 2026-10-25 it was checked
+                 ;; before the word's last letter, so *word* typed by
+                 ;; hand became **word**.
+                 (not (eq (char-before (save-excursion
+                                         (goto-char trigger-pos)
+                                         (backward-word 1)
+                                         (point)))
+                          trigger)))
             (delete-char -1)
             (let ((close-pos (point))
                   (open-pos (save-excursion (backward-word 1) (point))))
