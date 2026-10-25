@@ -782,7 +782,9 @@ def staged_files():
 # 2026-10-20k; before, every session was in CHANGELOG.md).
 MONTH_FILE_RE = re.compile(r"^changelog/(\d{4}-\d{2})\.md$")
 SESSION_LINE_RE = re.compile(r"^## Session\b.*$", re.M)
-SESSION_RE = re.compile(r"^## Session (\d{4}-\d{2})-\d{2}[a-z] — \S")
+# The letter counts the sessions of a day, a to z; past z, za to zz
+# (2026-10-25: a day of more than 26), which still sort after z.
+SESSION_RE = re.compile(r"^## Session (\d{4}-\d{2})-\d{2}(?:[a-y]|z[a-z]?) — \S")
 
 
 def check_changelog():

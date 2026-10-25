@@ -30,7 +30,8 @@ session heading has the form
     ## Session YYYY-MM-DDx — Title
 
 where `x` is a lower-case letter counting sessions within that day in
-chronological order, starting at `a`. The letter is always present, on
+chronological order, starting at `a`; after `z` come `za` to `zz`, which
+sort after it (2026-10-25 had more than 26). The letter is always present, on
 single-session days as well, so that a second session can be appended
 without relabelling the first — the relabelling is what the scheme is
 there to avoid, and skipping `a` reintroduces it.
