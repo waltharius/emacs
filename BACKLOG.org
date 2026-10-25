@@ -379,6 +379,20 @@ Steps, in order:
    (=~/notes=) are the shared ground; each machine, or each role on
    one machine, has its settings, modules and state in the settings
    folder.
+6a. *Stable and testing versions* (asked 2026-10-25): someone using
+   the configuration for real notes must not get a half-finished
+   change with =git pull=.  Releases tagged (=v1.0=, ...) and a branch
+   or tag that only moves on a release, the README saying how to stay
+   on it; =main= is the testing line.  The first stable release after
+   the refactoring and the module map are done, when the stability test
+   plan (next) has been run once in full.
+6b. *A stability test plan* (asked 2026-10-25): every function a user
+   reaches, checked by hand before a release -- TESTPLAN.org covers
+   part of it, written for changes as they came; the owner does not use
+   every function daily.  One list per module, in the order of the
+   module map, each item what to do and what should be seen; run in
+   full before the first stable release, and for the modules changed
+   before each later one.
 7. *An installation guide for beginners* (asked 2026-10-19; Fedora,
    in Polish, started 2026-10-20i as =docs/pl/PIERWSZE-KROKI.md=, to be
    tested by a first-time user; Ubuntu and English still to come): step by
@@ -623,6 +637,8 @@ autostart).  To decide when building:
 - the first start on a collection without the file writes it from the
   machine's current values, with a report.
 Precedes /Journal metrics configurable/, which is its first user.
+The README for others explains it: which settings travel with the notes
+and which stay on a machine (/A public repository/, README for others).
 
 * Journal metrics configurable
 Asked 2026-10-25, with the module map: the fields of the journal
