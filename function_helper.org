@@ -9440,7 +9440,8 @@ Function: =my/repo-docs-menu= | Module: =modules/47-repo-docs.el=
 Two kinds of data, for choosing an ergonomic keyboard.  /Command
 frequency/ (=keyfreq=, =C-c y k=): command names only, always on.
 /Keystroke log/: every typed character with its time, appended to
-=~/.emacs.d/keys= (git-ignored) — *off by default*, because it is a
+=var/keys= of this machine in the settings folder (never in git; until
+2026-10-19 =~/.emacs.d/keys=) — *off by default*, because it is a
 plain-text copy of the writing outside the notes folder.
 
 | Key       | Does                                         |
@@ -9468,14 +9469,25 @@ turned off, and when Emacs quits.  At most one batch is lost if Emacs
 crashes.  Until 2026-10 the batch was 1000 keystrokes and the five
 minute limit was checked only after a minute of idleness, so while
 typing the file grew once per thousand characters.  A buffer visiting a note of a
-private silo (the journal) is never logged.  Every self-inserting
+private silo (the journal) is never logged, nor an indirect buffer of
+one -- the buffer an org-capture into the journal types into, which has
+no file name of its own and was logged until 2026-10-25 -- nor the
+minibuffer.
+
+*The file.*  One line per character: the time (=float-time=, six
+decimals), a tab, the character.  A character that is not printable is
+written by its key name (=key-description=): =C-j= for a newline, =TAB=,
+=RET=, =DEL=; until 2026-10-25 a newline was written as it is and split
+its line in two.  A printable character is one character long and a
+name longer, so the two are told apart, and older logs read the same.
+Every self-inserting
 command counts, =org-self-insert-command= in notes included (the old
 test for =self-insert-command= only recorded almost nothing in Org);
 times come from =float-time=; enabling twice starts one idle timer, not
 two, and disabling stops it.  The old names =keylog-*= are obsolete
 aliases of =my/keylog-*=.
 
-Function: =my/keylog-enable=, =my/keylog-disable=, =my/keylog-status= | Module: =modules/14-typing-analytics.el=
+Function: =my/keylog-enable=, =my/keylog-disable=, =my/keylog-status= | Module: =modules/14-typing-analytics.el= | Tests: =tests/test-typing-analytics.el=
 
 * Settings (C-c n ,)
 :PROPERTIES:

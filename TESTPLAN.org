@@ -644,6 +644,14 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R52. Keystroke log: captures and newlines [0/2]
+- [ ] =C-c y T=, then =C-c n c i= (ideas capture into the journal), type
+      a sentence, =C-c C-c=; =C-c y t=.  =tail ~/.config/mypks/hosts/<host>/var/keys=:
+      nothing of the sentence.
+- [ ] =C-c y T= in a pks note, type two lines (RET between them) in a
+      Markdown or text buffer; =C-c y t=: the newline is one line ending
+      =C-j=, every line has two fields.
+
 ** R51. Magit on transient from the archives [0/3]
 - [ ] Emacs closed: =ls ~/.emacs.d/elpa/transient-20260118.1322= --
       if it has no =transient-pkg.el= (or is empty), move it out of

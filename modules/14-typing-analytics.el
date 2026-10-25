@@ -118,11 +118,27 @@ is on."
   "Idle timer saving the keylog buffer; one at most.")
 
 (defun my/keylog--private-buffer-p ()
-  "Non-nil when the current buffer visits a note of a private silo."
-  (and buffer-file-name
-       (fboundp 'my/silo-of)
-       (when-let* ((key (my/silo-of buffer-file-name t)))
-         (my/silo-get key :private))))
+  "Non-nil when the current buffer shows a note of a private silo.
+Also an indirect buffer of one -- the buffer of an org-capture into the
+journal, which has no file name of its own (until 2026-10-25 such
+typing was logged)."
+  (let ((file (buffer-file-name (or (buffer-base-buffer) (current-buffer)))))
+    (and file
+         (fboundp 'my/silo-of)
+         (when-let* ((key (my/silo-of file t)))
+           (my/silo-get key :private)))))
+
+(defun my/keylog--field (char)
+  "Return CHAR as the log writes it: itself, or its key name.
+A printable character (a space too) is written as it is; any other by
+the name `key-description' gives it -- C-j for a newline, TAB, RET,
+DEL -- so that each line of the log stays one line of two fields.
+Until 2026-10-25 a newline was written raw and split its line.  A
+printable character is one character long, a name longer, so the two
+cannot be confused, and logs written before read the same."
+  (if (aref printable-chars char)
+      (char-to-string char)
+    (key-description (vector char))))
 
 (defun my/keylog-record-keystroke ()
   "Record a single keystroke with microsecond timestamp.
@@ -132,7 +148,7 @@ elsewhere.  Not in the minibuffer, and not in a private silo."
   (when (and (not (minibufferp))
              (characterp last-command-event)
              (not (my/keylog--private-buffer-p)))
-    (push (cons (float-time) (char-to-string last-command-event)) my/keylog-buffer)
+    (push (cons (float-time) (my/keylog--field last-command-event)) my/keylog-buffer)
     (setq my/keylog--count (1+ my/keylog--count))
     (when (or (>= my/keylog--count my/keylog-buffer-size)
               (> (float-time (time-since my/keylog-last-save-time))
