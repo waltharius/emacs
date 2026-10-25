@@ -45,9 +45,9 @@
 
 (require 'transient)
 
-(declare-function denote-sequence-reparent "denote-sequence" (current-file file-with-sequence &optional recursive))
-(declare-function denote-sequence-rename-as-parent "denote-sequence" (current-file))
-(declare-function denote-sequence-file-prompt "denote-sequence" (&optional prompt-text files-with-sequences))
+(declare-function denote-sequence-reparent "ext:denote-sequence" (current-file file-with-sequence &optional recursive))
+(declare-function denote-sequence-rename-as-parent "ext:denote-sequence" (current-file))
+(declare-function denote-sequence-file-prompt "ext:denote-sequence" (&optional prompt-text files-with-sequences))
 (declare-function dired-get-filename "dired" (&optional localp no-error-if-not-filep))
 
 ;; ============================================================

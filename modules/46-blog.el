@@ -254,7 +254,7 @@
 (defvar org-hugo-base-dir)
 (defvar org-hugo-section)
 (defvar org-hugo-tag-processing-functions)
-(declare-function org-hugo-export-to-md "ox-hugo"
+(declare-function org-hugo-export-to-md "ext:ox-hugo"
                   (&optional async subtreep visible-only))
 
 ;; ============================================================

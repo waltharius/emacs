@@ -6,12 +6,17 @@
 #
 #     bash hooks/check-weekly             # compilation and module tests
 #     bash hooks/check-weekly compile     # only the byte compilation
+#     bash hooks/check-weekly declarations # only the declare-function check
 #     bash hooks/check-weekly modules     # only the module tests
 #     bash hooks/check-weekly 24-readwise # the module tests of one module
 #
 # compile   every module byte-compiled after the whole configuration has
 #           loaded; a warning not in tests/weekly/compile-warnings.txt
 #           fails (tests/weekly/compile.el).
+# declarations
+#           every declare-function form of modules/ matches the
+#           definition it names: file, function, argument list
+#           (tests/weekly/declarations.el, Emacs's check-declare).
 # modules   for every module of init.el's list: it loads alone with what
 #           it declares, the others load without it, its switch goes
 #           off and on without leaving anything behind
@@ -54,6 +59,24 @@ run_compile() {
   echo
 }
 
+run_declarations() {
+  ran=$((ran + 1))
+  echo "declarations:"
+  # check-declare writes its own warnings to standard error; the lines
+  # of tests/weekly/declarations.el go to standard output.
+  output="$(emacs -Q --batch --eval '(package-initialize)' \
+              -l tests/weekly/declarations.el -f my/weekly-check-declarations 2>/dev/null)"
+  code=$?
+  grep -vE '^declarations: ' <<<"$output" | sed 's/^/  /'
+  if [ "$code" -ne 0 ]; then
+    status=1
+    echo "  FAILED   $(grep -E '^declarations: ' <<<"$output" || echo 'did not run to the end')"
+  else
+    echo "  ok       $(grep -E '^declarations: ' <<<"$output")"
+  fi
+  echo
+}
+
 run_modules() {
   # $1: an ERT selector (a regexp of test names), or t for all.
   ran=$((ran + 1))
@@ -80,8 +103,9 @@ run_modules() {
 }
 
 case "$what" in
-  all)     run_compile; run_modules t ;;
+  all)     run_compile; run_declarations; run_modules t ;;
   compile) run_compile ;;
+  declarations) run_declarations ;;
   modules) run_modules t ;;
   *)       run_modules "\"-$what\\\\'\"" ;;
 esac

@@ -1,0 +1,3 @@
+# Functions whose definition check-declare cannot see
+# (tests/weekly/declarations.el).  One per line: FUNCTION  reason.
+citeproc-citation-create  constructor made by cl-defstruct in citeproc-cite.el
