@@ -175,6 +175,12 @@ compile` adds every warning of this Emacs to the list.
 | `groups` | Reads the tables under `* Groups` and `* Map` of `MODULES.org`: is every module in the map once, in one of the groups, and does every `MyPKS-Requires` point to a module of the same or a lower group?  Reads hard dependencies only; a guarded use is not seen. | no — advisory until the move (2026-10-25r) |
 | `tests` | Which modules does no test file name in its `;; Tests:` header, and is a module staged without any of its test files? Modules marked `MyPKS-Tests: weekly` are left out of both. (TESTING.org) | no — advisory |
 
+Not a check but a report: `python3 tools/check_module_graph.py` reads
+the same hard and guarded uses as `modules` (`module_contract.dependencies`)
+and prints hard uses up the groups of `MODULES.org`, cycles of hard uses,
+instability per module and SDP cases, and Requires entries no use
+explains.  Exit status always 0; tested by `tests/hooks/test_module_graph.py`.
+
 A check that cannot read its input -- git cannot list the files, outside
 a repository -- raises `Skip` and prints `skipped` with the reason; it
 never prints `ok` for files it did not see (until 2026-10-20 three of
