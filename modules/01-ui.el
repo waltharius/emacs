@@ -213,12 +213,12 @@
 ;;                          buffers synchronously so the UI appears
 ;;                          fast regardless of list size.
 ;; 3. LAZY (background)   : restore remaining buffers during idle time.
-;;                          NOTE: with the trim limit (10) now equal to
-;;                          the eager limit (10), everything restores
-;;                          eagerly and this layer is effectively
-;;                          dormant.  It is kept so that raising
-;;                          `my/desktop-max-buffers' later re-activates
-;;                          lazy loading with no other changes.
+;;                          The trim limit (10) equals the eager limit,
+;;                          but buffers kept by `my/desktop-keep-buffer'
+;;                          and by the tabs are saved beyond it, so this
+;;                          layer does run (2026-10-26: 5 of 15); its
+;;                          messages stay out of the echo area
+;;                          (`my/desktop--lazy-quietly', below).
 
 (defgroup my/desktop nil
   "Custom desktop-save buffer trimming."
@@ -511,6 +511,30 @@ Use \\[my/desktop-show-protected] to see the outcome before it happens."
   ;; `desktop-after-read-hook'.
 
   (desktop-save-mode 1))
+
+;; ============================================================
+;; LAZY RESTORE WITHOUT THE ECHO AREA JUMPING
+;; ============================================================
+;; Buffers beyond `desktop-restore-eager' -- those kept by
+;; `my/desktop-keep-buffer' and the tabs, above the trim limit -- open
+;; one by one while Emacs is idle.  Each printed two lines, and what
+;; opening the file printed with them: undo-fu-session's "discarding:
+;; file length mismatch" for a file a pull changed, Hunspell's
+;; "Starting new Ispell process...".  A long line wraps, the echo area
+;; grows to two lines and back, every window changes height, and the
+;; centred text column (10-visual-fill.el) is laid out again: the
+;; screen jumped once per buffer (reported 2026-10-26).  The messages
+;; are kept out of the echo area while a buffer is restored; they still
+;; go to *Messages*.  A question asked meanwhile is shown as always:
+;; it is not a message.
+
+(defun my/desktop--lazy-quietly (create &rest args)
+  "Run CREATE with ARGS, its messages in *Messages* only.
+Around advice for `desktop-lazy-create-buffer'."
+  (let ((inhibit-message t))
+    (apply create args)))
+
+(advice-add 'desktop-lazy-create-buffer :around #'my/desktop--lazy-quietly)
 
 ;; ============================================================
 ;; SAVING THE SESSION BY HAND, AND SEEING WHY IT FAILED
