@@ -162,10 +162,17 @@ TITLE falls back to the file base name, TAGS to nil, on any error."
      (id-a            t)
      (t               nil))))
 
+(defconst my/denote-org-file-regexp "\\`[^.].*\\.org\\'"
+  "File names the dashboard lists: .org, not starting with a dot.
+A dot-file is no note: an Emacs lock file (.#NAME.org, a link to
+nowhere, made while a buffer has unsaved changes where
+`create-lockfiles' is on) was listed, as a line titled with its own
+name, until 2026-10-25.")
+
 (defun my/denote-org-files-in (directory)
   "Return .org files in DIRECTORY sorted newest-modified first."
   (when (file-directory-p directory)
-    (sort (directory-files directory t "\\.org$" t)
+    (sort (directory-files directory t my/denote-org-file-regexp t)
           (lambda (a b)
             (time-less-p (nth 5 (file-attributes b))
                          (nth 5 (file-attributes a)))))))
@@ -173,7 +180,7 @@ TITLE falls back to the file base name, TAGS to nil, on any error."
 (defun my/denote-org-files-in-by-id (directory)
   "Return .org files in DIRECTORY sorted newest-created first (by identifier)."
   (when (file-directory-p directory)
-    (let* ((all     (directory-files directory t "\\.org$" t))
+    (let* ((all     (directory-files directory t my/denote-org-file-regexp t))
            (dated   (seq-filter  #'my/denote-file-identifier all))
            (undated (seq-remove  #'my/denote-file-identifier all)))
       (append
@@ -190,7 +197,7 @@ collector here did separately before."
   (let (result)
     (dolist (dir my-tasks-agenda-dirs result)
       (when (file-directory-p dir)
-        (setq result (nconc result (directory-files dir t "\\.org\\'" t)))))))
+        (setq result (nconc result (directory-files dir t my/denote-org-file-regexp t)))))))
 
 (defun my/denote--sort-by-mtime (files)
   "Return FILES sorted newest-modified first.

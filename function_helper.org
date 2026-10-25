@@ -662,6 +662,14 @@ A symbol named in =my/dashboard-columns= but absent from
 rather than signalling, so a typo costs one line and not the dashboard.
 Column buffers left over from a wider layout are killed on refresh.
 
+Files listed are the =.org= files of the silos whose names do not start
+with a dot (=my/denote-org-file-regexp=): an Emacs lock file
+(=.#NAME.org=, made while a buffer has unsaved changes, where
+=create-lockfiles= is on -- 00-core.el turns it off) was listed as a
+line of its own until 2026-10-25.
+
+Tests: =tests/test-workspace.el=
+
 **** Why two columns and not three
 
 The line format is two spaces, a ten-character date, a five-character
