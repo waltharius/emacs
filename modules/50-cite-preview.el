@@ -40,11 +40,13 @@
 ;;; Code:
 
 (require 'cl-lib)
+;; Required, not declared: since Org 9.7 (Emacs 30) org-element-property
+;; and org-element-type live in org-element-ast.el, the first made by
+;; define-inline, which check-declare cannot see; a declaration naming
+;; either file fails on one version of Org.  Org is loaded at start-up
+;; by other modules, so the require costs nothing.
+(require 'org-element)
 
-(declare-function org-element-context "org-element")
-(declare-function org-element-type "org-element")
-(declare-function org-element-property "org-element")
-(declare-function org-element-interpret-data "org-element")
 (declare-function org-collect-keywords "org")
 (declare-function org-cite-get-references "oc")
 (declare-function org-cite-citation-style "oc")

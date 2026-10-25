@@ -134,6 +134,12 @@
 (require 'url-util)
 (require 'json)
 (require 'transient)
+;; Required, not declared: since Org 9.7 (Emacs 30) org-element-property
+;; and org-element-type live in org-element-ast.el, the first made by
+;; define-inline, which check-declare cannot see; a declaration naming
+;; either file fails on one version of Org.  Org is loaded at start-up
+;; by other modules, so the require costs nothing.
+(require 'org-element)
 
 ;; ============================================================
 ;; SETTINGS
@@ -666,7 +672,6 @@ Links are rewritten line by line outside fenced code blocks; see
 (declare-function org-export-as "ox")
 (declare-function org-find-exact-headline-in-buffer "org")
 (declare-function org-entry-get "org")
-(declare-function org-element-property "org-element")
 
 (defun my/repo-docs--org-p (path)
   "Non-nil when PATH names an Org file."
