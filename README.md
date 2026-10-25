@@ -159,7 +159,8 @@ Nothing is vendored and there is no lockfile.
 | Notes | `denote`, `consult-denote`, `denote-explore`, `denote-sequence` |
 | Completion | `vertico`, `orderless`, `marginalia`, `consult` |
 | Org | `org-modern`, `org-transclusion`, `org-web-tools` |
-| Bibliography | `citar`, `citar-denote`, `citeproc`, `pdf-tools` |
+| Bibliography | `citar`, `citar-denote`, `citeproc` |
+| Document viewers | `pdf-tools`, `nov` |
 | Version control | `magit` |
 | Appearance | `modus-themes`, `ef-themes`, `standard-themes`, `doric-themes`, `doom-themes`, `spacious-padding`, `lin`, `pulsar`, `visual-fill-column`, `default-text-scale` |
 | Editing | `which-key`, `vundo`, `undo-fu-session`, `flyspell-correct` |
@@ -350,7 +351,8 @@ startup. Optional ones can be removed.
 
 | Module | | Purpose |
 |--------|---|---------|
-| `17-bibliography.el` | required | Citar, `refs.bib`, CSL, org-noter, pdf-tools. |
+| `17-bibliography.el` | optional | Citar, the `.bib` files, CSL, references as text, the citation key check. |
+| `17b-document-viewers.el` | optional | PDF (`pdf-tools`) and EPUB (`nov`) viewers. |
 | `18-zotero-transient.el` | required | The bibliography menu (`C-c x`). |
 | `24-readwise.el` | required | Incremental import of Readwise highlights. |
 | `25-inbox-review.el` | required | Review queue for notes migrated from Obsidian. |

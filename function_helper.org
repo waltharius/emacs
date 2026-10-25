@@ -4609,6 +4609,31 @@ tracking, so the shortened form may appear where the full one belongs.
   =url= and =urldate= natively; the plain Better BibTeX exporter drops
   URLs unless "Add URLs to BibTeX export" is set.
 
+* Document viewers (PDF, EPUB)
+:PROPERTIES:
+:CUSTOM_ID: document-viewers
+:END:
+
+Module: =modules/17b-document-viewers.el= (optional, group 100; split
+from 17-bibliography.el on 2026-10-25zd).  PDF files open in pdf-tools,
+EPUB files in nov.
+
+pdf-tools needs a server, =epdfinfo=, built from source.  It is not
+built when pdf-tools loads -- a first install compiles pdf-tools' own
+files, which loads it -- but when the first PDF is opened, after
+pdf-tools asks (=my/document-viewers--pdf-on-demand=, through
+pdf-tools' own =pdf-loader-install=).  Line numbers are off in
+=pdf-view-mode=.
+
+Without the module a PDF opens in Emacs's DocView (pages as images,
+through Ghostscript) and an EPUB as an archive.  The bibliography does
+not need it: =f= in the Zotero menu opens the attachment in whatever
+mode Emacs has for it.
+
+Tests: =tests/test-document-viewers.el= (loading pdf-tools builds
+nothing, the first PDF sets it up and asks, the setup after pdf-tools
+was loaded asks nothing).
+
 * Zotero / Bibliography (C-c x)
 :PROPERTIES:
 :CUSTOM_ID: menu-zotero-detail
@@ -7182,7 +7207,7 @@ first (2026-10-16d), then spelling, centred text, Org appearance and
 the writing mode (2026-10-16e), then capture, PDF export, the
 dashboard and fixed tabs (2026-10-19e).
 
-Optional (46):
+Optional (47):
 
 | Module | What | Requires |
 |---+---+---|
@@ -7200,6 +7225,7 @@ Optional (46):
 | =15-workspace= | Notes dashboard and workspace tools | =01-ui= =27-denote-identifiers= |
 | =16-org-export= | Org export and PDF settings | -- |
 | =17-bibliography= | Zotero/Citar bibliography integration | -- |
+| =17b-document-viewers= | PDF and EPUB viewers: pdf-tools and nov | -- |
 | =18-zotero-transient= | Transient menu for bibliography/Zotero | =17-bibliography= |
 | =19-philosophy-notes= | Philosophy note types (Denote) | -- |
 | =20-transclusion= | Obsidian-style transclusion for Denote notes | -- |
