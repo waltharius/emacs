@@ -6938,16 +6938,29 @@ machine -- the others carry =MyPKS-Default: off=.
 
 Slots on 2026-10-25: =spelling= (03-spelling).
 
-*The module map.*  Which group each module belongs to -- Emacs,
-Foundation, Notes core, Notes extensions, Look, Look modifications,
-Output, Overview -- is planned in =MODULES.org= at the root of the
-repository, with the questions that place a module and the rule that a
-module requires only modules of its own group or a lower one.  The
-lint check =groups= (advisory until the move) reads it.
+*The module map.*  Which group each module belongs to -- Loader,
+Emacs, Foundation, Notes core, Notes extensions, Look, Look
+modifications, Output, Overview -- is planned in =MODULES.org= at the
+root of the repository, with the questions that place a module and the
+rule that a module requires only modules of its own group or a lower
+one.  The lint check =groups= (advisory until the move) reads it.
+
+*The module graph report.*  =python3 tools/check_module_graph.py=
+prints, without ever failing, what the map and Robert C. Martin's
+component principles ask of the hard dependencies (the ones the lint
+check =modules= finds): hard uses pointing up the group table, modules
+depending on each other through hard uses (ADP), the instability
+I = Ce/(Ca+Ce) of each module and hard uses of a less stable module
+(SDP), and MyPKS-Requires entries no use in the code explains.  Guarded
+uses are left out of all of them: by rule 2 they may point anywhere.
+Read before moving or splitting modules; on 2026-10-25z it reports no
+upward use, no cycle and no SDP case, and two Requires entries kept for
+an indirect use (26b on 27, 36 on 04).
 
 Tests: =tests/test-loader.el= (left out at start-up, the state, the
 warning, turning the other on with yes and with no);
-=tests/hooks/test_lint.py= (the rules of the check).
+=tests/hooks/test_lint.py= (the rules of the check);
+=tests/hooks/test_module_graph.py= (the report).
 
 Tests: =tests/test-loader.el= -- stand-in modules for every case above,
 run in a fresh =emacs -Q --batch=.

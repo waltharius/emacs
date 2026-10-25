@@ -1,257 +1,169 @@
 #!/usr/bin/env python3
-"""Advisory check of the module dependency graph (MODULES.org rule 2).
+"""Advisory report on the module dependency graph (MODULES.org).
 
-Builds the graph from what the code does, not from what MyPKS-Requires
-claims, and reports:
+The graph is the one the blocking lint check `modules' already builds
+(hooks/module_contract.py): every file of modules/ read as Lisp forms,
+every use of another module's symbol classified as *hard* (it fails
+without that module) or *guarded* (fboundp and kin, with-eval-after-load,
+a quoted hook or menu entry -- it degrades without it).  This script
+adds what that check does not ask, after Robert C. Martin's component
+principles (MODULES.org, Principles 2), on the hard edges only: a
+guarded use may point anywhere (rule 2), so it neither closes a cycle
+nor makes a module less stable.
 
-  * undeclared hard uses -- an unguarded use of another module's
-    symbol that the header does not name in MyPKS-Requires.  This is
-    the one finding that matters for rule 2: turn the target module
-    off (my/modules-off) or remove it, and the user gets a void-function
-    error at run time, not at start-up;
-  * uses pointing up the MODULES.org group table (a module may require
-    its own or a lower group, never a higher one);
-  * cycles over all edges (ADP), with guarded edges marked as allowed;
-  * the instability metric I = Ce/(Ca+Ce) per module and SDP violations
-    (an edge pointing at a clearly less stable module);
-  * MyPKS-Requires entries the code does not use.
+  * hard uses pointing up the group table of MODULES.org (rule 2);
+  * cycles of hard uses (the acyclic dependencies principle, ADP),
+    reported as groups of modules that depend on each other;
+  * instability I = Ce / (Ca + Ce) per module, Ca the modules that use
+    it hard, Ce the modules it uses hard, and the hard uses of a module
+    less stable than the user (the stable dependencies principle, SDP);
+  * MyPKS-Requires entries no use in the code explains -- some exist
+    only for load order, so each is a question, not an error.
 
-Guarded uses (fboundp/boundp and kin, hook variables, menu data,
-with-eval-after-load) are the branches converging on the trunk: by
-rule 2 they may point anywhere and degrade quietly, so they are listed
-for information only, never as violations.
+What the `modules' check already blocks (an undeclared hard use, a
+circle in MyPKS-Requires) is not repeated here.  The exit status is 0
+whatever is found: nothing here blocks a commit.
 
-The check never fails: exit code is 0 even with findings, so it cannot
-break a commit or a weekly check.  Run it before a commit and read:
+    python3 tools/check_module_graph.py [repo-root]
 
-    python3 tools/check_module_graph.py
-
-Usage: tools/check_module_graph.py [repo-root]
+Written 2026-10-25z, replacing a first version (commit 56e0912) that
+read the code with regular expressions: a character literal ?\\" hid
+whole functions from it, and definitions made by transient-define-prefix
+were not seen.
 """
 
-import re
+import os
 import sys
-from collections import Counter
-from pathlib import Path
 
-MY_PREFIXES = ("my/", "mypks", "my-")
-GUARDS = ("fboundp", "boundp", "featurep", "macrop", "functionp")
-SYMBOL_CHARS = "A-Za-z0-9\\-/+=*<>=!?:._"
-# The loader itself: always loaded first, cannot be turned off, so an
-# undeclared use of it is fine by design.
-ALWAYS_LOADED = {"00-core.el"}
+ROOT = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else
+                       os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "hooks"))
+import module_contract  # noqa: E402
+from lint import org_section_table  # noqa: E402
 
-def repo_root():
-    if len(sys.argv) > 1:
-        return Path(sys.argv[1]).resolve()
-    return Path(__file__).resolve().parent.parent
 
-def strip_noise(text):
-    """Remove comments and string contents (docstrings go too)."""
-    text = re.sub(r'"(?:\\.|[^"\\])*"', '""', text)
-    text = re.sub(r";[^\n]*", "", text)
-    return text
+def read_modules(root):
+    """{'NN-name.el': text} of the files in ROOT/modules."""
+    folder = os.path.join(root, "modules")
+    return {name: open(os.path.join(folder, name), encoding="utf-8").read()
+            for name in sorted(os.listdir(folder)) if name.endswith(".el")}
 
-def definitions(code_text):
-    out = set()
-    for m in re.finditer(
-            r"\((?:cl-)?def(?:un|var|custom|macro|const|subst|var-local"
-            r"|face|group|alias)\*?\s+'?\(?([^\s()]+)", code_text):
-        out.add(m.group(1))
-    for m in re.finditer(r"\(define-\w+\s+'?\(?([^\s()]+)", code_text):
-        out.add(m.group(1))
-    return out
-
-def hard_uses(code_text, sym):
-    """Line numbers of unguarded, unquoted uses of sym.
-
-    A quoted occurrence ('sym) is a guard, a hook name, a face or menu
-    data -- soft.  An occurrence right after (declare-function is a
-    promise, not a use.  What is left is a call or a value read; it is
-    hard unless the same symbol is guarded just before it or the whole
-    form is ordered after the other module's load.
-    """
-    out = []
-    start = 0
-    while True:
-        i = code_text.find(sym, start)
-        if i < 0:
-            break
-        start = i + len(sym)
-        # token boundary: my/dashboard-section must not match inside
-        # my/dashboard-sections
-        if start < len(code_text) and re.match(r"[%s]" % SYMBOL_CHARS, code_text[start]):
-            continue
-        if "'" in code_text[max(0, i - 2):i]:
-            continue  # quoted: guard, hook, face or data
-        if code_text[max(0, i - 40):i].find("(declare-function") >= 0:
-            continue
-        window = code_text[max(0, i - 500):i]
-        if re.search(r"\(\s*(?:%s)\s+'?\s*%s[\s)]"
-                     % ("|".join(GUARDS), re.escape(sym)), window):
-            continue
-        if "with-eval-after-load" in code_text[max(0, i - 700):i]:
-            continue
-        out.append(code_text.count("\n", 0, i) + 1)
-    return out
-
-def read_requires(raw_text):
-    m = re.search(r"^[ \t]*;;[ \t]*MyPKS-Requires:[ \t]*(.*)$",
-                  raw_text, re.M)
-    return set(m.group(1).split()) if m and m.group(1).strip() else set()
 
 def read_groups(root):
-    """Module name -> group number, from the MODULES.org table."""
-    table = root / "MODULES.org"
-    groups = {}
-    if not table.exists():
-        return groups
-    for line in table.read_text().splitlines():
-        m = re.match(r"^\|\s*(\S+)\s*\|\s*(\d+)\s*\|", line)
-        if m and not m.group(1).startswith("-") and m.group(1) != "Module":
-            groups[m.group(1)] = int(m.group(2))
-    return groups
+    """{'NN-name': group number} from the map of MODULES.org, or {}."""
+    path = os.path.join(root, "MODULES.org")
+    if not os.path.exists(path):
+        return {}
+    rows = org_section_table(open(path, encoding="utf-8").read(), "Map") or []
+    return {r[0]: int(r[1]) for r in rows if len(r) > 1 and r[1].isdigit()}
+
+
+def strongly_connected(nodes, edges):
+    """Groups of more than one node reachable from each other (Tarjan)."""
+    index, low, stack, on_stack, out = {}, {}, [], set(), []
+    counter = [0]
+
+    def visit(v):
+        index[v] = low[v] = counter[0]
+        counter[0] += 1
+        stack.append(v)
+        on_stack.add(v)
+        for w in sorted(edges.get(v, ())):
+            if w not in index:
+                visit(w)
+                low[v] = min(low[v], low[w])
+            elif w in on_stack:
+                low[v] = min(low[v], index[w])
+        if low[v] == index[v]:
+            group = []
+            while True:
+                w = stack.pop()
+                on_stack.discard(w)
+                group.append(w)
+                if w == v:
+                    break
+            if len(group) > 1:
+                out.append(sorted(group))
+
+    for v in sorted(nodes):
+        if v not in index:
+            visit(v)
+    return sorted(out)
+
+
+def report(files, groups):
+    """The findings for FILES ({'NN-name.el': text}) and GROUPS.
+
+    A dict: up (list of (user, used, symbols)), cycles (lists of module
+    names), stability ({module: (ca, ce, i)}), sdp (list of (user, i,
+    used, i)), unused (list of (module, required name)), guarded_up (a
+    count, for information)."""
+    hard, guarded = module_contract.dependencies(files)
+    strip = lambda f: f[:-3]
+    edges = {strip(a): {strip(b) for b in hard[a]} for a in hard}
+    names = [strip(f) for f in files]
+
+    up = []
+    for a in sorted(hard):
+        for b in sorted(hard[a]):
+            ga, gb = groups.get(strip(a)), groups.get(strip(b))
+            if ga is not None and gb is not None and gb > ga:
+                up.append((strip(a), strip(b), sorted(hard[a][b])))
+    guarded_up = sum(1 for a in guarded for b in guarded[a]
+                     if groups.get(strip(b), -1) > groups.get(strip(a), 10**6))
+
+    stability = {}
+    for n in names:
+        ca = sum(1 for a in edges if n in edges[a])
+        ce = len(edges.get(n, ()))
+        stability[n] = (ca, ce, ce / (ca + ce) if ca + ce else None)
+    sdp = []
+    for a in sorted(edges):
+        for b in sorted(edges[a]):
+            ia, ib = stability[a][2], stability[b][2]
+            if ia is not None and ib is not None and ib > ia:
+                sdp.append((a, ia, b, ib))
+
+    unused = []
+    for f, text in files.items():
+        used = set(hard.get(f, {})) | set(guarded.get(f, {}))
+        for r in sorted(module_contract.requires(text)):
+            if r + ".el" not in used and r + ".el" in files:
+                unused.append((strip(f), r))
+
+    return {"up": up, "cycles": strongly_connected(names, edges),
+            "stability": stability, "sdp": sdp, "unused": sorted(unused),
+            "guarded_up": guarded_up}
+
 
 def main():
-    root = repo_root()
-    mod_files = sorted((root / "modules").glob("*.el"))
-    if not mod_files:
-        print("No modules found under", root / "modules")
-        return 0
-    raw = {p.name: p.read_text() for p in mod_files}
-    code = {f: strip_noise(t) for f, t in raw.items()}
-    requires = {f: read_requires(t) for f, t in raw.items()}
-    groups = read_groups(root)
+    files = read_modules(ROOT)
+    groups = read_groups(ROOT)
+    r = report(files, groups)
 
-    owner = {}
-    for f in code:
-        for sym in definitions(code[f]):
-            owner.setdefault(sym, f)
+    def section(title, lines, empty="None."):
+        print("== " + title)
+        for line in lines or [empty]:
+            print("   " + line)
+        print()
 
-    def is_mine(tok):
-        return tok.startswith(MY_PREFIXES)
-
-    edges = {}  # (from, to) -> {symbol: hard or soft}
-    for f in code:
-        for tok in set(re.findall(r"[A-Za-z0-9\-/+*<>=!?:._]+", code[f])):
-            if not is_mine(tok):
-                continue
-            tgt = owner.get(tok)
-            if not tgt or tgt == f:
-                continue
-            kind = "hard" if hard_uses(code[f], tok) else "soft"
-            edges.setdefault((f, tgt), {})[tok] = kind
-
-    hard = {(a, b) for (a, b), syms in edges.items()
-            if any(k == "hard" for k in syms.values())}
-    declared = {f: {d + ".el" for d in requires[f]} for f in raw}
-
-    print("== Module graph: %d modules, %d edges (%d with a hard use)"
-          % (len(raw), len(edges), len(hard)))
-    print()
-    print("== Undeclared hard uses (the finding that matters)")
-    print("   An unguarded use MyPKS-Requires does not name: turning the")
-    print("   target off or removing it breaks the user at run time.")
-    found = False
-    for (a, b) in sorted(edges):
-        if b in ALWAYS_LOADED:
-            continue
-        syms = edges[(a, b)]
-        bad = sorted(s for s, k in syms.items()
-                     if k == "hard" and b not in declared[a])
-        if bad:
-            found = True
-            print("   %s -> %s  via %s" % (a, b, ", ".join(bad)))
-    if not found:
-        print("   None. Every hard use is declared in MyPKS-Requires.")
-    print()
-    print("== Uses pointing up the group table (rule 2: never a higher group)")
-    if groups:
-        up = []
-        for (a, b) in sorted(edges):
-            ga, gb = groups.get(a[:-3]), groups.get(b[:-3])
-            if ga is not None and gb is not None and gb > ga:
-                up.append((a, b, ga, gb, edges[(a, b)]))
-        if up:
-            for a, b, ga, gb, syms in up:
-                kinds = "hard" if any(k == "hard" for k in syms.values()) else "guarded"
-                print("   %s (%d) -> %s (%d)  [%s]" % (a, ga, b, gb, kinds))
-        else:
-            print("   None.")
-    else:
-        print("   MODULES.org not found or has no group table.")
-    print()
-    print("== Cycles over all edges (ADP)")
-    adj = {}
-    for (a, b) in edges:
-        adj.setdefault(a, set()).add(b)
-    found_cycles = []
-    def dfs(node, stack, seen):
-        for nxt in sorted(adj.get(node, ())):
-            if nxt in stack:
-                found_cycles.append(stack[stack.index(nxt):] + [nxt])
-            elif nxt not in seen:
-                dfs(nxt, stack + [nxt], seen | {nxt})
-    seen = set()
-    for n in sorted(adj):
-        if n not in seen:
-            dfs(n, [n], seen)
-            seen.add(n)
-    if found_cycles:
-        for cyc in found_cycles:
-            pairs = [(cyc[i], cyc[i + 1]) for i in range(len(cyc) - 1)]
-            marks = []
-            for a, b in pairs:
-                if b in ALWAYS_LOADED:
-                    marks.append("foundation")
-                elif (a, b) in hard:
-                    marks.append("HARD" if b not in declared[a] else "hard-declared")
-                else:
-                    marks.append("guarded")
-            print("   " + " -> ".join(cyc))
-            print("     edges: " + ", ".join(
-                "%s->%s (%s)" % (a[:-3], b[:-3], m)
-                for (a, b), m in zip(pairs, marks)))
-    else:
-        print("   None. The graph is acyclic (ADP holds).")
-    print()
-    print("== Stability (SDP): I = Ce/(Ca+Ce), 0 = most stable")
-    rows = []
-    for f in sorted(raw):
-        ca = sum(1 for (a, b) in edges if b == f)
-        ce = sum(1 for (a, b) in edges if a == f)
-        i = ce / (ca + ce) if ca + ce else None
-        rows.append((f, ca, ce, i))
-    idx = {f: i for f, _, _, i in rows if i is not None}
-    for n, ca, ce, i in rows:
-        print("   %-24s Ca=%-3d Ce=%-3d I=%s"
-              % (n, ca, ce, "n/a" if i is None else "%.2f" % i))
-    print()
-    print("== SDP violations (I(dep) - I(user) > 0.2)")
-    viol = []
-    for (a, b) in sorted(edges):
-        ia, ib = idx.get(a), idx.get(b)
-        if ia is not None and ib is not None and ib - ia > 0.2:
-            viol.append((a, b, ia, ib))
-    if viol:
-        for a, b, ia, ib in viol:
-            print("   %s (I=%.2f) -> %s (I=%.2f)" % (a, ia, b, ib))
-    else:
-        print("   None.")
-    print()
-    print("== MyPKS-Requires entries the code does not use")
-    any_unused = False
-    for f in sorted(raw):
-        unused = sorted(d for d in requires[f] if d + ".el" not in
-                        {b for (a, b) in edges if a == f})
-        if unused:
-            any_unused = True
-            print("   %s: %s" % (f, ", ".join(unused)))
-    if not any_unused:
-        print("   None.")
-    print()
-    print("Advisory only: exit 0. Nothing above blocks a commit.")
+    section("Hard uses pointing up the group table (rule 2)",
+            [f"{a} ({groups[a]}) -> {b} ({groups[b]})  via {', '.join(s[:4])}"
+             for a, b, s in r["up"]],
+            "None." if groups else "MODULES.org has no map.")
+    print(f"   ({r['guarded_up']} guarded uses point up: allowed by rule 2)\n")
+    section("Modules depending on each other through hard uses (ADP)",
+            [" <-> ".join(c) for c in r["cycles"]])
+    section("Stability of hard uses: I = Ce/(Ca+Ce), 0 = most used, least using",
+            [f"{n:28} Ca={ca:<3} Ce={ce:<3} I={'n/a' if i is None else f'{i:.2f}'}"
+             for n, (ca, ce, i) in sorted(r["stability"].items())])
+    section("Hard uses of a less stable module (SDP)",
+            [f"{a} (I={ia:.2f}) -> {b} (I={ib:.2f})" for a, ia, b, ib in r["sdp"]])
+    section("MyPKS-Requires entries no use explains (load order only?)",
+            [f"{m}: {req}" for m, req in r["unused"]])
+    print("Advisory only: exit 0.")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
