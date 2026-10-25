@@ -56,7 +56,7 @@ A module goes in the group of the *first* question answered yes:
 |   700 | Output              | Does it make something outside Emacs: PDF, DOCX, sites?         |
 |   800 | Overview            | Does it read the collection and report on it?                   |
 
-Decided 2026-10-25: the eight groups, English names, 700 Output added
+Decided 2026-10-25: the nine groups, English names, 700 Output added
 to the owner's first seven, slots from the start.  Decided 2026-10-25y:
 group 000 for the loader alone.  Every module, those of 100 included,
 uses 00-core -- =my/var-file=, the settings, the silos -- and nothing
