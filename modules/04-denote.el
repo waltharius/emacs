@@ -73,11 +73,15 @@
 ;; ORG-MODE SETTINGS FOR DENOTE
 ;; ============================================================
 
-;; Disable auto-indent in org-mode (controlled separately)
-(add-hook 'org-mode-hook
-          (lambda ()
-            (electric-indent-local-mode -1)
-            (setq-local electric-indent-chars nil)))
+;; Disable auto-indent in org-mode (controlled separately).  A named
+;; function, so that it can be removed from the hook and reads as itself
+;; in `describe-variable' (code review B2; a lambda until 2026-10-25).
+(defun my/org-no-electric-indent ()
+  "Turn electric indentation off in this Org buffer."
+  (electric-indent-local-mode -1)
+  (setq-local electric-indent-chars nil))
+
+(add-hook 'org-mode-hook #'my/org-no-electric-indent)
 
 (setq org-list-allow-alphabetical t)
 (setq org-list-demote-modify-bullet

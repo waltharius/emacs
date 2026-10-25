@@ -34,10 +34,11 @@ says why and how.
    2026-10-20a-e; the testing rules in =TESTING.org= (2026-10-20e).
    The weekly job -- a first start installing every package, byte
    compilation, load and switch tests of every module -- done
-   2026-10-22a.  Left: the function tests of the modules that touch
-   data (/Module tests/), the compiler warnings (/Compiler warnings/);
-   then the /Module map/ (agreed 2026-10-22), so that those tests
-   check the move; then /Templates as files/ (asked 2026-10-22).
+   2026-10-22a.  The function tests of every module (/Module tests/)
+   done 2026-10-25p, the compiler warnings (/Compiler warnings/)
+   2026-10-23o.  Next: the /Module map/ (agreed 2026-10-22), so that
+   those tests check the move; then /Templates as files/ (asked
+   2026-10-22).
 6. /A public repository/: portable defaults and the privacy model in
    the README, the welcome screen; then the installation guide for
    beginners, the tutorial with exercises and the Polish guide.
@@ -512,7 +513,8 @@ the functions of the modules that touch data first, in the order given
 there.  9 of 52 modules are named by a test file on 2026-10-20.
 Decided 2026-10-20: (1) blocks from the day the repository is ready for
 a first-time user; (2) in the weekly job; (3) yes.  (2) done
-2026-10-22a.
+2026-10-22a.  (3) done 2026-10-25p: 44 of 54 modules named by a test
+file, the other 10 marked =MyPKS-Tests: weekly= (appearance).
 
 * Compiler warnings
 The weekly byte compilation began with 28 warnings, listed in

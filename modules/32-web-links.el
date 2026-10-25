@@ -23,6 +23,10 @@ Prompts for a URL (or reuses the kill-ring/clipboard content if it
 looks like one, per `org-web-tools' default behaviour) and inserts
 [[URL][Title]] at point."
   (interactive)
+  ;; Said in words: without org-web-tools the call failed with
+  ;; "wrong-type-argument commandp" (until 2026-10-25).
+  (unless (fboundp 'org-web-tools-insert-link-for-url)
+    (user-error "org-web-tools is not installed (M-x package-install RET org-web-tools)"))
   (call-interactively #'org-web-tools-insert-link-for-url))
 
 ;; In the Link column of the Insert menu, after "L" (12-transient.el).

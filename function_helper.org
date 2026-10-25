@@ -1413,7 +1413,10 @@ Fetches the page title for a URL and inserts an Org link
 =[[URL][Title]]= at point. Prompts for the URL; if the clipboard
 already contains one, org-web-tools offers it as default.
 
-Function: =my/insert-web-link= | Module: =modules/32-web-links.el=
+Without org-web-tools the command says so (until 2026-10-25 it failed
+with "wrong-type-argument commandp").
+
+Function: =my/insert-web-link= | Module: =modules/32-web-links.el= | Tests: =tests/test-web-links.el=
 
 *** H — Add to HUB
 :PROPERTIES:
@@ -2200,7 +2203,7 @@ other four disappeared too.
 Opens bibliography/Zotero submenu. Also available directly as =C-c x=.
 See [[#menu-zotero-detail][Zotero menu detail]] below.
 
-Function: =my/zotero-menu= | Module: =modules/18-zotero-transient.el=
+Function: =my/zotero-menu= | Module: =modules/18-zotero-transient.el= | Tests: =tests/test-zotero-transient.el= (every entry runs a command that exists)
 
 *** i — Inbox (migrated notes)
 :PROPERTIES:
@@ -10136,6 +10139,12 @@ written), =my/notes-files= (files of a folder that may not exist yet).
 
 Function: =my/silo-dir=, =my/silo-dir-by-role=, =my/silo-keys=, =my/silo-dirs=, =my/silo-of=, =my/notes-path=, =my/notes-ensure-directory-of=, =my/notes-files= | Module: =modules/00-core.el=
 
+
+*Settings of 04-denote.el tested* (=tests/test-denote-settings.el=):
+Denote's folder is the notes folder; an =elisp:= link in a note asks
+before it runs (=org-link-elisp-confirm-function=); electric indentation
+is off in Org, by the named =my/org-no-electric-indent= on the hook (a
+nameless function until 2026-10-25, review item B2).
 * Commands without a menu entry
 :PROPERTIES:
 :CUSTOM_ID: commands-without-menu
