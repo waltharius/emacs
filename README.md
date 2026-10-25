@@ -322,7 +322,7 @@ startup. Optional ones can be removed.
 |--------|---|---------|
 | `00-core.el` | required | Package system, silo paths, backup/autosave policy, persisted UI state, front-matter keyword helpers. 24 other modules depend on it. |
 | `01-ui.el` | required | Sessions (`desktop`), window splitting, tab-bar, `my/fixed-tab-goto`, completion, the mode line. |
-| `01b-frame-chrome.el` | optional | Tool bar and scroll bar off, menu bar on, again after a desktop restore. |
+| `01b-frame-bars.el` | optional | Tool bar and scroll bar off, menu bar on, again after a desktop restore. |
 | `02-editing.el` | required | which-key, vundo, undo-fu-session, **and the rebound default keys**. |
 | `02b-bold-marker.el` | required | Obsidian-style `word*` inline emphasis. |
 | `03-spelling.el` | required | Hunspell, Polish and English. |

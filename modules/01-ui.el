@@ -12,7 +12,7 @@
 ;; Orderless, Marginalia, Consult) and the mode line.
 ;;
 ;; The look went out on 2026-10-25zc: the frame's bars to
-;; 01b-frame-chrome.el, the Org block display (quote and verse faces,
+;; 01b-frame-bars.el, the Org block display (quote and verse faces,
 ;; the block-marker symbols) to 11-org-appearance.el.  The mode line
 ;; stays: it carries state that must be visible whatever the look --
 ;; the warning that deletions are not confirmed (00-core.el, SAFETY.org
@@ -507,7 +507,7 @@ Use \\[my/desktop-show-protected] to see the outcome before it happens."
   (add-hook 'desktop-save-hook #'my/desktop-trim-buffers)
 
   ;; A restored frameset brings back the bars it was saved with;
-  ;; 01b-frame-chrome.el turns them off again from
+  ;; 01b-frame-bars.el turns them off again from
   ;; `desktop-after-read-hook'.
 
   (desktop-save-mode 1))
