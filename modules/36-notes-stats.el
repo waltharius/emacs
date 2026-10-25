@@ -1,6 +1,6 @@
 ;;; 36-notes-stats.el --- Summary statistics for the collection -*- lexical-binding: t; -*-
 
-;; MyPKS-Requires: 26-maintenance 27-denote-identifiers
+;; MyPKS-Requires: 04-denote 05-notes 26-maintenance 27-denote-identifiers
 ;; MyPKS-Optional: yes
 ;; MyPKS-Switch: my/notes-stats-module-mode
 
@@ -93,6 +93,10 @@
 (declare-function my/journal-gaps-required-keys "35-journal-gaps" ())
 (declare-function my/journal-gaps-missing-keys "35-journal-gaps" (file required))
 (declare-function my/org-export-to-pdf "16-org-export" ())
+(declare-function my/journal-file-date "05-notes" (file))
+(declare-function denote-retrieve-filename-identifier "denote" (file))
+(declare-function denote-retrieve-filename-signature "denote" (file))
+(declare-function org-link-make-string "ol" (link &optional description))
 
 (defgroup my-notes-stats nil
   "Summary statistics for the note collection."
@@ -197,10 +201,8 @@ those notes cannot be acted on yet."
   (or (file-attribute-size (file-attributes file)) 0))
 
 (defun my/notes-stats--identifier (file)
-  "Return FILE's Denote identifier, or nil."
-  (let ((base (file-name-nondirectory file)))
-    (when (string-match "\\`\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)" base)
-      (match-string 1 base))))
+  "Return FILE's Denote identifier, or nil.  Denote's own reading."
+  (denote-retrieve-filename-identifier file))
 
 (defun my/notes-stats--year-month (file)
   "Return (YEAR . MONTH) as strings from FILE's identifier, or nil."
@@ -216,10 +218,10 @@ A signature is what makes a note part of a Folgezettel sequence: the
 identifier and the title.  Its presence is the test for a zettelkasten
 note, because that is exactly what 22-zettelkasten.el adds when a
 thought is placed in a sequence, and nothing else in the collection
-carries one."
-  (let ((base (file-name-nondirectory file)))
-    (when (string-match "==\\([^-]+\\)--" base)
-      (match-string 1 base))))
+carries one.  Read by Denote (`denote-retrieve-filename-signature'):
+until 2026-10-25 a pattern of its own required a title after the
+signature, so a sequenced note without a title was not counted."
+  (denote-retrieve-filename-signature file))
 
 (defun my/notes-stats--signature-depth (signature)
   "Return the depth of SIGNATURE in the alphanumeric scheme.
@@ -232,10 +234,13 @@ letters is one step further from the trunk."
     depth))
 
 (defun my/notes-stats--journal-date (file)
-  "Return YYYY-MM-DD when FILE is a journal note, else nil."
-  (let ((name (file-name-nondirectory file)))
-    (when (string-match "--\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)-journal" name)
-      (match-string 1 name))))
+  "Return YYYY-MM-DD when FILE is a journal note, else nil.
+As 05-notes decides (`my/journal-file-date'): the `journal' keyword,
+the date from the title or the identifier.  Until 2026-10-25 a pattern
+of its own wanted \"DATE-journal\" in the title, which journal notes
+have not carried since `my/journal-title-suffix' became empty, so the
+Journal section stopped counting new entries."
+  (my/journal-file-date file))
 
 (defun my/notes-stats--top-directory (file)
   "Return the top-level directory of FILE relative to `my-notes-dir'.
@@ -944,10 +949,20 @@ be read down the column."
 ;; ============================================================
 
 (defun my/notes-stats--org-link (file)
-  "Return FILE as a `denote:' link with its title, or a plain title."
+  "Return FILE as a `denote:' link with its title, or a plain title.
+Built by `org-link-make-string', which keeps a title with brackets from
+ending the link early (until 2026-10-25 by `format'), and safe in a
+table cell (`my/notes-stats--cell')."
+  (require 'ol)
   (let ((title (my/notes-stats--title file))
         (id (my/notes-stats--identifier file)))
-    (if id (format "[[denote:%s][%s]]" id title) title)))
+    (my/notes-stats--cell
+     (if id (org-link-make-string (concat "denote:" id) title) title))))
+
+(defun my/notes-stats--cell (text)
+  "Return TEXT safe inside an Org table cell: each | written as \\vert{}.
+A title such as \"Plan | szkic\" otherwise splits its row."
+  (replace-regexp-in-string "|" "\\vert{}" text t t))
 
 (defun my/notes-stats--render-org (data)
   "Insert DATA as Org markup into the current buffer.
@@ -989,7 +1004,7 @@ PDF font can be relied on to have."
                            (plist-get data :dirs))
                   (sort acc (lambda (a b) (> (nth 0 (cdr a)) (nth 0 (cdr b))))))))
       (dolist (row rows)
-        (insert (format "| %s | %d | %s | %s |\n" (car row) (nth 0 (cdr row))
+        (insert (format "| %s | %d | %s | %s |\n" (my/notes-stats--cell (car row)) (nth 0 (cdr row))
                         (file-size-human-readable (nth 1 (cdr row)))
                         (my/notes-stats--percent (nth 0 (cdr row)) total)))))
 
@@ -1051,7 +1066,7 @@ PDF font can be relied on to have."
       (insert (format "| Notes with no keywords | %d |\n" (length bare)))
       (insert "\n** Most used\n\n| Keyword | Notes |\n|---|---|\n")
       (dolist (pair (seq-take pairs my/notes-stats-top-keywords))
-        (insert (format "| %s | %d |\n" (car pair) (cdr pair))))
+        (insert (format "| %s | %d |\n" (my/notes-stats--cell (car pair)) (cdr pair))))
       (insert "\n** Used once only\n\n")
       (if (null singletons)
           (insert "None.\n")

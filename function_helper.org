@@ -6330,7 +6330,12 @@ it.
 One screen answering "how big is this thing, and is it healthy", with
 the interesting numbers clickable.
 
-Module: =modules/36-notes-stats.el= | also =C-c w s=
+Module: =modules/36-notes-stats.el= | also =C-c w s= | Tests: =tests/test-notes-stats.el=
+
+In the exported Org file links are built by =org-link-make-string=, so a
+title ending in a bracket stays inside its link, and a =|= in a title,
+keyword or folder name is written =\vert{}= so that it does not split a
+table row (both since 2026-10-25).
 
 ** Where it opens
 
@@ -6358,8 +6363,8 @@ anyway.
 | Collection | notes, total size, average, largest and smallest note (both clickable) |
 | Notes by directory | =.org= files grouped by top-level directory — journal, pks, docu, inbox, (root) |
 | On disk | every file of every type, same grouping — attachments, pdf, html, refs.bib |
-| Zettelkasten | sequenced notes, top-level sequences, deepest and average signature depth |
-| Journal | first entry (clickable), days elapsed, coverage, streaks, days missing metrics |
+| Zettelkasten | sequenced notes (a Denote signature, read by =denote-retrieve-filename-signature=, with or without a title), top-level sequences, deepest and average signature depth |
+| Journal | first entry (clickable), days elapsed, coverage, streaks, days missing metrics -- journal notes as 05-notes recognises them (=my/journal-file-date=: the =journal= keyword, the date from the title or the identifier; until 2026-10-25 a pattern of its own wanted "DATE-journal" in the title and missed the notes made since the title lost that suffix) |
 | Keywords | distinct, assignments, singletons and no-keyword notes (both clickable), top 12 |
 | Notes created | per month for the last 12, then per year for the whole history |
 | Content | words, links, notes linking to nothing, notes nothing links to — after =c= |
@@ -7117,7 +7122,7 @@ Optional (44):
 | =33-denote-hubs= | Collect notes under Denote hub notes | -- |
 | =34-appearance= | Visual layer: padding, faces, motion cues | =03b-fonts= =09-theme= =10-visual-fill= |
 | =35-journal-gaps= | Days without a journal entry, or without metrics | -- |
-| =36-notes-stats= | Summary statistics for the collection | =26-maintenance= =27-denote-identifiers= |
+| =36-notes-stats= | Summary statistics for the collection | =04-denote= =05-notes= =26-maintenance= =27-denote-identifiers= |
 | =37-tasks= | Tasks: background capture, project routing, agenda files | -- |
 | =38-habits= | Habits: define, log without leaving the buffer, derive | -- |
 | =39-project-git= | Project repositories: remote, fetch, staleness | -- |
