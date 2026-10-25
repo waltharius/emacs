@@ -189,20 +189,16 @@ are covered."
 (defun my/journal-gaps--dates (days &optional now)
   "Return the last DAYS dates as (DATE . TIME), today first.
 DATE is YYYY-MM-DD, TIME midday of that day.  Counted in calendar days
-from NOW (default: the current time), each day encoded on its own: by
+from NOW (default: the current time), with the date functions of
+00-core.el (since 2026-10-26; before, an encoding of its own): by
 steps of 86400 seconds, as until 2026-10-25, a day of 23 hours (the
 start of summer time) was skipped when the report ran in the first hour
 after midnight -- a missing journal day left out of a report of missing
 days."
-  (let ((today (decode-time now)))
+  (let ((today (my/date-of now)))
     (mapcar (lambda (offset)
-              (let ((time (encode-time
-                           (list 0 0 12
-                                 (- (decoded-time-day today) offset)
-                                 (decoded-time-month today)
-                                 (decoded-time-year today)
-                                 nil -1 nil))))
-                (cons (format-time-string "%Y-%m-%d" time) time)))
+              (let ((date (my/date-add-days today (- offset))))
+                (cons date (my/date-to-time date))))
             (number-sequence 0 (1- days)))))
 
 (defun my/journal-gaps--scan (days &optional now)
@@ -258,24 +254,6 @@ the answer."
 ;; THE BUFFER
 ;; ============================================================
 
-(defun my/journal-gaps--encode (date)
-  "Return DATE (YYYY-MM-DD) as a time value, at midday.
-
-The decoded-time LIST form of `encode-time', matching 05-notes.el and
-05b-journal-metrics.el.  The six-positional-argument form reads more
-naturally and has been obsolete since Emacs 27; it still works today
-and is exactly the kind of call that stops working on an upgrade.
-
-Midday rather than midnight so that a daylight-saving transition
-cannot move the timestamp into the previous or next day.  The hour is
-never displayed -- journal identifiers are T000000 -- so nothing else
-depends on it."
-  (encode-time (list 0 0 12
-                     (string-to-number (substring date 8 10))
-                     (string-to-number (substring date 5 7))
-                     (string-to-number (substring date 0 4))
-                     nil -1 nil)))
-
 (defun my/journal-gaps--date-at-point ()
   "Return the date on the current line, or signal."
   (or (tabulated-list-get-id)
@@ -294,7 +272,7 @@ the file was absent."
       (unless (fboundp 'my/denote-journal-create-backdated)
         (user-error "05-notes.el is not loaded; cannot create a backdated note"))
       (setq file (my/denote-journal-create-backdated
-                  date (my/journal-gaps--encode date))))
+                  date (my/date-to-time date))))
     (find-file file)))
 
 (defun my/journal-gaps-fill ()

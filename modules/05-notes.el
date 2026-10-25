@@ -537,60 +537,28 @@ Behaviour:
 ;; is why 31 December belonging to week 1 of the following year is not a
 ;; case this code has to know about.
 ;;
-;; Every timestamp is normalised to midday before anything is added to
-;; it, and days are added as whole multiples of 86400 seconds.  A
-;; daylight-saving transition then moves a timestamp from midday to
-;; 11:00 or 13:00 and never across midnight into a neighbouring day.
-;; The hour is never read.
-;;
-;; The weekday comes from `%u' (1 Monday to 7 Sunday) rather than from
-;; the `decoded-time-*' accessors, so the numbering is the ISO one
-;; without a conversion step and nothing here depends on time-date.el
-;; being loaded.
-;;
-;; NOTE: 35-journal-gaps.el has a private `my/journal-gaps--encode' that
-;; does exactly what `my/journal-date-encode' does, with the same
-;; reasoning in its docstring.  It is left alone for now -- that module
-;; works, is optional, and rewriting a working file for a six-line
-;; deduplication is not worth the risk -- but it is a duplicate and
-;; should be retired in favour of this one the next time that file is
-;; touched.
-
-(defconst my/journal-day-seconds 86400
-  "Seconds in a day, for date arithmetic anchored at midday.")
-
-(defun my/journal-date-encode (date)
-  "Return DATE, a \"YYYY-MM-DD\" string, as a time value at midday.
-
-The decoded-time LIST form of `encode-time'.  The six-positional-argument
-form reads more naturally and has been obsolete since Emacs 27; it still
-works today and is exactly the kind of call that stops working on an
-upgrade.
-
-Midday rather than midnight so that a daylight-saving transition cannot
-move the timestamp into the previous or next day."
-  (encode-time (list 0 0 12
-                     (string-to-number (substring date 8 10))
-                     (string-to-number (substring date 5 7))
-                     (string-to-number (substring date 0 4))
-                     nil -1 nil)))
+;; Days are counted with the date functions of 00-core.el (DATES):
+;; calendar days at midday, so that no daylight saving transition moves
+;; a day across midnight.  Until 2026-10-26 this section had its own
+;; midday encoding and stepped by 86400 seconds; 35-journal-gaps.el and
+;; 36-notes-stats.el had copies of the encoding.  The hour is never
+;; read.
 
 (defun my/journal-midday (&optional time)
   "Return TIME, or now, moved to midday of the same calendar day."
-  (my/journal-date-encode (format-time-string "%Y-%m-%d" time)))
+  (my/date-to-time (my/date-of time)))
 
 (defun my/journal-week-monday (&optional time)
   "Return the Monday of the ISO week containing TIME, at midday.
 TIME defaults to now."
-  (let* ((midday (my/journal-midday time))
-         ;; `%u' is the ISO weekday: 1 for Monday, 7 for Sunday.
-         (back (1- (string-to-number (format-time-string "%u" midday)))))
-    (time-add midday (* (- back) my/journal-day-seconds))))
+  (let ((date (my/date-of time)))
+    (my/date-to-time (my/date-add-days date (- 1 (my/date-weekday date))))))
 
 (defun my/journal-week-days (monday)
   "Return the seven days of the week starting at MONDAY, as time values."
-  (mapcar (lambda (n) (time-add monday (* n my/journal-day-seconds)))
-          (number-sequence 0 6)))
+  (let ((date (my/date-of monday)))
+    (mapcar (lambda (n) (my/date-to-time (my/date-add-days date n)))
+            (number-sequence 0 6))))
 
 (defun my/journal-week-label (monday)
   "Return the ISO week label of MONDAY, e.g. \"2026-W35\"."
@@ -712,7 +680,7 @@ the day whose own note is being written in is rendered as plain text."
                        (my/journal-file-date file))))
          (date (or own-date
                    (org-read-date nil nil nil "Any day in the week: ")))
-         (monday (my/journal-week-monday (my/journal-date-encode date)))
+         (monday (my/journal-week-monday (my/date-to-time date)))
          (days (my/journal-week-days monday))
          (text (my/journal-week-links monday (buffer-file-name))))
     (unless (bolp) (insert "\n"))

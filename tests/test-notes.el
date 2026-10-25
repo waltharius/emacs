@@ -389,5 +389,25 @@ second note for the day."
       (should-error (my/denote-journal-create-backdated "2020-03-01" time) :type 'user-error)
       (should (equal (my/notes-test--read first) text)))))
 
+(ert-deftest my/notes-test-week-across-summer-time ()
+  "The week of a date, Monday to Sunday, also when it holds a day of 25
+or 23 hours: the weeks of 2026-10-25 and 2026-03-29 in Central Europe,
+and one that runs into the next month."
+  (my/test-with-time-zone my/test-central-europe
+    (cl-flet ((week (date) (mapcar #'my/date-of
+                                   (my/journal-week-days
+                                    (my/journal-week-monday (my/date-to-time date))))))
+      (should (equal (week "2026-10-25")
+                     '("2026-10-19" "2026-10-20" "2026-10-21" "2026-10-22"
+                       "2026-10-23" "2026-10-24" "2026-10-25")))
+      (should (equal (week "2026-03-29")
+                     '("2026-03-23" "2026-03-24" "2026-03-25" "2026-03-26"
+                       "2026-03-27" "2026-03-28" "2026-03-29")))
+      (should (equal (week "2026-10-28")
+                     '("2026-10-26" "2026-10-27" "2026-10-28" "2026-10-29"
+                       "2026-10-30" "2026-10-31" "2026-11-01")))
+      (should (equal (my/journal-week-label (my/journal-week-monday (my/date-to-time "2026-10-25")))
+                     "2026-W43")))))
+
 (provide 'test-notes)
 ;;; test-notes.el ends here

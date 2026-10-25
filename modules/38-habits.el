@@ -437,7 +437,7 @@ command the user would then have to go and find."
           (let ((org-log-done nil)
                 (org-log-repeat nil))
             (cl-letf (((symbol-function 'org-today)
-                       (lambda () (time-to-days time))))
+                       (lambda () (my/date-day-number time))))
               (org-todo 'done)))
           (org-back-to-heading t)
           (my/habits--write-logbook (cons line existing))
@@ -488,14 +488,12 @@ date in its title does not."
 
 (defun my/habits--set-scheduled (date repeat)
   "Set SCHEDULED of the entry at point to the day after DATE, with REPEAT.
-The day after is counted from midday: midnight plus 86400 seconds is
-still the same date on the day summer time ends, 25 hours long (until
-2026-10-25 a habit derived on that day was due the same day again)."
-  (let* ((noon (time-add (org-time-string-to-time (concat "<" date ">"))
-                         (* 12 3600)))
-         (next (time-add noon (days-to-time 1)))
-         (org-log-reschedule nil))
-    (org-schedule nil (format-time-string "%Y-%m-%d" next))
+The day after in calendar days (`my/date-add-days', 00-core.el): until
+2026-10-25 it was midnight plus 86400 seconds, still the same date on
+the day summer time ends, so a habit derived that day was due again the
+same day."
+  (let ((org-log-reschedule nil))
+    (org-schedule nil (my/date-add-days date 1))
     ;; `org-schedule' writes a plain timestamp; the repeater has to be
     ;; put back, or `org-habit-parse-todo' rejects the entry outright
     ;; and the habit stops being a habit.

@@ -107,10 +107,12 @@ says how a test shows it.  Running them: =bash hooks/check-all=
     is not always 24 hours: in Central Europe the day summer time ends
     has 25, the day it begins 23, and near midnight on them "now minus
     86400 seconds" is the same date or two days back.  A test gets
-    "today plus N" from =my/test-date= (tests/helper.el); a test of
-    date code also runs it on such a day, under
-    =my/test-with-time-zone= with =my/test-central-europe=.  Code adds
-    days to midday, or counts them with =time-to-days=.  (2026-10-25zh:
+    "today plus N" from =my/test-date= (tests/helper.el), which is
+    computed apart from the code it checks; a test of date code also
+    runs it on such a day, under =my/test-with-time-zone= with
+    =my/test-central-europe=.  Code counts days only with the date
+    functions of 00-core.el (since 2026-10-26a, CHANGELOG.md lesson
+    L15), tested once in =tests/test-dates.el=.  (2026-10-25zh:
     two tests failed on the owner's machine at 23:23 on 2026-10-25,
     and the search for the cause found 38-habits and
     28-writing-projects doing the same.)

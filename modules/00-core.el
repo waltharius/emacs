@@ -1161,6 +1161,71 @@ change their mind before deletions stop being asked."
                            'my/confirm-deletion-mode-line))))
 
 ;; ============================================================
+;; DATES: calendar days, in one place
+;; ============================================================
+;; A time value in Emacs is an instant, seconds since 1970, and a date
+;; exists only through a time zone.  Adding 86400 seconds is adding a
+;; day only on a day of 24 hours: in Central Europe the day summer time
+;; ends has 25, the day it begins 23, and near midnight on them a step
+;; of 86400 seconds lands on the same date or skips one (2026-10-25:
+;; two tests failed at 23:23, and the search found the same step in
+;; 38-habits and 28-writing-projects; 35-journal-gaps had skipped a day
+;; the same way in the spring).  Every module that counts days does it
+;; with these functions, so that the rule lives in one place and is
+;; tested once (tests/test-dates.el; CHANGELOG.md, lesson L15).
+;;
+;; A date is a "YYYY-MM-DD" string.  Days are added by `encode-time'
+;; with the day field out of range -- Emacs carries 32 October into
+;; 1 November, a documented use -- at midday and with the daylight
+;; saving flag left for Emacs to decide (-1), so that no transition can
+;; move the result across midnight.  Differences are counted as
+;; `time-to-days' day numbers.  A duration ("files changed in the last
+;; seven days") is not a date and stays in seconds.
+
+(require 'time-date)
+
+(defun my/date-to-time (date)
+  "Return DATE, a \"YYYY-MM-DD\" string, as a time value at midday.
+Midday, so that a daylight saving transition cannot move it into the
+previous or next day; for `format-time-string' with a date's own
+fields (%u, %V, %G, %a)."
+  (encode-time (list 0 0 12
+                     (string-to-number (substring date 8 10))
+                     (string-to-number (substring date 5 7))
+                     (string-to-number (substring date 0 4))
+                     nil -1 nil)))
+
+(defun my/date-of (&optional time)
+  "Return the date of TIME, or of now, as \"YYYY-MM-DD\", in the local zone."
+  (format-time-string "%Y-%m-%d" time))
+
+(defun my/date-add-days (date days)
+  "Return the date DAYS calendar days after DATE (before it when negative).
+DATE and the result are \"YYYY-MM-DD\" strings."
+  (format-time-string
+   "%Y-%m-%d"
+   (encode-time (list 0 0 12
+                      (+ (string-to-number (substring date 8 10)) days)
+                      (string-to-number (substring date 5 7))
+                      (string-to-number (substring date 0 4))
+                      nil -1 nil))))
+
+(defun my/date-day-number (date)
+  "Return the day number of DATE: days since the start of year 1.
+DATE is a \"YYYY-MM-DD\" string or a time value, which counts as the
+date it falls on in the local zone."
+  (time-to-days (if (stringp date) (my/date-to-time date) date)))
+
+(defun my/date-days-between (from to)
+  "Return the calendar days from FROM to TO, negative when TO is earlier.
+Each is a \"YYYY-MM-DD\" string or a time value (`my/date-day-number')."
+  (- (my/date-day-number to) (my/date-day-number from)))
+
+(defun my/date-weekday (date)
+  "Return the ISO weekday of DATE (\"YYYY-MM-DD\"): 1 for Monday, 7 for Sunday."
+  (string-to-number (format-time-string "%u" (my/date-to-time date))))
+
+;; ============================================================
 ;; CORE VARIABLES: Paths and directories
 ;; ============================================================
 
