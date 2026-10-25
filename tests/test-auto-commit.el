@@ -152,14 +152,43 @@ for that buffer only.  (Until 2026-10-24 through Magit's
   ;; owner's machine the test was skipped with Magit installed.
   (unless (locate-library "magit")
     (ert-skip "Magit is not installed"))
-  (require 'magit)
-  (should (memq #'my/git-commit-fill-column git-commit-setup-hook))
-  (let ((default fill-column))
-    (with-temp-buffer
-      (run-hooks 'git-commit-setup-hook)
-      (should (= fill-column 72))
-      (should (local-variable-p 'fill-column)))
-    (should (= fill-column default))))
+  ;; An error while Magit loads or sets a buffer up is reported with
+  ;; the versions package.el activated: on the owner's machine (2026-10-25)
+  ;; it was (void-function transient--set-layout), Magit running with a
+  ;; transient older than the one it was built for, and the plain error
+  ;; did not say which transient that was.
+  (condition-case err
+      (progn
+        (require 'magit)
+        (should (memq #'my/git-commit-fill-column git-commit-setup-hook))
+        (let ((default fill-column))
+          (with-temp-buffer
+            (run-hooks 'git-commit-setup-hook)
+            (should (= fill-column 72))
+            (should (local-variable-p 'fill-column)))
+          (should (= fill-column default))))
+    ((error void-function)
+     (ert-fail (list err (my/ac-test--magit-packages))))))
+
+(defun my/ac-test--magit-packages ()
+  "Describe the packages Magit runs on: what is installed, what is loaded.
+For each, the versions installed (package.el's newest first, the one it
+activates) and the folder of the first; for transient also the file
+loaded and its version.  A MELPA build is numbered by date, so an old
+one (transient-20250301.1200) counts as newer than any GNU ELPA release
+(transient-0.13.8): package.el keeps activating it and does not upgrade
+it for a Magit that asks for transient 0.13."
+  (append
+   (mapcar (lambda (name)
+             (let ((descs (alist-get name package-alist)))
+               (list name
+                     (mapcar (lambda (d) (package-version-join (package-desc-version d)))
+                             descs)
+                     (and descs (package-desc-dir (car descs))))))
+           '(transient magit magit-section with-editor compat cond-let llama))
+   (list (list 'transient-loaded-from (locate-library "transient")
+               'transient-version (bound-and-true-p transient-version)
+               'transient-built-in (alist-get 'transient package--builtin-versions)))))
 
 ;; ============================================================
 ;; START-UP PULL
