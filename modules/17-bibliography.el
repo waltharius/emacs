@@ -11,7 +11,6 @@
 ;;   - a .bib file auto-exported by Better BibTeX in Zotero; where it is
 ;;     is an option, `my/bibliography-files' (C-c x ,), ~/notes/refs.bib
 ;;     by default
-;;   - poppler, poppler_utils, pkg-config, libpng in home.packages (for pdf-tools)
 ;;
 ;; Workflow:
 ;;   1. M-x my/zotero-menu (C-c x) → n  — create note from Zotero ref, PDF opens on the right
@@ -630,51 +629,9 @@ by default the export style, as an exported bibliography lists it."
   (interactive (list (my/reference--select)))
   (my/reference--insert keys (or my/reference-full-style my/csl-default-style) "\n"))
 
-;; ============================================================
-;; PDF-TOOLS — native PDF viewer
-;; ============================================================
-
-;; `pdf-loader-install', pdf-tools' own on-demand setup, not
-;; `pdf-tools-install' in :config: that ran whenever pdf-tools was
-;; loaded -- also by the byte compilation of its own files during the
-;; first install -- and built the epdfinfo server then, unasked (the
-;; build may ask for the sudo password to install libraries).  Now
-;; the first PDF opened loads pdf-tools, which asks before building.
-
-(defun my/bibliography--pdf-on-demand ()
-  "Set PDF Tools up to load, and build its server, with the first PDF.
-`pdf-loader-install' sets pdf-tools up at once when pdf-tools is loaded
-already -- as it is in the session that installed it, by the byte
-compilation of its own files -- and so asks about building the server
-in the middle of the first start (and fails in batch, where nobody can
-answer).  Told that pdf-tools is not loaded, it waits for a PDF, as in
-every later session."
-  ;; Loaded first, outside the binding below: a `provide' inside it
-  ;; would be undone when the binding ends.
-  (when (require 'pdf-loader nil t)
-    ;; `cl-progv' binds `features' dynamically.  It has no `defvar' in
-    ;; Lisp, so a plain `let' in this lexically bound file would bind a
-    ;; local name `featurep' never reads; `dlet' would, but makes the
-    ;; compiler ask for a prefix on a name that is Emacs's own.
-    (cl-progv '(features) (list (remq 'pdf-tools features))
-      (pdf-loader-install))))
-
-(use-package pdf-tools
-  :ensure t
-  :defer t
-  :init
-  (my/bibliography--pdf-on-demand)
-  :config
-  (add-hook 'pdf-view-mode-hook
-            (lambda () (display-line-numbers-mode -1))))
-
-;; ============================================================
-;; NOV — ePub reader
-;; ============================================================
-
-(use-package nov
-  :ensure t
-  :mode ("\\.epub\\'" . nov-mode))
+;; PDF and EPUB viewers (pdf-tools, nov): 17b-document-viewers.el, since
+;; 2026-10-25zd.  `my/open-bib-pdf-right' above opens the attachment in
+;; whatever mode Emacs has for it.
 
 ;; ============================================================
 ;; CITATION KEY CHECKER

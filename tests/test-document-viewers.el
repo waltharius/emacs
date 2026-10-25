@@ -1,10 +1,11 @@
-;;; test-bibliography.el --- ERT tests for the PDF viewer setup of 17-bibliography -*- lexical-binding: t; -*-
+;;; test-document-viewers.el --- ERT tests for the PDF viewer setup of 17b-document-viewers -*- lexical-binding: t; -*-
 
-;; Tests: 17-bibliography
+;; Tests: 17b-document-viewers
 
 ;;; Commentary:
 
-;; 17-bibliography.el sets up pdf-tools, the PDF viewer.  Its server,
+;; 17b-document-viewers.el (17-bibliography.el until 2026-10-25zd) sets
+;; up pdf-tools, the PDF viewer.  Its server,
 ;; epdfinfo, is a program built from source.  Until 2026-10-23 the
 ;; module built it whenever pdf-tools was loaded -- also by the byte
 ;; compilation of pdf-tools' own files during a first install -- without
@@ -18,7 +19,7 @@
 ;; nothing is built: `pdf-tools-install' is stood in for.
 ;;
 ;;   emacs -Q --batch --eval '(package-initialize)' -l ert \
-;;     -l tests/test-bibliography.el -f ert-run-tests-batch-and-exit
+;;     -l tests/test-document-viewers.el -f ert-run-tests-batch-and-exit
 ;;
 ;; or all tests at once: hooks/check-all.
 
@@ -29,7 +30,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "17-bibliography")
+(my/test-load-modules "17b-document-viewers")
 
 (defvar pdf-loader--auto-mode-alist-item)
 (defvar pdf-loader--magic-mode-alist-item)
@@ -84,7 +85,7 @@ nothing and waits for the first PDF."
     (advice-add 'pdf-tools-install :override count)
     (unwind-protect
         (progn
-          (my/bibliography--pdf-on-demand)
+          (my/document-viewers--pdf-on-demand)
           (should (= builds 0))
           (should (assoc pdf-loader--auto-mode-alist-item auto-mode-alist))
           (should (assoc pdf-loader--magic-mode-alist-item magic-mode-alist))
@@ -93,5 +94,5 @@ nothing and waits for the first PDF."
           (should (featurep 'pdf-loader)))
       (advice-remove 'pdf-tools-install count))))
 
-(provide 'test-bibliography)
-;;; test-bibliography.el ends here
+(provide 'test-document-viewers)
+;;; test-document-viewers.el ends here

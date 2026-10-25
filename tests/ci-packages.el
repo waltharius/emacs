@@ -13,7 +13,7 @@
 ;; test-journal-metrics) and no-littering (00-core.el; compat comes with
 ;; it); ox-hugo (with tomelr), which test-safety needs to check what a
 ;; page of a site says about the notes it links to (SAFETY.org 1.4);
-;; pdf-tools, whose server test-bibliography checks is not built when
+;; pdf-tools, whose server test-document-viewers checks is not built when
 ;; the package is loaded (nothing is built here either); Magit, whose
 ;; commit buffers test-auto-commit checks wrap at 72 columns (07-git.el
 ;; sets that once Magit loads; added 2026-10-24, when the test skipped
