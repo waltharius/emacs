@@ -1,0 +1,171 @@
+;;; 419-philosophy-notes.el --- Philosophy note types (Denote) -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+;; Docs: ~/.emacs.d/function_helper.org::#menu-notes-philosophy
+
+;;; Commentary:
+;; Adds a dedicated submenu for creating philosophy notes, following the
+;; note taxonomy from the study plan (Zettelkasten adapted to philosophy).
+;;
+;; Five note types, each identified by a Denote *type* keyword:
+;;   literatura  - one note per source text (scaffolding: what it says, links)
+;;   pojęcie     - one atomic concept per note (definition, tensions, links)
+;;   myśliciel   - one philosopher per note (central project, interlocutors)
+;;   problem     - one problem per note (genesis, solutions, criticism)
+;;   mapa        - one map-of-content per phase (index linking period notes)
+;;
+;; Each note additionally gets an *epoch/tradition* keyword (starożytność,
+;; nowowżytność, ...) prompted with completion, matching the plan's
+;; "double keyword" scheme: type + epoch.
+;;
+;; Every note is created in the pks silo (`my-notes-pks').
+;;
+;; Access: C-c n  ->  l  (Philosophy submenu)  ->  l/p/m/b/i
+;;
+;; LOADING: this file must be loaded AFTER 212-transient.el (it appends an
+;; entry to `my/notes-menu'). Add to init.el:
+;;   (load (concat modules-dir "419-philosophy-notes.el"))
+;;
+;; Keyword strings are given in ASCII (pojęcie, myśliciel) on purpose:
+;; Denote sluggifies keywords to ASCII anyway, so passing them pre-sluggified
+;; keeps the filename and #+filetags deterministic.
+
+;;; Code:
+
+;; Bound with `let' in this module to put a note in one folder.
+;; Declared special here, because Denote may not be loaded yet when that
+;; `let' runs: the binding would then be lexical, and Denote, loading
+;; inside it, stops with "Defining as dynamic an already lexical var"
+;; (tests/test-declarations.el).
+(defvar denote-directory)
+
+(require 'transient)
+(require 'denote)
+
+;; ============================================================
+;; KEYWORDS: type + epoch/tradition
+;; ============================================================
+
+(defvar my/philosophy-type-keywords
+  '("literatura" "pojęcie" "myśliciel" "problem" "mapa")
+  "Denote *type* keywords for the five philosophy note types.
+One of these is added automatically by each creation command.")
+
+(defvar my/philosophy-epoch-keywords
+  '("starożytność" "średniowiecze" "nowożytność" "współczesność"
+    "analityczna" "kontynentalna")
+  "Denote *epoch/tradition* keywords offered as completion for the
+second keyword of a philosophy note.  Edit this list freely; it is only
+a completion source, not a fixed set (new keywords are accepted).")
+
+;; Register the type and epoch keywords with Denote so they show up in
+;; completion (e.g. `denote-rename-file-keywords') even before any note
+;; that uses them exists.  `denote-infer-keywords' handles the rest later.
+(dolist (kw (append my/philosophy-type-keywords my/philosophy-epoch-keywords))
+  (add-to-list 'denote-known-keywords kw))
+
+;; ============================================================
+;; CORE: create one philosophy note in the pks silo
+;; ============================================================
+
+(defun my/philosophy--create-note (type-keyword body)
+  "Create a philosophy note tagged TYPE-KEYWORD in the pks silo.
+
+Prompts for a title and for one or more epoch/tradition keywords
+(completion against `my/philosophy-epoch-keywords', comma-separated,
+optional).  TYPE-KEYWORD is always prepended, so the note carries at
+least the type keyword.  BODY, when non-nil, is inserted at the end of
+the new note as a minimal Org scaffold."
+  (let* ((title (read-string "Title: "))
+         ;; Only epoch/tradition (and any extra) keywords are asked for
+         ;; here; the type keyword is added automatically below.
+         (extra (seq-remove
+                 #'string-empty-p
+                 (completing-read-multiple
+                  "Epoch/tradition keywords (comma-separated, optional): "
+                  my/philosophy-epoch-keywords nil nil)))
+         (keywords (cons type-keyword extra))
+         ;; Bind denote-directory so the note lands in the pks silo,
+         ;; regardless of the global (root) denote-directory.
+         (denote-directory my-notes-pks))
+    (if (string-empty-p title)
+        (denote nil keywords)
+      (denote title keywords))
+    (when body
+      (save-excursion
+        (goto-char (point-max))
+        (insert body)
+        (save-buffer)))))
+
+;; ============================================================
+;; TYPE COMMANDS (minimal 1-2 heading scaffolds, content in Polish)
+;; ============================================================
+;; Each scaffold is one string written with \n only.  Until 2026-10-24
+;; the strings ran over several source lines, so the indentation of
+;; those lines went into every new note: a line of three spaces between
+;; the headings (found by the tests of this module).
+
+(defun my/philosophy-note-literatura ()
+  "Create a literature note (keyword: literatura) in the pks silo."
+  (interactive)
+  (my/philosophy--create-note
+   "literatura"
+   "\n* Streszczenie (moimi słowami)\n\n* Linki\n"))
+
+(defun my/philosophy-note-pojecie ()
+  "Create a concept note (keyword: pojęcie) in the pks silo."
+  (interactive)
+  (my/philosophy--create-note
+   "pojęcie"
+   "\n* Definicja (moimi słowami)\n\n* Skąd się wzięło / jak ewoluowało\n\n* Napięcia i krytyka\n\n* Powiązania\n# denote-link: pojęcia / problemy / myśliciele | hooki: nauka, egzystencja, polityka, moje projekty\n"))
+
+(defun my/philosophy-note-mysliciel ()
+  "Create a thinker note (keyword: myśliciel) in the pks silo."
+  (interactive)
+  (my/philosophy--create-note
+   "myśliciel"
+   "\n* Centralny projekt\n\n* Problem, na który odpowiada\n\n* Kluczowe ruchy i pojęcia\n\n* Komu odpowiada / kto odpowiada jemu\n\n* Powiązania\n"))
+
+(defun my/philosophy-note-problem ()
+  "Create a problem note (keyword: problem) in the pks silo."
+  (interactive)
+  (my/philosophy--create-note
+   "problem"
+   "\n* Geneza\n\n* Proponowane rozwiązania\n\n* Krytyka\n\n* Pytania otwarte\n\n* Powiązania\n"))
+
+(defun my/philosophy-note-mapa ()
+  "Create a map-of-content note (keyword: mapa) in the pks silo."
+  (interactive)
+  (my/philosophy--create-note
+   "mapa"
+   "\n* Wielkie pytania okresu\n\n* Postacie\n\n* Pojęcia i problemy do rozwinięcia\n\n* Linki\n"))
+
+;; ============================================================
+;; SUBMENU (C-c n l)
+;; ============================================================
+
+(transient-define-prefix my/philosophy-notes-menu ()
+  "Create philosophy notes — every note is saved in the pks silo."
+  ["Philosophy Notes — pks silo"
+   ["Create"
+    ("l" "Literature (literatura)" my/philosophy-note-literatura)
+    ("p" "Concept (pojęcie)"       my/philosophy-note-pojecie)
+    ("m" "Thinker (myśliciel)"     my/philosophy-note-mysliciel)
+    ("b" "Problem (problem)"       my/philosophy-note-problem)
+    ("i" "Map / MOC (mapa)"        my/philosophy-note-mapa)]
+   ["Navigation"
+    ("q" "Quit" transient-quit-one)]])
+
+;; ============================================================
+;; HOOK INTO THE MAIN NOTES MENU (C-c n)
+;; ============================================================
+;; Insert the philosophy submenu under "l", right after the "e" (Essay)
+;; entry in the Create column of `my/notes-menu' (defined in 212-transient).
+
+(with-eval-after-load '212-transient
+  (my/transient-append 'my/notes-menu "t"
+                       '("l" "Philosophy →" my/philosophy-notes-menu)))
+
+(provide '419-philosophy-notes)
+;;; 419-philosophy-notes.el ends here

@@ -1,10 +1,10 @@
-;;; test-editing.el --- ERT tests for 02-editing -*- lexical-binding: t; -*-
+;;; test-editing.el --- ERT tests for 102-editing -*- lexical-binding: t; -*-
 
-;; Tests: 02-editing
+;; Tests: 102-editing
 
 ;;; Commentary:
 
-;; 02-editing is mostly settings.  What the writing relies on is tested:
+;; 102-editing is mostly settings.  What the writing relies on is tested:
 ;; an apostrophe is not paired, double quotes and brackets are, in Org
 ;; too; M-Q joins the lines of each paragraph and
 ;; keeps paragraphs apart; the owner's keys (C-s save, C-f find, C-z
@@ -23,7 +23,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "02-editing")
+(my/test-load-modules "102-editing")
 
 (defun my/ed-test-type (text)
   "Type TEXT with self-inserting commands."
@@ -42,7 +42,7 @@ buffer (a commit message, a Markdown note) left a stray ' after it."
 
 (ert-deftest my/ed-test-quotes-and-brackets-paired ()
   "Double quotes and brackets are paired, in Org too, and typing the
-closing one steps over it -- the quoted phrase rule of 02b-bold-marker
+closing one steps over it -- the quoted phrase rule of 302b-bold-marker
 works with what is typed."
   (dolist (mode '(text-mode org-mode))
     (with-temp-buffer

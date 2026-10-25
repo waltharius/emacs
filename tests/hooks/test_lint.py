@@ -45,17 +45,17 @@ class Changelog(unittest.TestCase):
             return lint.check_changelog()
 
     def test_module_without_entry(self):
-        self.assertTrue(self.check(["modules/05-notes.el"]))
+        self.assertTrue(self.check(["modules/200-foundation/205-notes.el"]))
 
     def test_module_with_entry(self):
-        self.assertEqual([], self.check(["modules/05-notes.el", "changelog/2026-10.md"]))
+        self.assertEqual([], self.check(["modules/200-foundation/205-notes.el", "changelog/2026-10.md"]))
 
     def test_index_alone_is_no_entry(self):
         """Since 2026-10-20k the entry is in a month's file; CHANGELOG.md is the index."""
-        self.assertTrue(self.check(["modules/05-notes.el", "CHANGELOG.md"]))
+        self.assertTrue(self.check(["modules/200-foundation/205-notes.el", "CHANGELOG.md"]))
 
     def test_other_file_in_folder_is_no_entry(self):
-        self.assertTrue(self.check(["modules/05-notes.el", "changelog/notes.md"]))
+        self.assertTrue(self.check(["modules/200-foundation/205-notes.el", "changelog/notes.md"]))
 
     def test_nothing_staged(self):
         self.assertEqual([], self.check([]))
@@ -317,14 +317,14 @@ class Slots(unittest.TestCase):
         return (name + ".el", head + ";;; Commentary:\n;;; Code:\n")
 
     def test_one_per_slot(self):
-        self.assertEqual(lint.slot_problems([self.mod("03-spelling", "spelling"),
+        self.assertEqual(lint.slot_problems([self.mod("303-spelling", "spelling"),
                                              self.mod("51-jinx", "spelling", default="off")]), [])
 
     def test_two_starting(self):
-        problems = lint.slot_problems([self.mod("03-spelling", "spelling"),
+        problems = lint.slot_problems([self.mod("303-spelling", "spelling"),
                                        self.mod("51-jinx", "spelling")])
         self.assertEqual(len(problems), 1)
-        self.assertIn("03-spelling, 51-jinx", problems[0])
+        self.assertIn("303-spelling, 51-jinx", problems[0])
 
     def test_core_refused(self):
         self.assertTrue(lint.slot_problems([self.mod("02-x", "spelling", optional="no")]))
@@ -395,6 +395,26 @@ class Groups(unittest.TestCase):
     def test_row_without_file(self):
         problems = lint.group_problems({100, 200}, self.rows(), [self.mod("01-a")])
         self.assertEqual(problems, ["MODULES.org: 02-b has no file in modules/"])
+
+    def test_folders(self):
+        """With folders known: a module in the folder of its group, named
+        with its digit, passes; another folder, a flat file or a name
+        without the digit is refused."""
+        rows = [["101-a", "100"], ["202-b", "200"]]
+        good = {"101-a.el": "100-emacs", "202-b.el": "200-foundation"}
+        mods = [self.mod("101-a"), self.mod("202-b")]
+        self.assertEqual(lint.group_problems({100, 200}, rows, mods, good), [])
+        wrong = dict(good, **{"202-b.el": "100-emacs"})
+        problems = lint.group_problems({100, 200}, rows, mods, wrong)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("202-b is in modules/100-emacs", problems[0])
+        flat = dict(good, **{"101-a.el": ""})
+        self.assertIn("modules/.", lint.group_problems({100, 200}, rows, mods, flat)[0])
+        rows2 = [["01-a", "100"], ["202-b", "200"]]
+        problems = lint.group_problems({100, 200}, rows2, [self.mod("01-a"), self.mod("202-b")],
+                                       {"01-a.el": "100-emacs", "202-b.el": "200-foundation"})
+        self.assertEqual(len(problems), 1)
+        self.assertIn("01-a: the name begins with three digits", problems[0])
 
     def test_unknown_group_and_twice(self):
         rows = [["01-a", "100"], ["01-a", "100"], ["02-b", "900"]]

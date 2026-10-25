@@ -1,0 +1,412 @@
+;;; 420-transclusion.el --- Obsidian-style transclusion for Denote notes -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+
+;;; Commentary:
+;; Wizard-style transclusion: pick a note (Denote completion, or any file
+;; on disk), pick whole note / heading / paragraph, generate a stable
+;; anchor (CUSTOM_ID for headings, <<target>> for paragraphs), and insert
+;; both:
+;;   #+transclude: ...  -> live, editable in-buffer transclusion (org-transclusion)
+;;   #+INCLUDE: ...      -> static pair used only at export time (PDF/HTML/etc.)
+;;
+;; Access: C-c n i t  (Insert -> Transclusion submenu)
+;;
+;; LOADING: must load AFTER 212-transient.el (appends "t" entry to
+;; my/notes-insert-menu, same pattern as 419-philosophy-notes.el).
+;;
+;; Docs: ~/.emacs.d/function_helper.org::#menu-notes-transclusion
+
+;;; Code:
+
+(require 'org)
+(require 'denote)
+(require 'transient)
+(require 'cl-lib)
+(require 'seq)
+(require 'ol)
+
+(use-package org-transclusion
+  :ensure t
+  :after org
+  :custom
+  ;; Safer default: do not auto-transclude everything when opening a file
+  ;; with many #+transclude keywords — could be slow on large collections.
+  (org-transclusion-add-all-on-activate nil))
+
+;; ============================================================
+;; HELPER: slugify heading title for CUSTOM_ID
+;; ============================================================
+
+(defun my/--transclusion-slugify (title)
+  "Turn TITLE into a CUSTOM_ID-safe slug.
+Spaces become hyphens; non-alphanumeric characters are stripped.
+Falls back to a short random id if TITLE becomes empty after cleanup."
+  (let* ((slug (downcase (string-trim title)))
+         (slug (replace-regexp-in-string "[ \t]+" "-" slug))
+         (slug (replace-regexp-in-string "[^[:alnum:]-]" "" slug))
+         (slug (replace-regexp-in-string "-+" "-" slug))
+         (slug (string-trim slug "-" "-")))
+    (if (string-empty-p slug)
+        (format "note-%d" (random 100000))
+      slug)))
+
+;; ============================================================
+;; HELPER: collect headings from an Org file (display . position)
+;; ============================================================
+
+(defun my/--org-file-headings (file)
+  "Return a list of (DISPLAY . POSITION) for all headings in FILE.
+DISPLAY is prefixed with stars to show heading depth; a heading whose
+display occurs more than once gets its line number, so each can be
+chosen.
+
+Read by Org (`org-map-entries'), so what is offered is what Org calls
+a heading.  Until 2026-10-24 of two headings with the same title only
+the first could be chosen: the second display was the same string, and
+choosing it gave the first heading's position (found by the tests of
+this module)."
+  (let (headings)
+    (with-temp-buffer
+      (insert-file-contents file)
+      (let ((org-inhibit-startup t))
+        (delay-mode-hooks (org-mode)))
+      (org-map-entries
+       (lambda ()
+         (push (list (format "%s %s" (make-string (org-current-level) ?*)
+                             (org-get-heading t t t t))
+                     (point)
+                     (line-number-at-pos))
+               headings))))
+    (setq headings (nreverse headings))
+    (mapcar (lambda (entry)
+              (let ((display (nth 0 entry)))
+                (cons (if (> (seq-count (lambda (e) (equal (car e) display)) headings) 1)
+                          (format "%s  (line %d)" display (nth 2 entry))
+                        display)
+                      (nth 1 entry))))
+            headings)))
+
+(defun my/--transclusion-refuse-unsaved (file)
+  "Signal a `user-error' when a buffer visits FILE with unsaved changes.
+Headings and paragraphs are found in FILE as saved; in a buffer edited
+since, the same position is another place, and saving the anchor there
+would also save the unrelated edits.  Until 2026-10-24 both happened
+(found by the tests of this module)."
+  (let ((buffer (find-buffer-visiting file)))
+    (when (and buffer (buffer-modified-p buffer))
+      (user-error "%s has unsaved changes: save it first; nothing was written"
+                  (buffer-name buffer)))))
+
+;; ============================================================
+;; HELPER: title of an .org file (from #+title:)
+;; ============================================================
+
+(defun my/--org-title-of (file)
+  "Return #+title: of FILE, or its base filename if not found."
+  (with-temp-buffer
+    (insert-file-contents file nil 0 2000)
+    (goto-char (point-min))
+    (if (re-search-forward "^#\\+title:[ \t]*\\(.+\\)$" nil t)
+        (string-trim (match-string 1))
+      (file-name-base file))))
+
+;; ============================================================
+;; HELPER: ensure a heading has CUSTOM_ID; writes to disk if missing
+;; ============================================================
+
+(defun my/--ensure-custom-id (file heading-pos heading-title)
+  "Ensure the heading at HEADING-POS in FILE has a CUSTOM_ID property.
+Returns the CUSTOM_ID string (existing or newly generated).
+Modifies and SAVES FILE if a CUSTOM_ID has to be created — be aware
+this is a write side-effect on a file you did not directly open."
+  (my/--transclusion-refuse-unsaved file)
+  (with-current-buffer (find-file-noselect file)
+    (save-excursion
+      (goto-char heading-pos)
+      (org-back-to-heading t)
+      (let ((existing (org-entry-get (point) "CUSTOM_ID")))
+        (if existing
+            existing
+          ;; Unique in the file: two headings of the same title got the
+          ;; same CUSTOM_ID until 2026-10-24, and every transclusion of
+          ;; the second showed the first.
+          (let* ((taken (org-property-values "CUSTOM_ID"))
+                 (base (my/--transclusion-slugify heading-title))
+                 (new-id base)
+                 (n 1))
+            (while (member new-id taken)
+              (setq n (1+ n)
+                    new-id (format "%s-%d" base n)))
+            (org-set-property "CUSTOM_ID" new-id)
+            (save-buffer)
+            new-id))))))
+
+;; ============================================================
+;; PARAGRAPH MODE: extract, browse, and anchor a single paragraph
+;; ============================================================
+
+(defun my/--extract-paragraphs (file)
+  "Return a list of (TEXT . END-POSITION) for all paragraphs in FILE.
+Skips heading lines, property drawers, keyword lines (#+...), and
+blank lines. This is a simple line-based heuristic, not a full Org
+parser — tables, lists, and source blocks may be grouped imprecisely."
+  (let (paragraphs)
+    (with-temp-buffer
+      (insert-file-contents file)
+      (org-mode)
+      (goto-char (point-min))
+      (while (not (eobp))
+        (cond
+         ((or (looking-at "^\\*+[ \t]")
+              (looking-at "^[ \t]*:\\(PROPERTIES\\|END\\):")
+              (looking-at "^[ \t]*$")
+              (looking-at "^#\\+"))
+          (forward-line 1))
+         (t
+          (let ((beg (point)))
+            (forward-paragraph)
+            (let* ((end (point))
+                   (text (string-trim (buffer-substring-no-properties beg end))))
+              (unless (string-empty-p text)
+                (push (cons text end) paragraphs))))))))
+    (nreverse paragraphs)))
+
+(defun my/--random-alnum-string (length)
+  "Generate a random alphanumeric string of LENGTH characters."
+  (let ((chars "abcdefghijklmnopqrstuvwxyz0123456789"))
+    (apply #'string
+           (cl-loop repeat length
+                    collect (aref chars (random (length chars)))))))
+
+(defun my/--unique-paragraph-target (existing-targets)
+  "Generate a random paragraph target id not present in EXISTING-TARGETS."
+  (let (candidate)
+    (while (or (null candidate) (member candidate existing-targets))
+      (setq candidate (my/--random-alnum-string 7)))
+    candidate))
+
+(defun my/--existing-targets-in-file (file)
+  "Return a list of all <<target>> names already present in FILE."
+  (let (targets)
+    (with-temp-buffer
+      (insert-file-contents file)
+      (goto-char (point-min))
+      (while (re-search-forward "<<\\([^>]+\\)>>" nil t)
+        (push (match-string 1) targets)))
+    targets))
+
+(defun my/--pick-paragraph-in-file (file)
+  "Browse paragraphs of FILE one at a time in a preview window.
+n/p cycle through paragraphs, RET confirms the one shown, q/C-g cancels.
+Returns the target id string (existing or newly created), or nil if
+the user cancelled."
+  (my/--transclusion-refuse-unsaved file)
+  (let* ((paragraphs (my/--extract-paragraphs file))
+         (total (length paragraphs)))
+    (unless paragraphs
+      (user-error "No paragraphs found in %s" file))
+    (let* ((idx 0)
+           (preview-buf (get-buffer-create "*Transclusion Paragraph Preview*"))
+           (preview-win (display-buffer preview-buf
+                                         '(display-buffer-at-bottom
+                                           (window-height . 0.35))))
+           (confirmed nil)
+           (done nil))
+      (unwind-protect
+          (progn
+            (while (not done)
+              (with-current-buffer preview-buf
+                (erase-buffer)
+                (insert (format "Paragraph %d/%d — n=next p=prev RET=select q=cancel\n"
+                                (1+ idx) total))
+                (insert (make-string 60 ?-) "\n\n")
+                (insert (car (nth idx paragraphs))))
+              (with-selected-window preview-win
+                (goto-char (point-min)))
+              (let ((key (read-key)))
+                (cond
+                 ((eq key ?n) (setq idx (mod (1+ idx) total)))
+                 ((eq key ?p) (setq idx (mod (1- idx) total)))
+                 ((memq key '(13 return)) (setq done t confirmed t))
+                 ((memq key (list ?q 7)) (setq done t confirmed nil)))))
+            (when confirmed
+              (let* ((chosen (nth idx paragraphs))
+                     (end-pos (cdr chosen)))
+                (with-current-buffer (find-file-noselect file)
+                  (save-excursion
+                    (goto-char end-pos)
+                    (skip-chars-backward " \t\n")
+                    (if (looking-back "<<\\([^>]+\\)>>" (line-beginning-position))
+                        (match-string 1)
+                      (let ((new-id (my/--unique-paragraph-target
+                                     (my/--existing-targets-in-file file))))
+                        (insert (format " <<%s>>" new-id))
+                        (save-buffer)
+                        new-id)))))))
+        (when (window-live-p preview-win)
+          (delete-window preview-win))
+        (kill-buffer preview-buf)))))
+
+;; ============================================================
+;; INSERT HELPERS: build the transclude + include pair
+;; ============================================================
+
+(defun my/--transclusion-insert-pair (transclude-line include-line)
+  "Insert TRANSCLUDE-LINE and INCLUDE-LINE at point and expand the former.
+
+Leaves point after the inserted pair.  The previous version ended with
+`(goto-char (point-max))\=', which sent point to the end of the BUFFER
+rather than the end of what was just inserted -- so inserting a
+transclusion in the middle of a draft threw the cursor to the bottom of
+the file every time."
+  (let ((start (point)))
+    (insert transclude-line include-line)
+    (let ((end (point-marker)))
+      (goto-char start)
+      (org-transclusion-add)
+      (goto-char end))))
+
+(defun my/--transclusion-keyword (target description)
+  "Return a `#+transclude:' line linking to TARGET described by DESCRIPTION.
+Org's own `org-link-make-string': a title ending in `]' written into
+the brackets as it was ended the link early (until 2026-10-24)."
+  (concat "#+transclude: " (org-link-make-string target description) "\n"))
+
+(defun my/--transclusion-insert-whole (file title)
+  "Insert transclude + include pair for the WHOLE FILE with TITLE."
+  (my/--transclusion-insert-pair
+   (my/--transclusion-keyword (concat "file:" file) title)
+   (format "#+INCLUDE: \"%s\" :only-contents t\n" file)))
+
+(defun my/--transclusion-insert-heading (file title custom-id heading-title)
+  "Insert transclude + include pair for a HEADING (by CUSTOM-ID) in FILE."
+  (my/--transclusion-insert-pair
+   (my/--transclusion-keyword (format "file:%s::#%s" file custom-id)
+                              (format "%s — %s" title heading-title))
+   (format "#+INCLUDE: \"%s::#%s\" :only-contents t\n" file custom-id)))
+
+(defun my/--transclusion-insert-paragraph (file title target-id)
+  "Insert transclude + include pair for a PARAGRAPH (by TARGET-ID) in FILE."
+  (my/--transclusion-insert-pair
+   (my/--transclusion-keyword (format "file:%s::%s" file target-id)
+                              (format "%s — paragraph" title))
+   (format "#+INCLUDE: \"%s::%s\" :only-contents t\n" file target-id)))
+
+;; ============================================================
+;; MAIN WIZARD: pick source -> pick target -> insert transclude pair
+;; Docs: ~/.emacs.d/function_helper.org::#fn-my-denote-transclude-insert
+;; ============================================================
+
+(defun my/denote-transclude-insert ()
+  "Obsidian-style transclusion wizard.
+
+Steps:
+1. Choose source: a Denote note (title search) or any file on disk.
+2. Choose target: whole note, a heading, or a specific paragraph.
+   - Heading: CUSTOM_ID is generated from the title if missing, and
+     saved into the SOURCE file's PROPERTIES drawer.
+   - Paragraph: browse paragraphs one at a time (n/p/RET/q), a
+     <<target>> anchor is generated and saved if missing.
+3. Insert two lines at point in the CURRENT buffer:
+   - `#+transclude:' -> live in-buffer transclusion (org-transclusion)
+   - `#+INCLUDE:'    -> static pair used only at export time
+4. Immediately call `org-transclusion-add' so content is visible
+   right away.
+
+Warning: heading and paragraph modes WRITE to the source file on disk
+(adding CUSTOM_ID or <<target>>) if the anchor does not already exist.
+Commit your notes before heavy first use."
+  (interactive)
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Not in an org-mode buffer"))
+  (let* ((source-kind (completing-read "Source: " '("Denote note" "Any file on disk") nil t))
+         (file (if (string= source-kind "Denote note")
+                   (denote-file-prompt nil "Transclude which note: ")
+                 (read-file-name "Transclude which file: " nil nil t))))
+    (unless file
+      (user-error "No file selected"))
+    (let* ((file     (expand-file-name file))
+           (title    (my/--org-title-of file))
+           (headings (my/--org-file-headings file))
+           (choices  (append '("Whole note" "Paragraph") (mapcar #'car headings)))
+           (choice   (completing-read "Transclude: " choices nil t)))
+      (cond
+       ((string= choice "Whole note")
+        (my/--transclusion-insert-whole file title))
+       ((string= choice "Paragraph")
+        (let ((target-id (my/--pick-paragraph-in-file file)))
+          (if target-id
+              (my/--transclusion-insert-paragraph file title target-id)
+            (message "Paragraph selection cancelled"))))
+       (t
+        (let* ((pos (cdr (assoc choice headings)))
+               (heading-title (string-trim
+                                (replace-regexp-in-string
+                                 "  (line [0-9]+)\\'" ""
+                                 (replace-regexp-in-string "^\\*+[ \t]+" "" choice))))
+               (custom-id (my/--ensure-custom-id file pos heading-title)))
+          (my/--transclusion-insert-heading file title custom-id heading-title)))))))
+
+;; ============================================================
+;; SUB-MENU: Transclusion  (C-c n i t)
+;; Docs: ~/.emacs.d/function_helper.org::#menu-notes-transclusion
+;; ============================================================
+
+(transient-define-prefix my/transclusion-menu ()
+  "Obsidian-style transclusion for Denote notes and arbitrary files."
+  [["Insert"
+    ("a" "Add transclusion (wizard)" my/denote-transclude-insert)
+    ("A" "Add all in buffer"         org-transclusion-add-all)]
+   ["Manage"
+    ("g" "Refresh at point" org-transclusion-refresh)
+    ("r" "Remove at point"  org-transclusion-remove)
+    ("T" "Toggle mode"      org-transclusion-mode)]
+   ["Advanced"
+    ("o" "Open source at point" org-transclusion-open-source)
+    ("O" "Move to source"       org-transclusion-move-to-source)
+    ("e" "Live-sync edit"       org-transclusion-live-sync-start)
+    ("E" "Exit live-sync"       org-transclusion-live-sync-exit)
+    ("P" "Promote subtree"      org-transclusion-promote-subtree)
+    ("D" "Demote subtree"       org-transclusion-demote-subtree)]
+   [("q" "Quit" transient-quit-one)]])
+
+;; ============================================================
+;; HOOK INTO INSERT SUBMENU (C-c n i)
+;; ============================================================
+
+(with-eval-after-load '212-transient
+  (my/transient-append 'my/notes-insert-menu "d"
+                       '("t" "Transclusion →" my/transclusion-menu)))
+
+;; ============================================================
+;; EXPORT SAFETY
+;; ============================================================
+;; Two problems make exporting a buffer with live transclusions
+;; unreliable, and both are solved by collapsing them first.
+;;
+;; 1. Duplication.  `org-transclusion-add' inserts the source text into
+;;    the buffer, and the paired `#+INCLUDE:' pulls the same text again
+;;    at export time -- so an active transclusion exports twice.
+;;
+;; 2. Read-only text.  Transcluded regions carry a read-only property,
+;;    and the Org exporter is documented as being sensitive to it; see
+;;    nobiot/org-transclusion issue #86, where export ends with a
+;;    read-only complaint and produces no file.
+;;
+;; Removing transclusions only collapses the keyword lines back to
+;; their `#+transclude:' form, so nothing is lost and the buffer can be
+;; re-expanded with `A' afterwards.
+
+(defun my/transclusion--collapse-before-export (backend)
+  "Remove live transclusions before an export run.  BACKEND is ignored."
+  (ignore backend)
+  (when (bound-and-true-p org-transclusion-mode)
+    (org-transclusion-remove-all)))
+
+(add-hook 'org-export-before-processing-functions
+          #'my/transclusion--collapse-before-export)
+
+(provide '420-transclusion)
+;;; 420-transclusion.el ends here

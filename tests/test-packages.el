@@ -1,10 +1,10 @@
 ;;; test-packages.el --- ERT tests for installing packages and the no-littering report -*- lexical-binding: t; -*-
 
-;; Tests: 00-core
+;; Tests: 000-core
 
 ;;; Commentary:
 
-;; 00-core.el: the package list is refreshed once, before the first
+;; 000-core.el: the package list is refreshed once, before the first
 ;; installation of a session (a stale list names builds MELPA has
 ;; deleted); built-in packages may be upgraded from the archives; when
 ;; no-littering does not load, the start-up report says why.  No network: the refresh is stubbed.

@@ -1,10 +1,10 @@
 ;;; test-transient.el --- ERT tests for adding and removing menu entries -*- lexical-binding: t; -*-
 
-;; Tests: 12-transient
+;; Tests: 212-transient
 
 ;;; Commentary:
 
-;; 12-transient.el: modules put their entries into the shared menus and
+;; 212-transient.el: modules put their entries into the shared menus and
 ;; take them out when switched off (`my/transient-entries').  Taking an
 ;; entry out first checks that the key still runs the module's command
 ;; (`my/transient--layout-command'), so that another module's entry on
@@ -27,7 +27,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "04-denote" "05-notes" "12-transient")
+(my/test-load-modules "204-denote" "205-notes" "212-transient")
 
 (ert-deftest my/transient-test-layout-command-every-shape ()
   "The command of an entry is read in every shape transient has used."

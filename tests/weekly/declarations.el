@@ -7,7 +7,7 @@
 ;; checks calls against that list.  A declaration left behind after the
 ;; function moved or gained an argument silences the warning it exists
 ;; for: the call is checked against the wrong list (2026-10-25w: five
-;; stale ones, one left by the split of 26-maintenance the same day).
+;; stale ones, one left by the split of 826-maintenance the same day).
 ;;
 ;; Emacs has the check built in: `check-declare-directory' (library
 ;; check-declare) finds each declared file, the definition in it and
@@ -53,6 +53,13 @@
          ;; check-declare also shows its findings in a *Check Declarations
          ;; Warnings* buffer; in batch that is printed to standard error,
          ;; which hooks/check-weekly does not show.
+         ;; A declaration names a module by its file name, "205-notes";
+         ;; check-declare looks it up with `locate-library', so the
+         ;; folders of the groups go on the load path (since 2026-10-26c
+         ;; a module is not in the folder of the one it declares from).
+         (load-path (append (seq-filter #'file-directory-p
+                                        (directory-files modules t "\\`[0-9]"))
+                            load-path))
          (errors (let ((inhibit-message t)) (check-declare-directory modules)))
          (problems nil) (excused nil))
     ;; ERRORS: ((DECLARED-FILE (SOURCE-FILE FUNCTION REASON) ...) ...)

@@ -1,10 +1,10 @@
-;;; test-transclusion.el --- ERT tests for the transclusion wizard of 20-transclusion -*- lexical-binding: t; -*-
+;;; test-transclusion.el --- ERT tests for the transclusion wizard of 420-transclusion -*- lexical-binding: t; -*-
 
-;; Tests: 20-transclusion
+;; Tests: 420-transclusion
 
 ;;; Commentary:
 
-;; 20-transclusion.el inserts a `#+transclude:' and `#+INCLUDE:' pair
+;; 420-transclusion.el inserts a `#+transclude:' and `#+INCLUDE:' pair
 ;; for a whole note, a heading or a paragraph of another note, and for
 ;; the last two writes an anchor into that note (a CUSTOM_ID, a
 ;; <<target>>) and saves it: TESTING.org, *Every module tested*, part 3.
@@ -21,7 +21,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "20-transclusion")
+(my/test-load-modules "420-transclusion")
 (require 'org-transclusion)
 
 ;; ============================================================

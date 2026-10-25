@@ -8,7 +8,7 @@
 #     bash hooks/check-weekly compile     # only the byte compilation
 #     bash hooks/check-weekly declarations # only the declare-function check
 #     bash hooks/check-weekly modules     # only the module tests
-#     bash hooks/check-weekly 24-readwise # the module tests of one module
+#     bash hooks/check-weekly 424-readwise # the module tests of one module
 #
 # compile   every module byte-compiled after the whole configuration has
 #           loaded; a warning not in tests/weekly/compile-warnings.txt

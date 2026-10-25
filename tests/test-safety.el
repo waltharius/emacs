@@ -1,6 +1,6 @@
 ;;; test-safety.el --- ERT tests for the rules of SAFETY.org -*- lexical-binding: t; -*-
 
-;; Tests: 00-core 05-notes 46-blog
+;; Tests: 000-core 205-notes 746-blog
 
 ;;; Commentary:
 
@@ -33,9 +33,9 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-;; 16-org-export too: its filter of denote: links must be off during a
+;; 716-org-export too: its filter of denote: links must be off during a
 ;; site export, and only shows when it is loaded, as at a real start.
-(my/test-load-modules "05-notes" "46-blog" "16-org-export")
+(my/test-load-modules "205-notes" "746-blog" "716-org-export")
 
 (defun my/safety-test--git (dir &rest args)
   "Run git with ARGS in DIR; return its output, or signal on failure."

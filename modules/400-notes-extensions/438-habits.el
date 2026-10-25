@@ -1,0 +1,633 @@
+;;; 438-habits.el --- Habits: define, log without leaving the buffer, derive -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: yes
+;; MyPKS-Switch: my/habits-mode
+
+;;; Commentary:
+;; A habit is ticked off without leaving whatever is being written.
+;;
+;;   f9        log a habit as done today
+;;   C-u f9    log it for an earlier day
+;;   C-c n H   the menu
+;;
+;; WHAT A HABIT IS HERE.  org-habit's model: a TODO that never goes
+;; away.  Marking it DONE does not close it -- the repeater moves its
+;; SCHEDULED date forward and the completion is recorded in the LOGBOOK
+;; drawer.  The agenda then draws a consistency graph from those
+;; records.
+;;
+;; So habits are not created each time they are done.  They are defined
+;; once, with `my/habit-new', and afterwards only logged.  That is what
+;; `my/habit-log' does, and why it is a completion prompt rather than a
+;; text entry: the answer already exists.
+;;
+;; BINARY ONLY.  "Did I do it today" is what this module answers.
+;; Quantities -- hours slept, pages read, a wellbeing score -- belong in
+;; the journal front matter (405b-journal-metrics.el), which keeps
+;; numbers.  Putting a number into a habit stores a tick and loses the
+;; number; putting a tick into the metrics loses the streak.  Neither
+;; conversion is recoverable, so the boundary is worth keeping sharp.
+;;
+;; DERIVED HABITS.  `my/habit-derive' rewrites a habit's LOGBOOK from
+;; something already recorded elsewhere -- for the journal, from the
+;; dates in the file names of the journal silo.  The file names are the
+;; truth; the LOGBOOK is a cache, rewritten whole and never edited in
+;; place.  Same rule as hub membership in 333-denote-hubs.el, and for the
+;; same reason: a second copy of a fact drifts from the first.
+;;
+;; RELATION TO OTHER MODULES
+;; - 437-tasks.el is required in practice, not in code: this module adds
+;;   its file to the agenda through `my/tasks-agenda-file-functions',
+;;   lives in that module's planner folder, and appends to its menu.  Without it the habit file is not in the agenda, so
+;;   no graphs are drawn, and the commands still work.
+;; - 437-tasks.el also sets `org-log-done' and `org-log-into-drawer',
+;;   which org-habit needs.  Set here as well, because a habit file
+;;   without logging records nothing and the failure is silent.
+;; - 205-notes.el supplies `my/journal-file-date' for the journal
+;;   derivation.  Absent, that one command reports why and does nothing.
+;; - 212-transient.el, via `my/transient-append'.
+;;
+;; Docs: ~/.emacs.d/function_helper.org::#habits
+
+;;; Code:
+
+(require 'org)
+(require 'org-capture)
+(require 'cl-lib)
+(require 'subr-x)
+(require 'seq)
+;; Its menu is a transient prefix: the macro must be defined before
+;; this file is read, whatever loaded first (2026-10-22, weekly test
+;; `alone': 'void-function transient-define-prefix' with transient 0.13).
+(require 'transient)
+
+(declare-function my/journal-file-date "205-notes" (file))
+
+;; ============================================================
+;; OPTIONS
+;; ============================================================
+
+(defgroup my/habits nil
+  "Binary habit tracking on top of org-habit."
+  :tag "Habits"
+  :group 'mypks-tasks)
+
+(defcustom my/habits-file "habits.org"
+  "File holding every habit.
+Relative to the planner folder (`my/tasks-directory' of 437-tasks.el,
+`~/projects/planner/' without it), or absolute.  See `my/habits--file'.
+
+One file, not one per habit and not spread through the hubs: the point
+of a habit list is that it is read in one go, and org-habit draws its
+graphs from the agenda regardless of which file an entry came from."
+  :type 'file
+  :group 'my/habits)
+
+(defun my/habits--file ()
+  "Return the absolute name of `my/habits-file'."
+  (expand-file-name my/habits-file
+                    (if (boundp 'my/tasks-directory)
+                        my/tasks-directory
+                      "~/projects/planner/")))
+
+(defcustom my/habits-heading "Habits"
+  "Top-level heading in `my/habits-file' that habits live under."
+  :type 'string
+  :group 'my/habits)
+
+(defcustom my/habits-repeaters
+  '(("every day"          . ".+1d")
+    ("every day, 3 days grace" . ".+1d/3d")
+    ("every 2 days"       . ".+2d")
+    ("every week"         . ".+1w")
+    ("every week, 10 days grace" . ".+1w/10d")
+    ("every month"        . ".+1m"))
+  "Repeat periods offered when defining a habit.
+
+`.+' and not `+': `.+1d' schedules the next occurrence one day after
+it was actually done, `+1d' one day after it was previously due.  For
+a habit the first is what is meant -- missing three days should not
+leave three occurrences waiting.
+
+The `/Nd' suffix is the grace period: the habit turns red only after
+that many days, so an every-day habit with three days of grace stays
+green through a normal week and only complains when the week was not
+normal."
+  :type '(alist :key-type string :value-type string)
+  :group 'my/habits)
+
+(defcustom my/habits-capture-key "h"
+  "Key of the habit template inside `org-capture-templates'.
+Takes effect at once."
+  :type 'string
+  :set (my/settings-apply-on-set #'my/habits--register-template)
+  :group 'my/habits)
+
+(defcustom my/habits-log-binding "<f9>"
+  "Global key running `my/habit-log', or nil for none.
+
+Unmodified, for the same reason as the task key: a habit gets logged
+when it is remembered, which is rarely a moment with both hands free.
+Takes effect at once."
+  :type '(choice string (const nil))
+  :set (my/settings-apply-on-set #'my/habits--apply-binding)
+  :group 'my/habits)
+
+(defcustom my/habits-derived-cap 40
+  "How many completions a derived LOGBOOK keeps, newest first.
+
+`org-habit-parse-todo' stops after `org-habit-preceding-days' plus
+`org-habit-following-days' matches, 28 by default, and reads them from
+the top of the drawer downwards.  Writing ten years of journal dates
+into a drawer would therefore add nothing to the graph and a great deal
+to the parse.  A small margin above the default is kept so that raising
+`org-habit-preceding-days' a little does not silently truncate the
+graph."
+  :type 'integer
+  :group 'my/habits)
+
+(defcustom my/habits-derivations
+  '(("journal entry" . my/habits--journal-dates))
+  "Habits whose LOGBOOK is computed instead of typed.
+
+Each entry maps a habit headline to a function of no arguments
+returning a list of \"YYYY-MM-DD\" strings, newest first."
+  :type '(alist :key-type string :value-type function)
+  :group 'my/habits)
+
+;; ============================================================
+;; ORG-HABIT
+;; ============================================================
+;; `org-habit' is part of Org but not loaded by default.  Loading it
+;; here rather than through `org-modules' keeps the dependency in the
+;; module that needs it: `org-modules' is a single list that every
+;; module would otherwise want to edit.
+
+(with-eval-after-load 'org
+  (require 'org-habit)
+  ;; Far enough right that a headline of normal length is not
+  ;; overwritten -- the graph is drawn over whatever is at that column.
+  (setq org-habit-graph-column 50)
+  (setq org-habit-preceding-days 21)
+  (setq org-habit-following-days 7)
+  ;; Habits on today's line only.  Repeated across a week's agenda they
+  ;; are seven copies of one row, and the graph is drawn relative to
+  ;; today in every copy anyway.
+  (setq org-habit-show-habits-only-for-today t))
+
+;; org-habit reads its history from state-change lines inside the
+;; entry, so without logging there is nothing to read and the graph is
+;; empty for reasons nothing reports.  437-tasks.el sets both as well;
+;; repeated here so that this module is correct on its own.
+(setq org-log-done 'time)
+(setq org-log-into-drawer t)
+
+;; ============================================================
+;; THE FILE
+;; ============================================================
+
+(defun my/habits--file-template ()
+  "Return the initial contents of `my/habits-file'."
+  (concat
+   "#+title: Habits\n"
+   "#+category: habit\n"
+   "#+startup: overview\n"
+   "#+todo: TODO | DONE\n"
+   "\n"
+   "* " my/habits-heading "\n"
+   "Binary habits: done or not done on a given day.\n"
+   "Quantities belong in the journal front matter, not here.\n"))
+
+(defun my/habits--ensure-file ()
+  "Create `my/habits-file' with its heading when it does not exist."
+  (let ((file (my/habits--file)))
+    (unless (file-exists-p file)
+      (make-directory (file-name-directory file) t)
+      (with-temp-file file
+        (insert (my/habits--file-template)))
+      (message "Created %s" file))))
+
+;;;###autoload
+(defun my/habits-open ()
+  "Open `my/habits-file', creating it if necessary."
+  (interactive)
+  (my/habits--ensure-file)
+  (find-file (my/habits--file)))
+
+(defun my/habits--buffer ()
+  "Return a buffer visiting `my/habits-file'."
+  (my/habits--ensure-file)
+  (find-file-noselect (my/habits--file)))
+
+;; ============================================================
+;; FINDING HABITS
+;; ============================================================
+
+(defun my/habits--entries ()
+  "Return an alist of (HEADLINE . MARKER) for every habit.
+
+A habit is an entry with `:STYLE: habit', wherever it sits: entries
+outside `my/habits-file' are found too, because `org-agenda-files' is
+what org-habit itself reads and a habit filed elsewhere is still a
+habit."
+  (let (found)
+    (dolist (file (delete-dups
+                   (append (list (my/habits--file))
+                           (when (boundp 'org-agenda-files) org-agenda-files))))
+      (when (file-exists-p file)
+        (with-current-buffer (find-file-noselect file)
+          (org-with-wide-buffer
+           (goto-char (point-min))
+           (while (re-search-forward org-heading-regexp nil t)
+             (when (equal "habit" (org-entry-get (point) "STYLE"))
+               (push (cons (org-no-properties
+                            (nth 4 (org-heading-components)))
+                           (point-marker))
+                     found)))))))
+    (nreverse found)))
+
+(defun my/habits--read (&optional prompt)
+  "Prompt for a habit and return its marker."
+  (let ((entries (my/habits--entries)))
+    (unless entries
+      (user-error "No habits defined yet -- create one with `my/habit-new'"))
+    (cdr (assoc (completing-read (or prompt "Habit: ")
+                                 (mapcar #'car entries) nil t)
+                entries))))
+
+;; ============================================================
+;; DEFINING A HABIT
+;; ============================================================
+
+(defvar my/habits--pending-repeat nil
+  "Repeater chosen for the habit currently being captured.")
+
+(defun my/habits--capture-template ()
+  "Return the capture template for a new habit."
+  (concat "* TODO %^{Habit}"
+          "\nSCHEDULED: "
+          (format-time-string "<%Y-%m-%d %a ")
+          my/habits--pending-repeat ">"
+          "\n:PROPERTIES:"
+          "\n:STYLE:    habit"
+          "\n:CREATED:  " (format-time-string "[%Y-%m-%d %a %H:%M]")
+          "\n:END:"
+          "\n%?"))
+
+(defun my/habits--capture-target ()
+  "Put point on `my/habits-heading' in `my/habits-file'."
+  (my/habits--ensure-file)
+  (set-buffer (org-capture-target-buffer (my/habits--file)))
+  (widen)
+  (goto-char (point-min))
+  (if (let ((regexp (format org-complex-heading-regexp-format
+                            (regexp-quote my/habits-heading)))
+            (found nil))
+        ;; Top level only, as the option says: a habit further down
+        ;; may carry the same word, and a new habit filed under it
+        ;; became its child (until 2026-10-24, as in 437-tasks).
+        (while (and (not found) (re-search-forward regexp nil t))
+          (setq found (save-excursion (beginning-of-line) (looking-at-p "\\* "))))
+        found)
+      (goto-char (line-beginning-position))
+    (goto-char (point-max))
+    (unless (bolp) (insert "\n"))
+    (insert "* " my/habits-heading "\n")
+    (forward-line -1)))
+
+(defvar my/habits-mode)
+
+(defun my/habits--register-template ()
+  "Register the habit template under `my/habits-capture-key'.
+Only while `my/habits-mode' is on; otherwise the template is removed."
+  (if (bound-and-true-p my/habits-mode)
+      (my/settings-capture-template
+       (list my/habits-capture-key "Habit"
+             'entry
+             '(function my/habits--capture-target)
+             '(function my/habits--capture-template)
+             :empty-lines 1))
+    (my/settings-capture-template-remove '(function my/habits--capture-target))))
+
+;;;###autoload
+(defun my/habit-new ()
+  "Define a new habit.
+
+Asks how often it repeats, then opens a capture buffer for the name
+and, optionally, a line about what counts as doing it -- which is worth
+writing down, because \"did I exercise today\" stops being answerable
+the week the answer is \"sort of\"."
+  (interactive)
+  (my/habits--ensure-file)
+  (let* ((labels (mapcar #'car my/habits-repeaters))
+         (answer (completing-read "Repeats: " labels nil t nil nil
+                                  (car labels))))
+    (setq my/habits--pending-repeat
+          (cdr (assoc answer my/habits-repeaters)))
+    (when (boundp 'my/capture-origin-window)
+      (setq my/capture-origin-window (selected-window)))
+    (org-capture nil my/habits-capture-key)))
+
+;; ============================================================
+;; THE LOGBOOK
+;; ============================================================
+;; org-habit reads a habit's history from state-change lines inside the
+;; entry.  `org-habit-parse-todo' matches this shape:
+;;
+;;   - State "DONE"       from "TODO"       [2026-08-30 sob 00:00]
+;;
+;; and stops after `org-habit-preceding-days' plus
+;; `org-habit-following-days' matches, reading from the top of the
+;; drawer downwards while `org-log-states-order-reversed' holds its
+;; default.  Newest first, therefore, in everything written here.
+;;
+;; The lines are written directly rather than by letting `org-todo' log
+;; them.  `org-add-log-setup' defers the write to `post-command-hook',
+;; which is after this command has returned -- so a `save-buffer' in the
+;; command would save the file before the line existed, and the file
+;; would sit modified until something else saved it.  Writing the line
+;; here keeps the whole operation inside one command, at the cost of
+;; owning one line format, which this module owns anyway for derived
+;; habits.
+
+(defun my/habits--logbook-line (date)
+  "Return a LOGBOOK line recording DATE as a completion."
+  (let ((time (org-time-string-to-time (concat "<" date ">"))))
+    (format "- State \"DONE\"       from \"TODO\"       %s"
+            (format-time-string "[%Y-%m-%d %a 00:00]" time))))
+
+(defun my/habits--logbook-bounds ()
+  "Return (BEG . END) of the LOGBOOK drawer of the entry at point, or nil.
+Point must be on the headline."
+  (save-excursion
+    (let ((end (org-entry-end-position)))
+      (when (re-search-forward "^[ \t]*:LOGBOOK:[ \t]*$" end t)
+        (let ((beg (line-beginning-position)))
+          (when (re-search-forward "^[ \t]*:END:[ \t]*$" end t)
+            (cons beg (1+ (line-end-position)))))))))
+
+(defun my/habits--write-logbook (lines)
+  "Replace the LOGBOOK of the entry at point with LINES.
+Point must be on the headline.  An empty LINES removes the drawer."
+  (let ((bounds (my/habits--logbook-bounds)))
+    (when bounds
+      (delete-region (car bounds) (cdr bounds))))
+  (when lines
+    (save-excursion
+      (org-end-of-meta-data t)
+      (insert ":LOGBOOK:\n" (string-join lines "\n") "\n:END:\n"))))
+
+(defun my/habits--logbook-lines-at-point ()
+  "Return the LOGBOOK lines of the entry at point, in order."
+  (let ((bounds (my/habits--logbook-bounds)))
+    (when bounds
+      (seq-remove
+       (lambda (line)
+         (string-match-p "\\`[ \t]*:\\(LOGBOOK\\|END\\):[ \t]*\\'" line))
+       (split-string (buffer-substring-no-properties (car bounds) (cdr bounds))
+                     "\n" t)))))
+
+;; ============================================================
+;; LOGGING A HABIT
+;; ============================================================
+
+;;;###autoload
+(defun my/habit-log (&optional arg)
+  "Mark a habit done, without leaving the current buffer.
+
+Asks which habit, records the completion at its own location, moves
+the repeater forward and returns.  Nothing is closed and nothing
+disappears: the habit reappears when it is next due.
+
+With prefix ARG, asks for a day instead of using today.  Habits are
+remembered in the morning about the evening before at least as often
+as they are logged on the spot, and back-dating shifts the repeater
+from that day rather than from today -- so logging yesterday's run for
+a daily habit leaves it due today, not tomorrow.
+
+A habit has to exist before it can be logged; org-habit's model is a
+TODO that never goes away, defined once and afterwards only marked.
+With none defined, this offers to define one rather than reporting a
+command the user would then have to go and find."
+  (interactive "P")
+  (if (null (my/habits--entries))
+      (when (y-or-n-p "No habits defined yet.  Define one now? ")
+        (my/habit-new))
+    (my/habits--log-1 arg)))
+
+(defun my/habits--log-1 (arg)
+  "Body of `my/habit-log', with at least one habit known to exist."
+  (let* ((marker (my/habits--read "Log habit: "))
+         (time (if arg (org-read-date nil t) (current-time)))
+         (date (format-time-string "%Y-%m-%d" time))
+         headline already)
+    (org-with-point-at marker
+      (org-back-to-heading t)
+      (setq headline (org-no-properties (nth 4 (org-heading-components))))
+      (let ((existing (my/habits--logbook-lines-at-point))
+            (line (my/habits--logbook-line date)))
+        (if (member line existing)
+            (setq already t)
+          ;; Logging is suppressed so that org writes nothing from
+          ;; `post-command-hook'; the repeater still moves, which is the
+          ;; part of `org-todo' that is wanted here.  `org-today' is
+          ;; overridden because a `.+' repeater shifts from today, and
+          ;; today is not necessarily the day being logged.
+          (let ((org-log-done nil)
+                (org-log-repeat nil))
+            (cl-letf (((symbol-function 'org-today)
+                       (lambda () (my/date-day-number time))))
+              (org-todo 'done)))
+          (org-back-to-heading t)
+          (my/habits--write-logbook (cons line existing))
+          (save-buffer))))
+    (message (if already
+                 "%s was already logged for %s"
+               "Logged: %s (%s)")
+             headline date)))
+
+;;;###autoload
+(defun my/habit-log-for-date ()
+  "Mark a habit done on a day chosen at the prompt."
+  (interactive)
+  (my/habit-log t))
+
+;;;###autoload
+(defun my/habit-goto ()
+  "Open the habit file at a chosen habit."
+  (interactive)
+  (let ((marker (my/habits--read "Go to habit: ")))
+    (switch-to-buffer (marker-buffer marker))
+    (widen)
+    (goto-char marker)
+    (org-fold-show-entry)))
+
+;; ============================================================
+;; DERIVED HABITS
+;; ============================================================
+;; The LOGBOOK is rewritten whole from a list of dates.  Never merged
+;; with what is already there: a merge would have to decide what to do
+;; about a date the source no longer reports, and there is no honest
+;; answer -- the source is the truth, so anything else in the drawer is
+;; stale by definition.
+
+(defun my/habits--journal-dates ()
+  "Return the dates of every journal note, newest first.
+
+Read from file names through `my/journal-file-date' (205-notes.el),
+which tests the `journal' keyword and then the date -- so a journal
+note that was retitled still counts, and a note in another silo with a
+date in its title does not."
+  (unless (and (fboundp 'my/journal-file-date) (boundp 'my-notes-journal))
+    (user-error "205-notes.el is not loaded, cannot read the journal silo"))
+  (sort (delq nil
+              (mapcar #'my/journal-file-date
+                      (my/notes-files my-notes-journal "\\.org\\'")))
+        #'string>))
+
+(defun my/habits--set-scheduled (date repeat)
+  "Set SCHEDULED of the entry at point to the day after DATE, with REPEAT.
+The day after in calendar days (`my/date-add-days', 000-core.el): until
+2026-10-25 it was midnight plus 86400 seconds, still the same date on
+the day summer time ends, so a habit derived that day was due again the
+same day."
+  (let ((org-log-reschedule nil))
+    (org-schedule nil (my/date-add-days date 1))
+    ;; `org-schedule' writes a plain timestamp; the repeater has to be
+    ;; put back, or `org-habit-parse-todo' rejects the entry outright
+    ;; and the habit stops being a habit.
+    (save-excursion
+      (org-back-to-heading t)
+      (let ((end (org-entry-end-position)))
+        (when (re-search-forward
+               (concat org-scheduled-string " *<\\([^>]*\\)>") end t)
+          (unless (string-match-p "[.+]\\+" (match-string 1))
+            (replace-match (concat (match-string 1) " " repeat) t t nil 1)))))))
+
+;;;###autoload
+(defun my/habit-derive (&optional name)
+  "Rebuild a derived habit's LOGBOOK from its source.
+
+NAME defaults to a prompt over `my/habits-derivations'.  The habit must
+already exist -- this command fills in a history, it does not invent a
+habit to hang one on.
+
+Safe to run repeatedly: the drawer is replaced, not appended to."
+  (interactive)
+  (let* ((names (mapcar #'car my/habits-derivations))
+         (name (or name
+                   (if (= (length names) 1)
+                       (car names)
+                     (completing-read "Derive: " names nil t))))
+         (source (cdr (assoc name my/habits-derivations)))
+         (marker (or (cdr (assoc name (my/habits--entries)))
+                     (user-error
+                      "No habit called `%s' -- create it first with `my/habit-new'"
+                      name)))
+         (dates (funcall source)))
+    (unless dates
+      (user-error "Source for `%s' reported no dates" name))
+    (let ((kept (seq-take dates my/habits-derived-cap))
+          (repeat nil))
+      (org-with-point-at marker
+        (org-back-to-heading t)
+        (setq repeat
+              (or (org-get-repeat (org-entry-get (point) "SCHEDULED"))
+                  ".+1d"))
+        (my/habits--write-logbook (mapcar #'my/habits--logbook-line kept))
+        (my/habits--set-scheduled (car kept) repeat)
+        (save-buffer))
+      (message "%s: %d date(s) recorded of %d found"
+               name (length kept) (length dates)))))
+
+;; ============================================================
+;; AGENDA
+;; ============================================================
+;; 437-tasks.el owns `org-agenda-files' and asks the functions in
+;; `my/tasks-agenda-file-functions'.  Joining that way rather than
+;; setting the variable keeps the ownership intact: this module never
+;; has to know what else is in the agenda.  It used to add its file to
+;; `my/tasks-extra-agenda-files', the user's option, where it was saved
+;; as an absolute path the next time the option was saved -- and then
+;; read from the old notes folder after a move, the habits shown twice.
+
+(defun my/habits--agenda-files ()
+  "Return the habit file, for the agenda."
+  (list (my/habits--file)))
+
+
+;; ============================================================
+;; MENU
+;; ============================================================
+
+(transient-define-prefix my/habits-menu ()
+  "Habits."
+  [["Log"
+    ("l" "Log habit done"       my/habit-log)
+    ("L" "Log for another day"  my/habit-log-for-date)]
+   ["Define"
+    ("n" "New habit"            my/habit-new)
+    ("d" "Rebuild derived"      my/habit-derive)]
+   ["View"
+    ("f" "Open habits file"     my/habits-open)
+    ("g" "Go to habit"          my/habit-goto)
+    ("a" "Agenda"               org-agenda)]
+   [("q" "Quit" transient-quit-one)]])
+
+;; Two ways in.  "H" on the main menu, anchored on "x", which belongs
+;; to 212-transient itself; and inside the tasks menu when that module is
+;; present, because habits and tasks are read together.
+(defconst my/habits--menu-entries
+  '((append my/notes-menu "x" ("H" "Habits →" my/habits-menu))
+    (append my/tasks-menu "U" ("h" "Habits →" my/habits-menu)))
+  "Menu entries of this module, for `my/transient-entries'.")
+
+;; ============================================================
+;; KEYBINDING
+;; ============================================================
+
+(defun my/habits--apply-binding ()
+  "Bind `my/habits-log-binding' to `my/habit-log' while the module is on."
+  (my/settings-bind-key #'my/habit-log
+                        (and (bound-and-true-p my/habits-mode)
+                             my/habits-log-binding)))
+
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; `my/habits-mode' is this module's switch (module contract, rule 12).
+;;   on   the habit template in the capture menu, the log key
+;;        (`my/habits-log-binding', F9), the habit file in the agenda
+;;        (through 437-tasks.el's `my/tasks-agenda-file-functions'), "H"
+;;        in the main menu and "h" in the tasks menu
+;;   off  none of that
+;; org-habit and its display settings stay loaded either way: they are
+;; Org's own, and only change how entries marked as habits are drawn.
+;; The habit file, in the planner, stays in the automatic commits with
+;; it.  Customize saves the position in this machine's settings
+;; (M-x customize-option RET my/habits-mode).
+
+(define-minor-mode my/habits-mode
+  "Habits as a module: the template, F9, the habit file in the agenda, menus.
+Turned off, none of them; the commands remain for M-x.  Customize saves
+the position in this machine's settings."
+  :global t
+  :init-value t
+  :group 'my/habits
+  (with-eval-after-load '437-tasks
+    (if my/habits-mode
+        (add-hook 'my/tasks-agenda-file-functions #'my/habits--agenda-files)
+      (remove-hook 'my/tasks-agenda-file-functions #'my/habits--agenda-files))
+    (when (fboundp 'my/tasks-update-agenda-files)
+      (my/tasks-update-agenda-files)))
+  (my/habits--register-template)
+  (my/habits--apply-binding)
+  (with-eval-after-load '212-transient
+    (when (fboundp 'my/transient-entries)
+      (my/transient-entries my/habits-mode my/habits--menu-entries))))
+
+(my/habits-mode (if my/habits-mode 1 -1))
+
+(provide '438-habits)
+;;; 438-habits.el ends here

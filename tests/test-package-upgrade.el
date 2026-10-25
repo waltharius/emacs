@@ -1,10 +1,10 @@
-;;; test-package-upgrade.el --- ERT tests for upgrading packages with a copy, 49-packages -*- lexical-binding: t; -*-
+;;; test-package-upgrade.el --- ERT tests for upgrading packages with a copy, 149-packages -*- lexical-binding: t; -*-
 
-;; Tests: 49-packages
+;; Tests: 149-packages
 
 ;;; Commentary:
 
-;; 49-packages.el upgrades the installed packages after copying the
+;; 149-packages.el upgrades the installed packages after copying the
 ;; package folder, and puts such a copy back.  No network and no real
 ;; package: a package folder in a temporary directory, package.el's
 ;; lists filled by hand, the refresh and `package-upgrade' stood in for
@@ -22,7 +22,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "12-transient" "27-denote-identifiers" "26-maintenance" "49-packages")
+(my/test-load-modules "212-transient" "227-denote-identifiers" "826-maintenance" "149-packages")
 
 ;; ============================================================
 ;; FIXTURE

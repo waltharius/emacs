@@ -38,8 +38,9 @@ rule a check can hold:
 
 * Groups
 One folder per group, as Doom Emacs keeps its modules in category
-folders; file names keep the group's hundred (=modules/300-notes-core/305-notes.el=),
-so that a file names its group outside its folder too.  Every full
+folders; file names keep the group's digit before the old number
+(=modules/200-foundation/205-notes.el=, 05-notes until 2026-10-26c), so
+that a file names its group outside its folder too.  Every full
 name stays unique: a feature name is global in Emacs.
 
 A module goes in the group of the *first* question answered yes:
@@ -59,9 +60,9 @@ A module goes in the group of the *first* question answered yes:
 Nine groups.  Decided 2026-10-25: eight of them, English names, 700
 Output added to the owner's first seven, slots from the start.
 Decided 2026-10-25y: the ninth, 000, for the loader alone.  Every module, those of 100 included,
-uses 00-core -- =my/var-file=, the settings, the silos -- and nothing
+uses 000-core -- =my/var-file=, the settings, the silos -- and nothing
 is under it; in 200 it stood above 100 and every module of 100 broke
-rule 2 against it (01-ui, 02-editing, 14-typing-analytics: hard uses,
+rule 2 against it (101-ui, 102-editing, 114-typing-analytics: hard uses,
 found 2026-10-25 by the module graph).  Nothing but the loader goes in
 000.
 
@@ -72,72 +73,76 @@ decided by 2026-10-25 ("the rest OK", with the changes noted).  /Plan/:
 
 | Module                | Group | Plan                    | Status   | Note                                                                 |
 |-----------------------+-------+-------------------------+----------+----------------------------------------------------------------------|
-| 00-core               |   000 | keep                    | decided  | the loader, settings, silos; 2026-10-25y: in 000, under every group  |
-| 01-ui                 |   100 | keep                    | decided  | 2026-10-25: sessions and completion stay in 100 (Emacs); the look goes to 500 (Look).  Split 2026-10-25zc: the frame's bars to 01b-frame-bars, the Org block display (quote faces, block-marker symbols) to 11-org-appearance, beside org-modern's matching setting.  The mode line stays: it shows the deletion warning of SAFETY.org 2.1, which must not depend on an optional look module |
-| 01b-frame-bars        |   500 | keep                    | decided  | 2026-10-25zc: tool bar and scroll bar off, menu bar on, again after a desktop restore; optional |
-| 02-editing            |   100 | keep                    | decided  |                                                                      |
-| 02b-bold-marker       |   300 | keep                    | decided  |                                                                      |
-| 03-spelling           |   300 | keep                    | decided  | slot =spelling=; a jinx module would fill it instead                 |
-| 03b-fonts             |   500 | keep                    | decided  |                                                                      |
-| 04-denote             |   200 | keep                    | decided  |                                                                      |
-| 05-notes              |   200 | keep                    | decided  | 2026-10-25: core (cannot be turned off) and needed by 08, 12 and 23 |
-| 05b-journal-metrics   |   400 | keep                    | decided  | 2026-10-25: an extension of the notes core, kept apart from 05 so that it can be off and its fields changed without touching 05; fields to be set from the settings menu, kept locally (BACKLOG, /Journal metrics configurable/) |
-| 06-capture            |   300 | keep                    | decided  |                                                                      |
-| 07-git                |   200 | keep                    | decided  | automatic commits of everything                                      |
-| 08-keybindings        |   200 | keep                    | decided  |                                                                      |
-| 09-theme              |   500 | keep                    | decided  |                                                                      |
-| 10-visual-fill        |   500 | keep                    | decided  |                                                                      |
-| 11-org-appearance     |   500 | keep                    | decided  |                                                                      |
-| 12-transient          |   200 | keep                    | decided  |                                                                      |
-| 13-centered-writing   |   300 | keep                    | decided  | the writing mode, used daily                                         |
-| 14-typing-analytics   |   100 | keep                    | decided  |                                                                      |
-| 15-workspace          |   800 | keep                    | decided  |                                                                      |
-| 16-org-export         |   700 | keep                    | decided  |                                                                      |
-| 17-bibliography       |   400 | keep                    | decided  | 2026-10-25: two modules, by package: citar (citations, CSL, references from any .bib) and Zotero (what only Zotero gives: the attachments folder, the Zotero menu); a .bib may come from elsewhere than Zotero.  The list of .bib files goes with citar, which reads it, labelled as coming from Zotero or any other program; the Zotero module keeps only the attachments folder.  The PDF viewer (pdf-tools) becomes a module of its own in 100, optional (decided 2026-10-25): without it citar inserts keys and makes notes, and only opening a PDF falls back to what Emacs has.  2026-10-25zd: the viewers (pdf-tools and nov, the EPUB reader, which had sat here for the same reason) are 17b-document-viewers.  2026-10-25zg: split done -- 17 is the citar module and holds the menu C-c x, 17c-zotero the attachments folder |
-| 17b-document-viewers  |   100 | keep                    | decided  | 2026-10-25zd: pdf-tools and nov, optional; nothing requires it |
-| 17c-zotero            |   400 | keep                    | decided  | 2026-10-25zg: Zotero's attachments folder (citar-library-paths); off on a new machine, as modules needing another program are.  18-zotero-transient's menu went to 17-bibliography instead: every entry is citar's (the owner's choice of 2026-10-25zg over a Zotero menu of two keys); 18 is dropped from my/modules-off through my/modules-renamed |
-| 19-philosophy-notes   |   400 | keep                    | decided  |                                                                      |
-| 20-transclusion       |   400 | keep                    | decided  |                                                                      |
-| 21-dashboards         |   800 | keep                    | decided  |                                                                      |
-| 22-zettelkasten       |   400 | keep                    | decided  |                                                                      |
-| 23-fixed-tabs         |   300 | keep                    | decided  | 2026-10-25: routes the notes commands to tabs; needs 05-notes |
-| 24-readwise           |   400 | keep                    | decided  |                                                                      |
-| 25-inbox-review       |   400 | keep                    | decided  |                                                                      |
-| 26-maintenance        |   800 | keep                    | decided  | 2026-10-25: the reports and the Maintenance menu; split 2026-10-25v, the repairs are 26b; the Maintenance menu (C-c n !) gets two columns, Reports and Repairs.  36-notes-stats requires the reports part |
-| 26b-maintenance-repairs |   800 | keep                    | decided  | 2026-10-25v: renaming or removing a keyword across the collection, K in the repairs column; requires 26 |
-| 27-denote-identifiers |   200 | keep                    | decided  | core                                                                 |
-| 28-writing-projects   |   400 | keep                    | decided  |                                                                      |
-| 29-writing-export     |   700 | keep                    | decided  |                                                                      |
-| 30-link-tooltips      |   600 | keep                    | decided  |                                                                      |
-| 31-org-images         |   300 | keep                    | decided  |                                                                      |
-| 32-web-links          |   300 | keep                    | decided  |                                                                      |
-| 33-denote-hubs        |   300 | keep                    | decided  |                                                                      |
-| 34-appearance         |   500 | keep                    | decided  |                                                                      |
-| 35-journal-gaps       |   800 | keep                    | decided  |                                                                      |
-| 36-notes-stats        |   800 | keep                    | decided  |                                                                      |
-| 37-tasks              |   400 | keep                    | decided  | 2026-10-25: an extension of the system, like habits |
-| 38-habits             |   400 | keep                    | decided  | 2026-10-25                                                           |
-| 39-project-git        |   400 | keep                    | decided  |                                                                      |
-| 40-markdown           |   400 | keep                    | decided  |                                                                      |
-| 41-notes-search       |   300 | keep                    | decided  |                                                                      |
-| 42-obsidian-import    |   400 | keep                    | decided  |                                                                      |
-| 43-drill              |   400 | keep                    | decided  |                                                                      |
-| 44-image-display      |   600 | keep                    | decided  |                                                                      |
-| 45-standard-pages     |   600 | keep                    | decided  |                                                                      |
-| 46-blog               |   700 | keep                    | decided  |                                                                      |
-| 47-repo-docs          |   700 | keep                    | decided  |                                                                      |
-| 48-settings-tools     |   100 | keep                    | decided  |                                                                      |
-| 49-packages           |   100 | keep                    | decided  |                                                                      |
-| 50-cite-preview       |   400 | keep                    | decided  |                                                                      |
+| 000-core               |   000 | keep                    | decided  | the loader, settings, silos; 2026-10-25y: in 000, under every group  |
+| 101-ui                 |   100 | keep                    | decided  | 2026-10-25: sessions and completion stay in 100 (Emacs); the look goes to 500 (Look).  Split 2026-10-25zc: the frame's bars to 501b-frame-bars, the Org block display (quote faces, block-marker symbols) to 511-org-appearance, beside org-modern's matching setting.  The mode line stays: it shows the deletion warning of SAFETY.org 2.1, which must not depend on an optional look module |
+| 501b-frame-bars        |   500 | keep                    | decided  | 2026-10-25zc: tool bar and scroll bar off, menu bar on, again after a desktop restore; optional |
+| 102-editing            |   100 | keep                    | decided  |                                                                      |
+| 302b-bold-marker       |   300 | keep                    | decided  |                                                                      |
+| 303-spelling           |   300 | keep                    | decided  | slot =spelling=; a jinx module would fill it instead                 |
+| 503b-fonts             |   500 | keep                    | decided  |                                                                      |
+| 204-denote             |   200 | keep                    | decided  |                                                                      |
+| 205-notes              |   200 | keep                    | decided  | 2026-10-25: core (cannot be turned off) and needed by 08, 12 and 23 |
+| 405b-journal-metrics   |   400 | keep                    | decided  | 2026-10-25: an extension of the notes core, kept apart from 05 so that it can be off and its fields changed without touching 05; fields to be set from the settings menu, kept locally (BACKLOG, /Journal metrics configurable/) |
+| 306-capture            |   300 | keep                    | decided  |                                                                      |
+| 207-git                |   200 | keep                    | decided  | automatic commits of everything                                      |
+| 208-keybindings        |   200 | keep                    | decided  |                                                                      |
+| 509-theme              |   500 | keep                    | decided  |                                                                      |
+| 510-visual-fill        |   500 | keep                    | decided  |                                                                      |
+| 511-org-appearance     |   500 | keep                    | decided  |                                                                      |
+| 212-transient          |   200 | keep                    | decided  |                                                                      |
+| 313-centered-writing   |   300 | keep                    | decided  | the writing mode, used daily                                         |
+| 114-typing-analytics   |   100 | keep                    | decided  |                                                                      |
+| 815-workspace          |   800 | keep                    | decided  |                                                                      |
+| 716-org-export         |   700 | keep                    | decided  |                                                                      |
+| 417-bibliography       |   400 | keep                    | decided  | 2026-10-25: two modules, by package: citar (citations, CSL, references from any .bib) and Zotero (what only Zotero gives: the attachments folder, the Zotero menu); a .bib may come from elsewhere than Zotero.  The list of .bib files goes with citar, which reads it, labelled as coming from Zotero or any other program; the Zotero module keeps only the attachments folder.  The PDF viewer (pdf-tools) becomes a module of its own in 100, optional (decided 2026-10-25): without it citar inserts keys and makes notes, and only opening a PDF falls back to what Emacs has.  2026-10-25zd: the viewers (pdf-tools and nov, the EPUB reader, which had sat here for the same reason) are 117b-document-viewers.  2026-10-25zg: split done -- 17 is the citar module and holds the menu C-c x, 417c-zotero the attachments folder |
+| 117b-document-viewers  |   100 | keep                    | decided  | 2026-10-25zd: pdf-tools and nov, optional; nothing requires it |
+| 417c-zotero            |   400 | keep                    | decided  | 2026-10-25zg: Zotero's attachments folder (citar-library-paths); off on a new machine, as modules needing another program are.  18-zotero-transient's menu went to 417-bibliography instead: every entry is citar's (the owner's choice of 2026-10-25zg over a Zotero menu of two keys); 18 is dropped from my/modules-off through my/modules-renamed |
+| 419-philosophy-notes   |   400 | keep                    | decided  |                                                                      |
+| 420-transclusion       |   400 | keep                    | decided  |                                                                      |
+| 821-dashboards         |   800 | keep                    | decided  |                                                                      |
+| 422-zettelkasten       |   400 | keep                    | decided  |                                                                      |
+| 323-fixed-tabs         |   300 | keep                    | decided  | 2026-10-25: routes the notes commands to tabs; needs 205-notes |
+| 424-readwise           |   400 | keep                    | decided  |                                                                      |
+| 425-inbox-review       |   400 | keep                    | decided  |                                                                      |
+| 826-maintenance        |   800 | keep                    | decided  | 2026-10-25: the reports and the Maintenance menu; split 2026-10-25v, the repairs are 26b; the Maintenance menu (C-c n !) gets two columns, Reports and Repairs.  836-notes-stats requires the reports part |
+| 826b-maintenance-repairs |   800 | keep                    | decided  | 2026-10-25v: renaming or removing a keyword across the collection, K in the repairs column; requires 26 |
+| 227-denote-identifiers |   200 | keep                    | decided  | core                                                                 |
+| 428-writing-projects   |   400 | keep                    | decided  |                                                                      |
+| 729-writing-export     |   700 | keep                    | decided  |                                                                      |
+| 630-link-tooltips      |   600 | keep                    | decided  |                                                                      |
+| 331-org-images         |   300 | keep                    | decided  |                                                                      |
+| 332-web-links          |   300 | keep                    | decided  |                                                                      |
+| 333-denote-hubs        |   300 | keep                    | decided  |                                                                      |
+| 534-appearance         |   500 | keep                    | decided  |                                                                      |
+| 835-journal-gaps       |   800 | keep                    | decided  |                                                                      |
+| 836-notes-stats        |   800 | keep                    | decided  |                                                                      |
+| 437-tasks              |   400 | keep                    | decided  | 2026-10-25: an extension of the system, like habits |
+| 438-habits             |   400 | keep                    | decided  | 2026-10-25                                                           |
+| 439-project-git        |   400 | keep                    | decided  |                                                                      |
+| 440-markdown           |   400 | keep                    | decided  |                                                                      |
+| 341-notes-search       |   300 | keep                    | decided  |                                                                      |
+| 442-obsidian-import    |   400 | keep                    | decided  |                                                                      |
+| 443-drill              |   400 | keep                    | decided  |                                                                      |
+| 644-image-display      |   600 | keep                    | decided  |                                                                      |
+| 645-standard-pages     |   600 | keep                    | decided  |                                                                      |
+| 746-blog               |   700 | keep                    | decided  |                                                                      |
+| 747-repo-docs          |   700 | keep                    | decided  |                                                                      |
+| 148-settings-tools     |   100 | keep                    | decided  |                                                                      |
+| 149-packages           |   100 | keep                    | decided  |                                                                      |
+| 450-cite-preview       |   400 | keep                    | decided  |                                                                      |
 
 * The move
-When every row is decided:
+Done on 2026-10-26c, in one patch so that it can be reverted whole:
+every module in =modules/NNN-group/=, its name led by the group's digit
+(=05-notes= -> =200-foundation/205-notes=), every old name an entry of
+=my/modules-renamed=, and =groups= blocking with the folders checked.
+The plan as it was:
 1. Merges and splits first, one per patch, each with its tests.
 2. Then the move by a script: =git mv= (history kept, =git log
    --follow=), new names in =provide=, =MyPKS-Requires=, =init.el=, the
    tests, =with-eval-after-load=, =function_helper.org= and
    =my/modules-off= of each machine (an entry per old name in
-   =my/modules-renamed=, 00-core.el, since 2026-10-25ze, so a saved
+   =my/modules-renamed=, 000-core.el, since 2026-10-25ze, so a saved
    setting keeps working).  The weekly checks green before and
    after.
 3. Then =groups= blocks instead of advising, and checks folders against

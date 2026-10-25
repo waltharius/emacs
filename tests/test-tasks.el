@@ -1,10 +1,10 @@
-;;; test-tasks.el --- ERT tests for task capture, routing, agenda files and the planner of 37-tasks -*- lexical-binding: t; -*-
+;;; test-tasks.el --- ERT tests for task capture, routing, agenda files and the planner of 437-tasks -*- lexical-binding: t; -*-
 
-;; Tests: 37-tasks
+;; Tests: 437-tasks
 
 ;;; Commentary:
 
-;; 37-tasks.el captures a task from any buffer into the hub of the
+;; 437-tasks.el captures a task from any buffer into the hub of the
 ;; buffer's writing project or into the inbox of the task file, keeps
 ;; `org-agenda-files', and once offered to copy the planner out of the
 ;; notes folder: TESTING.org, *Every module tested*, part 3.  On real
@@ -23,7 +23,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "28-writing-projects" "37-tasks")
+(my/test-load-modules "428-writing-projects" "437-tasks")
 
 ;; ============================================================
 ;; FIXTURE
@@ -70,7 +70,7 @@ the planner folder `planner', all fresh."
   (with-temp-buffer (insert-file-contents file) (buffer-string)))
 
 (defun my/tasks-test--hub (slug)
-  "Write the hub of project SLUG from 28-writing-projects' template."
+  "Write the hub of project SLUG from 428-writing-projects' template."
   (my/tasks-test--write (my/writing-hub-file slug)
                         (my/writing--hub-template slug slug 1000 "2027-01-31")))
 

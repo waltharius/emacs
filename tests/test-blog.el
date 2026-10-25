@@ -1,10 +1,10 @@
-;;; test-blog.el --- ERT tests for 46-blog -*- lexical-binding: t; -*-
+;;; test-blog.el --- ERT tests for 746-blog -*- lexical-binding: t; -*-
 
-;; Tests: 46-blog
+;; Tests: 746-blog
 
 ;;; Commentary:
 
-;; What 46-blog.el does that is not a rule of SAFETY.org (those are in
+;; What 746-blog.el does that is not a rule of SAFETY.org (those are in
 ;; test-safety.el).  Starts with the restart of a running Hugo server
 ;; after its theme is reinstalled (2026-10-20).
 ;;
@@ -20,7 +20,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "46-blog")
+(my/test-load-modules "746-blog")
 
 (ert-deftest my/blog-test-server-restarted-after-theme-install ()
   "A `hugo server' running for a site is restarted when its theme is

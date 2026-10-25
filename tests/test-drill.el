@@ -1,10 +1,10 @@
-;;; test-drill.el --- ERT tests for flashcards of 43-drill -*- lexical-binding: t; -*-
+;;; test-drill.el --- ERT tests for flashcards of 443-drill -*- lexical-binding: t; -*-
 
-;; Tests: 43-drill
+;; Tests: 443-drill
 
 ;;; Commentary:
 
-;; 43-drill.el finds card decks by their Denote keyword, inserts cards in
+;; 443-drill.el finds card decks by their Denote keyword, inserts cards in
 ;; org-drill's format, and saves the decks a review session touched, also
 ;; when the session is quit: TESTING.org, *Every module tested*, part 3.
 ;; On real files in a temporary notes folder.  org-drill's own review
@@ -21,7 +21,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "43-drill")
+(my/test-load-modules "443-drill")
 (require 'denote)
 
 (defvar denote-directory)

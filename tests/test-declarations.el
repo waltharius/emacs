@@ -10,8 +10,8 @@
 ;; declaration the binding is lexical whenever Denote is not loaded yet
 ;; when the `let' runs: Denote, loading inside it, stops with "Defining
 ;; as dynamic an already lexical var", and code compiled that way never
-;; sees the binding.  At a normal start 04-denote loads Denote first,
-;; which hides it (found in 24-readwise, 2026-10-23t).
+;; sees the binding.  At a normal start 204-denote loads Denote first,
+;; which hides it (found in 424-readwise, 2026-10-23t).
 ;;
 ;; This reads the code, not its behaviour (TESTING.org, rule 7): each
 ;; module is read form by form with `read', and every `let' or `let*'
@@ -72,7 +72,7 @@
 (defun my/decl-test--report ()
   "Return ((MODULE . BOUND) ...) and the undeclared ((MODULE . SYMBOLS) ...)."
   (let (bound missing)
-    (dolist (file (directory-files my/decl-test--modules t "\\`[0-9].*\\.el\\'"))
+    (dolist (file (directory-files-recursively my/decl-test--modules "\\`[0-9].*\\.el\\'"))
       (let* ((forms (my/decl-test--forms file))
              (syms (cl-remove-duplicates (cl-mapcan #'my/decl-test--let-bound forms)))
              (undeclared (cl-set-difference syms (my/decl-test--declared forms)))
@@ -85,11 +85,11 @@
   "Every module that binds a variable of Denote with `let' declares it
 special in its own file.  The modules known to bind `denote-directory'
 are found -- the reader reaches the code, a backquoted macro body
-included (22-zettelkasten) -- and none of them leaves it undeclared."
+included (422-zettelkasten) -- and none of them leaves it undeclared."
   (skip-unless (require 'denote nil t))
   (pcase-let ((`(,bound ,missing) (my/decl-test--report)))
-    (dolist (module '("05-notes" "06-capture" "19-philosophy-notes"
-                      "22-zettelkasten" "24-readwise" "33-denote-hubs"))
+    (dolist (module '("205-notes" "306-capture" "419-philosophy-notes"
+                      "422-zettelkasten" "424-readwise" "333-denote-hubs"))
       (should (memq 'denote-directory (cdr (assoc module bound)))))
     (should-not missing)))
 

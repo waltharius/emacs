@@ -1,10 +1,10 @@
-;;; test-document-viewers.el --- ERT tests for the PDF viewer setup of 17b-document-viewers -*- lexical-binding: t; -*-
+;;; test-document-viewers.el --- ERT tests for the PDF viewer setup of 117b-document-viewers -*- lexical-binding: t; -*-
 
-;; Tests: 17b-document-viewers
+;; Tests: 117b-document-viewers
 
 ;;; Commentary:
 
-;; 17b-document-viewers.el (17-bibliography.el until 2026-10-25zd) sets
+;; 117b-document-viewers.el (417-bibliography.el until 2026-10-25zd) sets
 ;; up pdf-tools, the PDF viewer.  Its server,
 ;; epdfinfo, is a program built from source.  Until 2026-10-23 the
 ;; module built it whenever pdf-tools was loaded -- also by the byte
@@ -30,7 +30,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "17b-document-viewers")
+(my/test-load-modules "117b-document-viewers")
 
 (defvar pdf-loader--auto-mode-alist-item)
 (defvar pdf-loader--magic-mode-alist-item)

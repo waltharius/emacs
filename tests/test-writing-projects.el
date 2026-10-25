@@ -1,10 +1,10 @@
-;;; test-writing-projects.el --- ERT tests for writing projects of 28-writing-projects -*- lexical-binding: t; -*-
+;;; test-writing-projects.el --- ERT tests for writing projects of 428-writing-projects -*- lexical-binding: t; -*-
 
-;; Tests: 28-writing-projects
+;; Tests: 428-writing-projects
 
 ;;; Commentary:
 
-;; 28-writing-projects.el keeps a project folder with a hub file, writes
+;; 428-writing-projects.el keeps a project folder with a hub file, writes
 ;; `#+project:' into notes and links to them into the hub, and rewrites
 ;; whole sections of the hub (mentions, titles, materials): TESTING.org,
 ;; *Every module tested*, part 3.  On real files in a temporary folder:
@@ -22,7 +22,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "28-writing-projects")
+(my/test-load-modules "428-writing-projects")
 (require 'denote)
 (require 'org-element)
 

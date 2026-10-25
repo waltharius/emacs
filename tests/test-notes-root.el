@@ -1,10 +1,10 @@
 ;;; test-notes-root.el --- ERT tests for moving the notes root and deleting the old one -*- lexical-binding: t; -*-
 
-;; Tests: 00-core
+;; Tests: 000-core
 
 ;;; Commentary:
 
-;; 00-core.el decides at every start which folder the notes are in: when
+;; 000-core.el decides at every start which folder the notes are in: when
 ;; `my-notes-dir' was changed, `my/notes-check-root-move' copies, switches,
 ;; asks or refuses (SAFETY.org 2.9).  `my/notes-delete-old-root' moves the
 ;; previous root to the trash, off by default, after two questions

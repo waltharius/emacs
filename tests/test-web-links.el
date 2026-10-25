@@ -1,10 +1,10 @@
-;;; test-web-links.el --- ERT tests for 32-web-links -*- lexical-binding: t; -*-
+;;; test-web-links.el --- ERT tests for 332-web-links -*- lexical-binding: t; -*-
 
-;; Tests: 32-web-links
+;; Tests: 332-web-links
 
 ;;; Commentary:
 
-;; 32-web-links hands the work to org-web-tools: C-c n i u asks for an
+;; 332-web-links hands the work to org-web-tools: C-c n i u asks for an
 ;; address, fetches the page's title and inserts an Org link.  Tested
 ;; here: the command is org-web-tools' own, called interactively (an
 ;; advice stands in for it, so nothing reaches the network), and the
@@ -23,7 +23,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "05-notes" "12-transient" "32-web-links")
+(my/test-load-modules "205-notes" "212-transient" "332-web-links")
 
 (ert-deftest my/wl-test-command-is-org-web-tools ()
   "The command calls org-web-tools' insert command interactively, so its

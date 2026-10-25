@@ -1,10 +1,10 @@
-;;; test-typing-analytics.el --- ERT tests for the keystroke log of 14-typing-analytics -*- lexical-binding: t; -*-
+;;; test-typing-analytics.el --- ERT tests for the keystroke log of 114-typing-analytics -*- lexical-binding: t; -*-
 
-;; Tests: 14-typing-analytics
+;; Tests: 114-typing-analytics
 
 ;;; Commentary:
 
-;; 14-typing-analytics logs typed characters with their time, when the
+;; 114-typing-analytics logs typed characters with their time, when the
 ;; owner turns the log on, to collect data for choosing a keyboard.
 ;; The log is a plain-text copy of the writing, so what matters most is
 ;; what it leaves out: the minibuffer, and notes of a private silo --
@@ -27,7 +27,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "14-typing-analytics")
+(my/test-load-modules "114-typing-analytics")
 
 (defmacro my/ta-test-with-log (&rest body)
   "Run BODY with the log on, in a temporary file and notes folder.

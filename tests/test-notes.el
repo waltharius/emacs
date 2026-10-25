@@ -1,10 +1,10 @@
-;;; test-notes.el --- ERT tests for what 05-notes does to notes on disk -*- lexical-binding: t; -*-
+;;; test-notes.el --- ERT tests for what 205-notes does to notes on disk -*- lexical-binding: t; -*-
 
-;; Tests: 05-notes
+;; Tests: 205-notes
 
 ;;; Commentary:
 
-;; The functions of 05-notes.el that create, move or delete notes, on
+;; The functions of 205-notes.el that create, move or delete notes, on
 ;; real files in a temporary notes folder with three silos (journal,
 ;; pks, docu), as one git repository -- the first module of TESTING.org,
 ;; *Every module tested*, part 3.  What SAFETY.org promises (2.1, 2.2)
@@ -24,7 +24,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "27-denote-identifiers" "05-notes")
+(my/test-load-modules "227-denote-identifiers" "205-notes")
 
 ;; ============================================================
 ;; FIXTURE
@@ -249,7 +249,7 @@ renamed instead: it arrives, and the source is gone."
 
 (defmacro my/notes-test--with-attachments (own shared &rest body)
   "Run BODY with `my/org-image-note-attachments' reporting OWN and SHARED.
-The stand-in for 31-org-images.el, which decides what a note owns."
+The stand-in for 331-org-images.el, which decides what a note owns."
   (declare (indent 2))
   `(cl-letf (((symbol-function 'my/org-image-note-attachments)
               (lambda (_file) (list :own ,own :shared ,shared :checked t))))

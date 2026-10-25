@@ -9,13 +9,13 @@
 ;;
 ;; The tests install nothing themselves (tests/helper.el); they take what
 ;; is in ~/.emacs.d/elpa/.  These are the packages whose absence makes a
-;; test file fail rather than skip: Denote (04-denote.el, loaded by
-;; test-journal-metrics) and no-littering (00-core.el; compat comes with
+;; test file fail rather than skip: Denote (204-denote.el, loaded by
+;; test-journal-metrics) and no-littering (000-core.el; compat comes with
 ;; it); ox-hugo (with tomelr), which test-safety needs to check what a
 ;; page of a site says about the notes it links to (SAFETY.org 1.4);
 ;; pdf-tools, whose server test-document-viewers checks is not built when
 ;; the package is loaded (nothing is built here either); Magit, whose
-;; commit buffers test-auto-commit checks wrap at 72 columns (07-git.el
+;; commit buffers test-auto-commit checks wrap at 72 columns (207-git.el
 ;; sets that once Magit loads; added 2026-10-24, when the test skipped
 ;; here and a strict run failed on the skip).  A module loaded by a test whose package is missing still loads,
 ;; with a warning, as at a real start.  Not a test file itself: its name
@@ -25,15 +25,15 @@
 
 (require 'package)
 
-;; The same archives as 00-core.el: GNU ELPA and NonGNU ELPA are Emacs's
+;; The same archives as 000-core.el: GNU ELPA and NonGNU ELPA are Emacs's
 ;; defaults, MELPA is added.
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (package-initialize)
 
 (defconst my/ci-packages
   '((denote) (no-littering) (ox-hugo) (pdf-tools) (magit)
-    ;; Loaded by the module tests of 2026-10-24/25: 20-transclusion,
-    ;; 22-zettelkasten, 40-markdown (the CI run of 0071/0072 stopped
+    ;; Loaded by the module tests of 2026-10-24/25: 420-transclusion,
+    ;; 422-zettelkasten, 440-markdown (the CI run of 0071/0072 stopped
     ;; with "Cannot load org-transclusion" and "denote-sequence").
     (org-transclusion) (denote-sequence) (markdown-mode) (visual-fill-column)
     ;; test-references renders references with citeproc (2026-10-25f).

@@ -1,0 +1,1256 @@
+;;; 205-notes.el --- Essential note creation functions -*- lexical-binding: t; -*-
+
+;; MyPKS-Requires:
+;; MyPKS-Optional: no
+;; Docs: ~/.emacs.d/function_helper.org::#menu-notes-main
+
+;;; Commentary:
+;; Only the note functions you actually use:
+;; - Journal (daily)
+;; - Journal (specific date)
+;; - Links to the days of a week, for a weekly summary written inside
+;;   the Sunday journal
+;; - Base note (simple)
+;; - Essay
+;; - Well-being tracking
+;;
+;; Keywords are read by `my/notes-read-keywords', defined below and
+;; also used by 306-capture.el and 424-readwise.el, so that every prompt
+;; for tags in this configuration completes against the same
+;; vocabulary and behaves the same way.  `my/denote-keywords-edit'
+;; applies the same prompt behaviour to Denote's own keyword command,
+;; which is what `C-c n d k' runs.
+;;
+;; NOTE: denote-directory is now ~/notes/ (root) for better search
+;;       Journal functions explicitly save to my-notes-journal
+
+;;; Code:
+
+;; Bound with `let' in this module to put a note in one folder.
+;; Declared special here, because Denote may not be loaded yet when that
+;; `let' runs: the binding would then be lexical, and Denote, loading
+;; inside it, stops with "Defining as dynamic an already lexical var"
+;; (tests/test-declarations.el).
+(defvar denote-directory)
+
+;; `seq-take' and `string-join' are used when reporting which
+;; attachments a deletion would take with it.
+(require 'seq)
+(require 'subr-x)
+
+;; ============================================================
+;; KEYWORD PROMPT — shared by the note commands in this file
+;; ============================================================
+;; Tags used to be read here with `read-string' and split on spaces,
+;; which offered no completion at all.  With a few dozen keywords that
+;; was merely inconvenient; after the Obsidian migration it is a source
+;; of near-duplicates -- "filozofia" beside "flozofia", "kant" beside
+;; "kanta" -- that no later command can tell apart, because Denote
+;; treats each distinct string as its own keyword.
+;;
+;; `denote-keywords-prompt' is Denote's own prompt.  It completes
+;; against the vocabulary Denote infers from existing file names
+;; (`denote-infer-keywords' is t, set in 204-denote.el), reads entries
+;; separated by `crm-separator' (a comma, set in 101-ui.el), removes
+;; duplicates and returns a list.  Calling it rather than writing a
+;; private prompt means these commands and `denote-rename-file-keywords'
+;; behave identically, and keep behaving identically as Denote changes.
+;;
+;; Note the change of separator: tags are now typed comma-separated, as
+;; everywhere else in Denote, not space-separated.  A keyword may
+;; therefore contain a space, which the old prompt could not express.
+;;
+;; SUBMITTING WHAT WAS TYPED
+;;
+;; Vertico preselects the first matching candidate, and RET
+;; (`vertico-exit') submits the SELECTED CANDIDATE rather than the
+;; input.  A keyword that is a prefix of an existing one cannot then be
+;; created by typing it: "film" preselects "filmy" and RET files the
+;; note under "filmy".  Only the element at point is completed, which
+;; is why putting the new keyword anywhere but last in the list used to
+;; be the way through.
+;;
+;; Vertico's documented answer is `M-RET' (`vertico-exit-input'), which
+;; submits the input as typed.  It works in every prompt and keeps
+;; working whatever is configured here.  `my/notes-keyword-preselect'
+;; makes it the behaviour of plain RET inside these prompts, by binding
+;; `vertico-preselect' around the call.  The binding is dynamic, so it
+;; is in force for the recursive minibuffer edit and for nothing else:
+;; no hook, no advice, no global state.
+;;
+;; The cost is one keystroke when reusing an existing keyword: one key
+;; steps onto the candidate, another inserts it.  Set
+;; `my/notes-keyword-preselect' to `first' to restore Vertico's default
+;; and go back to reaching for `M-RET'.
+;;
+;; KEYS INSIDE THESE PROMPTS
+;;
+;;   TAB       next candidate (first press leaves the input line)
+;;   S-TAB     previous candidate
+;;   ,         insert the highlighted candidate and start the next
+;;             keyword -- the fast way to pick several from the list
+;;   C-TAB     insert the highlighted candidate WITHOUT exiting, when
+;;             the separator is not wanted yet
+;;   RET       submit: the input when on the input line, the candidate
+;;             when one is selected
+;;   M-RET     submit the input regardless of selection (Vertico's own)
+;;
+;; TAB is Vertico's `vertico-insert' by default.  It is moved here
+;; because a list appearing under a half-typed word reads as something
+;; to step through, and TAB is the key hands reach for to do that.  The
+;; rebinding is confined to these prompts: file-name completion
+;; elsewhere keeps TAB as insert, where it matters most.
+;;
+;; Insertion first went to M-TAB, which was the obvious key and does not
+;; work: GNOME owns Alt-Tab as the window switcher, so the compositor
+;; consumes it and Emacs never sees the event.  The comma is the better
+;; key anyway -- in a list of keywords it already means "this one is
+;; finished", so completing to the highlighted candidate first is what
+;; it was going to be used for regardless.  On the input line, with
+;; nothing highlighted, it stays an ordinary comma.
+;;
+;; It is applied with `minibuffer-with-setup-hook', which is the
+;; built-in way to configure one minibuffer session.  The hook exists
+;; only for the duration of the call, exactly like the
+;; `vertico-preselect' binding -- it is not a hook added to
+;; `minibuffer-setup-hook' globally.  `:append' places it after
+;; Vertico's own setup so that the local map it installs is the one
+;; being extended.
+
+(defgroup my/notes nil
+  "Note creation commands."
+  :tag "Notes"
+  :group 'mypks-notes)
+
+(defcustom my/notes-keyword-preselect 'prompt
+  "Value bound to `vertico-preselect' during keyword prompts.
+
+`prompt' selects the input line, so RET submits what was typed and
+an existing keyword is taken with <down> RET, or with TAB to insert
+it without leaving the prompt.
+
+`first' restores Vertico's own behaviour, where RET submits the
+first matching candidate and `M-RET' is needed to submit the input
+as typed.
+
+Any other value `vertico-preselect' accepts is passed through
+unchanged.  Has no effect without Vertico."
+  :type '(choice (const :tag "Input line (RET is literal)" prompt)
+                 (const :tag "First candidate (Vertico default)" first)
+                 (const :tag "Only when nothing matches" no-match)
+                 (symbol :tag "Other `vertico-preselect' value"))
+  :group 'my/notes)
+
+(defcustom my/notes-keyword-tab-navigates t
+  "Non-nil means TAB steps down the candidate list in keyword prompts.
+
+TAB is then `vertico-next', S-TAB is `vertico-previous', and
+`vertico-insert' -- insert the selected candidate without exiting --
+moves to M-TAB.  Only keyword prompts are affected; every other
+minibuffer keeps Vertico's defaults.
+
+Set to nil to leave these prompts with Vertico's own bindings, where
+TAB inserts and the arrow keys navigate."
+  :type 'boolean
+  :group 'my/notes)
+
+;; Declared, not defined: `vertico-preselect' belongs to Vertico.  The
+;; declaration marks the symbol special for this file, so that the
+;; `let' below is a dynamic binding rather than a lexical one even when
+;; Vertico has not been loaded -- in which case the binding exists and
+;; nothing reads it.
+(defvar vertico-preselect)
+(defvar vertico-map)
+
+(defvar my/notes--completion-separator nil
+  "Separator character bound by `my/notes-completion-keys', or nil.")
+
+(defun my/notes-completion-separate ()
+  "Insert the highlighted candidate, then start the next entry.
+
+On the input line, with nothing highlighted, this is an ordinary
+separator character -- which is what typing a new keyword by hand
+needs.  With a candidate highlighted it completes to that candidate
+first, so choosing several existing keywords is: filter, TAB, comma,
+repeat.
+
+`vertico--index' is Vertico's own variable and no part of a public
+API.  When it is absent or negative this degrades to inserting the
+character, which is what the key does anyway, so a future Vertico that
+renames it costs a keystroke rather than breaking the prompt."
+  (interactive)
+  (when (and (fboundp 'vertico-insert)
+             (integerp (bound-and-true-p vertico--index))
+             (>= vertico--index 0))
+    (vertico-insert))
+  (insert (or (bound-and-true-p my/notes--completion-separator) ",")))
+
+(defun my/notes-completion-keys (&optional separator)
+  "Install candidate-stepping keys in the current minibuffer.
+
+Called from `minibuffer-with-setup-hook' at each prompt that wants
+them, never from `minibuffer-setup-hook' itself, so no other prompt can
+reach it.  Builds a child of whatever local map is in place -- which is
+Vertico's, since `:append' orders this after Vertico's setup -- and
+leaves everything it does not name alone.
+
+  TAB      next candidate
+  S-TAB    previous candidate
+  C-TAB    insert the highlighted candidate WITHOUT exiting
+
+SEPARATOR, when given, is a string bound to
+`my/notes-completion-separate', which does the same insertion and then
+starts the next entry.  Only prompts that read a separated list pass
+one; a prompt reading a single value must not, since the character has
+no special meaning there and may legitimately occur in the answer.
+
+NOT M-TAB.  That was the obvious key and it does not work: GNOME owns
+Alt-Tab as the window switcher, so the compositor consumes it and Emacs
+never sees the event."
+  (when (and my/notes-keyword-tab-navigates
+             (fboundp 'vertico-next))
+    (let ((map (make-sparse-keymap)))
+      (set-keymap-parent map (current-local-map))
+      ;; Both spellings of each key: a graphical frame sends the
+      ;; function-key form, a terminal the control-character form.
+      (define-key map (kbd "TAB")       #'vertico-next)
+      (define-key map (kbd "<tab>")     #'vertico-next)
+      (define-key map (kbd "S-TAB")     #'vertico-previous)
+      (define-key map (kbd "<backtab>") #'vertico-previous)
+      (define-key map (kbd "C-TAB")     #'vertico-insert)
+      (define-key map (kbd "<C-tab>")   #'vertico-insert)
+      (when separator
+        (setq-local my/notes--completion-separator separator)
+        (define-key map (kbd separator) #'my/notes-completion-separate))
+      (use-local-map map))))
+
+(defun my/notes-read-keywords (&optional prompt initial)
+  "Read keywords, completing against the keywords already in use.
+
+PROMPT replaces the default prompt text, INITIAL is inserted as
+initial minibuffer content.  Returns a list of strings, or nil when
+nothing was entered.
+
+Falls back to a plain space-separated string prompt if Denote is
+not available, so that note creation still works rather than
+failing on a missing function."
+  (if (fboundp 'denote-keywords-prompt)
+      (let* ((vertico-preselect my/notes-keyword-preselect)
+             (keywords (minibuffer-with-setup-hook
+                           (:append (lambda () (my/notes-completion-keys ",")))
+                         (denote-keywords-prompt prompt initial))))
+        ;; Older Denote sorts inside the prompt, newer exposes it
+        ;; separately; call it when present and take the result as-is
+        ;; otherwise.
+        (if (fboundp 'denote-keywords-sort)
+            (denote-keywords-sort keywords)
+          keywords))
+    (let ((input (read-string (format "%s (space-separated): "
+                                      (or prompt "Tags")))))
+      (unless (string-empty-p input)
+        (split-string input " " t)))))
+
+(defun my/denote-keywords-edit ()
+  "Add or change the keywords of a Denote file.
+
+`denote-rename-file-keywords' with `my/notes-keyword-preselect' in
+force, so that the keyword prompt behaves the same way here as in
+the note creation commands above.  Everything else -- which file is
+acted on, how front matter is rewritten, what is confirmed -- is
+Denote's and is deliberately not reimplemented.
+
+Both bindings cover every minibuffer entered by that command, which
+in practice is only the keyword prompt: `denote-rename-file-keywords'
+takes its file from the current buffer or from the Dired marks
+without asking."
+  (interactive)
+  (unless (fboundp 'denote-rename-file-keywords)
+    (user-error "Denote is not available"))
+  (let ((vertico-preselect my/notes-keyword-preselect))
+    (minibuffer-with-setup-hook
+        (:append (lambda () (my/notes-completion-keys ",")))
+      (call-interactively #'denote-rename-file-keywords))))
+
+
+;; ============================================================
+;; JOURNAL: Daily note
+;; ============================================================
+
+(defun my/denote-journal ()
+  "Create or open today's journal note.
+If the journal exists, append a new timestamped entry.
+Journal files go to ~/notes/journal/
+
+Metrics are not written here.  They are front-matter keywords added
+later by `my/journal-set-metrics' (C-c n c w) from the optional
+405b-journal-metrics.el, so a file created without that module is simply
+a journal with no metrics yet -- there is no placeholder to keep in
+sync."
+  (interactive)
+  (let* ((today (format-time-string "%Y-%m-%d"))
+         (time-now (format-time-string "%H:%M"))
+         ;; By parsed date, not by slug: a journal note whose title has
+         ;; been changed must still be found, or a second one for the
+         ;; same day gets created beside it.
+         (existing-journal (my/journal-file-for-date today)))
+
+    (if existing-journal
+        ;; Journal exists - add new entry
+        (progn
+          (find-file existing-journal)
+          (goto-char (point-max))
+
+          ;; Smart spacing: always one blank line
+          (save-excursion
+            (goto-char (point-max))
+            (skip-chars-backward " \t\n")
+            (delete-region (point) (point-max)))
+
+          (goto-char (point-max))
+          (insert "\n\n")
+          (insert (format "* %s\n" time-now))
+          ;; Optional module: without it, just the plain confirmation.
+          (unless (and (fboundp 'my/journal-metrics-reminder)
+                       (my/journal-metrics-reminder))
+            (message "Added entry to journal")))
+
+      ;; Create new journal
+      (let* ((id (format-time-string "%Y%m%dT%H%M%S"))
+             (slug (my/journal-slug today))
+             (filename (format "%s--%s__journal.org" id slug))
+             (filepath (expand-file-name filename my-notes-journal)))
+
+        (find-file filepath)
+
+        ;; Front matter
+        (insert (format "#+title:      %s\n" (my/journal-title today)))
+        (insert (format "#+date:       [%s]\n" (format-time-string "%Y-%m-%d %a %H:%M")))
+        (insert "#+filetags:   :journal:\n")
+        (insert (format "#+identifier: %s\n" id))
+        (insert "#+language:   pl\n")
+        (insert (format "#+schema:     %d\n\n" my-journal-schema-version))
+
+        ;; First entry
+        (insert (format "* %s\n" time-now))
+
+        (save-buffer)
+        (message "Created new journal")))))
+
+;; ============================================================
+;; JOURNAL: Specific date (for migration/backdating)
+;; ============================================================
+
+(defcustom my/journal-title-suffix ""
+  "Text appended to a journal note's title after the date.
+
+Empty by default.  It used to be \" Journal\", which put the word in the
+title AND in the file-name slug alongside the `journal\=' keyword --
+three copies of one fact, two of them in the same file name.
+
+CHANGING THIS IS SAFE.  Nothing identifies a journal note by its title
+or by its slug any more; see `my/journal-file-p\='.  Existing notes keep
+whatever title they were created with and are still recognised."
+  :type 'string :group 'my/notes)
+
+;; ============================================================
+;; WHAT MAKES A FILE A JOURNAL NOTE
+;; ============================================================
+;; Two signals, both independent of the title: the file lives in the
+;; journal silo, and it carries the `journal' Denote keyword.
+;;
+;; THIS USED TO BE THE SLUG, AND THAT WAS A MISTAKE
+;; ------------------------------------------------
+;; Eight places across four modules tested for `-journal' in the file
+;; name.  It worked, but it made the TITLE load-bearing: renaming a
+;; journal note, or creating one with a different title, would have
+;; made it invisible to the metrics command, the gaps report, the
+;; statistics dashboard and the duplicate check -- silently, since each
+;; of those simply finds nothing rather than failing.
+;;
+;; A title is prose.  It should be free to change.  The keyword and the
+;; directory are structure, and structure is what identification should
+;; rest on.  821-dashboards.el already worked this way and was the model
+;; for these functions.
+;;
+;; The keyword segment is parsed with a plain regexp rather than a
+;; Denote helper, so this does not depend on which helper names a given
+;; Denote version exposes.
+
+(defun my/journal-keywords (file)
+  "Return FILE's Denote keywords as a list of strings."
+  (let ((base (file-name-base file)))
+    (when (string-match "__\\(.*\\)\\'" base)
+      (split-string (match-string 1 base) "_" t))))
+
+(defun my/journal-file-p (file)
+  "Return non-nil when FILE is a journal note.
+
+Tests the `journal\=' keyword in the file name.  Costs no file access,
+and holds whatever the title says -- which is the point.
+
+Does NOT additionally require the journal silo: a journal note that has
+been moved, or one written before the silos existed, is still a journal
+note.  Callers that want only the silo already restrict their file list
+to it."
+  (and (member "journal" (my/journal-keywords file)) t))
+
+(defun my/journal-file-date (file)
+  "Return the date FILE describes as \"YYYY-MM-DD\", or nil.
+
+Read from the file name, which is where this configuration has always
+kept it -- but from the DATE alone, no longer from a `DATE-journal\='
+slug.  Two guards keep that from over-matching:
+
+  - FILE must satisfy `my/journal-file-p\=', so a note in another silo
+    that happens to be titled with a date is not mistaken for one;
+  - the date must be the first thing after `--\=', so a date appearing
+    later in a longer title is not picked up.
+
+Falls back to the identifier when the slug carries no date, which is
+what a journal note renamed to a free-form title looks like."
+  (when (my/journal-file-p file)
+    (let ((base (file-name-nondirectory file)))
+      (cond
+       ((string-match "--\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)" base)
+        (match-string 1 base))
+       ((string-match "\\`\\([0-9]\\{4\\}\\)\\([0-9]\\{2\\}\\)\\([0-9]\\{2\\}\\)T" base)
+        (concat (match-string 1 base) "-" (match-string 2 base)
+                "-" (match-string 3 base)))))))
+
+(defun my/journal-file-for-date (date &optional files)
+  "Return the journal note for DATE (\"YYYY-MM-DD\"), or nil.
+FILES defaults to the .org files in the journal silo.  Compares parsed
+dates rather than matching a slug pattern, so it finds a note whose
+title has been changed."
+  (seq-find (lambda (file) (equal (my/journal-file-date file) date))
+            (or files (my/notes-files my-notes-journal "\\.org\\'"))))
+
+(defun my/journal-title (date)
+  "Return the `#+title:' a journal note for DATE should carry."
+  (concat date my/journal-title-suffix))
+
+(defun my/journal-slug (date)
+  "Return the file-name slug a journal note for DATE should carry.
+Derived from the title, the way Denote derives one, so the two cannot
+drift apart."
+  (replace-regexp-in-string
+   "[^a-z0-9-]+" "-"
+   (downcase (string-trim (my/journal-title date)))))
+
+(defun my/denote-journal-create-backdated (date encoded-time)
+  "Write a backdated journal file for DATE and return its path.
+DATE is \"YYYY-MM-DD\"; ENCODED-TIME is the matching Lisp timestamp.
+Does not visit the file -- callers decide whether to open it.
+
+The identifier uses a zeroed clock (T000000), which is this
+configuration\='s marker for \"the time of day was not recorded\".  No
+collision search is done: journal files are the only notes ever created
+with a zeroed clock, and a same-date journal is found by the caller
+before this function is reached.  The one real risk -- silently
+overwriting an existing file -- is checked for explicitly."
+  (let* ((id       (format-time-string "%Y%m%dT000000" encoded-time))
+         (slug     (my/journal-slug date))
+         (filename (format "%s--%s__journal.org" id slug))
+         (filepath (expand-file-name filename my-notes-journal))
+         (added-at (format-time-string "%Y-%m-%d %a %H:%M")))
+    (when (file-exists-p filepath)
+      (user-error "Plik %s już istnieje" filename))
+    ;; The journal silo's folder appears with its first note.
+    (my/notes-ensure-directory-of filepath)
+    (with-temp-file filepath
+      (insert (format "#+title:      %s\n" (my/journal-title date)))
+      (insert (format "#+date:       %s\n"
+                      (format-time-string "[%Y-%m-%d %a]" encoded-time)))
+      (insert "#+filetags:   :journal:\n")
+      (insert (format "#+identifier: %s\n" id))
+      (insert "#+language:   pl\n")
+      (insert (format "#+schema:     %d\n\n" my-journal-schema-version))
+      ;; The supplement heading carries the real write time, which is how
+      ;; this configuration has always recorded the gap between the day
+      ;; described and the day written up.
+      (insert "* Uzupełnienie\n")
+      (insert ":PROPERTIES:\n")
+      (insert (format ":ADDED_AT:   [%s]\n" added-at))
+      (insert (format ":EVENT_DATE: [%s]\n" date))
+      (insert ":END:\n\n"))
+    filepath))
+
+(defun my/denote-journal-date ()
+  "Create or open the journal for a specific date (backdating).
+
+Behaviour:
+- If a journal for the chosen date already exists: open it, append a
+  \='* Uzupełnienie\=' heading with ADDED_AT and EVENT_DATE at the bottom,
+  and place the cursor there - ready to write.
+- If no journal exists for that date: create one via
+  `my/denote-journal-create-backdated\=' and open it."
+  (interactive)
+  (let* ((date-input     (org-read-date nil nil nil "Date: "))
+         (parsed-time    (org-parse-time-string date-input))
+         (encoded-time   (apply #'encode-time parsed-time))
+         (date-formatted (format-time-string "%Y-%m-%d" encoded-time))
+         (added-at-stamp (format-time-string "%Y-%m-%d %a %H:%M"))
+         ;; By parsed date, not by slug -- see the note in
+         ;; `my/journal-file-date'.
+         (existing-journal (my/journal-file-for-date date-formatted)))
+
+    (if existing-journal
+        ;; --------------------------------------------------------
+        ;; Journal for that date exists - append supplement heading
+        ;; --------------------------------------------------------
+        (progn
+          (find-file existing-journal)
+
+          ;; Clean trailing whitespace/newlines
+          (save-excursion
+            (goto-char (point-max))
+            (skip-chars-backward " \t\n")
+            (delete-region (point) (point-max)))
+
+          (goto-char (point-max))
+          (insert "\n\n* Uzupełnienie\n")
+          (insert ":PROPERTIES:\n")
+          (insert (format ":ADDED_AT:   [%s]\n" added-at-stamp))
+          (insert (format ":EVENT_DATE: [%s]\n" date-formatted))
+          (insert ":END:\n\n")
+          (message "Opened existing journal for %s - cursor below '* Uzupełnienie'"
+                   date-formatted))
+
+      ;; --------------------------------------------------------
+      ;; No journal for that date - create a fresh backdated file
+      ;; --------------------------------------------------------
+      (let ((filepath (my/denote-journal-create-backdated
+                       date-formatted encoded-time)))
+        (find-file filepath)
+        (goto-char (point-max))
+        (message "Created backdated journal for %s (written %s)"
+                 date-formatted added-at-stamp)))))
+
+;; ============================================================
+;; WEEK ARITHMETIC
+;; ============================================================
+;; Journal dates are handled above; a week is the same arithmetic one
+;; level up, so it lives beside them rather than in a module of its own.
+;; ISO weeks run Monday to Sunday and are numbered so that week 1 is the
+;; one containing the first Thursday of the year.  Nothing here
+;; implements that rule: `%G' and `%V' in `format-time-string' do, which
+;; is why 31 December belonging to week 1 of the following year is not a
+;; case this code has to know about.
+;;
+;; Days are counted with the date functions of 000-core.el (DATES):
+;; calendar days at midday, so that no daylight saving transition moves
+;; a day across midnight.  Until 2026-10-26 this section had its own
+;; midday encoding and stepped by 86400 seconds; 835-journal-gaps.el and
+;; 836-notes-stats.el had copies of the encoding.  The hour is never
+;; read.
+
+(defun my/journal-midday (&optional time)
+  "Return TIME, or now, moved to midday of the same calendar day."
+  (my/date-to-time (my/date-of time)))
+
+(defun my/journal-week-monday (&optional time)
+  "Return the Monday of the ISO week containing TIME, at midday.
+TIME defaults to now."
+  (let ((date (my/date-of time)))
+    (my/date-to-time (my/date-add-days date (- 1 (my/date-weekday date))))))
+
+(defun my/journal-week-days (monday)
+  "Return the seven days of the week starting at MONDAY, as time values."
+  (let ((date (my/date-of monday)))
+    (mapcar (lambda (n) (my/date-to-time (my/date-add-days date n)))
+            (number-sequence 0 6))))
+
+(defun my/journal-week-label (monday)
+  "Return the ISO week label of MONDAY, e.g. \"2026-W35\"."
+  (format-time-string "%G-W%V" monday))
+
+;; ============================================================
+;; WEEK LINKS: the days of a week, listed inside a journal note
+;; ============================================================
+;; `my/journal-insert-week-links' (C-c n i w) inserts an Org list of the
+;; seven days of a week, each linked to its journal note:
+;;
+;;   - [[denote:20260824T000000][pon 2026-08-24]]
+;;   - śr 2026-08-26 — brak wpisu
+;;   - ndz 2026-08-30 — ten wpis
+;;
+;; Written for a weekly summary kept as a heading inside the Sunday
+;; journal rather than as a separate note type.  A separate weekly note
+;; was designed and rejected: the journal is the time axis and the hubs
+;; of 333-denote-hubs.el are the subject axis, and a weekly note adds
+;; neither -- only a coarser division of the axis the journal already
+;; covers.  The CHANGELOG entry has the full reasoning.
+;;
+;; A STATIC LIST, NOT A DYNAMIC BLOCK.  `denote-org' offers a
+;; `denote-links' dblock that would keep the list current, and for a
+;; note written during the week that would be the right answer.  A week
+;; being summarised is over: the set of days is closed, so there is
+;; nothing left to recompute and the dependency buys nothing.
+;;
+;; THREE THINGS IT DOES THAT TYPING THE LIST DOES NOT
+;;
+;; 1. Every day appears, including the ones with no note.  A hand-written
+;;    list cannot distinguish an omission from an empty day; that is the
+;;    distinction 835-journal-gaps.el exists to preserve.
+;;
+;; 2. Each day is found by PARSED DATE, through `my/journal-file-for-date',
+;;    so a journal renamed to "2026-06-15 Obrona licencjatu" is still
+;;    found -- and so is one renamed to something with no date in it at
+;;    all, since `my/journal-file-date' falls back to the identifier.
+;;
+;; 3. The day being written in is not linked to itself.  A self-link is
+;;    a defect 826-maintenance.el reports, and one inserted every Sunday
+;;    would make that check noisy enough to stop being read.
+
+(defcustom my/journal-week-day-names
+  '("pon" "wt" "śr" "czw" "pt" "sob" "ndz")
+  "Weekday abbreviations, Monday first.
+
+Seven strings, written into the note as part of each link description.
+Pinned rather than taken from the locale: `%a' in `format-time-string'
+returns whatever LC_TIME says -- English under C, Polish under pl_PL --
+and a note whose contents depend on an environment variable reads
+differently on the machine that syncs it."
+  :type '(repeat string)
+  :group 'my/notes)
+
+(defcustom my/journal-week-missing-text "brak wpisu"
+  "Text marking a day of the week with no journal note."
+  :type 'string
+  :group 'my/notes)
+
+(defcustom my/journal-week-current-text "ten wpis"
+  "Text marking the day whose own note the list is being inserted into.
+Rendered instead of a link, because a note linking to itself is a defect
+that 826-maintenance.el reports."
+  :type 'string
+  :group 'my/notes)
+
+(defun my/journal-week--entry (time index files current-file)
+  "Return the Org list item for the day at TIME.
+
+INDEX is the day's position in the week, 0 for Monday, and selects the
+name from `my/journal-week-day-names'.  FILES is the journal silo's file
+list, passed in so that seven lookups read the directory once.
+CURRENT-FILE is the file being written into, which is never linked."
+  (let* ((date (format-time-string "%Y-%m-%d" time))
+         (name (or (nth index my/journal-week-day-names)
+                   (format-time-string "%a" time)))
+         (label (format "%s %s" name date))
+         (file (my/journal-file-for-date date files)))
+    (cond
+     ((null file)
+      (format "- %s — %s" label my/journal-week-missing-text))
+     ((and current-file (file-equal-p file current-file))
+      (format "- %s — %s" label my/journal-week-current-text))
+     (t
+      ;; `denote-format-link' rather than a hand-written [[denote:...]]
+      ;; string: the link syntax belongs to Denote and to the file type
+      ;; of the buffer being written into, not to this code.
+      (format "- %s"
+              (denote-format-link
+               file label
+               (denote-filetype-heuristics (or current-file file))
+               nil))))))
+
+(defun my/journal-week-links (monday &optional current-file)
+  "Return the Org list of the week starting at MONDAY, as a string.
+CURRENT-FILE, when given, is rendered as text rather than as a link."
+  (let ((files (my/notes-files my-notes-journal "\\.org\\'"))
+        (index -1))
+    (mapconcat (lambda (time)
+                 (setq index (1+ index))
+                 (my/journal-week--entry time index files current-file))
+               (my/journal-week-days monday)
+               "\n")))
+
+(defun my/journal-insert-week-links (&optional ask)
+  "Insert at point a list of the seven days of a week, linked.
+
+The week is the one containing the day the current journal note
+describes.  Outside a journal note, or with a prefix argument (ASK
+non-nil), the day is chosen with `org-read-date'; any day of the week
+will do, since the Monday is derived from it.
+
+Days with no journal note are listed as missing rather than omitted, and
+the day whose own note is being written in is rendered as plain text."
+  (interactive "P")
+  (let* ((own-date (unless ask
+                     (when-let* ((file (buffer-file-name)))
+                       (my/journal-file-date file))))
+         (date (or own-date
+                   (org-read-date nil nil nil "Any day in the week: ")))
+         (monday (my/journal-week-monday (my/date-to-time date)))
+         (days (my/journal-week-days monday))
+         (text (my/journal-week-links monday (buffer-file-name))))
+    (unless (bolp) (insert "\n"))
+    (insert text "\n")
+    (message "%s (%s – %s)"
+             (my/journal-week-label monday)
+             (format-time-string "%Y-%m-%d" (car days))
+             (format-time-string "%Y-%m-%d" (car (last days))))))
+
+;; ============================================================
+;; BASE NOTE: Simple note with title and tags
+;; ============================================================
+
+(defun my/notes-read-silo-dir (prompt)
+  "Ask for a silo with PROMPT and return its directory.
+Offers every enabled silo of `my/silos', the one with role `notes'
+first.  Without 000-core.el's registry, the three historical silos."
+  (if (fboundp 'my/silo-keys)
+      (let* ((default (or (my/silo-by-role 'notes) (car (my/silo-keys))))
+             (names (mapcar #'symbol-name
+                            (cons default (remq default (my/silo-keys)))))
+             (choice (completing-read prompt names nil t nil nil
+                                      (symbol-name default))))
+        (my/silo-dir (intern choice)))
+    (let ((choice (completing-read prompt '("pks" "docu" "journal")
+                                   nil t nil nil "pks")))
+      (cond ((string= choice "journal") my-notes-journal)
+            ((string= choice "docu") my-notes-docu)
+            (t my-notes-pks)))))
+
+(defcustom my/notes-new-note-in-tab t
+  "Non-nil means `my/denote-base' opens the new note in a new tab.
+
+A new note is usually started while reading or writing another one,
+and replacing that buffer loses the place.  A tab keeps it: closing
+the new tab (C-x t 0) returns to exactly the window layout the note
+was started from.  `my/markdown-new-note' (440-markdown.el) wraps
+`my/denote-base' and therefore follows this setting too."
+  :type 'boolean
+  :group 'my/notes)
+
+(defun my/denote-base ()
+  "Create a simple note with title and tags.
+The silo is asked for (`my/notes-read-silo-dir').  With
+`my/notes-new-note-in-tab' non-nil the note opens in a new tab.
+
+All prompts are answered before the tab is created, so \\[keyboard-quit]
+at any of them leaves no empty tab behind.  If Denote itself fails, the
+tab it would have used is closed again."
+  (interactive)
+  (let* ((title (read-string "Title: "))
+         (keywords (my/notes-read-keywords))
+         (target-dir (my/notes-read-silo-dir "Save in: "))
+         (in-tab my/notes-new-note-in-tab))
+
+    ;; `tab-bar-new-tab' rather than a `display-buffer' override: the
+    ;; override would also catch any other buffer Denote happens to
+    ;; display, while a tab created first simply becomes the place
+    ;; where Denote's `find-file' lands.
+    (when in-tab
+      (tab-bar-new-tab))
+    (condition-case err
+        ;; Temporarily set denote-directory to target silo
+        (let ((denote-directory target-dir))
+          (if (string-empty-p title)
+              (denote nil keywords)
+            (denote title keywords)))
+      ((error quit)
+       (when in-tab
+         (tab-bar-close-tab))
+       (signal (car err) (cdr err))))
+    (my/note-add-front-matter-extras)))
+
+(defun my/note-add-front-matter-extras ()
+  "Add #+language: and #+schema: to the current note's front matter.
+
+Denote owns the four lines it generates, so rather than overriding
+`denote-org-front-matter' -- which would put this configuration on the
+hook for keeping that format string in step with Denote -- the two extra
+keywords are appended afterwards.  Denote's rename and refresh functions
+rewrite their own lines individually and leave unknown keywords alone.
+
+#+language: is written as pl without asking.  A note in another language
+is not rare enough to be worth a prompt on every creation and not common
+enough to be worth getting wrong by default; the indexer verifies the
+declared language against a detector and logs disagreements, which is
+the right place for that check.
+
+#+schema: records which generation of this template produced the file,
+so the indexer can tell them apart without guessing from content."
+  (when (and buffer-file-name (derived-mode-p 'org-mode))
+    (save-excursion
+      (goto-char (point-min))
+      (let ((case-fold-search t)
+            (end (save-excursion
+                   (goto-char (point-min))
+                   (while (looking-at "^#\\+") (forward-line 1))
+                   (point))))
+        (unless (save-excursion (re-search-forward "^#\\+language:" end t))
+          (goto-char end)
+          (insert "#+language:   pl\n")
+          (setq end (point)))
+        (unless (save-excursion (goto-char (point-min))
+                                (re-search-forward "^#\\+schema:" end t))
+          (goto-char end)
+          (insert (format "#+schema:     %d\n" my-journal-schema-version)))))
+    (save-buffer)))
+
+;; ============================================================
+;; ESSAY: Writing project
+;; ============================================================
+
+(defun my/denote-essay ()
+  "Create essay template (writing project).
+  Essays go to ~/notes/pks/ by default."
+  (interactive)
+  (let* ((essay-title (read-string "Essay title: "))
+         (title (format "ESEJ: %s" essay-title))
+         ;; Completed like any other keyword: the project tag is the
+         ;; one that must match an existing note's tag exactly, since
+         ;; it is what later gathers the essay's material.
+         (project-tags (my/notes-read-keywords "Project KEYWORDS"))
+         (tags (append '("esej" "project") project-tags))
+         (denote-directory my-notes-pks))  ; Essays in pks silo
+
+    (denote title tags)
+
+    ;; Add essay template
+    (save-excursion
+      (goto-char (point-max))
+      (insert "\n* Metadata\n")
+      (insert "- Subject: \n")
+      (insert "- Deadline: \n")
+      (insert "- Length: \n")
+      (insert "- Status: Planning\n\n")
+      (insert "* Essay Plan\n")
+      (insert "** Introduction\n\n")
+      (insert "** Main Part\n\n")
+      (insert "** Conclusion\n\n")
+      (insert "* Bibliography\n\n")
+      (insert "* Working Notes\n\n")
+      (save-buffer))
+
+    ;; Position cursor at Subject field
+    (goto-char (point-min))
+    (re-search-forward "^- Subject: " nil t)))
+
+;; ============================================================
+;; HELPER: Insert current time (HH:MM)
+;; ============================================================
+
+(defun insert-current-time ()
+  "Insert current time in HH:MM format."
+  (interactive)
+  (insert (format-time-string "%H:%M")))
+
+;; ============================================================
+;; HELPER: Insert current date (YYYY-MM-DD)
+;; ============================================================
+
+(defun insert-current-date ()
+  "Insert current date in YYYY-MM-DD format."
+  (interactive)
+  (insert (format-time-string "%Y-%m-%d")))
+
+;; ============================================================
+;; HELPER: Delete current note (Git-aware)
+;; ============================================================
+
+(defcustom my/denote-delete-attachments 'ask
+  "What `my/denote-delete-note' does with the note's attachments.
+
+  ask     offer to delete them, listing what would go (default)
+  always  delete them without a second question
+  never   leave them alone and say nothing
+
+Only files the note is the sole user of are ever offered.  One linked
+from another note as well is kept and reported, because an attachment
+is shared far more easily than it looks -- the same diagram in a hub
+and in the note that produced it is the ordinary case, not the odd one.
+
+The question is asked at all because nothing else collects orphaned
+attachments: delete a note by hand and its pictures stay in
+`my/org-image-attachments-directory' until somebody audits the folder,
+which is a job nobody schedules.
+
+Answering is only possible when 331-org-images.el is loaded; without it
+attachments are left alone whatever this says."
+  :type '(choice (const :tag "Ask" ask)
+                 (const :tag "Always delete" always)
+                 (const :tag "Never delete" never))
+  :group 'my/notes)
+
+(defun my/notes--confirm-deletion (prompt)
+  "Ask PROMPT before deleting a note, as `my/confirm-deletion' says.
+The shared question of 000-core.el, which asks by default and can be
+switched off per session or for good; plain `yes-or-no-p' without it."
+  (if (fboundp 'my/confirm-deletion-p)
+      (my/confirm-deletion-p prompt)
+    (yes-or-no-p prompt)))
+
+(defun my/denote--delete-file (file)
+  "Move FILE to the system's trash, tracked by git or not; return \"trash\".
+
+The trash holds the file as it is on disk, everything written since the
+last commit included; git keeps its history, and the next automatic
+commit (207-git.el, `git add -A') records the deletion.  Until 2026-10-24
+a tracked file was removed with `git rm -f', which can be got back only
+as it was at the last commit: what had been written since was lost for
+good (outside audits of 2026-10-24, decided by the owner the same day).
+
+A failure -- no trash, no permission -- signals, before anything else
+is done; nothing reports a deletion that did not happen."
+  (let ((delete-by-moving-to-trash t))
+    (delete-file file t))
+  (when (file-exists-p file)
+    (error "Could not move %s to the trash" (file-name-nondirectory file)))
+  "trash")
+
+(defun my/denote--attachment-prompt (own)
+  "Return the question asked about deleting the attachments OWN.
+Names up to three of them; the full list has already gone to
+*Messages*, which is where a long one can actually be read."
+  (let ((names (mapcar #'file-name-nondirectory own)))
+    (format "Delete %d attachment%s as well (%s)? "
+            (length own)
+            (if (= 1 (length own)) "" "s")
+            (if (<= (length names) 3)
+                (string-join names ", ")
+              (format "%s and %d more"
+                      (string-join (seq-take names 3) ", ")
+                      (- (length names) 3))))))
+
+(defun my/denote-delete-note ()
+  "Delete the current note, and offer to delete its attachments with it.
+
+The note and every attachment go to the system's trash
+\(`my/denote--delete-file'); unsaved changes in the note's buffer are
+saved first, so the trash holds everything that was typed.
+
+Which files count as the note's attachments, and which are held back
+for being linked from elsewhere, is decided by
+`my/org-image-note-attachments' in 331-org-images.el -- the module that
+owns the attachments directory.  Without that module loaded the note is
+deleted on its own, exactly as before.  See
+`my/denote-delete-attachments' for turning the offer off."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (if (not file)
+        (message "This is not a file!")
+      (let* ((name (file-name-nondirectory file))
+             (report (and (not (eq my/denote-delete-attachments 'never))
+                          (fboundp 'my/org-image-note-attachments)
+                          (my/org-image-note-attachments file)))
+             (own (plist-get report :own))
+             (shared (plist-get report :shared))
+             (checked (plist-get report :checked)))
+        (when own
+          (message "Attachments of %s: %s" name
+                   (string-join (mapcar #'file-name-nondirectory own) ", ")))
+        (when (my/notes--confirm-deletion (format "Delete note: %s? " name))
+          ;; Asked before anything is deleted, so that answering no to
+          ;; the second question still leaves a coherent state.
+          (let* ((also (and own
+                            (or (eq my/denote-delete-attachments 'always)
+                                (yes-or-no-p (my/denote--attachment-prompt own)))))
+                 (where (progn
+                          ;; What was typed and not saved goes to the
+                          ;; trash with the note, not lost with the buffer.
+                          (when (buffer-modified-p) (save-buffer))
+                          (my/denote--delete-file file)))
+                 (removed 0))
+            (when also
+              (dolist (attachment own)
+                (when (file-exists-p attachment)
+                  (my/denote--delete-file attachment)
+                  (setq removed (1+ removed)))))
+            (message "Deleted (%s): %s%s%s"
+                     where name
+                     (if (> removed 0)
+                         (format " + %d attachment%s" removed
+                                 (if (= removed 1) "" "s"))
+                       "")
+                     (cond
+                      ((not checked)
+                       (format "  -- %d attachment(s) left: no search program to check whether other notes use them"
+                               (length shared)))
+                      (shared
+                       (format "  -- %d attachment(s) left: also used by other notes"
+                               (length shared)))
+                      (t "")))
+            (set-buffer-modified-p nil)
+            (kill-buffer (current-buffer))))))))
+
+;; ============================================================
+;; MOVE NOTE BETWEEN SILOS
+;; ============================================================
+;; Reads identifiers with `my/denote-file-identifier', which belongs to
+;; 227-denote-identifiers.el -- the module that owns identifier integrity
+;; and is also where 425-inbox-review.el gets it from.  A copy used to
+;; live here as well.  Two copies of a four-line function is not a
+;; maintenance cost worth mentioning, but two definitions of one symbol
+;; is: the later-loading module wins, silently, and the earlier one gets
+;; whatever behaviour that other module happened to give it.
+;;
+;; Resolution is at call time, so the load order does not matter; the
+;; guard in `my/denote-move-to-silo' turns a missing module into a
+;; sentence rather than a void-function backtrace.
+
+(defvar my/denote-silo-alist
+  `(("journal" . ,my-notes-journal)
+    ("pks"     . ,my-notes-pks)
+    ("docu"    . ,my-notes-docu))
+  "Alist of (NAME . DIRECTORY) for every Denote silo.
+Used by `my/denote-move-to-silo' to build its completion list.
+Add an entry here when a new silo is added to 000-core.el.")
+
+(defun my/denote--file-title (file)
+  "Return the `#+title:' value of FILE, or nil if absent.
+Reads only the beginning of FILE: Denote front matter is always at
+the top, so there is no reason to load a whole note from disk."
+  (with-temp-buffer
+    (ignore-errors
+      (insert-file-contents file nil 0 4000))
+    (goto-char (point-min))
+    (when (re-search-forward "^#\\+title:[ \t]+\\(.*?\\)[ \t]*$" nil t)
+      (match-string-no-properties 1))))
+
+(defun my/denote--silo-note-files (dir)
+  "Return the Denote files directly inside DIR.
+Non-recursive on purpose: the silos in this configuration are flat.
+
+Named for what it returns rather than generically: 227-denote-identifiers.el
+has its own scan with a different shape and a different job, and the two
+carried the same name until one of them started being called with the
+wrong number of arguments."
+  (when (file-directory-p dir)
+    (directory-files dir t "\\`[0-9]\\{8\\}T[0-9]\\{6\\}")))
+
+(defun my/denote--current-silo (file)
+  "Return the silo name FILE currently lives in, or nil if none matches."
+  (car (seq-find (lambda (cell)
+                   (file-in-directory-p file (cdr cell)))
+                 my/denote-silo-alist)))
+
+(defun my/denote--titles-equal-p (a b)
+  "Compare titles A and B, ignoring case and surrounding whitespace.
+Uses `downcase' rather than `string-equal-ignore-case', which only
+exists from Emacs 29 onwards while Denote itself supports 28.1."
+  (and a b (string= (downcase (string-trim a))
+                    (downcase (string-trim b)))))
+
+(defun my/denote--relocate (source target)
+  "Move SOURCE to TARGET, using \"git mv\" when SOURCE is tracked.
+Mirrors the git handling of `my/denote-delete-note' so that history
+is preserved instead of showing an unrelated delete plus add."
+  (my/notes-ensure-directory-of target)
+  (let ((default-directory (file-name-directory source)))
+    (if (and (executable-find "git")
+             (= 0 (call-process "git" nil nil nil
+                                "ls-files" "--error-unmatch" source)))
+        (unless (= 0 (call-process "git" nil nil nil "mv" source target))
+          ;; git mv can refuse (e.g. target outside the repo); fall back.
+          (rename-file source target t))
+      (rename-file source target t))))
+
+(defun my/denote-move-to-silo ()
+  "Move the current Denote note to another silo.
+
+Prompts for the destination silo, then checks the destination for
+conflicts before moving anything:
+
+- No note with the same `#+title:' there: move straight away.
+- A note with the same title exists: ask whether to overwrite it or
+  to keep both.  Two notes may share a title as long as their
+  identifiers differ, which is the normal Denote situation.
+- Keeping both is impossible when the identifiers are also equal,
+  because the resulting file names would be identical.  In that case
+  ask for a new title (applied via `denote-rename-file-using-front-matter')
+  or cancel.
+
+Note that a new title does NOT resolve the underlying identifier
+clash: two notes sharing an identifier make `denote:' links to that
+identifier ambiguous.  The retitling path exists to unblock the move;
+the duplicate identifier still needs sorting out afterwards."
+  (interactive)
+  (unless (fboundp 'my/denote-file-identifier)
+    (user-error "227-denote-identifiers.el is not loaded"))
+  (let ((file (buffer-file-name)))
+    (unless file
+      (user-error "This buffer is not visiting a file"))
+    (unless (my/denote-file-identifier file)
+      (user-error "Not a Denote file (no identifier in the file name)"))
+    (when (buffer-modified-p)
+      (if (y-or-n-p "Buffer has unsaved changes.  Save before moving? ")
+          (save-buffer)
+        (user-error "Aborted: save the buffer first")))
+
+    (let* ((current-silo (my/denote--current-silo file))
+           (candidates (seq-remove (lambda (cell)
+                                     (equal (car cell) current-silo))
+                                   my/denote-silo-alist))
+           (choice (completing-read
+                    (format "Move to silo (currently: %s): "
+                            (or current-silo "outside any silo"))
+                    (mapcar #'car candidates) nil t))
+           (target-dir (cdr (assoc choice my/denote-silo-alist)))
+           (title (my/denote--file-title file))
+           (identifier (my/denote-file-identifier file)))
+
+      (unless (file-directory-p target-dir)
+        (user-error "Target silo does not exist: %s" target-dir))
+
+      (let* ((target-files (my/denote--silo-note-files target-dir))
+             (title-matches
+              (seq-filter (lambda (f)
+                            (my/denote--titles-equal-p title
+                                                       (my/denote--file-title f)))
+                          target-files))
+             (proceed t))
+
+        (when title-matches
+          (pcase (completing-read
+                  (format "%d note(s) titled \"%s\" already in %s.  Action: "
+                          (length title-matches) (or title "?") choice)
+                  '("keep both" "overwrite" "cancel") nil t "keep both")
+            ("cancel"
+             (setq proceed nil))
+
+            ("overwrite"
+             (let ((victim (if (= (length title-matches) 1)
+                               (car title-matches)
+                             (completing-read "Overwrite which note? "
+                                              title-matches nil t))))
+               (if (my/notes--confirm-deletion (format "Permanently delete %s? "
+                                        (file-name-nondirectory victim)))
+                   (my/denote--delete-file victim)
+                 (setq proceed nil))))
+
+            ("keep both"
+             ;; Two notes can share a title only if their identifiers
+             ;; differ; otherwise both file names would be identical.
+             (when (seq-find (lambda (f)
+                               (equal identifier (my/denote-file-identifier f)))
+                             title-matches)
+               (let ((new-title
+                      (read-string
+                       "Same title AND identifier there.  New title (empty = cancel): ")))
+                 (if (string-empty-p (string-trim new-title))
+                     (setq proceed nil)
+                   ;; Update front matter, then let Denote derive the new
+                   ;; file name from it.  Doing it this way avoids calling
+                   ;; Denote's sluggify internals directly.
+                   (save-excursion
+                     (goto-char (point-min))
+                     (if (re-search-forward "^#\\+title:[ \t]+.*$" nil t)
+                         (replace-match (concat "#+title:      " new-title) t t)
+                       (setq proceed nil)))
+                   (when proceed
+                     (save-buffer)
+                     (call-interactively #'denote-rename-file-using-front-matter)
+                     (setq file (buffer-file-name)))))))))
+
+        (when proceed
+          (let ((target (expand-file-name (file-name-nondirectory file)
+                                          target-dir)))
+            (if (file-exists-p target)
+                (user-error "Target file already exists: %s" target)
+              (my/denote--relocate file target)
+              (set-visited-file-name target nil t)
+              (set-buffer-modified-p nil)
+              (message "Moved to %s: %s"
+                       choice (file-name-nondirectory target)))))))))
+
+
+;; ============================================================
+;; LINKED NOTE: Create new note with backlink to source
+;; ============================================================
+
+(defun my/denote-linked-note ()
+  "Create a new note linked to the current .org buffer.
+
+  From source note:
+  - Inserts a forward link [[denote:ID][Title]] at point.
+
+  In new note:
+  - Adds :BACKLINK: property pointing back to the source.
+  - Opens in a window to the right, cursor moves there.
+
+  Only works when called from a Denote .org file with #+identifier."
+  (interactive)
+
+  ;; --- Guard: must be called from an .org file ---
+  (unless (and (buffer-file-name)
+               (string-suffix-p ".org" (buffer-file-name)))
+    (user-error "Not an .org file — aborting"))
+
+  ;; --- Collect source note data ---
+  (let* ((source-buffer (current-buffer))
+         (source-file   (buffer-file-name))
+
+         (source-id
+          (save-excursion
+            (goto-char (point-min))
+            (if (re-search-forward "^#\\+identifier:[ \t]+\\([0-9A-Za-z]+\\)" nil t)
+                (match-string-no-properties 1)
+              nil)))
+
+         (source-title
+          (save-excursion
+            (goto-char (point-min))
+            (if (re-search-forward "^#\\+title:[ \t]+\\(.+\\)" nil t)
+                (string-trim (match-string-no-properties 1))
+              (file-name-nondirectory source-file)))))
+
+    (unless source-id
+      (user-error "Source file has no #+identifier — not a Denote note?"))
+
+    ;; --- Ask for parameters BEFORE touching windows ---
+    (let* ((new-title       (read-string "New note title: "))
+           (keywords        (my/notes-read-keywords))
+           (target-dir      (my/notes-read-silo-dir "Save in: "))
+
+           ;; --- Create note inside save-window-excursion so Denote
+           ;;     cannot change the window layout ---
+           (new-file
+            (save-window-excursion
+              (let ((denote-directory target-dir))
+                (denote new-title keywords))
+              (buffer-file-name)))
+
+           (new-id
+            (if (string-match "\\([0-9]\\{8\\}T[0-9]\\{6\\}\\)" new-file)
+                (match-string 1 new-file)
+              nil)))
+
+      (unless new-id
+        (user-error "Could not extract ID from new note filename: %s" new-file))
+
+      ;; --- Backlink in new note ---
+      (with-current-buffer (find-file-noselect new-file)
+        (save-excursion
+          (goto-char (point-min))
+          (if (re-search-forward "^:PROPERTIES:" nil t)
+              (progn
+                (re-search-forward "^:END:" nil t)
+                (beginning-of-line)
+                (insert (format ":BACKLINK:   [[denote:%s][%s]]\n"
+                                source-id source-title)))
+            (goto-char (point-min))
+            (while (looking-at "^#\\+")
+              (forward-line 1))
+            (insert (format ":PROPERTIES:\n:BACKLINK:   [[denote:%s][%s]]\n:END:\n\n"
+                            source-id source-title))))
+        (save-buffer))
+
+      ;; --- Forward link in source note ---
+      (with-current-buffer source-buffer
+        (insert (format "[[denote:%s][%s]]" new-id new-title))
+        (save-buffer))
+
+      ;; --- Layout: source on left, new note on right ---
+      ;; At this point current-buffer is source-buffer (save-window-excursion
+      ;; restored the window layout), so split-window-right splits it correctly.
+      (let ((new-window (split-window-right)))
+        (select-window new-window)
+        (find-file new-file)
+        (goto-char (point-max)))
+
+      (message "Linked note created: %s ← → %s" source-title new-title))))
+
+(provide '205-notes)
+;;; 205-notes.el ends here

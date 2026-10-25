@@ -1,10 +1,10 @@
-;;; test-obsidian-import.el --- ERT tests for 42-obsidian-import and its script -*- lexical-binding: t; -*-
+;;; test-obsidian-import.el --- ERT tests for 442-obsidian-import and its script -*- lexical-binding: t; -*-
 
-;; Tests: 42-obsidian-import
+;; Tests: 442-obsidian-import
 
 ;;; Commentary:
 
-;; 42-obsidian-import.el runs tools/obsidian_import.py, which merges
+;; 442-obsidian-import.el runs tools/obsidian_import.py, which merges
 ;; notes written in Obsidian into the journal, writes inbox notes,
 ;; copies attachments and moves each markdown file out of the vault's
 ;; inbox; the module saves the note buffers before the run and reverts
@@ -33,7 +33,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "42-obsidian-import")
+(my/test-load-modules "442-obsidian-import")
 
 ;; ============================================================
 ;; FIXTURE
@@ -357,7 +357,7 @@ never replaces an existing file."
 
 (ert-deftest my/obs-test-script-identifier-not-reused ()
   "A new note never takes an identifier another note already has --
-an Org note or a Markdown one (40-markdown) -- nor one in a notes
+an Org note or a Markdown one (440-markdown) -- nor one in a notes
 folder that lies under a dot folder: it moves on by seconds."
   (skip-unless (my/obs-test--tools-p))
   (my/obs-test--with-tree

@@ -45,8 +45,15 @@ from lint import org_section_table  # noqa: E402
 def read_modules(root):
     """{'NN-name.el': text} of the files in ROOT/modules."""
     folder = os.path.join(root, "modules")
-    return {name: open(os.path.join(folder, name), encoding="utf-8").read()
-            for name in sorted(os.listdir(folder)) if name.endswith(".el")}
+    found = {}
+    # modules/NAME.el, or modules/GROUP/NAME.el since 2026-10-26c.
+    for here, _dirs, names in os.walk(folder):
+        if os.path.relpath(here, folder).count(os.sep) > 0:
+            continue
+        for name in names:
+            if name.endswith(".el"):
+                found[name] = open(os.path.join(here, name), encoding="utf-8").read()
+    return dict(sorted(found.items()))
 
 
 def read_groups(root):

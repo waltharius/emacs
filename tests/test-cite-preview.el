@@ -1,10 +1,10 @@
-;;; test-cite-preview.el --- ERT tests for 50-cite-preview -*- lexical-binding: t; -*-
+;;; test-cite-preview.el --- ERT tests for 450-cite-preview -*- lexical-binding: t; -*-
 
-;; Tests: 50-cite-preview
+;; Tests: 450-cite-preview
 
 ;;; Commentary:
 
-;; 50-cite-preview shows the citation under point in the echo area as
+;; 450-cite-preview shows the citation under point in the echo area as
 ;; the export will render it.  These tests put point on citations of a
 ;; small .bib file and check the text offered to ElDoc: a note of the
 ;; default style with its page, two works in one citation, a document's
@@ -26,7 +26,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "17-bibliography" "50-cite-preview")
+(my/test-load-modules "417-bibliography" "450-cite-preview")
 
 (defvar my/csl-bundled-styles-dir)
 (defvar my/csl-bundled-locales-dir)

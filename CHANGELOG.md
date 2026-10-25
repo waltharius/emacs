@@ -102,10 +102,10 @@ hasn't loaded) causes silent failures or hard errors. Always guard with:
 This applies especially to toggle functions in transient menus, which
 can be called interactively before the owning package has initialised.
 
-### L5 — Hardcoded paths and usernames belong in `00-core.el`
+### L5 — Hardcoded paths and usernames belong in `000-core.el`
 
 Any value that is machine-specific (paths, usernames, locale strings)
-should be defined as a variable in `00-core.el`, not inlined in the
+should be defined as a variable in `000-core.el`, not inlined in the
 module that uses it. This keeps modules portable and makes it obvious
 where to change system-specific values when moving to a new machine.
 
@@ -158,8 +158,8 @@ regardless of how long X has been alive. See Session 2026-07-25a, A.
 ### L13 — Extending a transient from another module creates a load-order dependency
 
 `transient-append-suffix` lets a feature module add its own entry to a
-central menu (`19-philosophy-notes.el` adds `C-c n l`,
-`22-zettelkasten.el` adds `C-c n z`) instead of the central menu
+central menu (`419-philosophy-notes.el` adds `C-c n l`,
+`422-zettelkasten.el` adds `C-c n z`) instead of the central menu
 having to know about every feature. The cost is a hard ordering
 constraint: the appending module must load _after_ the module defining
 the prefix, or the append targets a prefix that does not exist yet.
@@ -197,12 +197,12 @@ treat an empty capture as absent. See Session 2026-07-26a, E.
 A rule every module needs -- here: a day is not always 86400 seconds --
 belongs in one function, not in a copy per module.  On 2026-10-25, the
 day summer time ended, two tests failed at 23:23; the search for the
-cause found the same mistake in 38-habits and 28-writing-projects, and
-the month before 35-journal-gaps had skipped a day the same way; three
+cause found the same mistake in 438-habits and 428-writing-projects, and
+the month before 835-journal-gaps had skipped a day the same way; three
 modules had their own copy of the midday encoding that avoids it.  Each
 copy was a place for the bug and for its tests.
 
-Days are counted with the date functions of `00-core.el` (DATES):
+Days are counted with the date functions of `000-core.el` (DATES):
 `my/date-add-days`, `my/date-days-between`, `my/date-day-number`,
 `my/date-to-time`, `my/date-of`, `my/date-weekday`, tested once in
 `tests/test-dates.el` on both transition days and at the ends of
@@ -217,33 +217,33 @@ library is checked against something it did not compute.  See Session
 
 | Concern                                             | Owning file              |
 | --------------------------------------------------- | ------------------------ |
-| Basic UI, completion, session, mode-line            | `01-ui.el`               |
-| Editing behaviour, keybindings                      | `02-editing.el`          |
-| Spell checking (ispell, flyspell, flyspell-correct) | `03-spelling.el`         |
-| Fonts and typography                                | `03b-fonts.el`           |
-| Denote core, silo config, org-mode settings         | `04-denote.el`           |
-| Notes functions (journal, essay, capture)           | `05-notes.el`            |
-| Org-capture templates                               | `06-capture.el`          |
-| Git (Magit)                                         | `07-git.el`              |
-| Global keybindings                                  | `08-keybindings.el`      |
-| Theme                                               | `09-theme.el`            |
-| **Visual-fill-column, centering, line wrapping**    | **`10-visual-fill.el`**  |
-| Org appearance (faces, prettify, headings)          | `11-org-appearance.el`   |
-| Transient menus                                     | `12-transient.el`        |
-| Centered writing mode (cursor recentering)          | `13-centered-writing.el` |
-| Typing analytics                                    | `14-typing-analytics.el` |
-| Workspace / dashboard                               | `15-workspace.el`        |
-| Org export (PDF, HTML, LaTeX)                       | `16-org-export.el`       |
-| Bibliography (Citar, BibTeX, the menu C-c x)        | `17-bibliography.el`     |
-| PDF and EPUB viewers                                | `17b-document-viewers.el` |
-| Zotero's attachments folder                         | `17c-zotero.el`          |
-| Philosophy note types                               | `19-philosophy-notes.el` |
-| Org-transclusion                                    | `20-transclusion.el`     |
-| Dashboards                                          | `21-dashboards.el`       |
-| Zettelkasten / Folgezettel sequences                | `22-zettelkasten.el`     |
-| Fixed tabs (routing buffers to named tabs)          | `23-fixed-tabs.el`       |
-| Readwise import and review                          | `24-readwise.el`         |
-| **Migrated-notes inbox review, extraction**         | **`25-inbox-review.el`** |
+| Basic UI, completion, session, mode-line            | `101-ui.el`               |
+| Editing behaviour, keybindings                      | `102-editing.el`          |
+| Spell checking (ispell, flyspell, flyspell-correct) | `303-spelling.el`         |
+| Fonts and typography                                | `503b-fonts.el`           |
+| Denote core, silo config, org-mode settings         | `204-denote.el`           |
+| Notes functions (journal, essay, capture)           | `205-notes.el`            |
+| Org-capture templates                               | `306-capture.el`          |
+| Git (Magit)                                         | `207-git.el`              |
+| Global keybindings                                  | `208-keybindings.el`      |
+| Theme                                               | `509-theme.el`            |
+| **Visual-fill-column, centering, line wrapping**    | **`510-visual-fill.el`**  |
+| Org appearance (faces, prettify, headings)          | `511-org-appearance.el`   |
+| Transient menus                                     | `212-transient.el`        |
+| Centered writing mode (cursor recentering)          | `313-centered-writing.el` |
+| Typing analytics                                    | `114-typing-analytics.el` |
+| Workspace / dashboard                               | `815-workspace.el`        |
+| Org export (PDF, HTML, LaTeX)                       | `716-org-export.el`       |
+| Bibliography (Citar, BibTeX, the menu C-c x)        | `417-bibliography.el`     |
+| PDF and EPUB viewers                                | `117b-document-viewers.el` |
+| Zotero's attachments folder                         | `417c-zotero.el`          |
+| Philosophy note types                               | `419-philosophy-notes.el` |
+| Org-transclusion                                    | `420-transclusion.el`     |
+| Dashboards                                          | `821-dashboards.el`       |
+| Zettelkasten / Folgezettel sequences                | `422-zettelkasten.el`     |
+| Fixed tabs (routing buffers to named tabs)          | `323-fixed-tabs.el`       |
+| Readwise import and review                          | `424-readwise.el`         |
+| **Migrated-notes inbox review, extraction**         | **`425-inbox-review.el`** |
 | **Custom file load order, startup perf**            | **`init.el`**            |
 
 **Before adding a new feature:** find the owning file in this table and

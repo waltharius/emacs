@@ -1,6 +1,6 @@
-;;; test-references.el --- ERT tests for references inserted as text by 17-bibliography -*- lexical-binding: t; -*-
+;;; test-references.el --- ERT tests for references inserted as text by 417-bibliography -*- lexical-binding: t; -*-
 
-;; Tests: 17-bibliography
+;; Tests: 417-bibliography
 
 ;;; Commentary:
 
@@ -27,7 +27,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "17-bibliography")
+(my/test-load-modules "417-bibliography")
 
 (defvar my/csl-bundled-styles-dir)
 (defvar my/csl-bundled-locales-dir)

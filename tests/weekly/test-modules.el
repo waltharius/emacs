@@ -10,7 +10,7 @@
 ;; in the sandbox of tests/helper.el, with the packages installed for
 ;; this user:
 ;;
-;;   my/weekly-test-alone-NAME    00-core, the modules NAME declares in
+;;   my/weekly-test-alone-NAME    000-core, the modules NAME declares in
 ;;                                MyPKS-Requires, and NAME: nothing else.
 ;;                                A use of another module that is
 ;;                                neither declared nor guarded fails.
@@ -38,7 +38,7 @@
 ;; installs them; on the owner's machine they are installed).  Run:
 ;;
 ;;   bash hooks/check-weekly            # compilation and these tests
-;;   bash hooks/check-weekly 24-readwise    # the tests of one module
+;;   bash hooks/check-weekly 424-readwise    # the tests of one module
 
 ;;; Code:
 
@@ -94,11 +94,11 @@ Signals when the child did not reach its end."
 
 (defun my/weekly--header (name header)
   "The value of HEADER in the header of module NAME, or nil when empty.
-Read here, not through 00-core.el: loading that would put this Emacs in
+Read here, not through 000-core.el: loading that would put this Emacs in
 the sandbox, and the children would inherit its HOME (no packages)."
   (require 'lisp-mnt)
   (with-temp-buffer
-    (insert-file-contents (expand-file-name (concat "modules/" name ".el") my/test-repo)
+    (insert-file-contents (my/test-module-file name)
                           nil 0 4000)
     (let ((value (lm-header header)))
       (and value (not (string-empty-p (string-trim value))) value))))
@@ -107,7 +107,7 @@ the sandbox, and the children would inherit its HOME (no packages)."
   (let ((info (list :optional (equal (my/weekly--header name "MyPKS-Optional") "yes")
                     :switch (my/weekly--header name "MyPKS-Switch"))))
     (eval `(my/weekly--deftest "alone" ,name
-                               ,(format "%s loads with 00-core and what it declares, alone." name))
+                               ,(format "%s loads with 000-core and what it declares, alone." name))
           t)
     (when (plist-get info :optional)
       (eval `(my/weekly--deftest "without" ,name

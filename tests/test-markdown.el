@@ -1,10 +1,10 @@
-;;; test-markdown.el --- ERT tests for Markdown notes of 40-markdown -*- lexical-binding: t; -*-
+;;; test-markdown.el --- ERT tests for Markdown notes of 440-markdown -*- lexical-binding: t; -*-
 
-;; Tests: 40-markdown
+;; Tests: 440-markdown
 
 ;;; Commentary:
 
-;; 40-markdown.el gives Markdown files the treatment of notes: a Denote
+;; 440-markdown.el gives Markdown files the treatment of notes: a Denote
 ;; note in Markdown with `language:' in its front matter, the docu column
 ;; for docu notes, a column for Markdown outside the notes folder, and
 ;; buffers a restored session left in the wrong mode re-moded:
@@ -22,12 +22,12 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "40-markdown")
+(my/test-load-modules "440-markdown")
 (require 'markdown-mode)
 (require 'denote)
 
 (defvar denote-directory)
-;; Options of 03b-fonts and 10-visual-fill, not loaded here: declared
+;; Options of 503b-fonts and 510-visual-fill, not loaded here: declared
 ;; special so that the tests' `let' binds them as the module reads them.
 (defvar my/font-silo-styles)
 (defvar my/fill-column-docu)

@@ -23,14 +23,14 @@ the other one -- when it runs only where a test has shown it present:
 
 - in the branch where the test is true: the body of `(when (fboundp
   'f) ...)', the THEN of `(if (boundp 'v) THEN ELSE)', the later
-  arguments of `(and (featurep '05-notes) ...)', the body of a `cond'
+  arguments of `(and (featurep '205-notes) ...)', the body of a `cond'
   clause, the bindings after it and the body of `when-let*' and kin;
   and in the branch where a negated test is false: the ELSE of `(if
   (not (fboundp 'f)) ...)', the later arguments of `(or (not ...) ...)';
 - after `(unless (fboundp 'f) (user-error ...))' in the same body --
   only when that body ends by leaving (`user-error', `error', `signal',
   `throw'): an `unless' that only warns and goes on guards nothing;
-- inside `(with-eval-after-load '05-notes ...)';
+- inside `(with-eval-after-load '205-notes ...)';
 - the quoted name of a variable (`add-hook 'my/x-hook',
   `customize-save-variable 'my/v'): naming a variable does not read it
   -- unless the name is handed to what reads it (`symbol-value',
@@ -56,7 +56,7 @@ declared that is not strictly needed costs a toggle; one missed costs
 an error at run time.  The cases the reader once got wrong are kept as
 tests in tests/hooks/test_module_contract.py (audit of 2026-10-20).
 
-00-core.el is loaded first and is never listed: every module may use it.
+000-core.el is loaded first and is never listed: every module may use it.
 """
 
 import os
@@ -187,7 +187,7 @@ def defined(form):
     Kind is 'function', 'variable' or 'soft' (a face or a group).
     `(defvar NAME)' only declares, and `defalias' of a name without the
     configuration's prefix redefines an Emacs function rather than
-    providing one (02-editing.el: yes-or-no-p).
+    providing one (102-editing.el: yes-or-no-p).
     """
     head = form.head()
     if head not in DEF_HEADS or len(form.items) < 2 or form.items[1][0] != "sym":
@@ -355,8 +355,8 @@ def dependencies(files):
 # Headers
 # ------------------------------------------------------------------
 
-NAME_RE = re.compile(r"^\d\d[a-z]?-[a-z0-9-]+\.el$")
-CORE = "00-core.el"
+NAME_RE = re.compile(r"^\d\d\d?[a-z]?-[a-z0-9-]+\.el$")
+CORE = "000-core.el"
 
 
 def header(text, field):
@@ -449,11 +449,11 @@ def check(files, exempt=None):
         opt_value = header(text, "MyPKS-Optional")
         if req_value is None:
             problems.append(f"{name}: no ';; MyPKS-Requires:' header (empty when "
-                            "the module needs nothing but 00-core)")
+                            "the module needs nothing but 000-core)")
         if opt_value is None or opt_value.lower() not in ("yes", "no"):
             problems.append(f"{name}: no ';; MyPKS-Optional: yes' or 'no' header")
         # MyPKS-Default: off -- a new machine starts with the module off
-        # (00-core.el, `my/host--new-machine-modules-off').  Only "off"
+        # (000-core.el, `my/host--new-machine-modules-off').  Only "off"
         # means anything, and only an optional module can be off.
         default = header(text, "MyPKS-Default")
         if default is not None:
@@ -483,7 +483,7 @@ def check(files, exempt=None):
             if other == feature:
                 problems.append(f"{name}: requires itself")
             elif other == CORE[:-3]:
-                problems.append(f"{name}: lists 00-core, which every module may use "
+                problems.append(f"{name}: lists 000-core, which every module may use "
                                 "without listing")
             elif other not in features:
                 problems.append(f"{name}: requires {other}, which is not a module")

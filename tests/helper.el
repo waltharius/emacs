@@ -3,10 +3,10 @@
 ;;; Commentary:
 
 ;; A test that needs modules of this configuration loads this file and
-;; calls `my/test-load-modules'.  That loads 00-core.el and the modules
+;; calls `my/test-load-modules'.  That loads 000-core.el and the modules
 ;; named, from this repository, in a sandbox: a temporary HOME, settings
 ;; folder and ~/.emacs.d, removed when Emacs exits.  So a test run reads
-;; and writes nothing of the real notes, settings or ~/.emacs.d -- 00-core
+;; and writes nothing of the real notes, settings or ~/.emacs.d -- 000-core
 ;; moves old files and writes reports at load, and must not do that to
 ;; the real ones.
 ;;
@@ -60,18 +60,29 @@ machine; a test installs nothing (TESTING.org, rule 9).")
     (add-hook 'kill-emacs-hook
               (lambda () (ignore-errors (delete-directory my/test-sandbox t))))))
 
+(defun my/test-module-file (name)
+  "Return the file of module NAME in this repository.
+In its group's folder (modules/200-foundation/205-notes.el), or directly
+in modules/.  Found here, not by 000-core.el, which is what loads first."
+  (let ((flat (expand-file-name (concat "modules/" name ".el") my/test-repo)))
+    (if (file-exists-p flat)
+        flat
+      (or (car (file-expand-wildcards
+                (expand-file-name (concat "modules/*/" name ".el") my/test-repo)))
+          flat))))
+
 (defun my/test-load-modules (&rest modules)
-  "Load 00-core.el, then MODULES (names without .el), in a sandbox.
+  "Load 000-core.el, then MODULES (names without .el), in a sandbox.
 A module loaded already is not loaded again."
   (unless my/test-sandbox
     (my/test--enter-sandbox))
-  (dolist (name (cons "00-core" modules))
+  (dolist (name (cons "000-core" modules))
     (unless (featurep (intern name))
-      (load (expand-file-name (concat "modules/" name ".el") my/test-repo) nil t))))
+      (load (my/test-module-file name) nil t))))
 
 (defun my/test-date (offset)
   "The calendar date OFFSET days from today, as \"YYYY-MM-DD\".
-Written apart from the date functions of 00-core.el on purpose, so
+Written apart from the date functions of 000-core.el on purpose, so
 that tests of code using them compare with dates they did not compute.
 Counted in calendar days, from midday: steps of 86400 seconds from
 now land on the wrong date near midnight on the two days a year whose

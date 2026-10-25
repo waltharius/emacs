@@ -1,6 +1,6 @@
-;;; test-org-export.el --- ERT tests for the PDF export of 16-org-export -*- lexical-binding: t; -*-
+;;; test-org-export.el --- ERT tests for the PDF export of 716-org-export -*- lexical-binding: t; -*-
 
-;; Tests: 16-org-export
+;; Tests: 716-org-export
 
 ;;; Commentary:
 
@@ -22,7 +22,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "16-org-export")
+(my/test-load-modules "716-org-export")
 
 (ert-deftest my/export-test-declined-overwrite-cancels ()
   "Declining to overwrite: nil and a message, no error, nothing built."

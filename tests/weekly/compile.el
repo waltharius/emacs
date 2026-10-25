@@ -67,7 +67,7 @@ Return (OK . WARNINGS), WARNINGS a list of \"NAME: message\" lines."
          (byte-compile-dest-file-function
           (lambda (file) (expand-file-name (concat (file-name-base file) ".elc") output)))
          (ok (ignore-errors
-               (byte-compile-file (expand-file-name (concat "modules/" name ".el") my/test-repo)))))
+               (byte-compile-file (my/test-module-file name)))))
     (cons ok (seq-uniq (nreverse warnings)))))
 
 (defun my/weekly--report (line)

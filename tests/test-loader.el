@@ -1,9 +1,9 @@
-;;; test-loader.el --- ERT tests for the module loader of 00-core -*- lexical-binding: t; -*-
+;;; test-loader.el --- ERT tests for the module loader of 000-core -*- lexical-binding: t; -*-
 
-;; Tests: 00-core
+;; Tests: 000-core
 
 ;;; Commentary:
-;; `my/modules-load' and `my/modules-toggle' (00-core.el) on a set of
+;; `my/modules-load' and `my/modules-toggle' (000-core.el) on a set of
 ;; small stand-in modules in a temporary folder, each a few lines with
 ;; the headers the loader reads:
 ;;
@@ -19,7 +19,7 @@
 ;;   10-j  provides the slot `spelling', has a switch
 ;;   11-k  provides `spelling' too: left out while 10-j is on
 ;;
-;; 00-core.el reads the modules folder once, at load, from
+;; 000-core.el reads the modules folder once, at load, from
 ;; `user-emacs-directory', so the checks run in a fresh `emacs -Q
 ;; --batch' with its own HOME; each prints PASS or FAIL.  From the
 ;; repository's folder:
@@ -60,7 +60,7 @@
 (setq my/modules-off '(\"04-old\" \"98-gone\" \"04-d\"))
 (my/modules-load '(\"01-a\" \"02-b\" \"03-c\" \"04-d\" \"05-e\" \"06-f\" \"07-g\" \"08-h\" \"09-i\" \"10-j\" \"11-k\"))
 (check \"renamed: a chain followed to 04-d, a removed name dropped, no second entry\" (equal my/modules-off '(\"04-d\")))
-(check \"loaded in init.el order\" (equal my/modules-loaded '(\"00-core\" \"01-a\" \"02-b\" \"03-c\" \"08-h\" \"10-j\")))
+(check \"loaded in init.el order\" (equal my/modules-loaded '(\"000-core\" \"01-a\" \"02-b\" \"03-c\" \"08-h\" \"10-j\")))
 (check \"slot: the second module left out, named with the holder\" (equal (cdr (assoc \"11-k\" my/modules--skipped)) '(slot \"spelling\" . \"10-j\")))
 (check \"slot: state\" (equal (my/modules--state \"11-k\") \"not loaded: spelling is 10-j's\"))
 (check \"02-b loaded although its requirement loads later\" (member \"02-b\" test-loaded))
@@ -105,7 +105,7 @@
     (check \"slot: no changes nothing\" (and (condition-case nil (progn (my/modules-toggle \"10-j\") nil) (user-error t))
                                              (member \"10-j\" my/modules-off)))))
 "
-  "The checks, run in the child Emacs after 00-core.el.")
+  "The checks, run in the child Emacs after 000-core.el.")
 
 (defun my/loader-test--run ()
   "Write the stand-in modules, run the checks in a child Emacs; return its output."
@@ -142,10 +142,10 @@
           (with-temp-buffer
             (call-process (expand-file-name invocation-name invocation-directory)
                           nil t nil "-Q" "--batch"
-                          ;; A test installs nothing (no-littering, 00-core.el).
+                          ;; A test installs nothing (no-littering, 000-core.el).
                           "--eval" "(setq use-package-ensure-function 'ignore)"
                           "--eval" (format "(setq user-emacs-directory %S)" emacs-dir)
-                          "-l" (expand-file-name "modules/00-core.el" my/loader-test--repo)
+                          "-l" (expand-file-name "modules/000-loader/000-core.el" my/loader-test--repo)
                           "-l" script)
             (buffer-string)))
       (delete-directory root t))))

@@ -219,16 +219,16 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 
 ** R13. Module contract [5/5]
 - [X] =python3 hooks/lint.py modules= passes.
-- [X] Remove =22-zettelkasten= from =MyPKS-Requires= in
-      =modules/24-readwise.el=: the check fails and names
+- [X] Remove =422-zettelkasten= from =MyPKS-Requires= in
+      =modules/400-notes-extensions/424-readwise.el=: the check fails and names
       =my/zettel-adopt=.  Undo.
-- [X] Set =MyPKS-Optional: yes= in =modules/27-denote-identifiers.el=:
-      the check fails (15-workspace is core and needs it).  Undo.
+- [X] Set =MyPKS-Optional: yes= in =modules/200-foundation/227-denote-identifiers.el=:
+      the check fails (815-workspace is core and needs it).  Undo.
 - [X] In Emacs, =M-:= on
-      =(with-temp-buffer (insert-file-contents "~/.emacs.d/modules/24-readwise.el") (require 'lisp-mnt) (lm-header "MyPKS-Requires"))=
-      → ="01-ui 05-notes 22-zettelkasten"=.
-- [X] Emacs starts as before (headers are comments; 47-repo-docs.el now
-      provides =47-repo-docs=): =C-c n x r= opens the repo-docs menu.
+      =(with-temp-buffer (insert-file-contents "~/.emacs.d/modules/400-notes-extensions/424-readwise.el") (require 'lisp-mnt) (lm-header "MyPKS-Requires"))=
+      → ="101-ui 205-notes 422-zettelkasten"=.
+- [X] Emacs starts as before (headers are comments; 747-repo-docs.el now
+      provides =747-repo-docs=): =C-c n x r= opens the repo-docs menu.
 
 ** R14. Decoupling 1: Zotero, Readwise [3/5]
 - [X] =C-c n t=: Spelling on the left; Integrations with =z= Zotero,
@@ -241,7 +241,7 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 - [ ] =C-c r r=, a book, the quote list: =z= and =[zettel]= work as
       before.
 - [ ] =python3 hooks/lint.py modules= passes; the headers of
-      17-bibliography.el and 17c-zotero.el (18-zotero-transient.el
+      417-bibliography.el and 417c-zotero.el (18-zotero-transient.el
       until 2026-10-25zg) say =MyPKS-Optional: yes=.
 
 ** R15. Decoupling 2: spelling, writing mode, centred text, Org appearance [0/6]
@@ -251,10 +251,10 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 - [ ] =C-c n=: second column =v t z l , ! s a=; =s= and =a= keep the
       menu open; =!= opens Maintenance.
 - [ ] =C-c s=, =C-c S=, =C-c m w= work as before.
-- [ ] Comment out the line loading =03-spelling.el= in =init.el= (do not
+- [ ] Comment out the line loading =303-spelling.el= in =init.el= (do not
       commit), restart: no Spelling column in Tools, no =s a= in the
       main menu, =!= still there.  Restore the line.
-- [ ] Same with =11-org-appearance.el=: the View menu loses =i e=
+- [ ] Same with =511-org-appearance.el=: the View menu loses =i e=
       only; =T t m= are still there.  Restore.
 
 ** R16. Auto-commit: failures shown, quitting asks [0/6]
@@ -420,7 +420,7 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
       =M-x my/transient-skipped-report= says every entry is in its menu.
 
 ** R26. A taken key is shown [0/2]
-- [ ] In a scratch copy of =36-notes-stats.el= change ="s"= of Statistics
+- [ ] In a scratch copy of =836-notes-stats.el= change ="s"= of Statistics
       to ="h"=, evaluate the buffer (=M-x eval-buffer=), then
       =M-x my/transient-skipped-report=: "my/notes-find-menu, key h:
       my/notes-stats ... the key already runs
@@ -440,7 +440,7 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
       Restart: no =C-c n r=, no deck keyword in the keyword prompt.  The
       other machine still has both.  Turn it back on and save.
 - [ ] (The menu has no switch of its own since 2026-10-25zg: it is part
-      of 17-bibliography, R55.)  =C-c n , m=, =17-bibliography= off,
+      of 417-bibliography, R55.)  =C-c n , m=, =417-bibliography= off,
       restart: =C-c x= and =C-c b c= undefined.  On again.
 - [ ] No warning of type =menus= after any of this.
 
@@ -497,19 +497,19 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
 ** R32. The loader [0/7]
 - [ ] Start as usual: no warning of type =modules=; =C-c n , m= lists
       every module, core ones as "core", the rest "on".
-- [ ] =C-c n , m=, =24-readwise=: off at once (no =C-c n t r=); restart:
+- [ ] =C-c n , m=, =424-readwise=: off at once (no =C-c n t r=); restart:
       still off, =C-c n , m= says "off".  Choose it again, answer /y/:
       loaded and on without a restart.
-- [ ] Turn off =17-bibliography=: question "needed by 17c-zotero and
-      50-cite-preview ... Turn all off?"; yes; all
-      off.  Turn =17c-zotero= on: 17 comes back with it.
-- [ ] A module without a switch, e.g. =30-link-tooltips=: off -- the echo
+- [ ] Turn off =417-bibliography=: question "needed by 417c-zotero and
+      450-cite-preview ... Turn all off?"; yes; all
+      off.  Turn =417c-zotero= on: 17 comes back with it.
+- [ ] A module without a switch, e.g. =630-link-tooltips=: off -- the echo
       area says it goes at the next start; restart: tooltips gone.  On
       again, /n/: back after the next restart.
-- [ ] =C-c n , m= on =05-notes=: refused, core.
+- [ ] =C-c n , m= on =205-notes=: refused, core.
 - [ ] Break an optional module on purpose (in a scratch copy: add
-      =(error "test")= at the top of =45-standard-pages.el=), restart:
-      Emacs starts fully; warning "45-standard-pages: FAILED while
+      =(error "test")= at the top of =645-standard-pages.el=), restart:
+      Emacs starts fully; warning "645-standard-pages: FAILED while
       loading -- test".  =git checkout= the file.
 - [ ] The other machine, after pulling the settings: its own
       =my/modules-off= unchanged.
@@ -652,25 +652,25 @@ first: on exit it still writes to the old places.
       program)/ and /Zotero attachments folder (PDFs)/, with the values
       saved before the split.
 - [ ] In a bibliographic note, =C-c x f= opens its PDF on the right.
-- [ ] =C-c n , m=: =17c-zotero= on, =18-zotero-transient= not listed.
-- [ ] =17c-zotero= off, restart: =C-c x ,= has no Zotero folder;
+- [ ] =C-c n , m=: =417c-zotero= on, =18-zotero-transient= not listed.
+- [ ] =417c-zotero= off, restart: =C-c x ,= has no Zotero folder;
       =C-c x f= still opens a PDF whose .bib entry has a file field.
       On again.
 
 ** R54. PDF and EPUB viewers as a module [0/3]
-- [ ] =C-c n , m=: =17b-document-viewers= on.  A PDF opens in the
+- [ ] =C-c n , m=: =117b-document-viewers= on.  A PDF opens in the
       viewer (pdf-tools), an =.epub= in nov.
-- [ ] =17b-document-viewers= off, restart: a PDF opens in DocView,
+- [ ] =117b-document-viewers= off, restart: a PDF opens in DocView,
       citing works as before (=C-c x i=, =C-c x S=).
 - [ ] On again, restart: R44 still holds (no build at start-up).
 
 ** R53. Frame bars as a module [0/3]
 - [ ] Restart: no tool bar, no scroll bars, the menu bar there -- also
       when the session restores its frames.
-- [ ] =C-c n , m=: =01b-frame-bars= on (named 01b-frame-chrome for an
+- [ ] =C-c n , m=: =501b-frame-bars= on (named 01b-frame-chrome for an
       hour on 2026-10-25); off, restart: tool bar and scroll bars back.
 - [ ] On again, restart: both gone; quote blocks still show the speech
-      balloon, source blocks the lambda (11-org-appearance).
+      balloon, source blocks the lambda (511-org-appearance).
 
 ** R52. Keystroke log: captures and newlines [0/2]
 - [ ] =C-c y T=, then =C-c n c i= (ideas capture into the journal), type
@@ -699,7 +699,7 @@ first: on exit it still writes to the old places.
       bibliography: ...".
 - [ ] =#+cite_export: csl apa.csl= (if the style is in =~/notes/csl/=):
       the preview follows it: authors and year in parentheses.
-- [ ] =C-c n , m=, 50-cite-preview off: the echo area shows nothing on
+- [ ] =C-c n , m=, 450-cite-preview off: the echo area shows nothing on
       citations, also in a note opened afterwards; citar's tooltip on
       mouse hover still there.  On again: back without reopening.
 
@@ -728,7 +728,7 @@ LibreOffice, fonts and citation style of this machine.
 - [ ] The same note: =C-c n x W=; the DOCX opens, the footnote is a real
       footnote.  Exported again: the question to overwrite; =n= keeps
       the first file.
-- [ ] A note citing a source with a note style (17-bibliography):
+- [ ] A note citing a source with a note style (417-bibliography):
       =C-c n x W=; the citation is a footnote, the bibliography at the
       end.
 

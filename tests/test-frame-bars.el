@@ -1,10 +1,10 @@
-;;; test-frame-bars.el --- ERT tests for 01b-frame-bars -*- lexical-binding: t; -*-
+;;; test-frame-bars.el --- ERT tests for 501b-frame-bars -*- lexical-binding: t; -*-
 
-;; Tests: 01b-frame-bars
+;; Tests: 501b-frame-bars
 
 ;;; Commentary:
 
-;; 01b-frame-bars turns the tool bar and the scroll bars off and keeps
+;; 501b-frame-bars turns the tool bar and the scroll bars off and keeps
 ;; the menu bar, at load and again after a desktop restore.  Tested: the
 ;; state after load; bars turned on by a restored frameset are turned
 ;; off again by `desktop-after-read-hook'; an Emacs without
@@ -22,7 +22,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "01b-frame-bars")
+(my/test-load-modules "501b-frame-bars")
 
 (ert-deftest my/fc-test-state-after-load ()
   "After load the tool bar is off and the menu bar on."

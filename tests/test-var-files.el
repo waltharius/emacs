@@ -1,15 +1,15 @@
 ;;; test-var-files.el --- ERT tests for the files Emacs writes, out of ~/.emacs.d -*- lexical-binding: t; -*-
 
-;; Tests: 00-core
+;; Tests: 000-core
 
 ;;; Commentary:
 
-;; `my/var--setup' (00-core.el): no-littering loaded with its folders in
+;; `my/var--setup' (000-core.el): no-littering loaded with its folders in
 ;; the settings folder, the old files in ~/.emacs.d moved to var/ and
 ;; etc/, a file whose new place is taken left where it is, var/ left out
 ;; of git by the settings folder's .gitignore.
 ;;
-;; The move runs while 00-core.el loads, so the checks run in a fresh
+;; The move runs while 000-core.el loads, so the checks run in a fresh
 ;; `emacs -Q --batch' with its own HOME and ~/.emacs.d holding old files;
 ;; each prints PASS or FAIL.  no-littering and compat are taken from the
 ;; packages installed for this user (or from `load-path'); without them
@@ -54,7 +54,7 @@
 (check \"own file moved: undo history\" (and (file-exists-p (var \"undo-fu-session/abc\")) (not (file-exists-p (home \"ed/undo-fu-session\")))))
 (check \"own file moved: backups, and the backup folder points there\" (and (file-exists-p (var \"backups/!home!x!file.txt.~1~\")) (equal my-emacs-backups (var \"backups/\"))))
 (check \"own file moved: notes root\" (and (equal my/notes-root-state-file (var \"notes-root.eld\")) (not (file-exists-p (home \"ed/notes-root.eld\")))))
-(check \"own file moved: keylog of 14-typing-analytics.el\" (and (file-exists-p (var \"keys\")) (not (file-exists-p (home \"ed/keys\")))))
+(check \"own file moved: keylog of 114-typing-analytics.el\" (and (file-exists-p (var \"keys\")) (not (file-exists-p (home \"ed/keys\")))))
 (check \"own file moved: saveplace, also without no-littering\" (equal (read-file (var \"save-place.el\")) \"place in use\"))
 (check \".gitignore leaves var/ out\" (string-match-p \"^/hosts/\\\\*/var/$\" (read-file (home \"settings/.gitignore\"))))
 (check \".gitignore line not added twice\" (null (my/var--ignore-in-git)))
@@ -71,7 +71,7 @@
     (check \"second start: nothing moved, the two taken places reported again\"
            (and (null (nth 0 again)) (= (length (nth 1 again)) 2) (null (nth 2 again))))))
 "
-  "The checks, run in the child Emacs after 00-core.el.")
+  "The checks, run in the child Emacs after 000-core.el.")
 
 (defun my/var-test--package-directories ()
   "Return the folders of no-littering and compat, or nil when one is missing."
@@ -117,7 +117,7 @@
                     ;; `load-path' or absent.
                     (list "--eval" "(setq use-package-ensure-function 'ignore)"
                           "--eval" (format "(setq user-emacs-directory %S)" emacs-dir)
-                          "-l" (expand-file-name "modules/00-core.el" my/var-test--repo)
+                          "-l" (expand-file-name "modules/000-loader/000-core.el" my/var-test--repo)
                           "-l" script)))
             (buffer-string)))
       (delete-directory root t))))

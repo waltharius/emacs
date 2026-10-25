@@ -1,15 +1,15 @@
-;;; test-notes-stats.el --- ERT tests for 36-notes-stats -*- lexical-binding: t; -*-
+;;; test-notes-stats.el --- ERT tests for 836-notes-stats -*- lexical-binding: t; -*-
 
-;; Tests: 36-notes-stats
+;; Tests: 836-notes-stats
 
 ;;; Commentary:
 
-;; 36-notes-stats counts the collection from file names (counts, sizes,
+;; 836-notes-stats counts the collection from file names (counts, sizes,
 ;; keywords, months, journal coverage, sequenced notes) and, on `c',
 ;; from the files' contents (words, links, orphans), and exports all of
 ;; it to an Org file with `denote:' links.  These tests build a small
 ;; collection in a temporary notes folder and check the figures and the
-;; export: journal notes named as 05-notes names them today, a
+;; export: journal notes named as 205-notes names them today, a
 ;; sequenced note without a title, titles with brackets and a bar in
 ;; the links and tables of the export, keyword figures with the inbox
 ;; left out, streaks, the content scan, the files on disk.
@@ -26,8 +26,8 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "04-denote" "05-notes" "27-denote-identifiers" "26-maintenance"
-                      "36-notes-stats")
+(my/test-load-modules "204-denote" "205-notes" "227-denote-identifiers" "826-maintenance"
+                      "836-notes-stats")
 
 (defmacro my/ns2-test-with-notes (&rest body)
   "Run BODY in a fresh notes folder with journal/, pks/, inbox/.
@@ -62,7 +62,7 @@ Binds `root'.  Notes written by `my/ns2-test-note'."
     (buffer-string)))
 
 (ert-deftest my/ns2-test-journal-notes-as-named-today ()
-  "Journal notes named as 05-notes names them -- date as the title, the
+  "Journal notes named as 205-notes names them -- date as the title, the
 `journal' keyword -- are the journal; the old pattern wanted
 \"DATE-journal\" in the title and counted none of them."
   (my/ns2-test-with-notes

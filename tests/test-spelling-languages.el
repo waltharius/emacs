@@ -1,10 +1,10 @@
 ;;; test-spelling-languages.el --- ERT tests for choosing the installed dictionaries -*- lexical-binding: t; -*-
 
-;; Tests: 03-spelling
+;; Tests: 303-spelling
 
 ;;; Commentary:
 
-;; `my/spell-languages' (03-spelling.el): for each language the first
+;; `my/spell-languages' (303-spelling.el): for each language the first
 ;; dictionary Hunspell has.  Until 2026-10-20 the names were fixed to
 ;; the NixOS ones, "pl_PL,en_GB-large", and on Fedora, Debian or Ubuntu
 ;; loading flyspell failed ("ispell-phaf: No matching entry for pl_PL").
@@ -26,7 +26,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "03-spelling")
+(my/test-load-modules "303-spelling")
 
 (defconst my/spell-langs-test--wanted '(("pl_PL") ("en_GB-large" "en_GB" "en_US"))
   "The default languages, spelled out so that the tests do not follow a change.")

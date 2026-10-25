@@ -172,7 +172,7 @@ compile` adds every warning of this Emacs to the list.
 | `private` | Is a `--` symbol called from outside its module? | yes (since 2026-10-18) |
 | `personal` | Does a file git would commit contain a string from the private list `private-strings.txt` in the settings folder? | yes; *skipped*, with the path, when the list does not exist |
 | `coverage` | Is every command a menu runs mentioned in `function_helper.org`? | no — advisory |
-| `groups` | Reads the tables under `* Groups` and `* Map` of `MODULES.org`: is every module in the map once, in one of the groups, and does every `MyPKS-Requires` point to a module of the same or a lower group?  Reads hard dependencies only; a guarded use is not seen. | no — advisory until the move (2026-10-25r) |
+| `groups` | Reads the tables under `* Groups` and `* Map` of `MODULES.org`: is every module in the map once, in one of the groups, in the folder of its group (`modules/200-foundation/`) with a name led by the group's digit (`205-notes`), and does every `MyPKS-Requires` point to a module of the same or a lower group?  Reads hard dependencies only; a guarded use is not seen. | yes, since the move (2026-10-26c); advisory before |
 | `tests` | Which modules does no test file name in its `;; Tests:` header, and is a module staged without any of its test files? Modules marked `MyPKS-Tests: weekly` are left out of both. (TESTING.org) | no — advisory |
 
 Not a check but a report: `python3 tools/check_module_graph.py` reads

@@ -1,10 +1,10 @@
-;;; test-habits.el --- ERT tests for defining, logging and deriving habits of 38-habits -*- lexical-binding: t; -*-
+;;; test-habits.el --- ERT tests for defining, logging and deriving habits of 438-habits -*- lexical-binding: t; -*-
 
-;; Tests: 38-habits
+;; Tests: 438-habits
 
 ;;; Commentary:
 
-;; 38-habits.el defines habits once through org-capture, logs them done
+;; 438-habits.el defines habits once through org-capture, logs them done
 ;; by writing their LOGBOOK and moving the repeater, and rebuilds the
 ;; LOGBOOK of a derived habit from its source (the journal file names):
 ;; TESTING.org, *Every module tested*, part 3.  On real files in a
@@ -21,7 +21,7 @@
 
 (load (expand-file-name "helper" (file-name-directory (or load-file-name buffer-file-name)))
       nil t)
-(my/test-load-modules "27-denote-identifiers" "05-notes" "37-tasks" "38-habits")
+(my/test-load-modules "227-denote-identifiers" "205-notes" "437-tasks" "438-habits")
 
 ;; ============================================================
 ;; FIXTURE

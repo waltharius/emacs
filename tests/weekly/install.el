@@ -4,7 +4,7 @@
 
 ;; What a new user's first start does: every module of init.el's list
 ;; loads, and use-package installs each package from the archives (GNU
-;; ELPA, NonGNU ELPA, MELPA), as 00-core.el sets them up.  Run by the
+;; ELPA, NonGNU ELPA, MELPA), as 000-core.el sets them up.  Run by the
 ;; weekly workflow on a machine with nothing installed, before the
 ;; other weekly checks, which need the packages.
 ;;
