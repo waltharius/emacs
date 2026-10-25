@@ -128,6 +128,9 @@ settles; a line is a reminder, not the text to paste.
   =personal= skipped without its list).
 - A section /Privacy model and limits/ (BACKLOG, public repository,
   step 5).
+- /Optional modules/: 50-cite-preview, the citation under point in the
+  echo area (2026-10-25g); 17-bibliography's =C-c x S= and =R= render
+  through CSL (2026-10-25f).
 
 ** Help text of C-c h k (08-keybindings.el)
 - Brought up to date for Find, Insert and Export on 2026-10-19e; still
@@ -988,31 +991,6 @@ so reloading a module does not stack it.
   of font fallback is measured by TESTPLAN B1; drop them if it shows.
 - M5: =whitespace-cleanup= for =.el= files only (=.dir-locals.el= in
   this repository), never for notes.
-
-* Citations shown as they will export
-Asked 2026-10-25: can a =[cite:@key]= in a note show, while writing,
-what the export will make of it -- as an office suite shows a footnote
-as it will print?  Not decided; notes for the decision:
-- *Exists, not packaged*: org-cite-csl-activate
-  (github.com/andras-simonyi/org-cite-csl-activate, by the author of
-  citeproc-el; one file, not on MELPA, last change 2025-06), an Org
-  activation processor that displays each citation rendered by CSL in
-  place of its text while point is elsewhere, and the bibliography entry
-  in a tooltip.  Its README calls it experimental: deleting after a
-  rendered citation is confusing, filling counts the hidden text, and a
-  /note/ style -- the default style here is one -- renders badly when
-  used in the buffer (its own warning); its default is an author-date
-  style.  It would replace citar as =org-cite-activate-processor=, and
-  citar's key map on citations with it.
-- *Smaller, on the renderer of 2026-10-25f* (=my/reference-render=):
-  the citation under point rendered in the export style, in the echo
-  area through eldoc, and the bibliography entry in citar's tooltip;
-  the text of the note untouched, citar kept as the activation
-  processor.  Cost measured here: reading a 1.6 MB .bib about 0.9 s
-  once per change of the file; a Chicago note about 7 ms, a short
-  reference under 1 ms.  The footnote numbers and ibid./shortened
-  forms depend on the whole document and are not shown.
-- Its place: a module of its own with a switch.
 
 * Small items
 - citeproc-el (2026-01) gives =and="text"= the first term named "and"

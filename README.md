@@ -357,6 +357,7 @@ startup. Optional ones can be removed.
 | `26-maintenance.el` | required | Integrity checks, keyword inventory, keyword renames. |
 | `27-denote-identifiers.el` | required | Duplicate identifiers, broken links, self-links. |
 | `49-packages.el` | optional | Upgrade the installed packages after copying the package folder; go back to a copy (`C-c n !`, `U` `B` `L`). |
+| `50-cite-preview.el` | optional | The citation under point shown in the echo area as the export will render it (ElDoc). |
 
 ### Reports
 

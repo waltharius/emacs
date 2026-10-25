@@ -487,6 +487,7 @@ reads as the entry of an exported bibliography.  Otherwise a file in
 (declare-function citeproc-append-citations "ext:citeproc")
 (declare-function citeproc-citation-create "ext:citeproc")
 (declare-function citeproc-render-bib "ext:citeproc")
+(declare-function citeproc-render-citations "ext:citeproc")
 (declare-function citeproc-hash-itemgetter-from-any "ext:citeproc")
 (declare-function citeproc-locale-getter-from-dir "ext:citeproc")
 (declare-function citar-select-refs "ext:citar")
@@ -559,17 +560,21 @@ language of the export, else English."
           (push (cons key processor) my/reference--processors)
           processor))))
 
+(defun my/reference-missing (keys)
+  "Return the keys among KEYS that no bibliography file holds."
+  (let ((getter (my/reference--itemgetter)))
+    ;; The getter answers (KEY . nil) for a key it does not hold.
+    (seq-remove (lambda (key) (cdar (funcall getter (list key)))) keys)))
+
 (defun my/reference-render (keys style-name &optional format separator)
   "Return the references to KEYS, a list of citation keys, as text.
-Rendered in the CSL style STYLE-NAME, in the language of the current
-buffer (`my/reference--locale').  FORMAT is a citeproc output format,
-`org' by default; SEPARATOR joins several references, a new line by
-default.  An unknown key is an error naming it."
-  (let* ((processor (my/reference--processor style-name (my/reference--locale)))
-         (getter (my/reference--itemgetter))
-         ;; The getter answers (KEY . nil) for a key it does not hold.
-         (missing (seq-remove (lambda (key) (cdar (funcall getter (list key))))
-                              keys)))
+Rendered in the CSL style STYLE-NAME as entries of a bibliography, in
+the language of the current buffer (`my/reference--locale').  FORMAT is
+a citeproc output format, `org' by default; SEPARATOR joins several
+references, a new line by default.  An unknown key is an error naming
+it."
+  (let ((missing (my/reference-missing keys))
+        (processor (my/reference--processor style-name (my/reference--locale))))
     (when missing
       (user-error "Not in the bibliography: %s" (string-join missing ", ")))
     ;; Cited rather than added as uncited: `citeproc-clear' empties
@@ -583,6 +588,18 @@ default.  An unknown key is an error naming it."
     (car (citeproc-render-bib processor (or format 'org) 'no-links t
                               (lambda (items _params)
                                 (string-join items (or separator "\n")))))))
+
+(defun my/reference-render-citation (citation style-name &optional format)
+  "Return CITATION, a `citeproc-citation' structure, as text.
+Rendered in the CSL style STYLE-NAME as a citation -- the note of a note
+style, the parenthesis of an author-date one -- in the language of the
+current buffer, as the first citation of the work in a document.
+FORMAT is a citeproc output format, `plain' by default.  The keys are
+not checked: `my/reference-missing' does that."
+  (let ((processor (my/reference--processor style-name (my/reference--locale))))
+    (citeproc-clear processor)
+    (citeproc-append-citations (list citation) processor)
+    (car (citeproc-render-citations processor (or format 'plain) 'no-links))))
 
 (defun my/reference--select ()
   "Ask for references with citar; return their keys."

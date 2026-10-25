@@ -191,6 +191,10 @@
    ;; 26-maintenance.el, whose Maintenance menu it adds a column to;
    ;; without that module the commands remain for M-x.
    "49-packages"             ; Package upgrades (C-c n ! U B L)
+   ;; Optional: the citation under point shown in the echo area as the
+   ;; export will render it.  Needs 17-bibliography.el, whose renderer
+   ;; and settings it uses; adds no key and no menu entry.
+   "50-cite-preview"         ; Citation preview (echo area)
    ))
 
 (add-hook 'emacs-startup-hook

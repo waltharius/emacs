@@ -4700,6 +4700,54 @@ nothing is inserted.
 
 Function: =my/insert-short-reference=, =my/insert-full-reference=, =my/reference-render= | Module: =modules/17-bibliography.el= | Tests: =tests/test-references.el=
 
+** The citation under point, as it will export
+:PROPERTIES:
+:CUSTOM_ID: cite-preview
+:END:
+
+With point on a =[cite:...]= in an Org note, the echo area shows what
+the export will make of it, after ElDoc's usual pause (=eldoc-idle-delay=,
+half a second):
+
+| In the note                         | Echo area (default style, =#+language: pl=)                                   |
+|-------------------------------------+---------------------------------------------------------------------------------|
+| =[cite:@baluk2018 45]=              | =Kamil Bałuk i Wacław Krupiński, Wodecki: tak mi wyszło (Wydawnictwo Agora, 2018), 45.= |
+| =[cite/na:@baluk2018]=              | the same without the authors                                                    |
+| =[cite:@baluk2018; @nosuch]=        | =Not in the bibliography: nosuch=                                               |
+
+The note of a note style, the parenthesis of an author-date one; pages,
+the prefixes and suffixes of each reference and of the whole citation,
+and the style variants (=/na=, =/a=, ...) as Org's CSL export parses
+them.  The style is the document's (=#+cite_export: csl apa.csl=) or
+=my/csl-default-style=; the language is =#+language:=; the entries are
+those of =my/bibliography-files=, read as =C-c x S= reads them
+([[#reference-as-text][A reference as text]]) -- the first preview of a
+session waits for the file to be read (about a second for 1.6 MB),
+the next ones take milliseconds.  Plain text: no italics in the echo
+area.  =C-h .= (=eldoc-doc-buffer=) shows a long note whole.
+
+What it cannot show: the number of the footnote and the shortened form
+of a work cited again depend on the whole document and appear only in
+the export; the preview is always the first, full citation.  A
+=nocite= shows nothing, as it prints nothing in the text.  Without a
+bibliography file the echo area says so instead of an error.
+
+ElDoc, not the citation replaced in the text: org-cite-csl-activate,
+which does that, is experimental by its own README and renders note
+styles badly, and it would replace citar's handling of citations (its
+key map, its tooltip on hover, which stays).  The keys and locators are
+parsed by internal functions of Org's =oc-csl=
+(=org-cite-csl--parse-reference=, =org-cite-csl--create-structure-params=);
+where they are missing or fail, the keys alone are rendered, without
+pages.
+
+The switch =my/cite-preview-mode= (on by default; =C-c n , m= or
+=M-x=) adds the preview to every Org buffer, open or opened later,
+through =org-mode-hook=, and turns ElDoc on where it was off; off, it
+takes both away again.  No key, no menu entry.
+
+Function: =my/cite-preview-at-point=, =my/reference-render-citation=, =my/reference-missing= | Module: =modules/50-cite-preview.el=, =modules/17-bibliography.el= | Tests: =tests/test-cite-preview.el=
+
 ** , — Where the bibliography is
 :PROPERTIES:
 :CUSTOM_ID: bibliography-files
@@ -6898,6 +6946,7 @@ module's loading together.
 | =my/blog-mode=            | =46-blog.el=            | export on save, the autostart sites (after start-up, or at once when turned on later), Export → =b=, Settings → =b=; off also cancels pending exports and stops its Hugo servers |
 | =my/repo-docs-mode=       | =47-repo-docs.el=       | regeneration on save while the preview runs, Export → =r=; off also stops the preview server |
 | =my/packages-mode=        | =49-packages.el=        | Maintenance → the Emacs packages column (=U=, =B=, =L=) |
+| =my/cite-preview-mode=    | =50-cite-preview.el=    | the citation under point in the echo area, in every Org buffer (ElDoc) |
 
 How a module writes one, with two helpers:
 
@@ -7034,7 +7083,7 @@ first (2026-10-16d), then spelling, centred text, Org appearance and
 the writing mode (2026-10-16e), then capture, PDF export, the
 dashboard and fixed tabs (2026-10-19e).
 
-Optional (43):
+Optional (44):
 
 | Module | What | Requires |
 |---+---+---|
@@ -7082,6 +7131,7 @@ Optional (43):
 | =47-repo-docs= | Documentation of git repositories as one Hugo site | -- |
 | =48-settings-tools= | Favourite and recently changed settings | -- |
 | =49-packages= | Upgrade the installed packages, with a copy to go back to | -- |
+| =50-cite-preview= | The citation under point shown as it will export | =17-bibliography= |
 
 * One symbol, one owner
 :PROPERTIES:

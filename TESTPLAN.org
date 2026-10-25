@@ -644,6 +644,20 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R50. The citation under point in the echo area [0/4]
+- [ ] In a note with =#+language: pl=, point on a =[cite:@key 45]= of
+      a book: after half a second the echo area shows its footnote as in
+      the PDF, with ", 45" at the end.  Export the note (=C-c n x p=)
+      and compare.
+- [ ] A citation of two works, one with =[cite/na:...]=: both, the
+      second without the authors.  A key not in =refs.bib=: "Not in the
+      bibliography: ...".
+- [ ] =#+cite_export: csl apa.csl= (if the style is in =~/notes/csl/=):
+      the preview follows it: authors and year in parentheses.
+- [ ] =C-c n , m=, 50-cite-preview off: the echo area shows nothing on
+      citations, also in a note opened afterwards; citar's tooltip on
+      mouse hover still there.  On again: back without reopening.
+
 ** R49. References inserted as text [0/4]
 With the real =refs.bib= exported by Zotero.
 - [ ] In a pks note (=#+language: pl=), =C-c x S=, the Bałuk and
