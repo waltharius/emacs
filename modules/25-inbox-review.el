@@ -687,7 +687,7 @@ note records where it came from in :extracted_from:."
     (message "Extracted to %s" (file-name-nondirectory target))))
 
 ;; Make the extract command handy in inbox notes without claiming a
-;; global key.  NOT "C-c x": that is `my/zotero-menu' globally, and a
+;; global key.  NOT "C-c x": that is `my/bibliography-menu' globally, and a
 ;; minor-mode map would shadow it inside exactly the buffers where
 ;; bibliography lookups are likely.  Capital X is unbound repo-wide.
 (defvar my/inbox-note-mode-map

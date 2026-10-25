@@ -213,8 +213,9 @@ treat an empty capture as absent. See Session 2026-07-26a, E.
 | Typing analytics                                    | `14-typing-analytics.el` |
 | Workspace / dashboard                               | `15-workspace.el`        |
 | Org export (PDF, HTML, LaTeX)                       | `16-org-export.el`       |
-| Bibliography (Citar, BibTeX)                        | `17-bibliography.el`     |
-| Zotero transient menu                               | `18-zotero-transient.el` |
+| Bibliography (Citar, BibTeX, the menu C-c x)        | `17-bibliography.el`     |
+| PDF and EPUB viewers                                | `17b-document-viewers.el` |
+| Zotero's attachments folder                         | `17c-zotero.el`          |
 | Philosophy note types                               | `19-philosophy-notes.el` |
 | Org-transclusion                                    | `20-transclusion.el`     |
 | Dashboards                                          | `21-dashboards.el`       |

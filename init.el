@@ -84,7 +84,7 @@
    "16-org-export"
    "17-bibliography"         ; Citar, CSL, references
    "17b-document-viewers"    ; pdf-tools and nov (optional)
-   "18-zotero-transient"     ; Zotero transient menu
+   "17c-zotero"              ; Zotero's attachments folder (off on a new machine)
    "19-philosophy-notes"     ; Philosophy note types (C-c n l)
    "20-transclusion"         ; transclusion for note linking inside other notes
    "21-dashboards"           ; Historical dashboards (C-c n f h)

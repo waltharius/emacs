@@ -2567,7 +2567,11 @@ requires must already be loaded."
                 (list (cons name reason)))))
 
 (defconst my/modules-renamed
-  '(("01b-frame-chrome" . "01b-frame-bars"))   ; 2026-10-25zf
+  '(("01b-frame-chrome" . "01b-frame-bars")   ; 2026-10-25zf
+    ;; 2026-10-25zg: the menu merged into 17-bibliography.  Dropped,
+    ;; not renamed: what it held is part of citing now, and 17c-zotero
+    ;; holds what was always on.
+    ("18-zotero-transient"))
   "Modules renamed or removed: alist of (OLD . NEW), NEW nil for removed.
 A machine's `my/modules-off' names modules by file name, so a module
 that is renamed would come back on there, and one merged into another

@@ -241,8 +241,8 @@ Findings of the first pass, fixed on 2026-10-14 (CHANGELOG sessions
 - [ ] =C-c r r=, a book, the quote list: =z= and =[zettel]= work as
       before.
 - [ ] =python3 hooks/lint.py modules= passes; the headers of
-      17-bibliography.el and 18-zotero-transient.el say
-      =MyPKS-Optional: yes=.
+      17-bibliography.el and 17c-zotero.el (18-zotero-transient.el
+      until 2026-10-25zg) say =MyPKS-Optional: yes=.
 
 ** R15. Decoupling 2: spelling, writing mode, centred text, Org appearance [0/6]
 - [ ] =C-c n v=: Toggle column =c i e w T t y p W S m q=, Detach =f F=;
@@ -439,8 +439,9 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
 - [ ] =M-x customize-option RET my/drill-mode=, Toggle, Apply and Save.
       Restart: no =C-c n r=, no deck keyword in the keyword prompt.  The
       other machine still has both.  Turn it back on and save.
-- [ ] =M-x my/zotero-mode= off, then =C-c x=: undefined; the citation
-      commands of 17-bibliography (=C-c b c=) still work.  On again.
+- [ ] (The menu has no switch of its own since 2026-10-25zg: it is part
+      of 17-bibliography, R55.)  =C-c n , m=, =17-bibliography= off,
+      restart: =C-c x= and =C-c b c= undefined.  On again.
 - [ ] No warning of type =menus= after any of this.
 
 ** R28. The blog's switch [0/4]
@@ -499,9 +500,9 @@ Before: =wc -l ~/.hunspell_personal= on both machines, for comparison.
 - [ ] =C-c n , m=, =24-readwise=: off at once (no =C-c n t r=); restart:
       still off, =C-c n , m= says "off".  Choose it again, answer /y/:
       loaded and on without a restart.
-- [ ] Turn off =17-bibliography=: question "needed by 18-zotero-transient
-      ... Turn both off?"; yes; both off.  Turn =18-zotero-transient= on:
-      17 comes back with it.
+- [ ] Turn off =17-bibliography=: question "needed by 17c-zotero and
+      50-cite-preview ... Turn all off?"; yes; all
+      off.  Turn =17c-zotero= on: 17 comes back with it.
 - [ ] A module without a switch, e.g. =30-link-tooltips=: off -- the echo
       area says it goes at the next start; restart: tooltips gone.  On
       again, /n/: back after the next restart.
@@ -643,6 +644,33 @@ first: on exit it still writes to the old places.
       follows it.  The value is in this machine's =custom.el= only.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
+
+** R55. The bibliography split: citar, Zotero [0/5]
+- [ ] =C-c x=, =C-c n t z= and =M-x my/zotero-menu= open the same
+      bibliography menu, with the same keys as before.
+- [ ] =C-c x ,=: /Bibliography files (.bib, from Zotero or any other
+      program)/ and /Zotero attachments folder (PDFs)/, with the values
+      saved before the split.
+- [ ] In a bibliographic note, =C-c x f= opens its PDF on the right.
+- [ ] =C-c n , m=: =17c-zotero= on, =18-zotero-transient= not listed.
+- [ ] =17c-zotero= off, restart: =C-c x ,= has no Zotero folder;
+      =C-c x f= still opens a PDF whose .bib entry has a file field.
+      On again.
+
+** R54. PDF and EPUB viewers as a module [0/3]
+- [ ] =C-c n , m=: =17b-document-viewers= on.  A PDF opens in the
+      viewer (pdf-tools), an =.epub= in nov.
+- [ ] =17b-document-viewers= off, restart: a PDF opens in DocView,
+      citing works as before (=C-c x i=, =C-c x S=).
+- [ ] On again, restart: R44 still holds (no build at start-up).
+
+** R53. Frame bars as a module [0/3]
+- [ ] Restart: no tool bar, no scroll bars, the menu bar there -- also
+      when the session restores its frames.
+- [ ] =C-c n , m=: =01b-frame-bars= on (named 01b-frame-chrome for an
+      hour on 2026-10-25); off, restart: tool bar and scroll bars back.
+- [ ] On again, restart: both gone; quote blocks still show the speech
+      balloon, source blocks the lambda (11-org-appearance).
 
 ** R52. Keystroke log: captures and newlines [0/2]
 - [ ] =C-c y T=, then =C-c n c i= (ideas capture into the journal), type

@@ -1,24 +1,25 @@
-;;; 17-bibliography.el --- Zotero/Citar bibliography integration -*- lexical-binding: t; -*-
+;;; 17-bibliography.el --- Citations with citar: the .bib files, CSL, references, the menu -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires:
 ;; MyPKS-Optional: yes
 ;; Docs: ~/.emacs.d/function_helper.org::#citing-howto
 
 ;;; Commentary:
-;; Citation and bibliography management via Citar + Zotero Better BibTeX.
+;; Citations and the bibliography with citar, from .bib files written by
+;; any program: Zotero's Better BibTeX, JabRef, by hand.  Where they are
+;; is an option, `my/bibliography-files' (C-c x ,), ~/notes/refs.bib by
+;; default.  What only Zotero gives -- the folder of its attachments --
+;; is 17c-zotero.el; the PDF and EPUB viewers are 17b-document-viewers.el
+;; (both split off on 2026-10-25, as decided on the module map).
 ;;
-;; Prerequisites (already satisfied in packages.nix):
-;;   - a .bib file auto-exported by Better BibTeX in Zotero; where it is
-;;     is an option, `my/bibliography-files' (C-c x ,), ~/notes/refs.bib
-;;     by default
+;; The bibliography menu, C-c x (`my/bibliography-menu'), is here since
+;; 2026-10-25zg; it was 18-zotero-transient.el, `my/zotero-menu'.
 ;;
 ;; Workflow:
-;;   1. M-x my/zotero-menu (C-c x) → n  — create note from Zotero ref, PDF opens on the right
-;;   2. M-x my/zotero-menu (C-c x) → f  — reopen PDF on the right for the current note
-;;   3. M-x my/zotero-menu (C-c x) → R  — insert the full reference at point,
-;;      in the export style
-;;   4. M-x my/zotero-menu (C-c x) → S  — insert a short reference at point:
-;;      Given Family, /Title/ (Year)
+;;   1. C-c x n  -- create a note from a reference, its file opens on the right
+;;   2. C-c x f  -- reopen the file of the reference on the right
+;;   3. C-c x R  -- insert the full reference at point, in the export style
+;;   4. C-c x S  -- insert a short reference at point: Given Family, /Title/ (Year)
 
 ;;; Code:
 
@@ -36,28 +37,19 @@
 ;; to org-cite alike, so the two never read different files.
 
 (defgroup my/bibliography nil
-  "Citations: the bibliography file, Zotero's attachments, CSL export."
+  "Citations: the bibliography files, CSL export, Zotero's attachments."
   :tag "Bibliography and citations"
   :group 'mypks-writing)
 
 (defcustom my/bibliography-files '("refs.bib")
-  "The BibTeX files citations come from, usually exported by Zotero.
-Better BibTeX keeps the export up to date.  A relative name is relative
+  "The BibTeX files citations come from.
+Written by any program: Zotero (Better BibTeX keeps the export up to
+date), JabRef, or by hand.  A relative name is relative
 to the notes folder (`my-notes-dir') and follows it; an absolute name,
 such as ~/Zotero/refs.bib, stays where it is.  Several files are read
 together.  Takes effect at once."
   :type '(repeat (file :tag "BibTeX file"))
-  :tag "Bibliography files (.bib from Zotero)"
-  :set (my/settings-apply-on-set #'my/bibliography-apply)
-  :group 'my/bibliography)
-
-(defcustom my/zotero-storage-directory "~/Zotero/storage/"
-  "Folder holding the PDFs and other attachments Zotero stores.
-The default is where Zotero keeps them unless told otherwise.
-Where citar looks for the file of a reference (`C-c x f').  Nil for
-none.  Takes effect at once."
-  :type '(choice (directory :tag "Folder") (const :tag "None" nil))
-  :tag "Zotero attachments folder (PDFs)"
+  :tag "Bibliography files (.bib, from Zotero or any other program)"
   :set (my/settings-apply-on-set #'my/bibliography-apply)
   :group 'my/bibliography)
 
@@ -67,7 +59,6 @@ none.  Takes effect at once."
           my/bibliography-files))
 
 (defvar citar-bibliography)
-(defvar citar-library-paths)
 (defvar citar-notes-paths)
 (defvar org-cite-global-bibliography)
 
@@ -75,15 +66,15 @@ none.  Takes effect at once."
   "Missing files already reported this session.")
 
 (defun my/bibliography-apply ()
-  "Point citar and org-cite at the bibliography files and Zotero's folder.
+  "Point citar and org-cite at the bibliography files.
 Also points citar's notes at the silo with role `notes'.  Says once per
-session when a bibliography file does not exist."
+session when a bibliography file does not exist.  Where citar finds a
+reference's file is the file field of its entry, and Zotero's folder
+when 17c-zotero.el is loaded."
   (let ((files (my/bibliography-file-list)))
     (setq org-cite-global-bibliography files)
     (with-eval-after-load 'citar
       (setq citar-bibliography files
-            citar-library-paths (and my/zotero-storage-directory
-                                     (list (expand-file-name my/zotero-storage-directory)))
             citar-notes-paths (list (my/silo-dir-by-role 'notes))))
     (dolist (file files)
       (unless (or (file-readable-p file) (member file my/bibliography--told))
@@ -92,7 +83,7 @@ session when a bibliography file does not exist."
                  (abbreviate-file-name file))))))
 
 (defun my/bibliography-settings ()
-  "Open the settings of the bibliography: files, Zotero folder, CSL."
+  "Open the settings of the bibliography: files, CSL, Zotero's folder."
   (interactive)
   (customize-group 'my/bibliography))
 
@@ -787,6 +778,54 @@ like ordinary words."
     (message "Replaced %d occurrence(s) of %s in %d file(s)" changed old files)))
 
 (global-set-key (kbd "C-c b c") #'my/cite-check-keys)
+
+;; ============================================================
+;; THE BIBLIOGRAPHY MENU (C-c x)
+;; ============================================================
+;; Every entry runs a command of citar, citar-denote or this file, so the
+;; menu is this module's: it works with a .bib from any program.  Until
+;; 2026-10-25zg it was 18-zotero-transient.el, a module of its own, off
+;; on a new machine; `my/zotero-menu' is kept as an obsolete name.
+;; Zotero's attachments folder (17c-zotero.el) is set in `,' with the
+;; other settings of the bibliography.
+
+(require 'transient)
+
+(transient-define-prefix my/bibliography-menu ()
+  "Bibliography & reading (C-c x)"
+
+  ["Notes"
+   [("n" "New note from reference"        citar-create-note)
+    ("o" "Open existing bib note"         citar-denote-open-note)]]
+
+  ["Open"
+   [("f" "Open PDF for this note"         my/open-bib-pdf-right)
+    ("e" "Open BibTeX entry"              citar-open-entry)
+    ("u" "Open URL / DOI"                 citar-open-links)
+    ("i" "Insert citation [cite:@key]"    citar-insert-citation)]]
+
+  ["Insert reference at point"
+   [("R" "Full bibliography"              my/insert-full-reference)
+    ("S" "Short: Author, Title (Year)"    my/insert-short-reference)]]
+
+  ["Maintenance"
+   [("c" "Check keys in notes"            my/cite-check-keys)
+    ("C" "Rename a citation key"          my/cite-rename-key)
+    ("?" "Check CSL export setup"         my/csl-check-setup)
+    ("," "Settings: .bib files, CSL, Zotero" my/bibliography-settings)]]
+
+  [("q" "Quit" transient-quit-one)])
+
+(define-obsolete-function-alias 'my/zotero-menu #'my/bibliography-menu "2026-10-25")
+
+;; The key, and the entry in the Integrations column of the Tools menu
+;; (C-c n t z), which this module inserts so that turning it off takes
+;; the entry out and leaves the menu whole.
+(my/module-keys t '(("C-c x" . my/bibliography-menu)))
+(with-eval-after-load '12-transient
+  (when (fboundp 'my/transient-entries)
+    (my/transient-entries
+     t '((insert my/notes-tools-menu "q" ("z" "Bibliography →" my/bibliography-menu))))))
 
 (provide '17-bibliography)
 ;;; 17-bibliography.el ends here
