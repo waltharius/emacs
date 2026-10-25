@@ -644,6 +644,15 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R51. Magit on transient from the archives [0/3]
+- [ ] Emacs closed: =ls ~/.emacs.d/elpa/transient-20260118.1322= --
+      if it has no =transient-pkg.el= (or is empty), move it out of
+      =elpa/=.  Start Emacs, =M-x package-refresh-contents=, =M-x
+      package-install RET transient=, restart.
+- [ ] =C-c v c= in the notes: the commit menu or message buffer opens;
+      *Warnings* has no "Magit requires `transient'".
+- [ ] =bash hooks/check-all auto-commit=: the Magit test passes.
+
 ** R50. The citation under point in the echo area [0/4]
 - [ ] In a note with =#+language: pl=, point on a =[cite:@key 45]= of
       a book: after half a second the echo area shows its footnote as in

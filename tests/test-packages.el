@@ -6,8 +6,8 @@
 
 ;; 00-core.el: the package list is refreshed once, before the first
 ;; installation of a session (a stale list names builds MELPA has
-;; deleted); when no-littering does not load, the start-up report says
-;; why.  No network: the refresh is stubbed.
+;; deleted); built-in packages may be upgraded from the archives; when
+;; no-littering does not load, the start-up report says why.  No network: the refresh is stubbed.
 ;;
 ;;   emacs -Q --batch --eval '(package-initialize)' -l ert \
 ;;     -l tests/test-packages.el -f ert-run-tests-batch-and-exit
@@ -34,6 +34,12 @@
       ;; Gone after the first time: a second installation does not refresh.
       (should-not (advice-member-p #'my/package--refresh-before-first-install
                                    'package-install)))))
+
+(ert-deftest my/packages-test-built-in-packages-upgradable ()
+  "package.el may install a newer release of a package Emacs ships, so a
+dependency asking for one (transient 0.13 for Magit) gets it: without
+this, Magit loaded on Emacs's own transient (2026-10-25)."
+  (should (eq package-install-upgrade-built-in t)))
 
 (ert-deftest my/packages-test-report-names-the-reason ()
   "The report on no-littering carries what use-package said."

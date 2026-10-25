@@ -23,6 +23,19 @@
 ;; Initialize package system
 (package-initialize)
 
+;; Built-in packages upgraded from the archives when a package needs a
+;; newer one.  By default package.el (Emacs 29 and later) neither
+;; installs nor upgrades a package Emacs ships, also when a dependency
+;; asks for more: Magit 4.x needs transient 0.13, Emacs 30 ships an
+;; older one, and with no transient in the package folder Magit loaded
+;; on the built-in one and its commit menu stopped with
+;; "void-function transient--set-layout" (2026-10-25, the owner's
+;; machine).  The setting Magit's own warning prescribes
+;; (`magit--display-core-upgrade-instructions' in magit-section.el).
+;; Set before the first installation below.  Not used by `C-c n ! U'
+;; (49-packages.el), which upgrades only what is in the package folder.
+(setq package-install-upgrade-built-in t)
+
 ;; A fresh list of packages before the first installation of a session.
 ;; package.el installs from the list it keeps on disk, which can be
 ;; weeks old; MELPA deletes a build once a newer one exists, so a

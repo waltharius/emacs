@@ -9706,8 +9706,20 @@ from the list altogether.  So the list is fetched again once, before
 the first installation of a session, the usual remedy; starts that
 install nothing do not touch the network.
 
-Tests: =tests/test-packages.el= (the refresh once, the reason in the
-report).
+*Built-in packages upgraded when needed* (=package-install-upgrade-built-in=
+set to t): Emacs 29 and later neither install nor upgrade a package
+Emacs ships -- transient, Org, seq, use-package -- even when another
+package asks for a newer release.  Magit 4.x needs transient 0.13;
+without a transient in the package folder, Magit loaded on Emacs's own
+older one and its commit menu stopped with "void-function
+transient--set-layout" (2026-10-25).  The setting is the one Magit's
+own warning prescribes.  It changes what an installation may bring in,
+not =C-c n ! U= ([[#packages-upgrade][Package upgrades]]), which upgrades
+only what is in the package folder.  A built-in package missing from
+the folder is installed once: =M-x package-install RET transient=.
+
+Tests: =tests/test-packages.el= (the refresh once, built-in packages
+upgradable, the reason in the report).
 
 Tests: =tests/test-var-files.el= (the folders, own files, package
 files, a taken place, the =.gitignore= line, a second start), in a
