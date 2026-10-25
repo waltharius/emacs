@@ -29,6 +29,12 @@ rule a check can hold:
 4. *Places that can be filled by one module or another are slots*
    (=MyPKS-Provides=, since 2026-10-25q), as Doom's completion modules
    are alternatives.
+5. *The group says what a module is; =MyPKS-Optional= and
+   =MyPKS-Default= say whether it loads.*  A module of 100 may be
+   optional and start off: being in the lowest group means nothing
+   else of the configuration is under it, not that everyone loads it.
+   A module using another only when present (=fboundp= and kin) works
+   without it, with less: the PDF viewer is such a case for citar.
 
 * Groups
 One folder per group, as Doom Emacs keeps its modules in category
@@ -53,65 +59,66 @@ Decided 2026-10-25: the eight groups, English names, 700 Output added
 to the owner's first seven, slots from the start.
 
 * Map
-/Status/: =decided= by the owner, =proposed= until then.  /Plan/:
+/Status/: =decided= by the owner, =proposed= until then.  Every row
+decided by 2026-10-25 ("the rest OK", with the changes noted).  /Plan/:
 =keep=, =merge INTO=, =split=, with the reason in the note.
 
 | Module                | Group | Plan                    | Status   | Note                                                                 |
 |-----------------------+-------+-------------------------+----------+----------------------------------------------------------------------|
-| 00-core               |   200 | keep                    | proposed | the loader, settings, silos                                          |
+| 00-core               |   200 | keep                    | decided  | the loader, settings, silos                                          |
 | 01-ui                 |   100 | split                   | decided  | 2026-10-25: sessions and completion stay in 100 (Emacs); the look goes to a new module in 500 (Look) |
-| 02-editing            |   100 | keep                    | proposed |                                                                      |
-| 02b-bold-marker       |   300 | keep                    | proposed |                                                                      |
-| 03-spelling           |   300 | keep                    | proposed | slot =spelling=; a jinx module would fill it instead                 |
-| 03b-fonts             |   500 | keep                    | proposed |                                                                      |
-| 04-denote             |   200 | keep                    | proposed |                                                                      |
+| 02-editing            |   100 | keep                    | decided  |                                                                      |
+| 02b-bold-marker       |   300 | keep                    | decided  |                                                                      |
+| 03-spelling           |   300 | keep                    | decided  | slot =spelling=; a jinx module would fill it instead                 |
+| 03b-fonts             |   500 | keep                    | decided  |                                                                      |
+| 04-denote             |   200 | keep                    | decided  |                                                                      |
 | 05-notes              |   200 | keep                    | decided  | 2026-10-25: core (cannot be turned off) and needed by 08, 12 and 23 |
 | 05b-journal-metrics   |   400 | keep                    | decided  | 2026-10-25: an extension of the notes core, kept apart from 05 so that it can be off and its fields changed without touching 05; fields to be set from the settings menu, kept locally (BACKLOG, /Journal metrics configurable/) |
-| 06-capture            |   300 | keep                    | proposed |                                                                      |
-| 07-git                |   200 | keep                    | proposed | automatic commits of everything                                      |
-| 08-keybindings        |   200 | keep                    | proposed |                                                                      |
-| 09-theme              |   500 | keep                    | proposed |                                                                      |
-| 10-visual-fill        |   500 | keep                    | proposed |                                                                      |
-| 11-org-appearance     |   500 | keep                    | proposed |                                                                      |
-| 12-transient          |   200 | keep                    | proposed |                                                                      |
-| 13-centered-writing   |   300 | keep                    | proposed | the writing mode, used daily                                         |
-| 14-typing-analytics   |   100 | keep                    | proposed |                                                                      |
-| 15-workspace          |   800 | keep                    | proposed |                                                                      |
-| 16-org-export         |   700 | keep                    | proposed |                                                                      |
-| 17-bibliography       |   400 | split                   | decided  | 2026-10-25: two modules, by package: citar (citations, CSL, references from any .bib) and Zotero (what only Zotero gives: the attachments folder, the Zotero menu); a .bib may come from elsewhere than Zotero.  Open: where the PDF viewer (pdf-tools) goes |
+| 06-capture            |   300 | keep                    | decided  |                                                                      |
+| 07-git                |   200 | keep                    | decided  | automatic commits of everything                                      |
+| 08-keybindings        |   200 | keep                    | decided  |                                                                      |
+| 09-theme              |   500 | keep                    | decided  |                                                                      |
+| 10-visual-fill        |   500 | keep                    | decided  |                                                                      |
+| 11-org-appearance     |   500 | keep                    | decided  |                                                                      |
+| 12-transient          |   200 | keep                    | decided  |                                                                      |
+| 13-centered-writing   |   300 | keep                    | decided  | the writing mode, used daily                                         |
+| 14-typing-analytics   |   100 | keep                    | decided  |                                                                      |
+| 15-workspace          |   800 | keep                    | decided  |                                                                      |
+| 16-org-export         |   700 | keep                    | decided  |                                                                      |
+| 17-bibliography       |   400 | split                   | decided  | 2026-10-25: two modules, by package: citar (citations, CSL, references from any .bib) and Zotero (what only Zotero gives: the attachments folder, the Zotero menu); a .bib may come from elsewhere than Zotero.  The list of .bib files goes with citar, which reads it, labelled as coming from Zotero or any other program; the Zotero module keeps only the attachments folder.  The PDF viewer (pdf-tools) becomes a module of its own in 100, optional (decided 2026-10-25): without it citar inserts keys and makes notes, and only opening a PDF falls back to what Emacs has |
 | 18-zotero-transient   |   400 | merge Zotero module     | decided  | 2026-10-25: its menu goes to the module of the package each entry belongs to (C-c x stays with Zotero) |
-| 19-philosophy-notes   |   400 | keep                    | proposed |                                                                      |
-| 20-transclusion       |   400 | keep                    | proposed |                                                                      |
-| 21-dashboards         |   800 | keep                    | proposed |                                                                      |
-| 22-zettelkasten       |   400 | keep                    | proposed |                                                                      |
+| 19-philosophy-notes   |   400 | keep                    | decided  |                                                                      |
+| 20-transclusion       |   400 | keep                    | decided  |                                                                      |
+| 21-dashboards         |   800 | keep                    | decided  |                                                                      |
+| 22-zettelkasten       |   400 | keep                    | decided  |                                                                      |
 | 23-fixed-tabs         |   300 | keep                    | decided  | 2026-10-25: routes the notes commands to tabs; needs 05-notes |
-| 24-readwise           |   400 | keep                    | proposed |                                                                      |
-| 25-inbox-review       |   400 | keep                    | proposed |                                                                      |
-| 26-maintenance        |   800 | split                   | decided  | 2026-10-25: reports and repairs, two modules; the Maintenance menu gets two columns, Reports and Repairs.  36-notes-stats requires the reports part |
-| 27-denote-identifiers |   200 | keep                    | proposed | core                                                                 |
-| 28-writing-projects   |   400 | keep                    | proposed |                                                                      |
-| 29-writing-export     |   700 | keep                    | proposed |                                                                      |
-| 30-link-tooltips      |   600 | keep                    | proposed |                                                                      |
-| 31-org-images         |   300 | keep                    | proposed |                                                                      |
-| 32-web-links          |   300 | keep                    | proposed |                                                                      |
-| 33-denote-hubs        |   300 | keep                    | proposed |                                                                      |
-| 34-appearance         |   500 | keep                    | proposed |                                                                      |
-| 35-journal-gaps       |   800 | keep                    | proposed |                                                                      |
-| 36-notes-stats        |   800 | keep                    | proposed |                                                                      |
+| 24-readwise           |   400 | keep                    | decided  |                                                                      |
+| 25-inbox-review       |   400 | keep                    | decided  |                                                                      |
+| 26-maintenance        |   800 | split                   | decided  | 2026-10-25: reports and repairs, two modules; the Maintenance menu (C-c n !) gets two columns, Reports and Repairs.  36-notes-stats requires the reports part |
+| 27-denote-identifiers |   200 | keep                    | decided  | core                                                                 |
+| 28-writing-projects   |   400 | keep                    | decided  |                                                                      |
+| 29-writing-export     |   700 | keep                    | decided  |                                                                      |
+| 30-link-tooltips      |   600 | keep                    | decided  |                                                                      |
+| 31-org-images         |   300 | keep                    | decided  |                                                                      |
+| 32-web-links          |   300 | keep                    | decided  |                                                                      |
+| 33-denote-hubs        |   300 | keep                    | decided  |                                                                      |
+| 34-appearance         |   500 | keep                    | decided  |                                                                      |
+| 35-journal-gaps       |   800 | keep                    | decided  |                                                                      |
+| 36-notes-stats        |   800 | keep                    | decided  |                                                                      |
 | 37-tasks              |   400 | keep                    | decided  | 2026-10-25: an extension of the system, like habits |
 | 38-habits             |   400 | keep                    | decided  | 2026-10-25                                                           |
-| 39-project-git        |   400 | keep                    | proposed |                                                                      |
-| 40-markdown           |   400 | keep                    | proposed |                                                                      |
-| 41-notes-search       |   300 | keep                    | proposed |                                                                      |
-| 42-obsidian-import    |   400 | keep                    | proposed |                                                                      |
-| 43-drill              |   400 | keep                    | proposed |                                                                      |
-| 44-image-display      |   600 | keep                    | proposed |                                                                      |
-| 45-standard-pages     |   600 | keep                    | proposed |                                                                      |
-| 46-blog               |   700 | keep                    | proposed |                                                                      |
-| 47-repo-docs          |   700 | keep                    | proposed |                                                                      |
-| 48-settings-tools     |   100 | keep                    | proposed |                                                                      |
-| 49-packages           |   100 | keep                    | proposed |                                                                      |
-| 50-cite-preview       |   400 | keep                    | proposed |                                                                      |
+| 39-project-git        |   400 | keep                    | decided  |                                                                      |
+| 40-markdown           |   400 | keep                    | decided  |                                                                      |
+| 41-notes-search       |   300 | keep                    | decided  |                                                                      |
+| 42-obsidian-import    |   400 | keep                    | decided  |                                                                      |
+| 43-drill              |   400 | keep                    | decided  |                                                                      |
+| 44-image-display      |   600 | keep                    | decided  |                                                                      |
+| 45-standard-pages     |   600 | keep                    | decided  |                                                                      |
+| 46-blog               |   700 | keep                    | decided  |                                                                      |
+| 47-repo-docs          |   700 | keep                    | decided  |                                                                      |
+| 48-settings-tools     |   100 | keep                    | decided  |                                                                      |
+| 49-packages           |   100 | keep                    | decided  |                                                                      |
+| 50-cite-preview       |   400 | keep                    | decided  |                                                                      |
 
 * The move
 When every row is decided:

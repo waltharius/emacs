@@ -590,6 +590,40 @@ keys); 03 stays separate so that a jinx module can replace it -- which
 needs a way to say two modules fill the same place; 01 split into Pure
 Emacs (sessions) and the look; 08 and 12 Must have.
 
+* Settings that survive updates
+Asked 2026-10-25, the principle of the cleaning: find every place a user
+will want to change, give it a setting in the MyPKS menu, saved outside
+the code, so that an update of the repository never breaks it -- as
+long as the change went through the menu.  Breaking that is a change of
+contract: it comes with what to do, or better a function that finds the
+old setting and converts it.  Established means for it, already in use
+here: =define-obsolete-variable-alias= (a renamed option keeps a saved
+value), a migration at start-up with a report (the settings folder,
+2026-10-15a; the old files, 2026-10-19o), =:package-version= on an option
+for =M-x customize-changed=.  Checked by one generic test rather than one
+per option: every option of the MyPKS tree has a =:type= and a group,
+and a saved value of each loads back unchanged.
+
+* Collection settings
+Asked 2026-10-25: which settings belong to the machine and which to the
+notes?  A machine is one client of a collection of notes; settings
+that describe how the notes are written must be one for every machine
+that writes them, or notes made on one do not fit the other -- the
+silos, the fields of the journal metrics, the starting keywords, the
+journal title and its schema version, the default citation style.  The
+place: the notes folder itself, as Obsidian keeps a vault's settings in
+=.obsidian/= and git a repository's in =.git/config= -- a file such as
+=<notes>/.mypks/collection.eld=.  Everything else stays per machine in
+=hosts/<host>/= (the notes root, fonts, the modules loaded, the blog
+autostart).  To decide when building:
+- the file arrives by git or sync from other machines: read as data
+  (=read=), never evaluated (SAFETY.org 4.3);
+- Customize saves to one file; options of the collection need the
+  settings menu to save them into the collection file instead;
+- the first start on a collection without the file writes it from the
+  machine's current values, with a report.
+Precedes /Journal metrics configurable/, which is its first user.
+
 * Journal metrics configurable
 Asked 2026-10-25, with the module map: the fields of the journal
 metrics (05b-journal-metrics.el, =my/journal-metrics-fields=, today a
@@ -604,10 +638,9 @@ the decision:
   shape: the shipped fields in the code, and two options beside them --
   fields added by the user, and shipped fields turned off by name.
 - Customize saves per machine (=hosts/<host>/custom.el=), and the
-  journal is one for all machines: the fields belong with the data
-  shared by every machine, at the root of the settings folder (as the
-  personal dictionary does, 2026-10-18a), or the same values must be
-  saved on each machine.  To decide.
+  journal is one for all machines: decided 2026-10-25 that the fields
+  belong to the collection (/Collection settings/), in the notes
+  folder, not to a machine.
 
 * Templates as files
 Asked 2026-10-22: templates kept as files that modules use when they
