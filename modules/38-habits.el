@@ -487,9 +487,13 @@ date in its title does not."
         #'string>))
 
 (defun my/habits--set-scheduled (date repeat)
-  "Set SCHEDULED of the entry at point to the day after DATE, with REPEAT."
-  (let* ((time (org-time-string-to-time (concat "<" date ">")))
-         (next (time-add time (days-to-time 1)))
+  "Set SCHEDULED of the entry at point to the day after DATE, with REPEAT.
+The day after is counted from midday: midnight plus 86400 seconds is
+still the same date on the day summer time ends, 25 hours long (until
+2026-10-25 a habit derived on that day was due the same day again)."
+  (let* ((noon (time-add (org-time-string-to-time (concat "<" date ">"))
+                         (* 12 3600)))
+         (next (time-add noon (days-to-time 1)))
          (org-log-reschedule nil))
     (org-schedule nil (format-time-string "%Y-%m-%d" next))
     ;; `org-schedule' writes a plain timestamp; the repeater has to be

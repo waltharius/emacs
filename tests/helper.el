@@ -69,5 +69,33 @@ A module loaded already is not loaded again."
     (unless (featurep (intern name))
       (load (expand-file-name (concat "modules/" name ".el") my/test-repo) nil t))))
 
+(defun my/test-date (offset)
+  "The calendar date OFFSET days from today, as \"YYYY-MM-DD\".
+Counted in calendar days, from midday: steps of 86400 seconds from
+now land on the wrong date near midnight on the two days a year whose
+length is not 24 hours -- in Central Europe 23:23 on the day summer
+time ends, minus 86400 seconds, is 00:23 the same day (found
+2026-10-25, when two tests failed in that hour).  `encode-time'
+carries a day past the end of the month into the next."
+  (let ((now (decode-time)))
+    (format-time-string
+     "%Y-%m-%d"
+     (encode-time (list 0 0 12 (+ (nth 3 now) offset) (nth 4 now) (nth 5 now)
+                        nil -1 nil)))))
+
+(defconst my/test-central-europe "CET-1CEST,M3.5.0,M10.5.0/3"
+  "The time zone of the owner's machines, as a POSIX TZ rule.")
+
+(defmacro my/test-with-time-zone (zone &rest body)
+  "Run BODY with the time zone ZONE, a POSIX TZ string; restore it after."
+  (declare (indent 1))
+  `(let ((saved (getenv "TZ")))
+     (unwind-protect
+         (progn (setenv "TZ" ,zone)
+                (set-time-zone-rule ,zone)
+                ,@body)
+       (setenv "TZ" saved)
+       (set-time-zone-rule saved))))
+
 (provide 'helper)
 ;;; helper.el ends here

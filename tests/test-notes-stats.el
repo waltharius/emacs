@@ -151,8 +151,9 @@ and a title with a bar does not split its table row."
 (ert-deftest my/ns2-test-streaks ()
   "Longest and current streaks; today missing still keeps a streak that
 reaches yesterday."
-  (let* ((day (lambda (offset) (format-time-string
-                                "%Y-%m-%d" (time-add (current-time) (* offset 86400)))))
+  ;; Calendar days (`my/test-date'): 86400-second steps from now failed
+  ;; at 23:23 on the day summer time ended (2026-10-25).
+  (let* ((day #'my/test-date)
          (days (list (funcall day -10) (funcall day -9) (funcall day -8) (funcall day -7)
                      (funcall day -3) (funcall day -2) (funcall day -1))))
     (should (equal (my/notes-stats--streaks days) '(4 . 3)))

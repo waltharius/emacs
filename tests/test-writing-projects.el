@@ -326,6 +326,19 @@ drawers; a link to a note that is gone is counted as linked, not found."
         ;; matter, the line end the drawer leaves, the body line.
         (should (equal (plist-get stats :chars) (+ 2 (length "abcdefghij\n"))))))))
 
+(ert-deftest my/wp-test-days-until-in-calendar-days ()
+  "Days until a deadline are calendar days: 0 on the day, 1 for the
+next, negative after; and two, not three, at 23:30 on 2026-10-24 in
+Central Europe for 2026-10-26, across the 25-hour 2026-10-25."
+  (my/test-with-time-zone my/test-central-europe
+    (let ((now (encode-time (list 0 30 23 24 10 2026 nil -1 nil))))
+      (cl-letf (((symbol-function 'current-time) (lambda () now)))
+        (should (= 0 (my/writing--days-until "2026-10-24")))
+        (should (= 1 (my/writing--days-until "2026-10-25")))
+        (should (= 2 (my/writing--days-until "2026-10-26")))
+        (should (= -3 (my/writing--days-until "2026-10-21"))))))
+  (should-not (my/writing--days-until nil)))
+
 (ert-deftest my/wp-test-new-note ()
   "A new note for a project is a Denote note in the notes folder, with
 the project's keyword in its name, the project in its front matter and
