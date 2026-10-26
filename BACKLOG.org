@@ -36,9 +36,14 @@ says why and how.
    compilation, load and switch tests of every module -- done
    2026-10-22a.  The function tests of every module (/Module tests/)
    done 2026-10-25p, the compiler warnings (/Compiler warnings/)
-   2026-10-23o.  Next: the /Module map/ (agreed 2026-10-22), so that
-   those tests check the move; then /Templates as files/ (asked
-   2026-10-22).
+   2026-10-23o.  The /Module map/ done 2026-10-26c: the splits and the
+   merge (2026-10-25v-zg), shared date functions (2026-10-26a), every
+   module in the folder of its group, the =groups= check blocking;
+   MODULES.org holds the map.  Next, proposed 2026-10-26 (the owner to
+   confirm): /Settings that survive updates/ (its generic test),
+   /Collection settings/, /Journal metrics configurable/, then
+   /Templates as files/ -- after the collection, since templates of
+   notes may belong to it.
 6. /A public repository/: portable defaults and the privacy model in
    the README, the welcome screen; then the installation guide for
    beginners, the tutorial with exercises and the Polish guide.
@@ -560,50 +565,6 @@ denote-sequence -- maintained, and they follow).  One to watch:
 which the weekly load tests do not exercise.  Then: a maintained
 alternative (org-fc, org-srs: not yet looked at) or a fork.
 
-* Module map
-*Started 2026-10-25r*: the map is =MODULES.org= -- principles, eight
-groups (decided: English names, 700 Output added, slots from the start;
-slots done 2026-10-25q), a row per module, proposed until decided; the
-lint check =groups= (advisory) reports what the plan would break.
-Next: the owner decides the rows; then merges and splits, then the move.
-
-Asked 2026-10-22: the modules grew one feature at a time, and many
-small ones are always wanted together.  Agreed: after the function
-tests of the modules that touch data (so that those tests show the
-move broke nothing), a map of every module -- its group, what it needs,
-whether it stays, is merged or is split -- decided item by item, then
-the move by a script, the weekly checks green before and after.
-
-The owner's groups, lowest first; a group never needs a higher one,
-which the lint check =modules= can then hold:
-1. Pure Emacs -- what changes Emacs itself and touches nothing else.
-2. Must have -- what everything else needs: transient, Denote, Org.
-3. Core notes -- the owner's way of taking notes: journal, pks, docu,
-   spelling, navigation, links, search.
-4. Note extensions -- separate modules adding to or replacing part of
-   the core: Zettelkasten, Zotero, projects, hubs, transclusion,
-   Readwise, Obsidian import; jinx in place of flyspell.
-5. Visual core -- the default look and its chosen options: themes,
-   fonts, Org appearance, centred text.
-6. Visual modifications -- modules changing the visual core.
-7. Statistics.
-
-Layout: folders per group, as Doom Emacs keeps its modules in
-category folders (=modules/<category>/<module>/=), with numbers by the
-hundred per group kept in the file names, so that a file names its
-group outside its folder too (=300-notes.el=).  Every full name stays
-unique: a feature name is global in Emacs.  A whole group in one file
-was rejected: thousands of lines, and a switch or a failing test could
-no longer name one feature.
-
-First ideas, to be decided on the map: 02, 02b, 04, 05b, 06, 13, 30,
-32, 33, 41 near 205-notes (05b with its own switch and tests may stay a
-module of the group); 09, 10, 11 with the look; 17 and 18 one module
-(18 is a 99-line menu for 17); 35 and 36 together, 14 apart (it logs
-keys); 03 stays separate so that a jinx module can replace it -- which
-needs a way to say two modules fill the same place; 01 split into Pure
-Emacs (sessions) and the look; 08 and 12 Must have.
-
 * Settings that survive updates
 Asked 2026-10-25, the principle of the cleaning: find every place a user
 will want to change, give it a setting in the MyPKS menu, saved outside
@@ -692,7 +653,7 @@ one is wanted later for templates typed into a note is a separate
 question.
 
 Proposed shape, to decide before building:
-1. A module (group 3 or 4 of the /Module map/), =my/templates-...=:
+1. A module (group 300 or 400 of MODULES.org), =my/templates-...=:
    a registry where each module declares its templates -- name,
    description, the file shipped in this repository
    (=templates/<name>.org=) and the modules using it.
@@ -714,7 +675,12 @@ Proposed shape, to decide before building:
 6. Moved one template at a time, each with a test that the file is
    used and that an edited copy wins, starting with the capture
    templates (Org reads the file itself).
-Placed after the /Module map/, so that the module is born in its group.
+Placed after the /Module map/ (done 2026-10-26c), so that the module
+is born in its group.  Question raised 2026-10-26: templates of notes
+describe how the notes are written, as the journal metrics do, so
+their user copies may belong in the collection folder (/Collection
+settings/, like a vault's templates folder in Obsidian) rather than in
+the settings folder of a machine -- to decide with the collection.
 
 * Checks by tools made by others
 Asked 2026-10-19, after an outside answer on checking code one does not
