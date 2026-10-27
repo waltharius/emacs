@@ -256,6 +256,28 @@ written here -- no conflict markers -- and the line says why."
     (should-not (my/auto-commit--unmerged-p here))
     (should-not (my/ac-test--git-lines here "stash" "list"))))
 
+(ert-deftest my/ac-test-pull-ignores-rebase-autostash-config ()
+  "A `rebase.autoStash' of true in the git configuration does not bring
+the stash back: a file written after the dirty check (the race the
+check leaves open) makes git refuse the pull, the file keeps what was
+written, no stash is made.  Without `--no-autostash' the pull would
+exit 0 with conflict markers in the file (outside review 2026-10-27)."
+  (my/ac-test--with-repos
+    (my/ac-test--other-machine-commits there "a.org" "there's version\n")
+    (my/ac-test--git here "config" "rebase.autoStash" "true")
+    ;; The write lands after the dirty check: stand in for the check.
+    (cl-letf (((symbol-function 'my/auto-commit--dirty-p) #'ignore))
+      (my/ac-test--write (expand-file-name "a.org" here) "here, not committed\n")
+      ;; Not `dirty': the stand-in hides the dirty tree from the failure
+      ;; report too; the result only has to be a refusal.
+      (should-not (eq (my/auto-commit--pull here) 'ok)))
+    (should (equal (with-temp-buffer
+                     (insert-file-contents (expand-file-name "a.org" here))
+                     (buffer-string))
+                   "here, not committed\n"))
+    (should-not (my/auto-commit--unmerged-p here))
+    (should-not (my/ac-test--git-lines here "stash" "list"))))
+
 (ert-deftest my/ac-test-conflict-markers-stop-the-cycle ()
   "Files left with an unresolved conflict -- as `git pull --autostash'
 leaves them, exiting 0 -- are neither committed nor pushed; the

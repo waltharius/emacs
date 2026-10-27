@@ -417,12 +417,14 @@ pull used `--autostash' until 2026-10-24, which can write conflict
 markers into a file and exit 0 (`my/auto-commit--unmerged-p'); without
 it git itself refuses to rebase a dirty tree, which is the guard when a
 file is saved between the check and the pull.  The next cycle commits
-the changes first, then pulls."
+the changes first, then pulls.  `--no-autostash' is passed explicitly:
+a `rebase.autoStash' of true in the user's git configuration would
+otherwise turn the stash back on (outside review 2026-10-27)."
   (cond
    ((my/auto-commit--busy-p dir) 'busy)
    ((not (my/auto-commit--has-upstream-p dir)) 'no-upstream)
    ((my/auto-commit--dirty-p dir) 'dirty)
-   ((eq 0 (my/auto-commit--git dir "pull" "--rebase"))
+   ((eq 0 (my/auto-commit--git dir "pull" "--rebase" "--no-autostash"))
     (setq my/auto-commit--conflicts (delete dir my/auto-commit--conflicts))
     'ok)
    (t (my/auto-commit--pull-failed dir))))
@@ -448,7 +450,7 @@ rebase after it take milliseconds and stay synchronous."
    ((my/auto-commit--dirty-p dir) (funcall callback 'dirty))
    (t
     (my/auto-commit--git-async
-     dir '("pull" "--rebase")
+     dir '("pull" "--rebase" "--no-autostash")
      (lambda (status)
        (funcall callback
                 (cond
@@ -921,7 +923,7 @@ rebase.  The next automatic cycle pushes the result."
     (when (my/auto-commit--dirty-p dir)
       (my/auto-commit-repository dir))
     (unless (my/auto-commit--busy-p dir)
-      (my/auto-commit--git dir "pull" "--rebase"))
+      (my/auto-commit--git dir "pull" "--rebase" "--no-autostash"))
     (setq my/auto-commit--conflicts (delete dir my/auto-commit--conflicts))
     (magit-status-setup-buffer dir)))
 

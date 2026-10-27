@@ -4013,7 +4013,10 @@ exact lines.
 with =git pull --rebase=, on a committed tree only (a repository with
 changes not committed yet is not pulled until the next cycle has
 committed them; =--autostash=, used until 2026-10-24, could leave
-conflict markers in a file after a pull that reported success):
+conflict markers in a file after a pull that reported success; since
+2026-10-27a the pull passes =--no-autostash= explicitly, so a
+=rebase.autoStash= of true in the user's git configuration cannot turn
+the stash back on):
 
 - *when Emacs starts*, in the background (since 2026-10-19), one
   repository after another;
