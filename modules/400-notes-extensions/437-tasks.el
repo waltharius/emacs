@@ -591,6 +591,22 @@ buffer's `#+project:' line."
          my/tasks-heading-someday
          (my/tasks--project-tasks-heading))))
 
+(defun my/tasks--refile-targets ()
+  "Return the value of `org-refile-targets' for `my/task-refile'.
+The agenda files, and in them only the headings of
+`my/tasks--refile-headings'.  Org matches the `:regexp' against each
+heading line with `re-search-forward', so the pattern is a heading
+line: stars, an optional TODO keyword (any upper-case word: the
+keywords are known per buffer, not here), an optional priority, the
+title, optional tags.  Until 2026-10-28 it was
+anchored to the start and end of the buffer (\\=\\` and \\=\\'), which no
+heading line can match, so the command always answered \"No refile
+targets\" (outside review 2026-10-27)."
+  (let ((regexp (concat "^\\*+[ \t]+\\(?:[A-Z]+[ \t]+\\)?\\(?:\\[#.\\][ \t]+\\)?"
+                        (regexp-opt (my/tasks--refile-headings))
+                        "[ \t]*\\(?:[ \t]:[[:alnum:]_@#%:]+:\\)?[ \t]*$")))
+    `((,(my/tasks-agenda-files) :regexp . ,regexp))))
+
 ;;;###autoload
 (defun my/task-refile ()
   "Move the task at point to another project, or out of all projects.
@@ -599,9 +615,7 @@ Offers only the task headings of the agenda files: the `Tasks' heading
 of every project hub, and the three headings of `my/tasks-file'.
 Works in an Org buffer and in the agenda."
   (interactive)
-  (let* ((headings (my/tasks--refile-headings))
-         (regexp (concat "\\`" (regexp-opt headings) "\\'"))
-         (org-refile-targets `((,(my/tasks-agenda-files) :regexp . ,regexp)))
+  (let* ((org-refile-targets (my/tasks--refile-targets))
          ;; The file name is the project name, so showing it is what
          ;; makes the destinations distinguishable at all: every
          ;; candidate is called "Tasks".

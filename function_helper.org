@@ -3516,7 +3516,11 @@ from rather than chosen from.
 
 Every candidate is called =Tasks=, so the file name is what
 distinguishes them; =org-refile-use-outline-path= is bound to ='file=
-for the duration.
+for the duration.  The target list is =my/tasks--refile-targets=, a
+heading-line regexp over the agenda files (test-tasks checks that Org
+finds exactly those headings).  Until 2026-10-28b the regexp was
+anchored to the start and end of the buffer, so the command always
+answered "No refile targets".
 
 Works in an Org buffer and in the agenda, dispatching to
 =org-agenda-refile= in the latter.

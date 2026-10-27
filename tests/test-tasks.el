@@ -9,9 +9,9 @@
 ;; `org-agenda-files', and once offered to copy the planner out of the
 ;; notes folder: TESTING.org, *Every module tested*, part 3.  On real
 ;; files in a temporary folder; captures run through org-capture itself
-;; and are finished with `org-capture-finalize'.  Not covered: the
-;; refile command (Org's own `org-refile' with a narrowed target list),
-;; the key and menu (weekly switch tests).
+;; and are finished with `org-capture-finalize'; the refile targets are the ones
+;; Org itself finds for the command's `org-refile-targets'.  Not
+;; covered: the key and menu (weekly switch tests).
 ;;
 ;;   emacs -Q --batch --eval '(package-initialize)' -l ert \
 ;;     -l tests/test-tasks.el -f ert-run-tests-batch-and-exit
@@ -238,6 +238,40 @@ missing files are left out."
            (my/tasks-extra-agenda-files '("pks/extra.org" "pks/missing.org")))
       (should (equal (my/tasks-agenda-files)
                      (list (my/tasks--file) habits extra (my/writing-hub-file "book")))))))
+
+;; ============================================================
+;; REFILE TARGETS
+;; ============================================================
+
+(ert-deftest my/tasks-test-refile-targets-are-the-task-headings ()
+  "`my/task-refile' offers the task headings of the agenda files and
+nothing else: the three headings of the task file, Tasks of every hub
+-- also when it carries a keyword or tags -- and not a heading that only
+contains the word, nor Materials.  Until 2026-10-28 the regexp was
+anchored to the buffer, and Org found no target at all."
+  (my/tasks-test--with-folders
+    (my/tasks--ensure-file)
+    (my/tasks-test--hub "book")
+    (let* ((other (my/tasks-test--write
+                   (expand-file-name "other.org" planner)
+                   "* TODO Tasks :work:\n* Notes on Tasks\n* Materials\n** Tasks\n"))
+           (my/tasks-agenda-file-functions (list (lambda () (list other))))
+           (org-refile-targets (my/tasks--refile-targets))
+           (org-refile-use-outline-path nil)
+           (found (mapcar (lambda (target) (cons (file-name-nondirectory (nth 1 target))
+                                                 (car target)))
+                          (org-refile-get-targets))))
+      (should (member (cons "tasks.org" my/tasks-heading-inbox) found))
+      (should (member (cons "tasks.org" my/tasks-heading-active) found))
+      (should (member (cons "tasks.org" my/tasks-heading-someday) found))
+      (should (member (cons (file-name-nondirectory (my/writing-hub-file "book"))
+                            (my/tasks--project-tasks-heading))
+                      found))
+      ;; With a keyword and tags, and as a subheading: still the heading.
+      (should (= 2 (seq-count (lambda (f) (equal f (cons "other.org" "Tasks"))) found)))
+      (should-not (member (cons "other.org" "Notes on Tasks") found))
+      (should-not (member (cons "other.org" "Materials") found))
+      (should (seq-every-p (lambda (f) (member (cdr f) (my/tasks--refile-headings))) found)))))
 
 ;; ============================================================
 ;; THE PLANNER MOVE OUT OF THE NOTES FOLDER
