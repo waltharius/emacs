@@ -302,8 +302,16 @@ itself -- 302b-bold-marker relies on that.  (The text said until
 ;; Confirm before quit
 (setq confirm-kill-emacs 'yes-or-no-p)
 
-;; y/n instead of yes/no
-(defalias 'yes-or-no-p 'y-or-n-p)
+;; `yes-or-no-p' is NOT aliased to `y-or-n-p', and `use-short-answers'
+;; stays off.  Until 2026-10-27 the alias made every "yes" question in
+;; the configuration a single key: deleting a note (000-core,
+;; 205-notes), moving the old notes root to the trash ("asked twice"),
+;; removing pages from a site and uploading it (746-blog, 747-repo-docs),
+;; quitting with work not on the server (207-git).  Those commands chose
+;; `yes-or-no-p' on purpose, as the question before something that
+;; cannot be undone; everyday questions in this configuration use
+;; `y-or-n-p' themselves.  Found by the outside review of 2026-10-27.
+;; Checked by test-editing.
 
 ;; Pretty symbols
 (global-prettify-symbols-mode t)

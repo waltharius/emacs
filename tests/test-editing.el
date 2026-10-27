@@ -77,6 +77,15 @@ M-Q unfills."
   (should (eq (key-binding (kbd "M-Q")) #'my/unfill-region))
   (should (eq (lookup-key isearch-mode-map (kbd "C-f")) #'isearch-repeat-forward)))
 
+(ert-deftest my/ed-test-yes-or-no-p-is-a-whole-word ()
+  "`yes-or-no-p' is Emacs's own function and `use-short-answers' is off:
+the questions before deleting, uploading and quitting with work not on
+the server take a typed \"yes\", not one key.  Until 2026-10-27 an alias
+to `y-or-n-p' in 102-editing made every such question one key."
+  (should-not (eq (indirect-function 'yes-or-no-p) (indirect-function 'y-or-n-p)))
+  (should (subrp (indirect-function 'yes-or-no-p)))
+  (should-not use-short-answers))
+
 (ert-deftest my/ed-test-undo-history-in-var ()
   "Undo history is kept in var/ of this machine, not in ~/.emacs.d."
   (skip-unless (locate-library "undo-fu-session"))
