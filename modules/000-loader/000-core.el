@@ -2980,32 +2980,77 @@ is recorded: nothing is checked and nil is returned; otherwise t."
 ;; --delete.  Which destinations that may never be: one rule, used by
 ;; 746-blog.el and 747-repo-docs.el (SAFETY.org 1.5, finding F2).
 
+(defconst my/upload--home-marker "/~HOME"
+  "Stands for the login user's home on the server while a path is checked.")
+
+(defun my/upload--split (remote)
+  "Return (KIND HOST PATH) for the rsync destination REMOTE.
+KIND is `daemon' (rsync:// or HOST::MODULE), `remote' (HOST:PATH, HOST
+possibly user@host or a bracketed IPv6 address) or `local'."
+  (cond
+   ((string-match "\\`rsync://\\([^/]*\\)\\(.*\\)\\'" remote)
+    (list 'daemon (match-string 1 remote) (match-string 2 remote)))
+   ((string-match "\\`\\(\\(?:[^/:@]+@\\)?\\(?:\\[[^]]*\\]\\|[^/:[]+\\)\\)::\\(.*\\)\\'" remote)
+    (list 'daemon (match-string 1 remote) (match-string 2 remote)))
+   ((string-match "\\`\\(\\(?:[^/:@]+@\\)?\\(?:\\[[^]]*\\]\\|[^/:[]+\\)\\):\\(.*\\)\\'" remote)
+    (list 'remote (match-string 1 remote) (match-string 2 remote)))
+   (t (list 'local nil remote))))
+
 (defun my/upload-destination-problem (remote)
   "Return why REMOTE must not receive an upload, or nil when it may.
 The upload mirrors the build with rsync --delete, so the destination
 folder ends up holding the build and nothing else (SAFETY.org, finding
-F2).  Refused: a destination that is a home folder or the root -- an
-empty path after the host (\"user@server:\" is the home folder there),
-~ or ~user, /, /root, /home/NAME, /Users/NAME -- or, on this machine,
-this machine's home folder.  The rights of the user rsync logs
-in as limit what it can delete on the server; within that user's own
-home they limit nothing."
-  (let* ((path (if (string-match "\\`[^/:]+:\\(.*\\)\\'" remote)
-                   (match-string 1 remote)
-                 remote))
-         (bare (replace-regexp-in-string "/+\\'" "" path)))
+F2).  Refused: a home folder or the root -- an empty path after the host
+\(\"user@server:\" is the home folder there), ~ or ~user, /, /root,
+/home/NAME, /Users/NAME, the folder of all homes -- or, on this machine,
+this machine's home folder.  The path is normalised first, so spellings
+such as \"~/.\", \"/home/NAME/www/..\" or \"/home//NAME\" are the folders
+they name (outside review 2026-10-27).  A relative path on the server
+is taken as relative to the home there, as rsync does; one that leaves
+the home through \"..\" is refused.  A character the remote shell would
+expand ($, a backquote, a newline) is refused; so is a local path that is
+not absolute.  A daemon destination (rsync:// or HOST::MODULE) names a
+module, not a folder, and is accepted when the module is named.  The
+rights of the user rsync logs in as limit what it can delete on the
+server; within that user's own home they limit nothing."
+  (pcase-let ((`(,kind ,_host ,path) (my/upload--split (or remote ""))))
     (cond
-     ((string-match-p "\\`rsync://" remote) nil)
-     ((member bare '("" "." "~" "/root"))
-      "that is a home folder or the root")
-     ((string-match-p "\\`~[^/]*\\'" bare)
-      "that is a home folder")
-     ((string-match-p "\\`/\\(home\\|Users\\)/[^/]+\\'" bare)
-      "that is a home folder")
-     ((and (string-prefix-p "/" bare)
-           (equal (file-name-as-directory bare)
-                  (file-name-as-directory (expand-file-name "~"))))
-      "that is this machine's home folder"))))
+     ((or (null remote) (string-empty-p remote))
+      "no destination is set")
+     ((string-match-p "[$`\n]" remote)
+      "it holds a character the shell would expand")
+     ((eq kind 'daemon)
+      (when (string-match-p "\\`/*\\'" path)
+        "that names no module"))
+     ((eq kind 'remote)
+      ;; ~ and ~user, and a relative path, mean the home there.
+      (let* ((rooted (cond ((string-match "\\`~[^/]*\\(/.*\\)?\\'" path)
+                            (concat my/upload--home-marker (or (match-string 1 path) "")))
+                           ((string-prefix-p "/" path) path)
+                           (t (concat my/upload--home-marker "/" path))))
+             (bare (directory-file-name (expand-file-name rooted "/"))))
+        (cond
+         ((equal bare my/upload--home-marker)
+          "that is a home folder or the root")
+         ((and (string-prefix-p "/~" rooted)
+               (not (string-prefix-p (concat my/upload--home-marker "/") bare)))
+          "that leaves the home folder")
+         ((my/upload--home-or-root-p bare)
+          "that is a home folder or the root"))))
+     (t
+      (if (not (file-name-absolute-p path))
+          "a local destination must be an absolute path"
+        (let ((bare (directory-file-name (expand-file-name path))))
+          (cond
+           ((my/upload--home-or-root-p bare)
+            "that is a home folder or the root")
+           ((equal bare (directory-file-name (expand-file-name "~")))
+            "that is this machine's home folder"))))))))
+
+(defun my/upload--home-or-root-p (bare)
+  "Non-nil when the normalised absolute path BARE is the root or a home."
+  (or (member bare '("" "/" "/root" "/home" "/Users"))
+      (string-match-p "\\`/\\(home\\|Users\\)/[^/]+\\'" bare)))
 
 (provide '000-core)
 ;;; 000-core.el ends here

@@ -1362,7 +1362,8 @@ the last moment, whoever calls this."
      (lambda ()
        (my/repo-docs--run
         "repo-docs-upload"
-        (list my/repo-docs-rsync-program "-az" "--delete" public remote)
+        ;; `--': a destination starting with - is a path, never an option.
+        (list my/repo-docs-rsync-program "-az" "--delete" "--" public remote)
         (lambda () (message "Repo docs published to %s" remote)))))
     (message "Repo docs: building and uploading to %s..." remote)))
 

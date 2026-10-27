@@ -102,6 +102,32 @@ before, `git rm -f' lost the uncommitted text)."
     (should (my/blog--remote-problem remote)))
   (should (my/blog--remote-problem (expand-file-name "~"))))
 
+(ert-deftest my/safety-test-1.5-other-spellings-of-home-and-root-refused ()
+  "1.5, F2: the same folders written another way are the same folders.
+Until 2026-10-27 the check compared the text as written, and each of
+these was allowed (outside review 2026-10-27)."
+  (dolist (remote '("user@server:~/." "user@server:~/./" "user@server:/home/bob/."
+                    "user@server:/home//bob" "user@server:/home/bob/www/.."
+                    "user@server:~/www/.." "server:/./" "server:/var/.."
+                    "user@server:/home" "server:/Users" "user@server:/root/."
+                    "user@server:.." "user@server:../www" "user@server:."
+                    "user@[::1]:" "user@[::1]:/" "[::1]:~"
+                    "user@server:$HOME/www" "user@server:`pwd`/www"
+                    "../" "www" "" "server::"))
+    (should (my/blog--remote-problem remote)))
+  (should (my/blog--remote-problem nil))
+  (should (my/blog--remote-problem (concat (expand-file-name "~") "/.")))
+  (should (my/blog--remote-problem (concat (expand-file-name "~") "/www/.."))))
+
+(ert-deftest my/safety-test-1.5-more-site-folders-allowed ()
+  "1.5: a folder of its own, however written, is accepted -- also under
+a bracketed IPv6 host, relative to the home on the server, and an rsync
+daemon module."
+  (dolist (remote '("user@[::1]:/srv/www/" "[::1]:/srv/www" "user@server:www/blog"
+                    "user@server:~/www/./blog" "server::site" "rsync://server/site/"
+                    "/srv/site/../site"))
+    (should-not (my/blog--remote-problem remote))))
+
 (ert-deftest my/safety-test-1.5-site-folders-allowed ()
   "1.5: a folder of its own on the server is accepted."
   (dolist (remote '("user@server:/var/www/blog/" "server:/home/bob/www/"

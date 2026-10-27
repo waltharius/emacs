@@ -9276,8 +9276,16 @@ before it says so.  =my/upload-destination-problem= (000-core.el, shared
 with the repository docs) refuses a destination
 that is a home folder or the root -- an empty path after the host
 (=user@server:= is that user's home there), =~=, =~user=, =/=,
-=/root=, =/home/NAME=, =/Users/NAME=, or this machine's home -- before
-the export starts and again just before rsync runs.  The rights of the
+=/root=, =/home=, =/home/NAME=, =/Users/NAME=, or this machine's home --
+before the export starts and again just before rsync runs.  Since
+2026-10-27c the path is normalised first (=~/.=, =/home/NAME/www/..=,
+=/home//NAME= are the folders they name; until then each of these was
+let through), a relative path on the server counts from the home there
+and may not leave it through =..=, a character the remote shell would
+expand (=$=, a backquote) is refused, a local destination must be an
+absolute path, and the host may be a bracketed IPv6 address.  An rsync
+daemon destination (=rsync://= or =HOST::MODULE=) is accepted when it
+names a module.  rsync is given =--= before the paths.  The rights of the
 user rsync logs in as are the second limit: a deploy user that owns
 only the site's folder cannot delete anything else.
 

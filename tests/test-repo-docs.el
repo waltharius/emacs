@@ -589,7 +589,7 @@ no shell."
                      (list (list "hugo" "--source" site "--destination" public
                                  "--baseURL" "https://docs.example.org/"
                                  "--gc" "--minify" "--cleanDestinationDir")
-                           (list "rsync" "-az" "--delete" public
+                           (list "rsync" "-az" "--delete" "--" public
                                  "user@server:/var/www/docs/")))))))
 
 (ert-deftest my/rd-test-publish-no-upload-after-failed-build ()

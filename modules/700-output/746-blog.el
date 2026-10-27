@@ -2039,7 +2039,7 @@ The rule is shared with 747-repo-docs.el: `my/upload-destination-problem'
          (problem (my/blog--remote-problem remote))
          (dir (my/blog--directory site))
          (public (file-name-as-directory (expand-file-name "public" dir)))
-         (command (format "%s --source %s --gc --minify --cleanDestinationDir && %s -az --delete %s %s"
+         (command (format "%s --source %s --gc --minify --cleanDestinationDir && %s -az --delete -- %s %s"
                           (shell-quote-argument my/blog-hugo-program)
                           (shell-quote-argument dir)
                           (shell-quote-argument my/blog-rsync-program)
