@@ -174,12 +174,37 @@
 (ert-deftest my/ns-test-file-args-grep ()
   "Grep gets --include per glob, plus the dot-directory exclusion."
   (should (equal (my/notes-search--file-args '("2012*") nil)
-                 '("--include=2012*" "--exclude-dir=.*"))))
+                 '("--include=2012*" "--exclude-dir=.?*"))))
 
 (ert-deftest my/ns-test-file-args-without-globs ()
   "With no date filter, only the exclusion is added."
   (should (equal (my/notes-search--file-args nil t) '("-g" "!.*")))
-  (should (equal (my/notes-search--file-args nil nil) '("--exclude-dir=.*"))))
+  (should (equal (my/notes-search--file-args nil nil) '("--exclude-dir=.?*"))))
+
+(ert-deftest my/ns-test-grep-fallback-finds-from-the-start-directory ()
+  "The grep arguments, run as consult runs them -- recursively on `.' --
+find a note and leave a dot folder out.  Until 2026-10-28
+`--exclude-dir=.*' excluded `.' itself, so the fallback (no ripgrep, or
+`my/notes-search-prefer-ripgrep' nil) found nothing."
+  (skip-unless (executable-find "grep"))
+  (let* ((root (file-name-as-directory (make-temp-file "mypks-grep-" t)))
+         (default-directory root))
+    (unwind-protect
+        (progn
+          (make-directory (expand-file-name ".snapshots/2026" root) t)
+          (with-temp-file (expand-file-name "20260101T000000--kot__pks.org" root)
+            (insert "kot w notatce\n"))
+          (with-temp-file (expand-file-name ".snapshots/2026/kot.org" root)
+            (insert "kot w migawce\n"))
+          (with-temp-buffer
+            (let ((status (apply #'call-process "grep" nil t nil
+                                 (append (list "-r" "-n" "--null" "-e" "kot")
+                                         (my/notes-search--file-args nil nil)
+                                         (list ".")))))
+              (should (eq status 0))
+              (should (string-match-p "kot w notatce" (buffer-string)))
+              (should-not (string-match-p "migawce" (buffer-string))))))
+      (delete-directory root t))))
 
 ;; ============================================================
 ;; FILE-NAME SELECTORS

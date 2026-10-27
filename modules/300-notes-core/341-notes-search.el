@@ -423,12 +423,18 @@ initial input, and is nil when the query carries no search terms.
 GLOBS is a list of file-name globs, or nil for no date filter.  RIPGREP
 selects the flag spelling.  The dot-directory exclusion is appended
 last, because in both programs a later pattern wins over an earlier one
-and the date globs are a whitelist."
+and the date globs are a whitelist.
+
+grep's exclusion is `.?*', not `.*': consult starts grep on the
+directory `.', and GNU grep applies `--exclude-dir' to that start
+directory too, so `.*' excluded everything and the fallback found
+nothing (outside review 2026-10-27).  `.?*' needs one character after
+the dot: `.git', `.snapshots', also `..', never `.'."
   (append
    (mapcan (lambda (glob)
              (if ripgrep (list "-g" glob) (list (concat "--include=" glob))))
            globs)
-   (if ripgrep (list "-g" "!.*") (list "--exclude-dir=.*"))))
+   (if ripgrep (list "-g" "!.*") (list "--exclude-dir=.?*"))))
 
 ;; ============================================================
 ;; COMMAND: content search

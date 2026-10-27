@@ -579,9 +579,11 @@ had existed for a year came back once per snapshot.
 Fixed at three levels: =.snapshots=, =.stversions= and =.stfolder= are
 added to =grep-find-ignored-directories= (which helps =rgrep=,
 =project-find-regexp= and the plain =consult-grep= too); this module's
-own invocations pass =--exclude-dir=.*= or =-g '!.*'=, covering dot
+own invocations pass =--exclude-dir=.?*= or =-g '!.*'=, covering dot
 directories that do not exist yet; and ripgrep is preferred, which
-ignores hidden directories by default.
+ignores hidden directories by default.  (=.?*=, not =.*=: consult
+starts grep on =.=, which GNU grep tests against =--exclude-dir= too,
+so until 2026-10-28d the fallback without ripgrep found nothing.)
 
 Denote's own file listing always skipped dot directories, which is why
 =denote-open-or-create= was never affected.
