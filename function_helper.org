@@ -4475,7 +4475,11 @@ instead.
 Zotero rather than a typo, so the same stale key tends to appear in
 several places. It rewrites keys only *inside* citations — the same
 string in ordinary prose is untouched, which matters because keys
-often look like ordinary words.
+often look like ordinary words — and only the whole key: renaming
+=smith= leaves =@smith-2020= alone (until 2026-10-28f the match ended
+at a word boundary and took it too).  A file open with unsaved changes
+is left alone and named in the message; an unmodified buffer visiting
+a rewritten file is reverted (=tests/test-cite-keys.el=).
 
 =my/cite-check-directories= narrows the scan; nil means the whole
 notes tree.

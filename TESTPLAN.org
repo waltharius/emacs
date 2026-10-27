@@ -645,6 +645,39 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R56. Outside review of 2026-10-27, first fixes [0/8]
+Patches 0112-0120 (sessions 2026-10-27a-c, 2026-10-28a-f).  Each
+line names what was broken, so a regression is recognised at once.
+- [ ] 0112: =git config --global rebase.autoStash true= (set it back
+      afterwards); change a note on the other machine and push; here,
+      change the same line and save, then =C-c v a=: the log says the
+      notes were not pulled ("changes not committed yet"), the file holds
+      only what was typed here, =git stash list= in the notes is empty.
+      Before: conflict markers in the file.
+- [ ] 0113: =C-c n d d= on a scratch note asks "yes or no" and =y= alone
+      is refused.  =C-c n x b= → publish asks the same way.
+- [ ] 0115: =C-x C-c= asks with one key (=y=/=n=); with network off and
+      a changed note, "Not on the server ... Quit anyway? (y or n)".
+- [ ] 0114: =C-c n , ,= → Hugo sites, set a site's =:remote= to
+      =user@server:~/.= (or =../=), =C-c n x b p=: refused at once with
+      "that is a home folder or the root" / "must be an absolute path",
+      nothing built.  Put the real =:remote= back; =p= works as before.
+- [ ] 0116: in a project hub, point on a task, =C-c n p= → =r=: the
+      completion lists =Tasks= of every project and Inbox/Tasks/Someday
+      of tasks.org, by file name.  Before: "No refile targets".
+- [ ] 0117: with =my/project-git-auto-pull= nil (the default), commit
+      to a project from the other machine; here =C-c n p G u=: "pulled 1
+      commit(s)" and the file changes.  Before: "behind, C-c n p G u to
+      pull".
+- [ ] 0118: =M-x customize-option RET my/notes-search-prefer-ripgrep=,
+      off, Apply (not Save); =C-c n f g= with a word from any note:
+      results.  Before: none.  Set it back.
+- [ ] 0119, 0120: =C-c n t r= → sync (or =M-x my/readwise-sync=): a book
+      with a Polish letter in its title is written with that letter in
+      its file name and title line (=ls ~/notes/.../readwise/=).  Then
+      =M-x my/cite-rename-key= on a key of a test note that also holds
+      =@KEY-2020=: only =@KEY= changes.
+
 ** R55. The bibliography split: citar, Zotero [0/5]
 - [ ] =C-c x=, =C-c n t z= and =M-x my/zotero-menu= open the same
       bibliography menu, with the same keys as before.

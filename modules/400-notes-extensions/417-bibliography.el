@@ -747,35 +747,54 @@ then likely to appear in several places.
 
 Only occurrences inside a citation are touched: the same string in
 ordinary prose is left alone, which matters because keys often look
-like ordinary words."
+like ordinary words.  Only the whole key: `smith' is not the start of
+`smith-2020' (until 2026-10-28 the match ended at a word boundary, so
+renaming one key rewrote every key beginning with it; outside review
+2026-10-27).  A file open in a buffer with unsaved changes is left
+alone and named, since the buffer would write the old text back over
+the change; an unmodified buffer is reverted to show it."
   (interactive
    (let ((old (read-string "Replace key: ")))
      (list old (read-string (format "Replace %s with: " old)))))
   (let ((changed 0)
-        (files 0))
+        (files 0)
+        (skipped nil)
+        (re (concat "@" (regexp-quote old) "\\([]&;, \t\n]\\)")))
     (dolist (file (my/cite--org-files))
-      (let ((hits 0))
-        (with-temp-buffer
-          (insert-file-contents file)
-          (goto-char (point-min))
-          (while (re-search-forward my/cite--citation-re nil t)
-            (let* ((start (match-beginning 0))
-                   (end (match-end 0))
-                   (citation (match-string 0))
-                   (replaced (replace-regexp-in-string
-                              (concat "@" (regexp-quote old) "\\b")
-                              (concat "@" new) citation t t)))
-              (unless (equal citation replaced)
-                (delete-region start end)
-                (goto-char start)
-                (insert replaced)
-                (setq hits (1+ hits)))))
+      (let ((hits 0)
+            (buffer (find-buffer-visiting file)))
+        (if (and buffer (buffer-modified-p buffer))
+            (push (abbreviate-file-name file) skipped)
+          (with-temp-buffer
+            (insert-file-contents file)
+            (goto-char (point-min))
+            (while (re-search-forward my/cite--citation-re nil t)
+              (let* ((start (match-beginning 0))
+                     (end (match-end 0))
+                     (citation (match-string 0))
+                     (replaced (replace-regexp-in-string
+                                re
+                                ;; The delimiter that ended the key is
+                                ;; put back as it was.
+                                (lambda (m) (concat "@" new (substring m -1)))
+                                citation t t)))
+                (unless (equal citation replaced)
+                  (delete-region start end)
+                  (goto-char start)
+                  (insert replaced)
+                  (setq hits (1+ hits)))))
+            (when (> hits 0)
+              (write-region (point-min) (point-max) file nil 'silent)
+              (when buffer
+                (with-current-buffer buffer
+                  (revert-buffer :ignore-auto :noconfirm :preserve-modes)))))
           (when (> hits 0)
-            (write-region (point-min) (point-max) file nil 'silent)))
-        (when (> hits 0)
-          (setq changed (+ changed hits))
-          (setq files (1+ files)))))
-    (message "Replaced %d occurrence(s) of %s in %d file(s)" changed old files)))
+            (setq changed (+ changed hits))
+            (setq files (1+ files))))))
+    (message "Replaced %d occurrence(s) of %s in %d file(s)%s" changed old files
+             (if skipped
+                 (format "; not touched, unsaved changes open: %s" (string-join skipped ", "))
+               ""))))
 
 (global-set-key (kbd "C-c b c") #'my/cite-check-keys)
 
