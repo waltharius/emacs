@@ -154,10 +154,17 @@ mistaken for an empty one."
             (goto-char (point-min))
             (unless (re-search-forward "\n\r?\n" nil t)
               (user-error "Malformed HTTP response from Readwise"))
+            ;; The reply buffer of url-http is unibyte and holds the
+            ;; body as the bytes that came over the wire; url decodes
+            ;; nothing.  Readwise sends UTF-8.  Read as it stood,
+            ;; "Kraków" became "KrakÃ³w" in every title, author and
+            ;; highlight (outside review 2026-10-27).
             (let ((json-object-type 'alist)
                   (json-array-type 'list)
                   (json-key-type 'symbol))
-              (json-read)))
+              (json-read-from-string
+               (decode-coding-string
+                (buffer-substring-no-properties (point) (point-max)) 'utf-8))))
         (kill-buffer)))))
 
 (defun my/readwise--fetch-all (&optional updated-after book-ids)
@@ -185,8 +192,8 @@ re-fetches those books in full."
              (results (alist-get 'results data))
              (next (alist-get 'nextPageCursor data)))
         (setq books (append books results))
-        ;; json-read renders JSON null as :null, which is non-nil, so
-        ;; testing for it explicitly is required to terminate.
+        ;; json.el reads JSON null as `json-null', nil by default; the
+        ;; :null test stays for a reader that renders it so.
         (if (and next (not (eq next :null)) (not (equal next "")))
             (setq cursor (format "%s" next))
           (setq more nil))))

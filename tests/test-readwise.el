@@ -100,9 +100,14 @@ Each request is recorded in `my/rw-test--requests'."
                    (let ((reply (funcall handler (my/rw-test--query url)))
                          (buffer (generate-new-buffer " *rw-test-reply*")))
                      (with-current-buffer buffer
-                       (insert (format "HTTP/1.1 %d %s\nContent-Type: application/json\n\n"
-                                       (car reply) (if (= 200 (car reply)) "OK" "Unauthorized"))
-                               (cdr reply)))
+                       ;; As url-http leaves it: a unibyte buffer holding
+                       ;; the bytes of the reply, nothing decoded.
+                       (set-buffer-multibyte nil)
+                       (insert (encode-coding-string
+                                (concat (format "HTTP/1.1 %d %s\nContent-Type: application/json\n\n"
+                                                (car reply) (if (= 200 (car reply)) "OK" "Unauthorized"))
+                                        (cdr reply))
+                                'utf-8)))
                      buffer))
                  '((name . my/rw-test-server)))
      (unwind-protect
@@ -286,6 +291,32 @@ the sync is recorded."
     (should-not (directory-files-recursively notes "" nil))
     (should (string-match-p "\\`[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}T[0-9:]\\{8\\}Z\\'"
                             (my/readwise--last-sync)))))
+
+(ert-deftest my/rw-test-reply-decoded-as-utf-8 ()
+  "Titles, authors and highlights with letters outside ASCII arrive as
+UTF-8 bytes and are read as the letters: the file name, the title and
+the highlight say Kraków, not KrakÃ³w.  Until 2026-10-28 the reply was
+read as it stood in url's unibyte buffer (outside review 2026-10-27)."
+  (my/rw-test--with-tree
+    (my/rw-test--with-server
+        (lambda (_q)
+          (my/rw-test--page
+           (list (append '((user_book_id . 7) (title . "Kraków i Żółć")
+                           (readable_title . "Kraków i Żółć")
+                           (author . "Józef Łoś") (category . "books")
+                           (source . "kindle"))
+                         (list (cons 'highlights
+                                     (vector (my/rw-test--highlight 70 "Zażółć gęślą jaźń."))))))))
+      (my/readwise-sync))
+    (let ((file (my/rw-test--file-of 7)))
+      (should file)
+      (should (equal (file-name-nondirectory file) "rw7--józef-łoś-kraków-i-żółć.org"))
+      (should-not (string-match-p "Ã" (file-name-nondirectory file)))
+      (let ((text (my/rw-test--read file)))
+        (should (string-search "Kraków i Żółć" text))
+        (should (string-search "Józef Łoś" text))
+        (should (string-search "Zażółć gęślą jaźń." text))
+        (should-not (string-search "Ã" text))))))
 
 (ert-deftest my/rw-test-incremental-refetches-whole-book ()
   "An incremental sync asks what changed since the recorded time, then
