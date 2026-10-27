@@ -172,12 +172,16 @@ of the project stays as it was."
 ;; BEHIND THE SERVER
 ;; ============================================================
 
-(defun my/pg-test--report (dir)
-  "Fetch DIR and report, as the check does; wait for it; return the message."
+(defun my/pg-test--report (dir &optional command)
+  "Fetch DIR and report, as the check does; wait for it; return the message.
+COMMAND runs instead of the check: a function of DIR, such as
+`my/project-git-pull'."
   (let ((said nil))
     (cl-letf (((symbol-function 'message)
                (lambda (f &rest a) (setq said (apply #'format f a)))))
-      (my/project-git--fetch-and-report dir :verbose)
+      (if command
+          (funcall command dir)
+        (my/project-git--fetch-and-report dir :verbose))
       (with-timeout (10 (error "The fetch did not end"))
         (while (seq-some (lambda (p) (string-prefix-p "project-git-fetch" (process-name p)))
                          (process-list))
@@ -223,6 +227,28 @@ shows the new text, a buffer with unsaved edits keeps them."
           (should (string-match-p "Changed there" (buffer-string))))
         (with-current-buffer side-buffer
           (should (string-match-p "typed" (buffer-string))))))))
+
+(ert-deftest my/pg-test-pull-command-pulls-with-auto-pull-off ()
+  "`my/project-git-pull' fast-forwards a clean tree although
+`my/project-git-auto-pull' is off.  Until 2026-10-28 the command
+let-bound the option around an asynchronous fetch; the sentinel saw the
+global nil and only said \"behind, C-c n p G u to pull\"."
+  (my/pg-test--with-projects
+    (let* ((other (my/pg-test--published projects server "essay"))
+           (dir (my/project-git--directory "essay"))
+           (my/project-git-auto-pull nil)
+           (my/project-git-check-on-visit nil)
+           (hub (expand-file-name "essay.org" dir)))
+      (my/pg-test--commit-elsewhere other "essay.org" "#+title: essay\n\nChanged there.\n")
+      (should (string-match-p "pulled 1 commit"
+                              (my/pg-test--report dir (lambda (d) (my/project-git-pull
+                                                                 (file-name-nondirectory
+                                                                  (directory-file-name d)))))))
+      (should (string-match-p "Changed there"
+                              (with-temp-buffer (insert-file-contents hub) (buffer-string))))
+      ;; The check afterwards, with the option still off, pulls nothing.
+      (my/pg-test--commit-elsewhere other "essay.org" "#+title: essay\n\nAgain.\n")
+      (should (string-match-p "1 commit(s) behind" (my/pg-test--report dir))))))
 
 (ert-deftest my/pg-test-opening-a-file-checks ()
   "Opening a file of a project behind its server says so, once in the

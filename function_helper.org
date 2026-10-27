@@ -4260,7 +4260,13 @@ the log rather than shown.
 | Ahead and behind         | Says so             | Says so             |
 | Ahead only               | Says how many       | Says how many       |
 
-=my/project-git-auto-pull= is nil by default. When it is on, the two
+=my/project-git-auto-pull= is nil by default.  =u= in the menu
+(=my/project-git-pull=) is the same check with the fast-forward taken
+whatever the option says, under the same two conditions; it passes
+that as an argument down to the report that runs when the fetch ends
+(until 2026-10-28c it let-bound the option around the asynchronous
+fetch, which had ended by then, so the command only said "behind").
+When the option is on, the two
 conditions are not negotiable: a pull that merges is a decision about
 which of two versions is right, and a program that makes that decision
 while attention is elsewhere is worse than one that asks.

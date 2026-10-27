@@ -392,13 +392,18 @@ edits, which is the thing this is supposed to prevent."
         (with-current-buffer buffer
           (revert-buffer :ignore-auto :noconfirm))))))
 
-(defun my/project-git--report (dir &optional verbose)
+(defun my/project-git--report (dir &optional verbose pull)
   "Report, and possibly act on, how DIR stands against its remote.
 
 With VERBOSE, says so even when there is nothing to report.  Silence is
 right for the automatic check on opening a file -- a message every time
 a project file is visited is noise -- and wrong for a command the user
-just ran, where it is indistinguishable from the command failing."
+just ran, where it is indistinguishable from the command failing.
+
+With PULL, a fast-forward is taken when the tree is clean; without it,
+only when `my/project-git-auto-pull' is on.  An argument, not a
+binding of the option: the report runs from a process sentinel, after
+any `let' around the command has ended (outside review 2026-10-27)."
   (let* ((name (file-name-nondirectory (directory-file-name dir)))
          (divergence (my/project-git--divergence dir)))
     (cond
@@ -417,7 +422,7 @@ just ran, where it is indistinguishable from the command failing."
           ;; Both directions: not a fast-forward whatever the setting.
           (message "%s: diverged -- %d ahead, %d behind.  C-x g to merge"
                    name ahead behind))
-         ((not my/project-git-auto-pull)
+         ((not (or pull my/project-git-auto-pull))
           (message "%s: %d commit(s) behind.  C-c n p G u to pull"
                    name behind))
          ((not (my/project-git--clean-p dir))
@@ -431,17 +436,17 @@ just ran, where it is indistinguishable from the command failing."
             (message "%s: fast-forward refused, see %s"
                      name my/project-git-log-buffer)))))))))
 
-(defun my/project-git--fetch-and-report (dir &optional verbose)
+(defun my/project-git--fetch-and-report (dir &optional verbose pull)
   "Fetch DIR in the background, then report where it stands.
 
 Asynchronous because a fetch talks to the network, and a synchronous
 one freezes Emacs for as long as the server takes -- which on a laptop
 that is not on the same network is a timeout, not a moment.
 
-VERBOSE is passed on to `my/project-git--report', and also turns an
-unreachable server into a message: for an automatic check that is the
-normal case and not worth mentioning, but for a command the user ran it
-is the answer."
+VERBOSE and PULL are passed on to `my/project-git--report'; VERBOSE
+also turns an unreachable server into a message: for an automatic check
+that is the normal case and not worth mentioning, but for a command the
+user ran it is the answer."
   (let ((default-directory (file-name-as-directory dir))
         (process-environment (my/project-git--env))
         (buffer (generate-new-buffer " *project-git-fetch*")))
@@ -460,7 +465,7 @@ is the answer."
            (kill-buffer buffer)
            (my/project-git--log dir '("fetch") output status)
            (if (eq status 0)
-               (my/project-git--report dir verbose)
+               (my/project-git--report dir verbose pull)
              (when verbose
                (message "%s: remote unreachable, staleness unknown"
                         (file-name-nondirectory
@@ -497,11 +502,13 @@ is the answer."
   (let* ((dir (or (and slug (my/project-git--directory slug))
                   (my/project-git--current-directory)
                   (my/project-git--directory
-                   (my/project-git--read-slug "Pull project: "))))
-         (my/project-git-auto-pull t))
+                   (my/project-git--read-slug "Pull project: ")))))
     (unless (my/project-git--repo-p dir)
       (user-error "Not a git repository: %s" dir))
-    (my/project-git--fetch-and-report dir :verbose)))
+    ;; PULL as an argument: until 2026-10-28 the option was let-bound
+    ;; here, and the sentinel ran after the binding had ended, so the
+    ;; command only said "behind, C-c n p G u to pull".
+    (my/project-git--fetch-and-report dir :verbose :pull)))
 
 ;; ============================================================
 ;; THE PART THAT DOES NOT RELY ON REMEMBERING
