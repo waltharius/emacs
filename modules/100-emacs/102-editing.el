@@ -299,8 +299,10 @@ itself -- 302b-bold-marker relies on that.  (The text said until
 ;; so a full-screen scroll doesn't lose the cursor position.
 (setq scroll-preserve-screen-position t)
 
-;; Confirm before quit
-(setq confirm-kill-emacs 'yes-or-no-p)
+;; Confirm before quit -- with one key: quitting is undone by starting
+;; Emacs again, and 207-git.el commits the work first (asked by the
+;; owner 2026-10-28, after the alias below went).
+(setq confirm-kill-emacs 'y-or-n-p)
 
 ;; `yes-or-no-p' is NOT aliased to `y-or-n-p', and `use-short-answers'
 ;; stays off.  Until 2026-10-27 the alias made every "yes" question in

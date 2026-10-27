@@ -1752,11 +1752,14 @@ unasked deletion is recorded in *Messages*.  =C-c n d != again turns
 them back on.
 
 These questions, and the ones before moving the old root to the trash,
-removing pages from a site, uploading a site and quitting with work not
-on the server, are asked with =yes-or-no-p=: a typed "yes", not one key.
-Until 2026-10-27 102-editing.el aliased =yes-or-no-p= to =y-or-n-p=, so
-every one of them was one =y= away; the alias is gone and
-=use-short-answers= stays off (test-editing).
+removing pages from a site and uploading a site, are asked with
+=yes-or-no-p=: a typed "yes", not one key.  Until 2026-10-27
+102-editing.el aliased =yes-or-no-p= to =y-or-n-p=, so every one of them
+was one =y= away; the alias is gone and =use-short-answers= stays off
+(test-editing).  Quitting Emacs -- =confirm-kill-emacs= and 207-git's
+"Not on the server ... Quit anyway?" -- takes one key on purpose:
+starting Emacs again undoes it, and the work is committed first
+(2026-10-28a).
 
 Not deletions, so not asked here: promoting a capture (the text moves
 into a note), extracting from the inbox (the text moves into a new

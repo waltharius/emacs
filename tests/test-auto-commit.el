@@ -453,7 +453,7 @@ committed is not pulled at all (since 2026-10-24)."
           (my/auto-commit-confirm-exit t)
           (noninteractive nil))
       (my/ac-test--write (expand-file-name "j.org" here) "j\n")
-      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) nil)))
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) nil)))
         (should-not (my/auto-commit--confirm-exit)))
       (should-not my/auto-commit-done)
       (my/ac-test--write (expand-file-name "k.org" here) "k\n")
@@ -592,14 +592,14 @@ commit is made there; once it is closed, the next cycle commits."
   (my/ac-test--with-repos
     (my/ac-test--with-message-buffer here
       (let ((asked 0) (noninteractive nil))
-        (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) (cl-incf asked) nil))
+        (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) (cl-incf asked) nil))
                   ((symbol-function 'pop-to-buffer) #'ignore))
           (should-error (my/auto-commit--message-before-quit) :type 'user-error))
-        (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) (cl-incf asked) t)))
+        (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) (cl-incf asked) t)))
           (should-not (my/auto-commit--message-before-quit)))
         (should (= asked 2))))
     (let ((noninteractive nil))
-      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) (error "Asked"))))
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) (error "Asked"))))
         (should-not (my/auto-commit--message-before-quit))))))
 
 (provide 'test-auto-commit)

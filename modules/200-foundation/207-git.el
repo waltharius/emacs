@@ -1130,7 +1130,7 @@ it anyway.  No git here; the commit follows in
   (let ((open (my/auto-commit--message-buffers)))
     (when (and open
                (not noninteractive)
-               (not (yes-or-no-p
+               (not (y-or-n-p
                      (format "A commit message is still open (%s); git waits for it.  Quit anyway, without that commit? "
                              (mapconcat #'buffer-name open ", ")))))
       (pop-to-buffer (car open))
@@ -1181,7 +1181,9 @@ question is turned on (`my/auto-commit-confirm-exit')."
                                                 reason))))
                                (my/auto-commit-directories)))))
         (or (null pending)
-            (yes-or-no-p (format "Not on the server: %s.  Quit anyway? "
+            ;; One key, like `confirm-kill-emacs': what is not on the
+            ;; server is still on this machine (2026-10-28).
+            (y-or-n-p (format "Not on the server: %s.  Quit anyway? "
                                  (string-join pending "; ")))
             ;; Staying: the next quit commits again.  (Until 2026-10-19
             ;; the flag stayed set, and that later quit committed nothing.)
