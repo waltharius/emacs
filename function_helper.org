@@ -9060,6 +9060,13 @@ would repeat it.
 | =#+INCLUDE:= of a note on the same site        | included text, links resolved as above         |
 | =#+INCLUDE:= of any other note                 | the whole note is refused                      |
 
+The include rule follows every file reachable through includes, as Org
+expands them: a note including a note on the site that includes a
+journal note is refused too, naming the journal note; a circle of
+includes ends.  A change in any of those files exports the page again.
+Since 2026-10-29e (=my/blog--include-closure=); until then only the
+note's own includes counted, both for the rule and for re-exporting.
+
 Links between sections of one site work in both directions.
 
 A =file:= link to a note goes the same way as a =denote:= link: left to

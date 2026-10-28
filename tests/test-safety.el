@@ -432,6 +432,46 @@ list of candidates and its silos."
       (should (string-match-p "includes a note not on this site"
                               (nth 1 (car (plist-get plan :refused))))))))
 
+(ert-deftest my/safety-test-1.1-include-through-another-note-refused ()
+  "1.1: the rule holds through other notes.  Kant (blog) includes Hegel
+(blog, so on the site), and Hegel includes a journal note: Org expands
+both, so Kant is refused too, naming the journal note.  Until
+2026-10-29 only Kant's own includes were checked, and Kant was ready.
+Includes that go round in a circle end."
+  (my/safety-test--with-site nil
+    (let* ((day (my/safety-test--note "journal" "20261029T100400" "Day" nil "Private text.\n"))
+           (hegel (my/safety-test--note "pks" "20261029T100100" "Hegel" '("blog")
+                                        "#+INCLUDE: \"../journal/20261029T100400--day.org\"\n"))
+           (kant (my/safety-test--note "pks" "20261029T100000" "Kant" '("blog")
+                                       "#+INCLUDE: \"20261029T100100--hegel__blog.org\"\n"))
+           (plan (my/blog--plan (my/blog--site "s")))
+           (refused (plist-get plan :refused)))
+      (should-not (plist-get plan :ready))
+      (should (equal (sort (mapcar #'car refused) #'string<) (sort (list kant hegel) #'string<)))
+      (should (string-match-p (regexp-quote (file-name-nondirectory day))
+                              (nth 1 (assoc kant refused)))))
+    ;; A circle: Fichte includes Schelling, Schelling includes Fichte.
+    (my/safety-test--note "pks" "20261029T110000" "Fichte" '("blog")
+                          "#+INCLUDE: \"20261029T110100--schelling__blog.org\"\n")
+    (my/safety-test--note "pks" "20261029T110100" "Schelling" '("blog")
+                          "#+INCLUDE: \"20261029T110000--fichte__blog.org\"\n")
+    (should (= 2 (length (plist-get (my/blog--plan (my/blog--site "s")) :ready))))))
+
+(ert-deftest my/blog-test-change-in-a-nested-include-exports-again ()
+  "A change in a file included by an included file makes the page
+export again: the page holds its text."
+  (my/safety-test--with-site nil
+    (let ((cache (make-hash-table :test #'equal))
+          (inner (my/safety-test--note "pks" "20261029T120200" "Inner" '("blog") "One.\n")))
+      (my/safety-test--note "pks" "20261029T120100" "Middle" '("blog")
+                            "#+INCLUDE: \"20261029T120200--inner__blog.org\"\n")
+      (let* ((outer (my/safety-test--note "pks" "20261029T120000" "Outer" '("blog")
+                                          "#+INCLUDE: \"20261029T120100--middle__blog.org\"\n"))
+             (before (my/blog--stamp outer cache)))
+        (should (= 3 (length before)))
+        (set-file-times inner (time-add (current-time) 10))
+        (should-not (equal before (my/blog--stamp outer cache)))))))
+
 ;; 1.2: a site with a server -- checked before every command
 ;; ------------------------------------------------------------
 

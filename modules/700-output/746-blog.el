@@ -108,7 +108,11 @@
 ;; WHAT IS REFUSED
 ;; ---------------
 ;; A note that `#+INCLUDE:'s a note not published on the same site is
-;; not exported: the included text would be published with it.
+;; not exported: the included text would be published with it.  Also
+;; through other notes: Org expands an include inside an included file
+;; too, so every file reachable through includes counts
+;; (`my/blog--include-closure'; until 2026-10-29 only the note's own
+;; includes did, and A including B including the journal was ready).
 ;; 420-transclusion.el pairs every `#+transclude:' with such an
 ;; `#+INCLUDE:', so transcluding a private note is caught here.  Two
 ;; notes that would get the same URL in one section are also refused,
@@ -918,6 +922,24 @@ CACHE maps files to (MTIME INCLUDES LINKS) and is updated in place."
         (puthash file (cons mtime refs) cache)
         refs))))
 
+(defun my/blog--include-closure (file cache)
+  "Return every file FILE pulls in through #+INCLUDE, directly or not.
+Org expands an include inside an included file too, so the text of all
+of them is on FILE's page.  Each file once, FILE itself never (a cycle
+of includes ends); a file that cannot be read is listed and not followed
+-- the export of FILE fails on it anyway.  CACHE as for `my/blog--refs'."
+  (let ((seen (list (expand-file-name file)))
+        (todo (car (my/blog--refs file cache)))
+        (found '()))
+    (while todo
+      (let ((next (pop todo)))
+        (unless (member next seen)
+          (push next seen)
+          (push next found)
+          (when (file-readable-p next)
+            (setq todo (append todo (car (my/blog--refs next cache))))))))
+    (nreverse found)))
+
 ;; ============================================================
 ;; PLAN
 ;; ============================================================
@@ -931,9 +953,12 @@ CACHE maps files to (MTIME INCLUDES LINKS) and is updated in place."
   "Return the Markdown file of SLUG in SECTION of SITE."
   (expand-file-name (concat slug ".md") (my/blog--section-dir site section)))
 
-(defun my/blog--stamp (file includes)
-  "Return the modification times of FILE and its INCLUDES, as a list."
-  (mapcar #'my/blog--mtime (cons file includes)))
+(defun my/blog--stamp (file cache)
+  "Return the modification times of FILE and of what it includes, a list.
+Every file of `my/blog--include-closure': a change in an include of an
+include changes the page too (until 2026-10-29 only the note's own
+includes counted).  CACHE as for `my/blog--refs'."
+  (mapcar #'my/blog--mtime (cons file (my/blog--include-closure file cache))))
 
 (defvar my/blog--foreign-index-cache nil
   "Alist of site name -> (MTIME . INDEX) read from other sites' state.")
@@ -1033,7 +1058,7 @@ With FULL, every page counts as needing an export.  Returns a plist:
              (slug (my/blog--slug file))
              (key (concat section "/" slug))
              (foreign (seq-remove (lambda (f) (gethash f on-site))
-                                  (car (my/blog--refs file cache)))))
+                                  (my/blog--include-closure file cache))))
         (cond
          ((cdr sections)
           (push (list file (format "keywords of several sections: %s"
@@ -1070,7 +1095,7 @@ With FULL, every page counts as needing an export.  Returns a plist:
                           (my/blog--page-file site (nth 1 entry) (nth 2 entry))))
                     (member file retry)
                     (not (equal (gethash file stamps)
-                                (my/blog--stamp file (nth 0 refs))))
+                                (my/blog--stamp file cache)))
                     (seq-intersection (nth 1 refs) changed))
             (push entry todo))))
       (dolist (sec (my/blog--sections site))
@@ -1480,8 +1505,7 @@ SITE, JOB, PLAN and NAME as in the caller."
             (let* ((file (nth 0 entry))
                    ;; Taken before the export: a note edited while it is
                    ;; being exported must count as changed next time.
-                   (stamp (my/blog--stamp
-                           file (nth 1 (gethash file (plist-get plan :cache))))))
+                   (stamp (my/blog--stamp file (plist-get plan :cache))))
               (my/blog--export-file site file (nth 1 entry) (nth 2 entry) targets)
               (puthash file stamp (plist-get plan :stamps))
               (plist-put job :done (cons entry (plist-get job :done))))
