@@ -859,19 +859,31 @@ theme's folder listing.  Any other call left in a page is escaped by
   "Return TEXT with every shortcode call escaped except the module's own.
 The last check of a page before it is written: whatever came through the
 export unescaped -- a relref in documentation about relrefs -- is shown
-as written rather than run (see the commentary on Org files)."
-  (replace-regexp-in-string
-   "{{\\([<%]\\)\\(?:/\\*\\)?[ \t]*\\([^ \t}*/][^}]*?\\)[ \t]*\\(?:\\*/\\)?\\([>%]\\)}}"
-   (lambda (call)
-     ;; `replace-regexp-in-string' reads the match data after this
-     ;; returns; the search for the name must not touch it.
-     (save-match-data
-       (let ((name (and (string-match "{{[<%]\\(?:/\\*\\)?[ \t]*\\([^ \t}*/]+\\)" call)
-                        (match-string 1 call))))
-         (if (member name my/repo-docs--own-shortcodes)
-             call
-           (my/repo-docs--escape-shortcodes call)))))
-   text t t))
+as written rather than run (see the commentary on Org files).  It does
+its own escaping and calls nothing of the step before the export, so it
+holds when that step does not: a safety net that shares the code of
+what it guards fails with it (found by test-repo-docs on the owner's
+machine, 2026-10-28)."
+  (with-temp-buffer
+    (insert text)
+    (goto-char (point-min))
+    (while (re-search-forward
+            "{{\\([<%]\\)\\(/\\*\\)?\\(.*?\\)\\(\\*/\\)?\\([>%]\\)}}" nil t)
+      ;; The groups first: `split-string' below matches too, and would
+      ;; leave `replace-match' the match data of its own search.
+      (let ((open (match-string 1))
+            (escaped (match-beginning 2))
+            (inner (match-string 3))
+            (close (match-string 5))
+            (start (match-beginning 0))
+            (end (match-end 0)))
+        (unless (or escaped
+                    (member (car (split-string inner nil t))
+                            my/repo-docs--own-shortcodes))
+          (delete-region start end)
+          (goto-char start)
+          (insert "{{" open "/*" inner "*/" close "}}"))))
+    (buffer-string)))
 
 (defun my/repo-docs--weights (map)
   "Return a hash table of site path -> weight for the pages in MAP.
