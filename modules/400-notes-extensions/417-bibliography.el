@@ -668,10 +668,9 @@ the delimiters instead of listing what is allowed.")
 (defun my/cite--org-files ()
   "Return the Org files to scan."
   (let ((dirs (or my/cite-check-directories (list my-notes-dir))))
-    (seq-mapcat (lambda (dir)
-                  (when (file-directory-p dir)
-                    (directory-files-recursively dir "\\.org\\'")))
-                dirs)))
+    ;; Dot folders left out: a stale key was reported once per copy in
+    ;; .snapshots, and renaming wrote into those copies.
+    (seq-mapcat (lambda (dir) (my/notes-files dir "\\.org\\'" t)) dirs)))
 
 (defun my/cite--collect-uses ()
   "Return (KEY FILE LINE) for every citation key used in the scanned files."

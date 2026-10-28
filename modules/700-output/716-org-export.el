@@ -335,8 +335,7 @@ Decision matrix:
 (defun my/--denote-all-keywords ()
   "Sorted, deduplicated list of all Denote keywords in use across notes."
   (let ((keywords '()))
-    (dolist (f (directory-files-recursively
-                (expand-file-name my-notes-dir) "\\.org$"))
+    (dolist (f (my/notes-files my-notes-dir "\\.org\\'" t))
       (with-temp-buffer
         (insert-file-contents f nil 0 2000)
         (goto-char (point-min))
@@ -464,11 +463,8 @@ LABEL is a string describing the search (shown in results header)."
 
 (defun my/--all-notes-org-files ()
   "Return list of all .org files under note directories."
-  (seq-mapcat
-   (lambda (dir)
-     (when (file-directory-p dir)
-       (directory-files-recursively dir "\\.org$")))
-   my-tasks-agenda-dirs))
+  (seq-mapcat (lambda (dir) (my/notes-files dir "\\.org\\'" t))
+              my-tasks-agenda-dirs))
 
 ;; ============================================================
 ;; BATCH EXPORT - ANY mode  (files with ANY of the keywords)

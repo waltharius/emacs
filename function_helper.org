@@ -6655,9 +6655,23 @@ scheme: =1= is 1, =1a= is 2, =1a1= is 3.
 
 ** Dot directories are excluded, and this used to be broken
 
-=my/denote-scan-exclude-regexp= (=227-denote-identifiers.el=) is now
-=/\.= — *any* directory whose name starts with a dot. It used to name
-three: =.backups=, =.autosaves=, =.git=.
+Since 2026-10-28 one function decides which files a walk of the
+collection sees: =my/notes-files= (=000-core.el=) leaves out every
+folder whose name starts with a dot -- without entering it -- and every
+file whose name does (=.#note.org= is Emacs's lock of a note), and
+=my/notes-hidden-p= says the same of one file.  Only the names *below*
+the folder walked are judged, so the notes folder may itself lie under
+a dot folder (=~/.local/share/notes/=).  The identifier scans, the
+maintenance checks, this dashboard, citation keys, capture promotion,
+inbox links, writing projects, the PDF batch export and the blog all
+use it.  Before, nine modules walked the tree each in its own way: five
+without the rule, two -- this one among them -- matching
+=my/denote-scan-exclude-regexp= against the whole path, which emptied
+every scan of a notes folder under a dot folder; that option is
+obsolete and no longer read.
+
+Before that, the option was =/\.= -- *any* directory whose name starts
+with a dot. It used to name three: =.backups=, =.autosaves=, =.git=.
 
 It therefore did not skip =.snapshots=, the btrfs snapshot directory,
 which holds complete copies of the whole tree. Every command reading

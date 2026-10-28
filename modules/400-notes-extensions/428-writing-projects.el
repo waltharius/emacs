@@ -662,7 +662,7 @@ know whether a note is deliverable text or a source."
         (scanned 0))
     (dolist (silo my/writing-project-silos)
       (when (file-directory-p silo)
-        (dolist (file (directory-files-recursively silo "\\.org\\'"))
+        (dolist (file (my/notes-files silo "\\.org\\'" t))
           (setq scanned (1+ scanned))
           (when (member slug (my/writing-file-projects file))
             (push file found)))))
@@ -745,7 +745,7 @@ Purely cosmetic: nothing depends on the description."
   (let (files)
     (dolist (silo my/writing-project-silos)
       (when (file-directory-p silo)
-        (dolist (file (directory-files-recursively silo "\\.org\\'"))
+        (dolist (file (my/notes-files silo "\\.org\\'" t))
           (let ((base (file-name-base file)))
             (when (and (string-match-p "__" base)
                        (member slug (split-string

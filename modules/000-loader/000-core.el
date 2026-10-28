@@ -2190,7 +2190,9 @@ until the next start, and longer if a note still carries it."
 ;;                                         a buffer (`with-temp-file',
 ;;                                         `rename-file')
 ;;   `my/notes-files'                      lists a folder that may not
-;;                                         exist yet, as empty
+;;                                         exist yet, as empty; dot
+;;                                         folders and dot files left out
+;;   `my/notes-hidden-p'                   the same rule for one file
 ;; Denote creates the folder it is let-bound to by itself.
 
 (defun my/notes-ensure-directories ()
@@ -2224,15 +2226,48 @@ question about a missing folder stays where it is."
 
 (add-hook 'before-save-hook #'my/notes--create-missing-directory)
 
+;; DOT FOLDERS AND DOT FILES.  A folder whose name starts with a dot
+;; is never part of the collection: .git, .backups, .autosaves, and
+;; above all .snapshots (btrfs) and .stversions (Syncthing), which hold
+;; whole old copies of the tree -- counted, they made 728,000 notes of a
+;; few thousand, and every note a duplicate of itself.  A file whose
+;; name starts with a dot is no note either: .#note.org is Emacs's lock
+;; of note.org, a link to nowhere.  The rule is the convention, not a
+;; list, so the next tool that keeps its state in a dot folder is left
+;; out too.  Until 2026-10-28 nine modules walked the tree each in its
+;; own way: five without the rule, two matching it against the whole
+;; path (so a notes folder under ~/.local/share/ came out empty), two
+;; right; they all use these now.
+
+(defun my/notes--visible-name-p (file)
+  "Non-nil when the last part of FILE does not start with a dot."
+  (not (string-prefix-p "." (file-name-nondirectory (directory-file-name file)))))
+
 (defun my/notes-files (dir regexp &optional recursive)
   "Return the files in DIR whose names match REGEXP, as absolute names.
-With RECURSIVE, the files in its sub-folders too.  A folder that does
-not exist -- a silo without its first note -- has no files, rather
-than signalling an error."
+With RECURSIVE, the files in its sub-folders too, except in folders
+whose name starts with a dot; a file whose name starts with a dot is
+never returned (see the commentary above).  Only the names below DIR
+are tested, so DIR itself may be anywhere, ~/.local/share/notes/ too.
+A folder that does not exist -- a silo without its first note -- has
+no files, rather than signalling an error."
   (when (and dir (file-directory-p dir))
-    (if recursive
-        (directory-files-recursively dir regexp)
-      (directory-files dir t regexp))))
+    (seq-filter #'my/notes--visible-name-p
+                (if recursive
+                    (directory-files-recursively dir regexp nil
+                                                 #'my/notes--visible-name-p)
+                  (directory-files dir t regexp)))))
+
+(defun my/notes-hidden-p (file &optional root)
+  "Non-nil when FILE lies in a dot folder, or is a dot file, below ROOT.
+ROOT defaults to `my-notes-dir'; only the part of FILE below it is
+tested, the rule of `my/notes-files' for one file.  A FILE outside ROOT
+is tested whole."
+  (let* ((root (file-name-as-directory (expand-file-name (or root my-notes-dir))))
+         (file (expand-file-name file))
+         (below (if (string-prefix-p root file) (substring file (length root)) file)))
+    (seq-some (lambda (part) (string-prefix-p "." part))
+              (split-string below "/" t))))
 
 ;; ============================================================
 ;; FILE HANDLING: Backups and autosaves

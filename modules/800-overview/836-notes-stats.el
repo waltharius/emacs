@@ -42,8 +42,9 @@
 ;; Excluded from both.  `.snapshots/' holds complete btrfs copies of
 ;; the tree; counting it reported 728,000 notes across 2.7 GB and
 ;; turned the growth chart into a chart of snapshot activity.  See the
-;; doc string of `my/denote-scan-exclude-regexp' in
-;; 227-denote-identifiers.el, which is where that was fixed.
+;; commentary of `my/notes-files' in 000-core.el, which is where the
+;; rule lives (until 2026-10-28 `my/denote-scan-exclude-regexp' of
+;; 227-denote-identifiers.el).
 ;;
 ;; CLICKABLE, AND WHY IN BOTH RENDERINGS
 ;; -------------------------------------
@@ -322,12 +323,7 @@ Every file, whatever its extension.  Dot directories skipped."
         (unless (string-prefix-p "." name)
           (if (file-directory-p entry)
               (let ((count 0) (bytes 0))
-                (dolist (file (directory-files-recursively
-                               entry ".*" nil
-                               (lambda (dir)
-                                 (not (string-prefix-p
-                                       "." (file-name-nondirectory
-                                            (directory-file-name dir)))))))
+                (dolist (file (my/notes-files entry "" t))
                   (setq count (1+ count))
                   (setq bytes (+ bytes (my/notes-stats--size file))))
                 (push (list name count bytes) rows))
@@ -437,14 +433,8 @@ counted in a ranking of their own rather than mixed into the Org one,
 because \"the longest thing I have written\" and \"the longest thing
 still waiting to be converted\" are different questions."
   (let ((root (file-name-as-directory (expand-file-name my-notes-dir))))
-    (seq-remove
-     (lambda (file) (string-match-p my/denote-scan-exclude-regexp file))
-     (seq-mapcat
-      (lambda (silo)
-        (let ((dir (expand-file-name silo root)))
-          (when (file-directory-p dir)
-            (directory-files-recursively dir "\\.md\\'"))))
-      my/notes-stats-silos))))
+    (seq-mapcat (lambda (silo) (my/notes-files (expand-file-name silo root) "\\.md\\'" t))
+                my/notes-stats-silos)))
 
 (defun my/notes-stats--rank (records count)
   "Return the COUNT entries of RECORDS with the most words.

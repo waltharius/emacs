@@ -645,8 +645,8 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
-** R56. Outside review of 2026-10-27, first fixes [0/10]
-Patches 0112-0123 (sessions 2026-10-27a-c, 2026-10-28a-i).  Each
+** R56. Outside review of 2026-10-27, first fixes [0/11]
+Patches 0112-0124 (sessions 2026-10-27a-c, 2026-10-28a-j).  Each
 line names what was broken, so a regression is recognised at once.
 - [ ] 0112: =git config --global rebase.autoStash true= (set it back
       afterwards); change a note on the other machine and push; here,
@@ -685,6 +685,11 @@ line names what was broken, so a regression is recognised at once.
       =[x]({{< relref "y" >}})= as text (=/docs/function-helper/=,
       search for relref).  Before: "Hugo server for docs stopped (exit
       1) ... REF_NOT_FOUND".
+- [ ] 0124: =C-c n f s= (statistics): the number of notes is what it
+      was (no jump: nothing that used to be counted is lost).  =C-c n !=
+      → duplicate identifiers: none from =.snapshots=.  =C-c b c=
+      (citation keys): every unresolved key named once, not once per
+      snapshot.
 - [ ] 0119, 0120: =C-c n t r= → sync (or =M-x my/readwise-sync=): a book
       with a Polish letter in its title is written with that letter in
       its file name and title line (=ls ~/notes/.../readwise/=).  Then

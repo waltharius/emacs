@@ -60,34 +60,14 @@
   :group 'mypks-notes)
 
 (defcustom my/denote-scan-exclude-regexp "/\\."
-  "Paths matching this are skipped when scanning for notes and links.
-
-ANY DIRECTORY WHOSE NAME STARTS WITH A DOT, NOT A NAMED LIST
-------------------------------------------------------------
-This used to name three: `.backups\=', `.autosaves\=' and `.git\='.  It
-therefore did NOT skip `.snapshots\=' -- the btrfs snapshot directory,
-which holds complete copies of the whole tree.  Every command reading
-`my/denote-all-files\=' was consequently scanning several hundred
-thousand files, most of them older revisions of notes that are also
-present in their current form.
-
-The consequences were not limited to being slow.  Keyword inventories
-counted the same note once per snapshot, duplicate-identifier checks
-had a duplicate for every note that had ever been snapshotted, and the
-statistics dashboard reported 728,000 notes across 2.7 GB.  Nothing
-signalled: every number was simply wrong, and wrong in a direction
-that looked like growth.
-
-`.stfolder\=' and `.stversions\=' (Syncthing) had the same problem, and
-any future tool that hides state in a dot directory would have joined
-them.  Matching the convention rather than the current membership of
-the list is what stops that recurring.
-
-Note-bearing directories in this tree never begin with a dot, so
-nothing wanted is lost.  Scanning starts at `my-notes-dir\=', so a dot
-directory in the path ABOVE the notes tree is not matched and cannot
-exclude everything."
+  "Not used since 2026-10-28; the rule is `my/notes-files' (000-core.el).
+It skipped every path holding a folder whose name starts with a dot --
+and was matched against the whole path, so a notes folder under a dot
+folder (~/.local/share/notes/) came out empty, with no error.  Kept so
+that a value saved in Customize still loads."
   :type 'regexp :group 'my/denote-identifiers)
+
+(make-obsolete-variable 'my/denote-scan-exclude-regexp 'my/notes-files "2026-10-28")
 
 (defcustom my/denote-silo-directories
   (my/silo-dirs)
@@ -101,10 +81,9 @@ share an identifier with a filed note until it is accepted."
 ;; ============================================================
 
 (defun my/denote-all-files ()
-  "Return every .org file under `my-notes-dir', backups excluded."
-  (seq-remove
-   (lambda (f) (string-match-p my/denote-scan-exclude-regexp f))
-   (directory-files-recursively my-notes-dir "\\.org\\'")))
+  "Return every .org file under `my-notes-dir', dot folders excluded.
+The walk does not enter them (`my/notes-files')."
+  (my/notes-files my-notes-dir "\\.org\\'" t))
 
 (defun my/denote--identifier-scope-files ()
   "Return every .org file in the silos where identifiers must be unique.
@@ -113,12 +92,8 @@ Named for the scope it describes rather than generically: 205-notes.el
 lists the files of a single silo for a different purpose, and the two
 carried the same name -- with different arities -- until moving a note
 between silos started failing with a wrong-number-of-arguments error."
-  (seq-remove
-   (lambda (f) (string-match-p my/denote-scan-exclude-regexp f))
-   (seq-mapcat (lambda (dir)
-                 (when (file-directory-p dir)
-                   (directory-files-recursively dir "\\.org\\'")))
-               my/denote-silo-directories)))
+  (seq-mapcat (lambda (dir) (my/notes-files dir "\\.org\\'" t))
+              my/denote-silo-directories))
 
 (defun my/denote-file-identifier (file)
   "Return the identifier in FILE's name, or nil.

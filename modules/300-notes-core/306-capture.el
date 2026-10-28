@@ -607,7 +607,9 @@ Comparison is case-insensitive and ignores surrounding whitespace."
   (let ((wanted (downcase (string-trim title)))
         matches)
     (dolist (dir (my/--all-note-silos))
-      (dolist (file (directory-files-recursively dir "\\.org\\'"))
+      ;; Dot folders left out: a copy in .snapshots made every note a
+      ;; duplicate of itself, and promoting refused.
+      (dolist (file (my/notes-files dir "\\.org\\'" t))
         (let ((file-title (my/--note-get-title file)))
           (when (and file-title
                      (string= (downcase (string-trim file-title)) wanted))

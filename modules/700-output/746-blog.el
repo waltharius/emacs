@@ -594,13 +594,9 @@ under the root, as before."
 
 (defun my/blog--excluded-p (file)
   "Non-nil when FILE is under a directory scans must skip.
-Uses the rule of 227-denote-identifiers.el when it is loaded, so that
-.snapshots and other dot directories are skipped the same way here."
-  (string-match-p (if (boundp 'my/denote-scan-exclude-regexp)
-                      my/denote-scan-exclude-regexp
-                    "/\\.")
-                  (substring (expand-file-name file)
-                             (length (my/blog--notes-root)))))
+The rule of `my/notes-files' (000-core.el) for one file: a dot folder
+or a dot file below the notes folder."
+  (my/notes-hidden-p file (my/blog--notes-root)))
 
 (defun my/blog--sections-of (site file)
   "Return the names of the sections of SITE that FILE belongs to.
@@ -634,10 +630,9 @@ Sorted by file name, which for Denote notes is creation order."
         (files '()))
     (dolist (silo (my/blog--site-silos site))
       (let ((dir (expand-file-name silo root)))
-        (when (file-directory-p dir)
-          (dolist (file (directory-files-recursively dir "\\.org\\'"))
-            (when (my/blog--sections-of site file)
-              (push file files))))))
+        (dolist (file (my/notes-files dir "\\.org\\'" t))
+          (when (my/blog--sections-of site file)
+            (push file files)))))
     (dolist (entry (my/blog--extra-files))
       (when (and (file-exists-p (car entry))
                  (my/blog--extra-sections site (car entry)))

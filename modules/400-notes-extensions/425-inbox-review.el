@@ -371,11 +371,7 @@ silo were never repaired when the scan was flat (outside audits of
          (seq-some (lambda (needle) (goto-char (point-min)) (search-forward needle nil t))
                    needles)))
      (delete-dups
-      (seq-mapcat (lambda (dir)
-                    (when (file-directory-p dir)
-                      (directory-files-recursively
-                       dir "\\.org\\'" nil
-                       (lambda (d) (not (string-prefix-p "." (file-name-nondirectory d)))))))
+      (seq-mapcat (lambda (dir) (my/notes-files dir "\\.org\\'" t))
                   my/inbox-link-scan-directories)))))
 
 (defun my/inbox--refuse-unsaved (entry)
