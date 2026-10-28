@@ -845,10 +845,9 @@ scalars, so a title with a colon or quotes needs no special care."
 Hugo runs shortcodes anywhere in a page, in code too: a document that
 writes about one -- `{{< relref \"x\" >}}' in a change log -- would
 fail the build or show its output.  Hugo's escape, {{</* ... */>}},
-prints the call as it was written; one already escaped stays so."
-  (replace-regexp-in-string
-   "{{\\([<%]\\)\\(?:/\\*\\)?\\(.*?\\)\\(?:\\*/\\)?\\([>%]\\)}}" "{{\\1/*\\2*/\\3}}"
-   text t))
+prints the call as it was written; one already escaped stays so.  The
+rule is 000-core.el's, shared with 746-blog.el."
+  (my/hugo-escape-shortcodes text))
 
 (defconst my/repo-docs--own-shortcodes '("figure" "toc-tree")
   "Shortcodes a page may call: what ox-hugo writes for an image, and the

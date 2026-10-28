@@ -8934,6 +8934,23 @@ longer pruned; delete its directory by hand.
 Headings tagged =:noexport:= and =COMMENT= headings stay out of the
 page, as in every Org export.
 
+** Shortcodes written as examples
+:PROPERTIES:
+:CUSTOM_ID: blog-shortcodes
+:END:
+
+A Hugo shortcode inside =verbatim=, =~code~=, a source, example or
+fixed-width block is an example and is shown as written: the export
+escapes it (={{</* … */>}}=, Hugo's own escape;
+=my/blog--escape-shortcodes-filter=, with the rule of
+=my/hugo-escape-shortcodes= in 000-core.el, shared with the repository
+docs).  A shortcode meant to run is written as an export snippet,
+=@@hugo:{{< … >}}@@=, or in a =#+begin_export hugo= block, and stays a
+call.  Since 2026-10-28i; until then ox-hugo escaped only source blocks
+of a few languages, and the relref example of this file made the docs
+site's =hugo server= exit with =REF_NOT_FOUND=.  A server that stops is
+reported with Hugo's error lines (2026-10-28g).
+
 ** Files outside the silos
 :PROPERTIES:
 :CUSTOM_ID: blog-extra-files

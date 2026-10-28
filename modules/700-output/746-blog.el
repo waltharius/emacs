@@ -1179,6 +1179,27 @@ before."
                                           (my/blog--file-link-export-function targets))))
             (assoc-delete-all "file" (assoc-delete-all "denote" params)))))
 
+(defun my/blog--escape-shortcodes-filter (text _backend _info)
+  "Export filter: TEXT of a piece of code or verbatim, its shortcodes escaped.
+In a note, a Hugo shortcode meant to run is written as an export snippet
+\(@@hugo:...@@) or block (#+begin_export hugo); one inside =verbatim=,
+~code~ or a source or example block is an example, to be shown.
+ox-hugo escapes those only in source blocks of a few languages, and not
+in verbatim or code at all: function_helper.org's example of a relref,
+on the docs site, made `hugo server' exit (2026-10-28)."
+  (my/hugo-escape-shortcodes text))
+
+(defun my/blog--with-escape (filters)
+  "Return FILTERS, an export filter list, with the shortcode escape first."
+  (cons #'my/blog--escape-shortcodes-filter filters))
+
+(defvar org-export-filter-verbatim-functions)
+(defvar org-export-filter-code-functions)
+(defvar org-export-filter-src-block-functions)
+(defvar org-export-filter-inline-src-block-functions)
+(defvar org-export-filter-example-block-functions)
+(defvar org-export-filter-fixed-width-functions)
+
 (defun my/blog--export-file (site file section slug targets)
   "Export FILE to SECTION of SITE as SLUG, resolving links through TARGETS.
 Returns the path of the Markdown file written."
@@ -1195,7 +1216,21 @@ Returns the path of the Markdown file written."
          (org-export-with-broken-links (my/blog--prop site :broken-links))
          (org-export-filter-parse-tree-functions
           (remq 'my/org-export-denote-links-to-text org-export-filter-parse-tree-functions))
-         (org-link-parameters (my/blog--link-parameters targets)))
+         (org-link-parameters (my/blog--link-parameters targets))
+         ;; Shortcodes in code and verbatim are examples, shown as
+         ;; written (`my/blog--escape-shortcodes-filter').
+         (org-export-filter-verbatim-functions
+          (my/blog--with-escape org-export-filter-verbatim-functions))
+         (org-export-filter-code-functions
+          (my/blog--with-escape org-export-filter-code-functions))
+         (org-export-filter-src-block-functions
+          (my/blog--with-escape org-export-filter-src-block-functions))
+         (org-export-filter-inline-src-block-functions
+          (my/blog--with-escape org-export-filter-inline-src-block-functions))
+         (org-export-filter-example-block-functions
+          (my/blog--with-escape org-export-filter-example-block-functions))
+         (org-export-filter-fixed-width-functions
+          (my/blog--with-escape org-export-filter-fixed-width-functions)))
     (with-temp-buffer
       (insert (format "#+export_file_name: %s\n" slug))
       (insert-file-contents file)

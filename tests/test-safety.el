@@ -559,6 +559,31 @@ export of its links writes the file name; the site's replaces it."
                           "denote" ".org" (directory-file-name root)))
         (should-not (string-match-p (regexp-quote leak) page))))))
 
+(ert-deftest my/blog-test-shortcodes-in-code-shown-as-written ()
+  "Not a rule of SAFETY.org, but the site's build: a shortcode written as
+an example -- in =verbatim=, ~code~, a source or example block -- is
+escaped on the page, so Hugo shows it; one written to run, as an export
+snippet or block, stays a call.  Until 2026-10-28 the relref example of
+function_helper.org reached the docs site as a call, and `hugo server'
+exited on it."
+  (skip-unless (require 'ox-hugo nil t))
+  (my/safety-test--with-site nil
+    (my/safety-test--note
+     "pks" "20261028T100000" "Codes" '("blog")
+     (concat "Inline =[x]({{< relref \"y\" >}})= and ~{{% note %}}~.\n\n"
+             "#+begin_src text\n{{< relref \"z\" >}}\n#+end_src\n\n"
+             "#+begin_example\n{{< relref \"w\" >}}\n#+end_example\n\n"
+             "Run @@hugo:{{< kept \"a\" >}}@@ here.\n\n"
+             "#+begin_export hugo\n{{< kept \"b\" >}}\n#+end_export\n"))
+    (my/blog--start "s" '(:write t))
+    (let ((page (my/safety-test--read (expand-file-name "codes.md" posts))))
+      (dolist (shown '("{{</* relref \"y\" */>}}" "{{%/* note */%}}"
+                       "{{</* relref \"z\" */>}}" "{{</* relref \"w\" */>}}"))
+        (should (string-search shown page)))
+      (should-not (string-match-p "{{[<%] *\\(relref\\|note\\)" page))
+      (should (string-search "{{< kept \"a\" >}}" page))
+      (should (string-search "{{< kept \"b\" >}}" page)))))
+
 (ert-deftest my/safety-test-1.4-file-link-to-note-is-its-text ()
   "1.4: a `file:' link to a note -- Org, Markdown, text, encrypted -- is
 exported like a `denote:' link to the identifier in its name: the

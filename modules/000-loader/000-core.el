@@ -2984,6 +2984,18 @@ is recorded: nothing is checked and nil is returned; otherwise t."
 ;; site, a relref Hugo could not resolve).  The sentinel of each server
 ;; now says what Hugo said.
 
+(defun my/hugo-escape-shortcodes (text)
+  "Return TEXT with every Hugo shortcode call escaped, to show as written.
+Hugo runs shortcodes anywhere in a page, in code too: a document that
+writes about one -- `{{< relref \"x\" >}}' as an example -- fails the
+build when the page is unknown, or shows its output.  Hugo's escape,
+{{</* ... */>}}, prints the call as it was written; one already escaped
+stays so.  Used by 746-blog.el for code and verbatim text, and by
+747-repo-docs.el for whole documents."
+  (replace-regexp-in-string
+   "{{\\([<%]\\)\\(?:/\\*\\)?\\(.*?\\)\\(?:\\*/\\)?\\([>%]\\)}}" "{{\\1/*\\2*/\\3}}"
+   text t))
+
 (defun my/hugo-server-report-exit (process what buffer)
   "Warn that the `hugo server' PROCESS stopped, with its last lines.
 WHAT names the server; BUFFER is where its output is."
