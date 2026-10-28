@@ -430,6 +430,67 @@ committed is not pulled at all (since 2026-10-24)."
       (should (string-match-p "ERROR boom" (car results))))))
 
 ;; ============================================================
+;; A CYCLE THAT DOES NOT FINISH
+;; ============================================================
+
+(ert-deftest my/ac-test-error-after-failed-pull-ends-the-cycle ()
+  "When finding out what a failed pull means fails too, the cycle still
+ends: its result says so, nothing is pushed, and the next cycle can
+run.  Until 2026-10-29 the error stopped the chain inside the process
+sentinel, and the cycle counted as running for the rest of the session."
+  (my/ac-test--with-repos
+    (my/ac-test--git here "remote" "set-url" "origin"
+                     (expand-file-name "missing.git" (file-name-directory
+                                                      (directory-file-name here))))
+    (my/ac-test--write (expand-file-name "n.org" here) "n\n")
+    (let ((result 'none))
+      (cl-letf (((symbol-function 'my/auto-commit--pull-failed)
+                 (lambda (_dir) (error "Folder gone"))))
+        (my/auto-commit--cycle (lambda (r) (setq result r)) t)
+        (with-timeout (10 (error "The cycle did not end"))
+          (while (eq result 'none) (accept-process-output nil 0.05))))
+      (should (equal result '("here: committed, ERROR after a failed pull, not pushed (C-c v l)")))
+      (should-not my/auto-commit--cycle-running))))
+
+(ert-deftest my/ac-test-stalled-push-ended-after-the-limit ()
+  "A push that never returns (a connection that died) is ended after
+`my/auto-commit-cycle-limit', with a warning naming it; the cycle no
+longer counts as running, and what is left unpushed is reported as
+after any cycle.  A stand-in for git on PATH runs the real git
+for everything but push, and for push sleeps."
+  (skip-unless (and (executable-find "sh") (executable-find "sleep")))
+  (my/ac-test--with-repos
+    (let* ((bin (file-name-as-directory (make-temp-file "mypks-bin-" t)))
+           (fake (expand-file-name "git" bin))
+           (real (executable-find "git"))
+           (exec-path (cons bin exec-path))
+           (my/auto-commit-cycle-limit 2)
+           (warned nil))
+      (unwind-protect
+          (progn
+            (with-temp-file fake
+              (insert (format "#!/bin/sh\nif [ \"$1\" = push ]; then exec sleep 60; fi\nexec %s \"$@\"\n"
+                              (shell-quote-argument real))))
+            (set-file-modes fake #o755)
+            (my/ac-test--write (expand-file-name "o.org" here) "o\n")
+            (cl-letf (((symbol-function 'display-warning)
+                       (lambda (_type message &rest _) (push message warned))))
+              (my/auto-commit--cycle #'ignore t)
+              (with-timeout (15 (error "The cycle was not ended"))
+                (while my/auto-commit--cycle-running
+                  (accept-process-output nil 0.1))))
+            ;; The stall, then -- the chain going on once push was
+            ;; ended -- the usual report of what is only here.
+            (setq warned (reverse warned))
+            (should (= 2 (length warned)))
+            (should (string-match-p "did not finish in 2 s" (nth 0 warned)))
+            (should (string-match-p "still running: git push" (nth 0 warned)))
+            (should (string-match-p "commits not pushed" (nth 1 warned)))
+            (should-not (seq-some #'process-live-p my/auto-commit--processes)))
+        (dolist (p my/auto-commit--processes) (ignore-errors (delete-process p)))
+        (delete-directory bin t)))))
+
+;; ============================================================
 ;; THE WAY OUT
 ;; ============================================================
 

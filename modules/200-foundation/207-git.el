@@ -189,9 +189,18 @@ will not see the work."
 terminal to ask on.  The SSH timeout bounds the other way this can
 hang: a push on `kill-emacs-hook' runs synchronously, so an unreachable
 server would otherwise hold Emacs open for the full TCP timeout, and
-the symptom would be an editor that will not close."
+the symptom would be an editor that will not close.
+
+A connection that dies AFTER it was made is bounded too (2026-10-29,
+outside review 2026-10-27): over ssh, ServerAliveInterval asks the
+server every 15 s and gives up after two answers missed; over https,
+git gives up on a transfer slower than 1 kB/s for 30 s.  Before, a push
+stalled on a dead connection kept the cycle running for the rest of the
+session (see `my/auto-commit-cycle-limit')."
   (append '("GIT_TERMINAL_PROMPT=0"
-            "GIT_SSH_COMMAND=ssh -o ConnectTimeout=5 -o BatchMode=yes")
+            "GIT_SSH_COMMAND=ssh -o ConnectTimeout=5 -o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
+            "GIT_HTTP_LOW_SPEED_LIMIT=1000"
+            "GIT_HTTP_LOW_SPEED_TIME=30")
           process-environment))
 
 (defun my/auto-commit--log (dir args output status)
@@ -215,32 +224,53 @@ the symptom would be an editor that will not close."
     (my/auto-commit--log dir args output status)
     status))
 
+(defvar my/auto-commit--processes nil
+  "The git processes started by `my/auto-commit--git-async' still running.
+Read by `my/auto-commit--cycle-stalled', which ends them.")
+
 (defun my/auto-commit--git-async (dir args callback)
   "Run git ARGS in DIR without blocking Emacs; log like `my/auto-commit--git'.
 CALLBACK receives the exit status (-1 when git was killed by a signal).
 The same environment as the blocking variant, so git cannot stop on a
-credential prompt either."
+credential prompt either.
+
+An error in CALLBACK is shown as a warning, not lost: Emacs reports an
+error inside a process sentinel only as a line in *Messages*, and the
+rest of the chain never ran (2026-10-29).  The cycle's own time limit
+(`my/auto-commit-cycle-limit') then ends it."
   (let* ((default-directory (file-name-as-directory dir))
          (process-environment (my/auto-commit--env))
-         (buffer (generate-new-buffer " *auto-commit git*")))
-    (make-process
-     :name "auto-commit-git"
-     :buffer buffer
-     :command (cons "git" args)
-     :connection-type 'pipe
-     :noquery t
-     :sentinel
-     (lambda (proc _event)
-       (when (memq (process-status proc) '(exit signal))
-         (let ((status (if (eq (process-status proc) 'exit)
-                           (process-exit-status proc)
-                         -1))
-               (output (if (buffer-live-p buffer)
-                           (with-current-buffer buffer (string-trim (buffer-string)))
-                         "")))
-           (when (buffer-live-p buffer) (kill-buffer buffer))
-           (my/auto-commit--log dir args output status)
-           (funcall callback status)))))))
+         (buffer (generate-new-buffer " *auto-commit git*"))
+         (process
+          (make-process
+           :name "auto-commit-git"
+           :buffer buffer
+           :command (cons "git" args)
+           :connection-type 'pipe
+           :noquery t
+           :sentinel
+           (lambda (proc _event)
+             (when (memq (process-status proc) '(exit signal))
+               (setq my/auto-commit--processes (delq proc my/auto-commit--processes))
+               (let ((status (if (eq (process-status proc) 'exit)
+                                 (process-exit-status proc)
+                               -1))
+                     (output (if (buffer-live-p buffer)
+                                 (with-current-buffer buffer (string-trim (buffer-string)))
+                               "")))
+                 (when (buffer-live-p buffer) (kill-buffer buffer))
+                 (ignore-errors (my/auto-commit--log dir args output status))
+                 (condition-case err
+                     (funcall callback status)
+                   (error
+                    (display-warning
+                     'auto-commit
+                     (format "After git %s in %s: %s (C-c v l shows the log)"
+                             (car args) (abbreviate-file-name dir)
+                             (error-message-string err))
+                     :warning)))))))))
+    (push process my/auto-commit--processes)
+    process))
 
 (defun my/auto-commit--query-status (dir &rest args)
   "Run git ARGS in DIR; return (EXIT-STATUS . OUTPUT-LINES).
@@ -457,7 +487,16 @@ rebase after it take milliseconds and stay synchronous."
                  ((eq status 0)
                   (setq my/auto-commit--conflicts (delete dir my/auto-commit--conflicts))
                   'ok)
-                 (t (my/auto-commit--pull-failed dir)))))))))
+                 ;; What a failed pull means is asked of git again; when
+                 ;; that fails too (the folder gone, unmounted), the
+                 ;; chain goes on with `failed' instead of stopping
+                 ;; inside the sentinel (2026-10-29).
+                 (t (condition-case err
+                        (my/auto-commit--pull-failed dir)
+                      (error
+                       (my/auto-commit--log dir '("pull (after it failed)")
+                                            (error-message-string err) "error")
+                       'failed))))))))))
 
 (defun my/auto-commit--pull-line (dir result updated)
   "Return the message line for pulling DIR with RESULT, or nil for none.
@@ -661,7 +700,9 @@ CALLBACK is always called, exactly once."
                                           (and (eq pull-result 'conflict)
                                                "CONFLICT, not pushed")
                                           (and (eq pull-result 'dirty)
-                                               "not pulled: changes not committed")))))
+                                               "not pulled: changes not committed")
+                                          (and (eq pull-result 'failed)
+                                               "ERROR after a failed pull, not pushed (C-c v l)")))))
                (done (and parts (format "%s: %s" name (string-join parts ", "))))))
            (push-step ()
              (if (and (my/auto-commit--push-p dir)
@@ -799,6 +840,42 @@ wants preserved."
 (defvar my/auto-commit--cycle-running nil
   "Non-nil while a commit cycle runs in the background: when it started.")
 
+(defcustom my/auto-commit-cycle-limit 180
+  "Seconds a background commit cycle may run before it is ended.
+A cycle that has not finished by then -- git waiting on a connection
+that died, or the chain stopped by an error -- has its git processes
+ended and is reported, so that the next idle period commits again.
+Until 2026-10-29 such a cycle counted as running for the rest of the
+session, and every later idle period skipped without a word (outside
+review 2026-10-27)."
+  :type 'integer
+  :group 'my/git)
+
+(defvar my/auto-commit--cycle-watchdog nil
+  "Timer of `my/auto-commit-cycle-limit' for the running cycle.")
+
+(defun my/auto-commit--cycle-stalled (started)
+  "End the background cycle that STARTED (a time) and is still running."
+  (when (equal my/auto-commit--cycle-running started)
+    (let ((running (seq-filter #'process-live-p my/auto-commit--processes)))
+      (setq my/auto-commit--cycle-running nil
+            my/auto-commit--cycle-watchdog nil)
+      ;; Said first: ending a process runs its sentinel at once, and the
+      ;; chain goes on to report what is still only here -- the cause
+      ;; is read before its consequence.
+      (display-warning
+       'auto-commit
+       (format "The automatic commit did not finish in %d s and was ended%s.  The next idle period tries again; C-c v l shows the log."
+               my/auto-commit-cycle-limit
+               (if running
+                   (format " (still running: %s)"
+                           (mapconcat (lambda (p) (string-join (process-command p) " "))
+                                      running "; "))
+                 ""))
+       :warning)
+      (dolist (process running)
+        (ignore-errors (delete-process process))))))
+
 ;; Defined below, under WHEN IT RUNS, with the start-up pull.
 (defvar my/auto-commit--startup-pull-running)
 (defvar my/auto-commit-startup-pull-wait)
@@ -833,7 +910,13 @@ RESULTS are the descriptions so far; CALLBACK receives all of them."
 CALLBACK receives the list of descriptions.  The summary goes to the
 echo area, or with QUIET only to *Messages*; what is still not on the
 server is reported as a warning (`my/auto-commit--report')."
-  (setq my/auto-commit--cycle-running (current-time))
+  (let ((started (current-time)))
+    (setq my/auto-commit--cycle-running started)
+    (when (timerp my/auto-commit--cycle-watchdog)
+      (cancel-timer my/auto-commit--cycle-watchdog))
+    (setq my/auto-commit--cycle-watchdog
+          (run-at-time my/auto-commit-cycle-limit nil
+                       #'my/auto-commit--cycle-stalled started)))
   (condition-case err
       (progn
         (my/auto-commit--save-buffers)
@@ -842,6 +925,9 @@ server is reported as a warning (`my/auto-commit--report')."
            dirs nil
            (lambda (results)
              (setq my/auto-commit--cycle-running nil)
+             (when (timerp my/auto-commit--cycle-watchdog)
+               (cancel-timer my/auto-commit--cycle-watchdog))
+             (setq my/auto-commit--cycle-watchdog nil)
              (condition-case err
                  (progn
                    (when results
@@ -856,6 +942,9 @@ server is reported as a warning (`my/auto-commit--report')."
              (funcall callback results)))))
     (error
      (setq my/auto-commit--cycle-running nil)
+     (when (timerp my/auto-commit--cycle-watchdog)
+       (cancel-timer my/auto-commit--cycle-watchdog))
+     (setq my/auto-commit--cycle-watchdog nil)
      (display-warning 'auto-commit
                       (format "The automatic commit failed: %s"
                               (error-message-string err))

@@ -4027,7 +4027,21 @@ left it off: commits went on, pushes silently stopped.
 Git runs with =GIT_TERMINAL_PROMPT=0= and an SSH =ConnectTimeout= of
 five seconds. Both bound a hang: the exit-time push is synchronous, so
 an unreachable server would otherwise hold Emacs open for a full TCP
-timeout and the symptom would be an editor that will not close.
+timeout and the symptom would be an editor that will not close.  A
+connection that dies after it was made is bounded too (since
+2026-10-29b): over SSH =ServerAliveInterval=15= with two answers
+missed, over HTTPS a transfer under 1 kB/s for 30 s
+(=GIT_HTTP_LOW_SPEED_LIMIT=, =GIT_HTTP_LOW_SPEED_TIME=).
+
+*A cycle that does not finish.*  A background cycle has
+=my/auto-commit-cycle-limit= (180) seconds.  Still running then -- git
+waiting on a connection, or the chain stopped by an error -- it is
+ended: a warning names the git command still running, that process is
+ended, and what is still only here is reported as after any cycle; the
+next idle period commits again.  An error inside the chain is shown as
+a warning, never only as a line in =*Messages*=.  Until 2026-10-29b such
+a cycle counted as running for the rest of the session, and every idle
+period after it skipped without a word.
 
 ** Several machines: pulling
 
