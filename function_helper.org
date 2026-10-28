@@ -3966,8 +3966,14 @@ Quitting by =kill-emacs= directly (shutdown, =emacsclient -e
 =kill-emacs-hook=.
 
 *One exit commit* (since 2026-10-19): both ways out go through
-=my/auto-commit-exit-commit=, which runs once per session and waits for
-git.  Before =save-buffers-kill-emacs= asks "Save file ...?", the
+=my/auto-commit-exit-commit=, which runs once per attempt to quit and
+waits for git; within the same attempt it runs again only when
+something was written after it (=my/auto-commit--uncommitted-p=, local
+checks, no network).  Every =save-buffers-kill-emacs= starts a new
+attempt (=my/auto-commit--new-quit=).  Until 2026-10-29a the flag
+lived for the session: the commit runs before =confirm-kill-emacs=
+asks "Really exit?", and answered no, the later quit committed
+nothing.  Before =save-buffers-kill-emacs= asks "Save file ...?", the
 buffers of the committed repositories are saved without a question
 (=my/auto-commit--save-before-quit=, no git), so it never asks about a
 note.  In a daemon, closing the last client frame starts an ordinary

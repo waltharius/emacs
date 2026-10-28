@@ -1090,13 +1090,39 @@ Called at load and whenever `my/auto-commit-idle-seconds' changes."
 ;; frame now starts an ordinary background cycle instead.
 
 (defvar my/auto-commit-done nil
-  "Set once the exit commit has run, to prevent it running twice.")
+  "Non-nil once the exit commit has run in the current attempt to quit.
+So that `kill-emacs-hook' does not run the cycle a second time right
+after `my/auto-commit--confirm-exit' ran it.  Cleared at the start of
+every quit (`my/auto-commit--new-quit').")
+
+(defun my/auto-commit--new-quit (&rest _)
+  "Start of an attempt to quit: the exit commit has not run in it yet.
+Until 2026-10-29 the flag lived for the session.  The exit commit runs
+in `kill-emacs-query-functions', BEFORE `confirm-kill-emacs' asks
+\"Really exit?\"; answered no, Emacs stayed open with the flag set,
+and the real quit later committed nothing (outside review 2026-10-27)."
+  (setq my/auto-commit-done nil))
+
+;; First of the advice on quitting, so that it runs before the others.
+(advice-add 'save-buffers-kill-emacs :before #'my/auto-commit--new-quit
+            '((depth . -100)))
+
+(defun my/auto-commit--uncommitted-p ()
+  "Non-nil when an auto-committed repository has changes not committed.
+Local checks only, no network."
+  (seq-some (lambda (dir) (ignore-errors (my/auto-commit--dirty-p dir)))
+            (my/auto-commit-directories)))
 
 (defun my/auto-commit-exit-commit ()
-  "Commit and push once per session, on the way out, waiting for git.
-Errors are logged in *Messages* and never stop Emacs from quitting.
-Returns the descriptions of `my/auto-commit-all'."
-  (unless my/auto-commit-done
+  "Commit and push on the way out, waiting for git.
+Runs once per attempt to quit, and again in the same attempt only when
+something was written after it ran (`my/auto-commit--uncommitted-p'):
+a quit that goes through `kill-emacs' alone, after an earlier quit was
+called off, still commits what was written since.  Errors are logged in
+*Messages* and never stop Emacs from quitting.  Returns the
+descriptions of `my/auto-commit-all'."
+  (when (or (not my/auto-commit-done)
+            (my/auto-commit--uncommitted-p))
     (setq my/auto-commit-done t)
     (condition-case err
         (my/auto-commit-all)

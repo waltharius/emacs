@@ -433,15 +433,45 @@ committed is not pulled at all (since 2026-10-24)."
 ;; THE WAY OUT
 ;; ============================================================
 
-(ert-deftest my/ac-test-exit-commit-once ()
-  "The exit commit pushes, waiting for git, and runs once per session."
+(ert-deftest my/ac-test-exit-commit-once-per-quit ()
+  "The exit commit pushes, waiting for git; run again in the same quit
+with nothing new it does nothing (no second trip to the server), and
+with something written since it commits that."
   (my/ac-test--with-repos
-    (let ((my/auto-commit-done nil))
+    (let ((my/auto-commit-done nil)
+          (pushes 0))
       (my/ac-test--write (expand-file-name "h.org" here) "h\n")
       (should (equal (my/auto-commit-exit-commit) '("here: committed, pushed")))
+      (cl-letf (((symbol-function 'my/auto-commit-all)
+                 (lambda () (cl-incf pushes) nil)))
+        (should (null (my/auto-commit-exit-commit)))
+        (should (= pushes 0)))
       (my/ac-test--write (expand-file-name "i.org" here) "i\n")
-      (should (null (my/auto-commit-exit-commit)))
-      (should (my/auto-commit--dirty-p here)))))
+      (should (equal (my/auto-commit-exit-commit) '("here: committed, pushed")))
+      (should-not (my/auto-commit--dirty-p here)))))
+
+(ert-deftest my/ac-test-quit-called-off-at-really-exit-commits-later ()
+  "The exit commit runs, then \"Really exit?\" (`confirm-kill-emacs') is
+answered no; a note written afterwards is committed when Emacs does
+quit -- through a new `save-buffers-kill-emacs', and also through
+`kill-emacs' alone.  Until 2026-10-29 the flag lived for the session
+and both later quits committed nothing."
+  (my/ac-test--with-repos
+    (let ((my/auto-commit-done nil)
+          (my/auto-commit-confirm-exit t)
+          (noninteractive nil))
+      ;; The first quit: the query function commits; then the user says
+      ;; no to \"Really exit?\", which is asked after it.
+      (my/ac-test--write (expand-file-name "l.org" here) "l\n")
+      (should (my/auto-commit--confirm-exit))
+      ;; Staying, the user writes another note; Emacs is then killed
+      ;; without the quit command (logout, emacsclient -e (kill-emacs)).
+      (my/ac-test--write (expand-file-name "m.org" here) "m\n")
+      (should (equal (my/auto-commit-exit-commit) '("here: committed, pushed")))
+      ;; And a new quit command starts from scratch.
+      (my/auto-commit--new-quit)
+      (should-not my/auto-commit-done)
+      (should (equal (my/ac-test--git-lines here "status" "--porcelain") nil)))))
 
 (ert-deftest my/ac-test-staying-commits-again ()
   "Answering no to the question keeps Emacs open, and the next quit commits again."
