@@ -8994,6 +8994,21 @@ of a few languages, and the relref example of this file made the docs
 site's =hugo server= exit with =REF_NOT_FOUND=.  A server that stops is
 reported with Hugo's error lines (2026-10-28g).
 
+** No code of a note runs when it is exported
+:PROPERTIES:
+:CUSTOM_ID: blog-no-code
+:END:
+
+Exports of the blog and of the repository docs start on their own --
+after a save, from a timer -- and notes also arrive from outside
+(Syncthing, the Obsidian import, Readwise).  Both exporters bind
+=org-export-use-babel= to nil: a source block, also an inline one, is
+shown as code and never run, whatever =:exports= says and also with
+=org-confirm-babel-evaluate= off.  Since 2026-10-29d; until then Org's
+default ran them.  Not covered: a =#+macro:= whose value is =(eval
+...)=, which Org evaluates at every export and which this setting does
+not reach.
+
 ** Files outside the silos
 :PROPERTIES:
 :CUSTOM_ID: blog-extra-files

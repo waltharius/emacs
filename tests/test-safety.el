@@ -584,6 +584,29 @@ exited on it."
       (should (string-search "{{< kept \"a\" >}}" page))
       (should (string-search "{{< kept \"b\" >}}" page)))))
 
+(defvar my/safety-test--ran nil
+  "Set by the code of a note if an export ever runs it.")
+
+(ert-deftest my/blog-test-export-runs-no-code-of-a-note ()
+  "Exporting a note to a site runs none of its code: neither a source
+block whose results would be exported nor an inline one -- also with
+Org's question before running code turned off, as it may be.  The code
+stays on the page as code.  Before 2026-10-29 Org's default ran them
+(`org-export-use-babel'), in exports that start on their own."
+  (skip-unless (require 'ox-hugo nil t))
+  (my/safety-test--with-site nil
+    (setq my/safety-test--ran nil)
+    (my/safety-test--note
+     "pks" "20261029T100000" "Code" '("blog")
+     (concat "#+begin_src emacs-lisp :exports both\n"
+             "(setq my/safety-test--ran 'block)\n#+end_src\n\n"
+             "Inline: src_emacs-lisp[:exports results]{(setq my/safety-test--ran 'inline)}.\n"))
+    (let ((org-confirm-babel-evaluate nil))
+      (my/blog--start "s" '(:write t)))
+    (should-not my/safety-test--ran)
+    (should (string-search "(setq my/safety-test--ran 'block)"
+                           (my/safety-test--read (expand-file-name "code.md" posts))))))
+
 (ert-deftest my/safety-test-1.4-file-link-to-note-is-its-text ()
   "1.4: a `file:' link to a note -- Org, Markdown, text, encrypted -- is
 exported like a `denote:' link to the identifier in its name: the

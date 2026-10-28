@@ -777,6 +777,10 @@ and the failure is reported."
                 ;; with an image when the directory is missing.
                 (_ (make-directory (expand-file-name "static" org-hugo-base-dir) t))
                 (org-export-with-broken-links 'mark)
+                ;; No code of a document runs while it is exported: the
+                ;; site is regenerated on every save while the preview
+                ;; runs (outside review 2026-10-27).
+                (org-export-use-babel nil)
                 (org-export-filter-parse-tree-functions
                  (remq 'my/org-export-denote-links-to-text org-export-filter-parse-tree-functions))
                 (my/repo-docs--org-context (list site-path map unresolved))

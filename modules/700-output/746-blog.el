@@ -1212,6 +1212,12 @@ Returns the path of the Markdown file written."
          (org-export-filter-parse-tree-functions
           (remq 'my/org-export-denote-links-to-text org-export-filter-parse-tree-functions))
          (org-link-parameters (my/blog--link-parameters targets))
+         ;; No code of a note runs while it is exported: exports start on
+         ;; their own, after a save or from a timer, and notes arrive from
+         ;; outside too (Syncthing, the Obsidian import, Readwise).  A
+         ;; source block keeps its code on the page, its results are not
+         ;; computed (outside review 2026-10-27).
+         (org-export-use-babel nil)
          ;; Shortcodes in code and verbatim are examples, shown as
          ;; written (`my/blog--escape-shortcodes-filter').
          (org-export-filter-verbatim-functions
