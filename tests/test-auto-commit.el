@@ -433,6 +433,56 @@ committed is not pulled at all (since 2026-10-24)."
 ;; A CYCLE THAT DOES NOT FINISH
 ;; ============================================================
 
+(ert-deftest my/ac-test-note-saved-while-pulling-is-kept ()
+  "A note saved while the background part of a pull runs is never put
+back by the abort of a conflicting rebase.  The same line of a.org
+changed on both machines (a conflict); while git talks to the server
+-- held a second by a stand-in git -- another tracked note is saved.
+Afterwards that note holds what was saved, and a.org what was
+committed here.  Until 2026-10-29 the whole pull ran in the background
+and `rebase --abort' came from its sentinel, after the conflict: the
+saved note went back to its committed text."
+  (skip-unless (and (executable-find "sh") (executable-find "sleep")))
+  (my/ac-test--with-repos
+    (let* ((bin (file-name-as-directory (make-temp-file "mypks-bin-" t)))
+           (fake (expand-file-name "git" bin))
+           (real (executable-find "git"))
+           (exec-path (cons bin exec-path))
+           (u (expand-file-name "u.org" here))
+           (result 'none))
+      (unwind-protect
+          (progn
+            ;; u.org committed and pushed; then the conflict on a.org.
+            (my/ac-test--write u "u as committed\n")
+            (my/ac-test--git here "add" "-A")
+            (my/ac-test--git here "commit" "-qm" "u")
+            (my/ac-test--git here "push" "-q")
+            (my/ac-test--other-machine-commits there "a.org" "there's version\n")
+            (my/ac-test--write (expand-file-name "a.org" here) "here's version\n")
+            (my/ac-test--git here "commit" "-qam" "here")
+            ;; git over the network takes a second; everything else is
+            ;; the real git.
+            (with-temp-file fake
+              (insert (format "#!/bin/sh\ncase \"$1\" in pull|fetch) %s \"$@\"; s=$?; sleep 1; exit $s;; esac\nexec %s \"$@\"\n"
+                              (shell-quote-argument real) (shell-quote-argument real))))
+            (set-file-modes fake #o755)
+            (my/auto-commit--pull-async here (lambda (r) (setq result r)))
+            ;; Half a second in: the note is saved.
+            (let ((until (+ (float-time) 0.5)))
+              (while (< (float-time) until) (accept-process-output nil 0.05)))
+            (my/ac-test--write u "u as saved during the pull\n")
+            (with-timeout (10 (error "The pull did not end"))
+              (while (eq result 'none) (accept-process-output nil 0.05)))
+            (should (equal (with-temp-buffer (insert-file-contents u) (buffer-string))
+                           "u as saved during the pull\n"))
+            (should (equal (with-temp-buffer
+                             (insert-file-contents (expand-file-name "a.org" here))
+                             (buffer-string))
+                           "here's version\n"))
+            (should-not (my/auto-commit--unmerged-p here))
+            (should (memq result '(dirty conflict))))
+        (delete-directory bin t)))))
+
 (ert-deftest my/ac-test-error-after-failed-pull-ends-the-cycle ()
   "When finding out what a failed pull means fails too, the cycle still
 ends: its result says so, nothing is pushed, and the next cycle can

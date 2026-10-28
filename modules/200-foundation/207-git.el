@@ -469,34 +469,58 @@ otherwise turn the stash back on (outside review 2026-10-27)."
    ((my/auto-commit--dirty-p dir) 'dirty)
    (t 'offline)))
 
+(defun my/auto-commit--rebase-onto-fetched (dir)
+  "Rebase DIR's local commits onto its upstream, as fetched; return a result.
+`ok', or what `my/auto-commit--pull-failed' makes of a failure.  Local
+only, milliseconds, and blocking on purpose: a conflict and its
+`rebase --abort' happen with no chance for Emacs to save a file in
+between (see `my/auto-commit--pull-async').  Without an argument
+`git rebase' takes the upstream with its fork point, as `git pull
+--rebase' does."
+  (if (eq 0 (my/auto-commit--git dir "rebase" "--no-autostash"))
+      (progn
+        (setq my/auto-commit--conflicts (delete dir my/auto-commit--conflicts))
+        'ok)
+    (my/auto-commit--pull-failed dir)))
+
 (defun my/auto-commit--pull-async (dir callback)
   "Like `my/auto-commit--pull', without blocking on the network.
-CALLBACK receives the same result symbol.  Only `git pull' runs in the
-background; the local checks before it and the abort of a conflicting
-rebase after it take milliseconds and stay synchronous."
+CALLBACK receives the same result symbol.  Only `git fetch' runs in the
+background; the rebase onto what it fetched, and the abort of a rebase
+that conflicts, run at once after it, blocking
+\(`my/auto-commit--rebase-onto-fetched').
+
+Until 2026-10-29 the whole `git pull --rebase' ran in the background,
+and the abort of a conflicting rebase came from the process sentinel,
+a moment after the conflict.  `git rebase --abort' puts every tracked
+file back as it was before the rebase: a note saved in that moment
+went back to its old text on disk, and auto-revert showed the old text
+without a word (outside review 2026-10-27; most likely during the
+start-up pull, with the restored buffers already open).  Now nothing
+of the rebase happens while Emacs takes input: a file saved during the
+fetch makes the tree dirty, git refuses to rebase it, and the next
+cycle commits it first."
   (cond
    ((my/auto-commit--busy-p dir) (funcall callback 'busy))
    ((not (my/auto-commit--has-upstream-p dir)) (funcall callback 'no-upstream))
    ((my/auto-commit--dirty-p dir) (funcall callback 'dirty))
    (t
     (my/auto-commit--git-async
-     dir '("pull" "--rebase" "--no-autostash")
+     dir '("fetch" "--quiet")
      (lambda (status)
        (funcall callback
-                (cond
-                 ((eq status 0)
-                  (setq my/auto-commit--conflicts (delete dir my/auto-commit--conflicts))
-                  'ok)
-                 ;; What a failed pull means is asked of git again; when
-                 ;; that fails too (the folder gone, unmounted), the
-                 ;; chain goes on with `failed' instead of stopping
-                 ;; inside the sentinel (2026-10-29).
-                 (t (condition-case err
-                        (my/auto-commit--pull-failed dir)
-                      (error
-                       (my/auto-commit--log dir '("pull (after it failed)")
-                                            (error-message-string err) "error")
-                       'failed))))))))))
+                ;; An error in the local steps after the fetch (the
+                ;; folder gone, unmounted) gives `failed' and the chain
+                ;; goes on, instead of stopping inside the sentinel
+                ;; (2026-10-29).
+                (condition-case err
+                    (if (eq status 0)
+                        (my/auto-commit--rebase-onto-fetched dir)
+                      (my/auto-commit--pull-failed dir))
+                  (error
+                   (my/auto-commit--log dir '("pull (after the fetch)")
+                                        (error-message-string err) "error")
+                   'failed))))))))
 
 (defun my/auto-commit--pull-line (dir result updated)
   "Return the message line for pulling DIR with RESULT, or nil for none.

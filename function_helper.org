@@ -3926,7 +3926,7 @@ place it usually finds nothing left to do.
 run git as background processes, so Emacs stays usable while git talks
 to the server; before, coming back to the keyboard during a push meant
 typing into a frozen editor.  Each repository is a chain: =add -A= →
-=commit= → =pull --rebase= → =push=, every step started by the end of
+=commit= → =fetch=, then at once =rebase= → =push=, every step started by the end of
 the one before (=my/auto-commit-repository-async=), the repositories
 one after another.  Buffers are saved before the first step.  One cycle
 at a time: the idle timer skips while a cycle or the start-up pull
@@ -4058,7 +4058,16 @@ committed them; =--autostash=, used until 2026-10-24, could leave
 conflict markers in a file after a pull that reported success; since
 2026-10-27a the pull passes =--no-autostash= explicitly, so a
 =rebase.autoStash= of true in the user's git configuration cannot turn
-the stash back on):
+the stash back on).  In the background only =git fetch= runs; the
+rebase onto what it fetched, and the abort of a rebase that conflicts,
+run at once after it and block Emacs for the milliseconds they take
+(=my/auto-commit--rebase-onto-fetched=).  Until 2026-10-29c the whole
+=git pull --rebase= ran in the background and the abort came from its
+sentinel, a moment after the conflict: =rebase --abort= puts every
+tracked file back as it was, so a note saved in that moment went back
+to its old text, and auto-revert showed it without a word.  Now a note
+saved during the fetch leaves the tree dirty, git refuses the rebase,
+and the next cycle commits the note first:
 
 - *when Emacs starts*, in the background (since 2026-10-19), one
   repository after another;
