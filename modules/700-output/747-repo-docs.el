@@ -781,6 +781,8 @@ and the failure is reported."
                 ;; site is regenerated on every save while the preview
                 ;; runs (outside review 2026-10-27).
                 (org-export-use-babel nil)
+                ;; Nor a macro defined as (eval ...) (000-core.el).
+                (my/org-export-block-eval-macros t)
                 (org-export-filter-parse-tree-functions
                  (remq 'my/org-export-denote-links-to-text org-export-filter-parse-tree-functions))
                 (my/repo-docs--org-context (list site-path map unresolved))

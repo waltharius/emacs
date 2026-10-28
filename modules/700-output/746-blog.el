@@ -323,6 +323,9 @@ Each entry is (NAME . PLIST):
   :broken-links  value of `org-export-with-broken-links' for this site:
                  nil stops the export of a note with a link Org cannot
                  resolve, `mark' writes [BROKEN LINK: ...] in its place
+  :eval-macros   non-nil: a `#+macro:' defined as (eval ...) runs when
+                 a note is exported; by default it is kept as text and
+                 nothing runs (`my/org-export-block-eval-macros')
   :sections      list of (SECTION :keyword KEYWORD :silos (SILO ...)),
                  SECTION being the directory under content/; a SILO
                  is a key of `my/silos' (a string), or a folder name
@@ -1243,6 +1246,9 @@ Returns the path of the Markdown file written."
          ;; source block keeps its code on the page, its results are not
          ;; computed (outside review 2026-10-27).
          (org-export-use-babel nil)
+         ;; Nor a macro defined as (eval ...), unless the site allows it
+         ;; (`my/org-export-block-eval-macros', 000-core.el).
+         (my/org-export-block-eval-macros (not (my/blog--prop site :eval-macros)))
          ;; Shortcodes in code and verbatim are examples, shown as
          ;; written (`my/blog--escape-shortcodes-filter').
          (org-export-filter-verbatim-functions

@@ -3031,6 +3031,48 @@ stays so.  Used by 746-blog.el for code and verbatim text, and by
    "{{\\([<%]\\)\\(?:/\\*\\)?\\(.*?\\)\\(?:\\*/\\)?\\([>%]\\)}}" "{{\\1/*\\2*/\\3}}"
    text t))
 
+;; MACROS THAT RUN CODE, IN EXPORTS NOBODY STARTED.  Org evaluates a
+;; macro defined as `#+macro: name (eval ...)' at every export, and
+;; `org-export-use-babel' does not reach it.  The exports of 746-blog
+;; and 747-repo-docs start on their own, and notes also arrive from
+;; outside -- a Readwise highlight is someone else's text, and a line
+;; `#+macro:' inside its quote block is a macro to Org.  So they bind
+;; `my/org-export-block-eval-macros', and while it is non-nil the value
+;; of such a macro is taken as plain text: the page shows the
+;; definition, nothing runs.  Every definition -- the note's, an
+;; included file's, a #+SETUPFILE's, the global ones -- passes through
+;; `org-macro--set-templates', which is where Org turns "(eval" into
+;; code (Org 9.6 to 9.7).  An internal function: test-safety runs a
+;; real macro, so a rename in Org fails that test instead of letting
+;; code through.  Not Emacs's `eval' in .dir-locals.el, which is no
+;; macro and which an export never reads.  Since 2026-10-29.
+
+(defvar my/org-export-block-eval-macros nil
+  "Non-nil: `#+macro:' values of the form (eval ...) are kept as text.
+Bound by the exporters of 746-blog.el and 747-repo-docs.el.")
+
+(defun my/org-macro--disarm-eval (templates)
+  "Return TEMPLATES with every (eval ...) value turned into plain text.
+TEMPLATES is the argument list of `org-macro--set-templates'."
+  (if (not my/org-export-block-eval-macros)
+      templates
+    (list (mapcar (lambda (template)
+                    (let ((value (cdr template)))
+                      (if (and (stringp value) (string-match-p "\\`[ \t]*(eval\\>" value))
+                          ;; A leading space: Org evaluates only a value
+                          ;; that starts with "(eval".
+                          (cons (car template) (concat " " (string-trim-left value)))
+                        template)))
+                  (car templates)))))
+
+(with-eval-after-load 'org-macro
+  (if (fboundp 'org-macro--set-templates)
+      (advice-add 'org-macro--set-templates :filter-args #'my/org-macro--disarm-eval)
+    (display-warning
+     'org-macro
+     "org-macro--set-templates is gone from this Org: macros of the form (eval ...) are NOT blocked in site exports (000-core.el)"
+     :warning)))
+
 (defun my/hugo-server-report-exit (process what buffer)
   "Warn that the `hugo server' PROCESS stopped, with its last lines.
 WHAT names the server; BUFFER is where its output is."

@@ -9005,9 +9005,16 @@ after a save, from a timer -- and notes also arrive from outside
 =org-export-use-babel= to nil: a source block, also an inline one, is
 shown as code and never run, whatever =:exports= says and also with
 =org-confirm-babel-evaluate= off.  Since 2026-10-29d; until then Org's
-default ran them.  Not covered: a =#+macro:= whose value is =(eval
-...)=, which Org evaluates at every export and which this setting does
-not reach.
+default ran them.
+
+A =#+macro:= whose value is =(eval ...)= -- in the note, in a file it
+includes, in a =#+SETUPFILE= -- is kept as text too: the page shows its
+definition and nothing runs (=my/org-export-block-eval-macros=,
+000-core.el, since 2026-10-29g).  A site may allow such macros with
+=:eval-macros t= in =my/blog-sites=; the repository docs never do.
+Plain macros (=#+macro: name text $1=) work as before.  Not concerned:
+=eval= in a =.dir-locals.el= (the =docu= silo turns visual fill off that
+way), which is Emacs's, not Org's, and which no export reads.
 
 ** Files outside the silos
 :PROPERTIES:

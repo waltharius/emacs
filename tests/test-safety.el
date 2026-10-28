@@ -647,6 +647,49 @@ stays on the page as code.  Before 2026-10-29 Org's default ran them
     (should (string-search "(setq my/safety-test--ran 'block)"
                            (my/safety-test--read (expand-file-name "code.md" posts))))))
 
+(ert-deftest my/blog-test-eval-macro-kept-as-text ()
+  "A macro defined as (eval ...) -- in the note or in a file it includes
+-- runs nothing when the note is exported; the page shows its
+definition.  A site with :eval-macros runs it.  A plain macro works
+either way.  Fails, rather than letting code through, if Org renames
+the function the block hooks into."
+  (skip-unless (require 'ox-hugo nil t))
+  (my/safety-test--with-site nil
+    (setq my/safety-test--ran nil)
+    ;; The included file is a note on the site, as the include rule wants.
+    (my/safety-test--note
+     "pks" "20261029T130100" "Setup" '("blog")
+     "#+macro: two (eval (progn (setq my/safety-test--ran 'included) \"B\"))\n")
+    (my/safety-test--note
+     "pks" "20261029T130000" "Macros" '("blog")
+     (concat "#+macro: one (eval (progn (setq my/safety-test--ran 'note) \"A\"))\n"
+             "#+macro: plain hello $1\n"
+             "#+INCLUDE: \"20261029T130100--setup__blog.org\"\n\n"
+             "One {{{one}}}, two {{{two}}}, plain {{{plain(world)}}}.\n"))
+    (let ((page (lambda () (my/safety-test--read (expand-file-name "macros.md" posts)))))
+      (my/blog--start "s" '(:write t :full t))
+      (should-not my/safety-test--ran)
+      (should (string-search "hello world" (funcall page)))
+      (should (string-search "(eval (progn (setq my/safety-test--ran 'note)" (funcall page)))
+      ;; Allowed on the site: it runs.
+      (setcdr (car my/blog-sites) (plist-put (cdar my/blog-sites) :eval-macros t))
+      (my/blog--start "s" '(:write t :full t))
+      (should my/safety-test--ran)
+      (should (string-search "One A, two B" (funcall page))))))
+
+(ert-deftest my/blog-test-dir-locals-eval-untouched ()
+  "The block is about Org macros only: Emacs's `eval' in .dir-locals.el
+of a silo (the docu silo turns visual fill off that way) still runs
+when a note is visited, also after an export."
+  (my/safety-test--with-site nil
+    (with-temp-file (expand-file-name "docu/.dir-locals.el" root)
+      (insert "((org-mode . ((eval . (setq-local my/safety-test--ran 'dir-locals)))))\n"))
+    (let ((note (my/safety-test--note "docu" "20261029T140000" "Docu" nil))
+          (enable-local-variables :all)
+          (my/org-export-block-eval-macros t))
+      (with-current-buffer (find-file-noselect note)
+        (should (eq my/safety-test--ran 'dir-locals))))))
+
 (ert-deftest my/safety-test-1.4-file-link-to-note-is-its-text ()
   "1.4: a `file:' link to a note -- Org, Markdown, text, encrypted -- is
 exported like a `denote:' link to the identifier in its name: the

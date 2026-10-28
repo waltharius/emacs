@@ -521,6 +521,15 @@ Org's question before running code turned off."
     (should-not my/rd-test--ran)
     (should (string-search "(setq my/rd-test--ran t)" (my/rd-test--page content "emacs/a.md")))))
 
+(ert-deftest my/rd-test-org-eval-macro-kept-as-text ()
+  "Regenerating the site runs no macro defined as (eval ...)."
+  (setq my/rd-test--ran nil)
+  (my/rd-test--with-org
+      '(("A.org" . "#+title: A\n#+macro: m (eval (progn (setq my/rd-test--ran t) \"X\"))\n\nSee {{{m}}}.\n"))
+    (my/repo-docs-generate)
+    (should-not my/rd-test--ran)
+    (should (string-search "(eval (progn (setq my/rd-test--ran t)" (my/rd-test--page content "emacs/a.md")))))
+
 (ert-deftest my/rd-test-org-readme-is-folder-page ()
   "A README.org is its folder's page; its title stays in the text as an
 H2 unless it only repeats the folder's name."
