@@ -819,5 +819,48 @@ one after saving a note, or at start-up -- neither asks nor removes."
       (should-not asked)
       (should (file-exists-p (expand-file-name "hegel.md" posts))))))
 
+(ert-deftest my/safety-test-1.6-upload-refused-with-leftovers ()
+  "1.2, 1.6: nothing is uploaded while the site's folder holds what the
+rules no longer publish -- a page kept after answering no, a folder of a
+section no longer in the settings, an image no page refers to -- and
+each is named.  Removed, the upload goes ahead.  Until 2026-10-29 Hugo
+built and rsync sent all of it."
+  (my/safety-test--with-site my/safety-test--server
+    (my/safety-test--pruning
+      (let ((images (expand-file-name "static/ox-hugo/" site))
+            (started nil))
+        (make-directory images t)
+        (with-temp-file (expand-file-name "used.png" images) (insert "png"))
+        (with-temp-file (expand-file-name "orphan.png" images) (insert "png"))
+        ;; Referred to by a hand-written page, which no export rewrites.
+        (with-temp-file (expand-file-name "content/posts/_index.md" site)
+          (insert "{{< figure src=\"/ox-hugo/used.png\" >}}\n"))
+        (my/blog-export-all "s")          ; answered no: hegel.md kept
+        (let ((leftovers (my/blog--upload-leftovers (my/blog--site "s"))))
+          (should (equal (mapcar #'car leftovers) '(pages folders images)))
+          (should (equal (mapcar #'file-name-nondirectory (alist-get 'pages leftovers)) '("hegel.md")))
+          (should (equal (mapcar #'file-name-nondirectory (alist-get 'folders leftovers)) '("other")))
+          (should (equal (mapcar #'file-name-nondirectory (alist-get 'images leftovers)) '("orphan.png"))))
+        (cl-letf (((symbol-function 'make-process) (lambda (&rest _) (setq started t) 'p))
+                  ((symbol-function 'process-put) #'ignore)
+                  ((symbol-function 'display-buffer) #'ignore))
+          (should-error (my/blog--build-and-upload "s") :type 'user-error)
+          (should-not started)
+          (with-current-buffer "*Blog leftovers*"
+            (dolist (name '("posts/hegel.md" "content/other" "orphan.png"))
+              (should (string-search name (buffer-string)))))
+          ;; Answered yes: the page and the orphan image go, the used
+          ;; image stays; the folder is the owner's to remove.
+          (setq answer t)
+          (my/blog-export-all "s")
+          (should (string-match-p "Remove 1 page(s) and 1 image(s)" (car asked)))
+          (should (file-exists-p (expand-file-name "used.png" images)))
+          (should-not (file-exists-p (expand-file-name "orphan.png" images)))
+          (should (equal (mapcar #'car (my/blog--upload-leftovers (my/blog--site "s"))) '(folders)))
+          (delete-directory (expand-file-name "content/other" site) t)
+          (should-not (my/blog--upload-leftovers (my/blog--site "s")))
+          (my/blog--build-and-upload "s")
+          (should started))))))
+
 (provide 'test-safety)
 ;;; test-safety.el ends here

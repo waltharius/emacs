@@ -9379,6 +9379,20 @@ hard: a changed one may need a reload bypassing the cache
 | =my/blog-show-report=        | report of the last export (=*Blog export*=, =q= closes)        |
 | =my/blog-sync-site=          | copy site files from =hugo/=, create the site, clone the theme |
 
+*Publishing refuses what is no longer published* (SAFETY.org 1.2, 1.6;
+since 2026-10-29f).  Hugo builds whatever =content/= and =static/=
+hold, and the upload sends it.  Before building,
+=my/blog--build-and-upload= looks for what no rule publishes now
+(=my/blog--upload-leftovers=): pages no note produces (kept when
+removing them was answered no), folders of =content/= that are no
+section of the site (a section taken out of =my/blog-sites= is never
+pruned), images in =static/ox-hugo/= no page refers to.  If there is
+any, nothing is built or uploaded, and =*Blog leftovers*= names each
+and says what to do: export the site by hand and answer yes to remove
+pages and images; delete a folder by hand, or put its section back.
+Images no page refers to are removed together with the pages, and the
+question names them ("Remove 1 page(s) and 1 image(s) ...").
+
 *Publishing asks, and refuses a home folder* (SAFETY.org, 1.5 and F2).
 The upload mirrors =public/= with =rsync --delete=: the folder named by
 =:remote= ends up holding the build and nothing else.  The question

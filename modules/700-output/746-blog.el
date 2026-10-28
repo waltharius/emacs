@@ -1457,22 +1457,77 @@ every later request for the site would wait for a run that is over."
                                      (mapcar #'car (my/blog--link-sites other))))
                            my/blog-sites))))))
 
+(defun my/blog--images-dir (site)
+  "Return static/ox-hugo/ of SITE, where ox-hugo copies the images of notes."
+  (file-name-as-directory
+   (expand-file-name "static/ox-hugo" (my/blog--directory site))))
+
+(defun my/blog--orphan-images (site &optional ignoring)
+  "Return the images in static/ox-hugo/ of SITE no page refers to.
+Pages in IGNORING, a list of files about to be removed, do not count.
+ox-hugo copies an image there when it exports a note, and removes
+nothing: an image of a note taken off the site stays, and would be
+uploaded with the site (outside review 2026-10-27)."
+  (let ((images (my/blog--images-dir site)))
+    (when (file-directory-p images)
+      (let ((used (make-hash-table :test #'equal)))
+        (dolist (page (directory-files-recursively
+                       (expand-file-name "content" (my/blog--directory site)) "\\.md\\'"))
+          (unless (member page ignoring)
+            (with-temp-buffer
+              (insert-file-contents page)
+              (goto-char (point-min))
+              (while (re-search-forward "/ox-hugo/\\([^\"')> \t\n]+\\)" nil t)
+                (puthash (match-string 1) t used)))))
+        (seq-remove (lambda (file)
+                      (gethash (file-relative-name file images) used))
+                    (directory-files-recursively images ""))))))
+
+(defun my/blog--upload-leftovers (site)
+  "Return what SITE's folder holds that the rules do not publish now.
+A list of (KIND . FILES): `pages', pages no note produces any more --
+kept when the question before removing them was answered no;
+`folders', folders of content/ that are no section of the site -- a
+section taken out of `my/blog-sites' is never pruned; `images',
+images of static/ox-hugo/ no page refers to.  Hugo builds whatever
+content/ and static/ hold, and the upload sends it: each of these
+would reach the server although no rule puts it there.  Nil when
+there is nothing."
+  (let* ((stale (plist-get (my/blog--plan site) :stale))
+         (content (expand-file-name "content" (my/blog--directory site)))
+         (sections (mapcar #'car (my/blog--sections site)))
+         (folders (and (file-directory-p content)
+                       (seq-filter
+                        (lambda (entry)
+                          (and (file-directory-p entry)
+                               (not (member (file-name-nondirectory entry) sections))))
+                        (directory-files content t directory-files-no-dot-files-regexp))))
+         (images (my/blog--orphan-images site)))
+    (delq nil (list (and stale (cons 'pages stale))
+                    (and folders (cons 'folders folders))
+                    (and images (cons 'images images))))))
+
 (defun my/blog--finish-1 (site job plan stale name)
   "Body of `my/blog--finish': prune STALE, save state, report.
-SITE, JOB, PLAN and NAME as in the caller."
+SITE, JOB, PLAN and NAME as in the caller.  The images no page will
+refer to once STALE is gone are pruned with it (since 2026-10-29)."
   (when (plist-get job :write)
-    (cond
-     ((null stale))
-     ((not (my/blog--prop site :remote))
-      ;; Laptop-only: nothing leaves the machine, so no reason to ask.
-      (dolist (f stale) (delete-file f))
-      (setq job (plist-put job :removed stale)))
-     ((and (plist-get job :interactive)
-           (yes-or-no-p (format "Remove %d page(s) no longer published from %s? "
-                                (length stale) name)))
-      (dolist (f stale) (delete-file f))
-      (setq job (plist-put job :removed stale)))
-     (t (setq job (plist-put job :kept stale))))
+    (let* ((images (my/blog--orphan-images site stale))
+           (all (append stale images)))
+      (cond
+       ((null all))
+       ((not (my/blog--prop site :remote))
+        ;; Laptop-only: nothing leaves the machine, so no reason to ask.
+        (dolist (f all) (delete-file f))
+        (setq job (plist-put job :removed all)))
+       ((and (plist-get job :interactive)
+             (yes-or-no-p (format "Remove %d page(s)%s no longer published from %s? "
+                                  (length stale)
+                                  (if images (format " and %d image(s)" (length images)) "")
+                                  name)))
+        (dolist (f all) (delete-file f))
+        (setq job (plist-put job :removed all)))
+       (t (setq job (plist-put job :kept all)))))
     (my/blog--write-state
      site
      (list :format my/blog--state-format
@@ -2099,6 +2154,29 @@ The rule is shared with 747-repo-docs.el: `my/upload-destination-problem'
 \(000-core.el)."
   (my/upload-destination-problem remote))
 
+(defun my/blog--show-leftovers (site leftovers)
+  "Show LEFTOVERS of SITE, from `my/blog--upload-leftovers', and what to do."
+  (with-current-buffer (get-buffer-create "*Blog leftovers*")
+    (let ((inhibit-read-only t)
+          (dir (my/blog--directory site)))
+      (erase-buffer)
+      (insert (format "Site %s was not uploaded: its folder holds what no rule publishes now.\n\n"
+                      (car site)))
+      (pcase-dolist (`(,kind . ,files) leftovers)
+        (insert (pcase kind
+                  ('pages "Pages no note produces any more (kept when removing them was answered no):\n")
+                  ('folders "Folders of content/ that are no section of the site:\n")
+                  ('images "Images no page refers to:\n")))
+        (dolist (file files)
+          (insert "  " (file-relative-name file dir) "\n"))
+        (insert "\n"))
+      (insert "Pages and images: export the site by hand (C-c n x b, export) and answer\n"
+              "yes to removing them.  Folders: delete them by hand, or put the section\n"
+              "back into the site's settings.  Then publish again.\n")
+      (goto-char (point-min))
+      (special-mode))
+    (display-buffer (current-buffer))))
+
 (defun my/blog--build-and-upload (site-name)
   "Build SITE-NAME with Hugo and mirror it to its `:remote'."
   (let* ((site (my/blog--site site-name))
@@ -2116,6 +2194,12 @@ The rule is shared with 747-repo-docs.el: `my/upload-destination-problem'
     ;; moment, whoever calls this.
     (when problem
       (user-error "Site %s: refusing to upload to %s -- %s" site-name remote problem))
+    ;; What the folder holds beyond what the rules publish now is not
+    ;; uploaded with the rest (SAFETY.org 1.2, 1.6; since 2026-10-29).
+    (when-let* ((leftovers (my/blog--upload-leftovers site)))
+      (my/blog--show-leftovers site leftovers)
+      (user-error "Site %s: not uploaded -- its folder holds what is no longer published; see *Blog leftovers*"
+                  site-name))
     (with-current-buffer (get-buffer-create my/blog-publish-buffer)
       (let ((inhibit-read-only t))
         (erase-buffer)
