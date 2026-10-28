@@ -2974,6 +2974,34 @@ is recorded: nothing is checked and nil is returned; otherwise t."
     t))
 
 ;; ============================================================
+;; A HUGO SERVER THAT STOPPED
+;; ============================================================
+;; 746-blog.el and 747-repo-docs.el start `hugo server' with
+;; `make-process'.  A server whose first build fails exits within a
+;; second, with the reason in its buffer, and until 2026-10-28 nothing
+;; read that buffer: Emacs said "starting on http://localhost:1315/"
+;; and the browser said the connection was refused (the owner's docs
+;; site, a relref Hugo could not resolve).  The sentinel of each server
+;; now says what Hugo said.
+
+(defun my/hugo-server-report-exit (process what buffer)
+  "Warn that the `hugo server' PROCESS stopped, with its last lines.
+WHAT names the server; BUFFER is where its output is."
+  (let* ((status (process-exit-status process))
+         (lines (and (buffer-live-p (get-buffer buffer))
+                     (with-current-buffer buffer
+                       (seq-filter (lambda (l) (string-match-p "\\`\\(ERROR\\|Error\\|WARN\\)" l))
+                                   (split-string (buffer-string) "\n" t)))))
+         (said (string-join (seq-take (last lines 4) 4) "\n")))
+    (display-warning
+     'hugo
+     (format "%s stopped (exit %s).%s\n\nThe whole output is in %s."
+             what status
+             (if (string-empty-p said) "" (concat "\n\n" said))
+             buffer)
+     :warning)))
+
+;; ============================================================
 ;; UPLOADS MIRRORED WITH RSYNC
 ;; ============================================================
 ;; A site is published by mirroring its build to a server with rsync

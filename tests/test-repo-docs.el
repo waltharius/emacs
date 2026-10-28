@@ -256,6 +256,61 @@ the module's own toc-tree runs."
     (should (string-match-p (regexp-quote "{{< toc-tree >}}")
                             (my/rd-test--page content "emacs/sub/_index.md")))))
 
+(ert-deftest my/rd-test-foreign-shortcodes-escaped-own-kept ()
+  "The last check of a page: every shortcode call still in it is
+escaped -- in code, in text, with or without spaces inside the braces,
+the Markdown kind too -- except an image's figure and the toc-tree,
+which run; one already escaped stays as it is.  Runs on a page as
+ox-hugo would write it, so it needs no ox-hugo.  Added 2026-10-28,
+when a relref in function_helper.org's own example reached the docs
+site unescaped and `hugo server' exited."
+  (should (equal (my/repo-docs--escape-foreign-shortcodes
+                  (concat "-   **Hugo** (`[x]({{< relref \"y\" >}})` in\n"
+                          "{{< figure src=\"/ox-hugo/a.png\" >}}\n"
+                          "{{% note %}} and {{</* z */>}} and {{<relref \"w\">}}\n"
+                          "{{< toc-tree >}}\n"))
+                 (concat "-   **Hugo** (`[x]({{</* relref \"y\" */>}})` in\n"
+                         "{{< figure src=\"/ox-hugo/a.png\" >}}\n"
+                         "{{%/* note */%}} and {{</* z */>}} and {{</*relref \"w\"*/>}}\n"
+                         "{{< toc-tree >}}\n"))))
+
+(ert-deftest my/rd-test-server-that-exits-is-reported ()
+  "A `hugo server' that stops right after starting -- its first build
+failed -- is reported with Hugo's error lines, instead of a browser
+finding nothing at the address.  A stand-in for hugo prints an error
+and exits 1."
+  (skip-unless (executable-find "sh"))
+  (let* ((dir (file-name-as-directory (make-temp-file "mypks-hugo-" t)))
+         (fake (expand-file-name "hugo" dir))
+         (my/repo-docs-site-directory dir)
+         (my/repo-docs-port 1316)
+         (my/repo-docs-lan-host nil)
+         (my/repo-docs-hugo-program fake)
+         (warned nil))
+    (unwind-protect
+        (progn
+          (with-temp-file fake
+            (insert "#!/bin/sh\necho 'Start building sites'\n"
+                    "echo 'ERROR [pl] REF_NOT_FOUND: Ref \"y\": page not found'\n"
+                    "echo 'ERROR error building site: logged 1 error(s)'\nexit 1\n"))
+          (set-file-modes fake #o755)
+          (when (get-buffer my/repo-docs--server-buffer)
+            (kill-buffer my/repo-docs--server-buffer))
+          (cl-letf (((symbol-function 'display-warning)
+                     (lambda (_type message &rest _) (push message warned))))
+            (should (my/repo-docs--serve))
+            (with-timeout (5 (error "The stand-in did not exit"))
+              (while (my/repo-docs--serving-p)
+                (accept-process-output nil 0.05)))
+            (accept-process-output nil 0.1))
+          (should (= 1 (length warned)))
+          (should (string-match-p "Repo docs stopped (exit 1)" (car warned)))
+          (should (string-match-p "REF_NOT_FOUND" (car warned)))
+          (should (string-match-p (regexp-quote my/repo-docs--server-buffer) (car warned))))
+      (when (get-buffer my/repo-docs--server-buffer)
+        (kill-buffer my/repo-docs--server-buffer))
+      (delete-directory dir t))))
+
 ;; ============================================================
 ;; LINKS
 ;; ============================================================
@@ -439,6 +494,18 @@ written; the figure shortcode ox-hugo writes for an image runs."
     (let ((page (my/rd-test--page content "emacs/a.md")))
       (should (string-match-p (regexp-quote "{{</* relref \"y\" */>}}") page))
       (should (string-match-p (regexp-quote "{{< figure src=\"/ox-hugo/a.png\" >}}") page)))))
+
+(ert-deftest my/rd-test-page-never-calls-a-foreign-shortcode ()
+  "Whatever the export did, a written page calls no shortcode but the
+module's own: with the escape before the export switched off, the page
+of an Org file still shows its relref as written."
+  (my/rd-test--with-org
+      '(("A.org" . "#+title: A\n\nWrite =[x]({{< relref \"y\" >}})=.\n"))
+    (cl-letf (((symbol-function 'my/repo-docs--escape-shortcodes) #'identity))
+      (my/repo-docs-generate))
+    (let ((page (my/rd-test--page content "emacs/a.md")))
+      (should (string-match-p (regexp-quote "{{</* relref \"y\" */>}}") page))
+      (should-not (string-match-p (regexp-quote "{{< relref") page)))))
 
 (ert-deftest my/rd-test-org-readme-is-folder-page ()
   "A README.org is its folder's page; its title stays in the text as an

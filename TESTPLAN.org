@@ -645,8 +645,8 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
-** R56. Outside review of 2026-10-27, first fixes [0/8]
-Patches 0112-0120 (sessions 2026-10-27a-c, 2026-10-28a-f).  Each
+** R56. Outside review of 2026-10-27, first fixes [0/9]
+Patches 0112-0121 (sessions 2026-10-27a-c, 2026-10-28a-g).  Each
 line names what was broken, so a regression is recognised at once.
 - [ ] 0112: =git config --global rebase.autoStash true= (set it back
       afterwards); change a note on the other machine and push; here,
@@ -672,6 +672,14 @@ line names what was broken, so a regression is recognised at once.
 - [ ] 0118: =M-x customize-option RET my/notes-search-prefer-ripgrep=,
       off, Apply (not Save); =C-c n f g= with a word from any note:
       results.  Before: none.  Set it back.
+- [ ] 0121: =C-c n x r p= (docs preview): the page opens; the
+      generated =content/docs/function-helper.md= holds
+      ={{</* relref "y" */>}}= (=grep -c 'relref "y"'=).  Put a line
+      =Zob. {{< relref "nope" >}}= into any Markdown document of a
+      repository, save: the preview still rebuilds and shows the line as
+      written.  Remove it.  Then set =my/repo-docs-port= to a port in use
+      (e.g. the blog's) and =C-c n x r p=: a warning "Repo docs stopped
+      (exit 1)" with Hugo's line about the port, not a browser error.
 - [ ] 0119, 0120: =C-c n t r= → sync (or =M-x my/readwise-sync=): a book
       with a Polish letter in its title is written with that letter in
       its file name and title line (=ls ~/notes/.../readwise/=).  Then

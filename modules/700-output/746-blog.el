@@ -1972,7 +1972,14 @@ all day."
                                         (or (my/blog--prop site :port) 1313))
                               "--buildDrafts")
                         (when follow (list "--navigateToChanged")))
-       :noquery t)
+       :noquery t
+       ;; A server whose first build fails exits at once; said, not
+       ;; left to the browser's connection error (2026-10-28).
+       :sentinel (lambda (process _event)
+                   (when (memq (process-status process) '(exit signal))
+                     (my/hugo-server-report-exit
+                      process (format "Hugo server for %s" site-name)
+                      (my/blog--preview-buffer site-name)))))
       t)))
 
 (defun my/blog--running-previews ()

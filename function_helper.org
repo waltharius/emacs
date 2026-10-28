@@ -9110,7 +9110,10 @@ A site with =:autostart t= is kept current without being asked:
 =hugo server= listens on =127.0.0.1=, so the site is reachable from the
 laptop only, and it rebuilds on every change. A missing site directory
 or a missing Hugo leaves one line in =*Messages*= and nothing else. The
-server ends with Emacs.
+server ends with Emacs.  A server that stops on its own -- its first
+build failed -- is reported with Hugo's error lines (since 2026-10-28g;
+=my/hugo-server-report-exit=, 000-core.el), the whole output being in
+the site's preview buffer.
 
 *The module's switch.*  All of the above happens only while
 =my/blog-mode= is on ([[#module-switch][A module's switch]]).  Off, saving a note
@@ -9577,7 +9580,12 @@ Examples from the =nixos= repository:
   code, and an unknown page in a relref fails the whole build.  They are
   escaped (={{</* … */>}}=, Hugo's own escape) in Markdown and plain
   text, and in an Org file's text before the export, so the figure
-  shortcode ox-hugo writes for an image still runs.
+  shortcode ox-hugo writes for an image still runs.  Since 2026-10-28g
+  every page is checked once more as it is written: any call left in it
+  that is not =figure= or =toc-tree= (=my/repo-docs--own-shortcodes=) is
+  escaped then (=my/repo-docs--escape-foreign-shortcodes=) -- on
+  2026-10-28 this very example reached the docs site unescaped and
+  =hugo server= exited on it.
 - *Two files that would make one page* — names differing only in letter
   case, one name in two kinds (=notes.md=, =notes.txt=), two pages for
   one folder (=README.md= and =README.txt=, or =CHANGELOG.md= beside
@@ -9622,7 +9630,11 @@ Regenerates the site, installs the theme if missing, starts
 =hugo server= on =my/repo-docs-port= and opens the page of the current
 buffer's file — or the home page when the site has no page for it.
 While the server runs, saving any document of the repositories
-regenerates the site and the browser reloads.
+regenerates the site and the browser reloads.  A server that stops --
+its first build failed -- is reported with Hugo's error lines
+(=my/hugo-server-report-exit=, 000-core.el; the whole output is in
+=*Repo docs server*=); until 2026-10-28g it exited unseen behind the
+"starting on" message, and the browser said the connection was refused.
 
 Function: =my/repo-docs-preview= | Module: =modules/700-output/747-repo-docs.el=
 

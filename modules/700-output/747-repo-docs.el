@@ -657,8 +657,14 @@ Links are rewritten line by line outside fenced code blocks; see
 ;; description; anything else (images, other files) is ox-hugo's, which
 ;; copies the file into the site's static/.  The front matter ox-hugo
 ;; writes is replaced by the module's own.  Shortcodes written in the
-;; file are escaped before the export, not after: an image's figure,
-;; which ox-hugo writes as a shortcode, must run.  An export is cached for the
+;; file are escaped before the export, and the page is checked once
+;; more after it: every shortcode the page still calls that is not one
+;; of `my/repo-docs--own-shortcodes' (an image's figure, which ox-hugo
+;; writes, and the module's toc-tree) is escaped then.  One unknown
+;; page in a relref fails Hugo's whole build, and the escape before the
+;; export did not reach a page on 2026-10-28 (the owner's docs site:
+;; `hugo server' exited on function_helper.org's own example of a
+;; relref), so the page itself is the last word.  An export is cached for the
 ;; session by the file's modification time, size and the set of pages:
 ;; function_helper.org takes seconds, and the site is regenerated on
 ;; every save while the preview runs.
@@ -844,6 +850,29 @@ prints the call as it was written; one already escaped stays so."
    "{{\\([<%]\\)\\(?:/\\*\\)?\\(.*?\\)\\(?:\\*/\\)?\\([>%]\\)}}" "{{\\1/*\\2*/\\3}}"
    text t))
 
+(defconst my/repo-docs--own-shortcodes '("figure" "toc-tree")
+  "Shortcodes a page may call: what ox-hugo writes for an image, and the
+theme's folder listing.  Any other call left in a page is escaped by
+`my/repo-docs--escape-foreign-shortcodes'.")
+
+(defun my/repo-docs--escape-foreign-shortcodes (text)
+  "Return TEXT with every shortcode call escaped except the module's own.
+The last check of a page before it is written: whatever came through the
+export unescaped -- a relref in documentation about relrefs -- is shown
+as written rather than run (see the commentary on Org files)."
+  (replace-regexp-in-string
+   "{{\\([<%]\\)\\(?:/\\*\\)?[ \t]*\\([^ \t}*/][^}]*?\\)[ \t]*\\(?:\\*/\\)?\\([>%]\\)}}"
+   (lambda (call)
+     ;; `replace-regexp-in-string' reads the match data after this
+     ;; returns; the search for the name must not touch it.
+     (save-match-data
+       (let ((name (and (string-match "{{[<%]\\(?:/\\*\\)?[ \t]*\\([^ \t}*/]+\\)" call)
+                        (match-string 1 call))))
+         (if (member name my/repo-docs--own-shortcodes)
+             call
+           (my/repo-docs--escape-shortcodes call)))))
+   text t t))
+
 (defun my/repo-docs--weights (map)
   "Return a hash table of site path -> weight for the pages in MAP.
 The repositories come in the order of `my/repo-docs-repositories'.
@@ -944,9 +973,12 @@ SIGNATURE stands for the set of pages, for the cache of Org exports."
         ("url" . ,(unless section (plist-get entry :url)))
         ("sourcePath" . ,file)))
      (if parsed
-         ;; An Org page's shortcodes were escaped in its source; what
-         ;; ox-hugo added (an image's figure) must run.
-         (if org (cdr parsed) (my/repo-docs--escape-shortcodes (cdr parsed)))
+         ;; An Org page's shortcodes were escaped in its source, a
+         ;; Markdown or text page's here; the page is then checked once
+         ;; more, and only the module's own shortcodes (an image's
+         ;; figure, which ox-hugo added) are left to run.
+         (my/repo-docs--escape-foreign-shortcodes
+          (if org (cdr parsed) (my/repo-docs--escape-shortcodes (cdr parsed))))
        ;; A folder without a page of its own: let the theme list its
        ;; contents.
        "{{< toc-tree >}}")
@@ -1187,6 +1219,13 @@ name; otherwise on this machine only, Hugo's default."
             (list "--bind" "0.0.0.0"
                   "--baseURL" (format "http://%s/" my/repo-docs-lan-host)))))
 
+(defun my/repo-docs--server-sentinel (process _event)
+  "Report a `hugo server' that stopped: its last lines, and where the rest is.
+Until 2026-10-28 a server whose first build failed exited unseen, and
+the message \"starting on ...\" stood while the browser found nothing."
+  (when (memq (process-status process) '(exit signal))
+    (my/hugo-server-report-exit process "Repo docs" my/repo-docs--server-buffer)))
+
 (defun my/repo-docs--serve ()
   "Start `hugo server' for the site unless it runs.  Return non-nil if started."
   (unless (my/repo-docs--serving-p)
@@ -1197,7 +1236,8 @@ name; otherwise on this machine only, Hugo's default."
      :name "repo-docs-server"
      :buffer (get-buffer-create my/repo-docs--server-buffer)
      :command (my/repo-docs--server-command)
-     :noquery t)
+     :noquery t
+     :sentinel #'my/repo-docs--server-sentinel)
     (when my/repo-docs-lan-host
       (message "Repo docs: readable in the network at http://%s:%d/"
                my/repo-docs-lan-host my/repo-docs-port))
