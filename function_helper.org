@@ -4719,6 +4719,7 @@ citar's, citar-denote's or 417-bibliography's, so the menu works with a
 |-----+------------------------------+-------------------------------------------|
 | n   | =citar-create-note=         | New note from a Zotero reference         |
 | o   | =citar-denote-open-note=    | Open existing bibliographic note         |
+| a   | =my/zotero-annotations-insert= | Zotero's annotations of the PDF/EPUB into the note (417d) |
 | f   | =my/open-bib-pdf-right=     | Open PDF for current note (right split)  |
 | e   | =citar-open-entry=          | Open BibTeX entry in refs.bib            |
 | u   | =citar-open-links=          | Open URL or DOI in browser               |
@@ -4899,6 +4900,69 @@ its name through the split, so a folder saved before it is still read.
 Tests: =tests/test-zotero.el= (no library path without the module, the
 folder with it, a new folder at once, the option among the
 bibliography's settings).
+
+** a — Zotero's annotations into the note
+:PROPERTIES:
+:CUSTOM_ID: zotero-annotations
+:END:
+
+Module: =modules/400-notes-extensions/417d-zotero-annotations.el=
+(optional, off on a new machine; needs 417c-zotero.el for the
+attachments folder).  Function: =my/zotero-annotations-insert= inserts
+at point, in an Org note, the highlights, underlines and notes made in
+Zotero's reader on the reference's PDF or EPUB.  The reference is the
+note's =#+reference= (citar-denote), or one chosen with citar when the
+note has none; with several PDF or EPUB files in Zotero the file is
+asked for.  Read only: nothing is written to Zotero.
+
+Each annotation becomes a quote of its text, a link that opens it in
+Zotero, named after its page (=p. 40=), and its comment below:
+
+#+begin_example
+,#+begin_quote
+Ogromny społeczny wysiłek, który podjęto, żeby z indywidualnego postępu ...
+,#+end_quote
+[[zotero://open-pdf/library/items/J27DMSMH?annotation=LYLBV4HT][p. 40]]
+
+Comment written in Zotero.
+#+end_example
+
+An image or ink annotation has no text; its link says so (=p. 7,
+image=).  Run again, only annotations not yet linked in the buffer are
+inserted: the link carries the annotation's key.  An annotation deleted
+in Zotero stays in the note.
+
+Where the data comes from: Zotero's local API, =my/zotero-api-url=
+(=http://localhost:23119/api/=), which Zotero 10 serves while it runs,
+once Settings → Advanced → "Allow other applications on this computer
+to communicate with Zotero" is on; no account, no key.  Without it the
+command says what to turn on; with Zotero closed, that it gets no
+answer.  The file of an attachment sits in a folder named after the
+attachment's key, =<attachments folder>/<KEY>/file.pdf=; the
+annotations are the library's annotation items whose parent is that
+key.  (The list of an attachment's children, the obvious request,
+came back empty on Zotero 10.0.2.)
+
+Page: a PDF annotation's page label is the number printed on the page
+when the PDF defines page labels, otherwise the page's position in the
+file.  An EPUB annotation has one only when the EPUB maps its text to
+printed pages; without it the link is named "Zotero".
+
+| Option                                 | Effect                                            |
+|----------------------------------------+---------------------------------------------------|
+| =my/zotero-api-url=                    | Address of the local API                           |
+| =my/zotero-annotations-page-format=    | How the link names the page (=p. %s=, =s. %s=)     |
+| =my/zotero-annotations-skip-colors=    | Colours left out, e.g. grey =#aaaaaa=              |
+| =my/zotero-annotations-join-hyphens=   | Join words the PDF broke at line ends (on)        |
+
+zotero: links open through =browse-url=, which hands the zotero://
+scheme to the system; Zotero's desktop app registers it.
+
+Tests: =tests/test-zotero-annotations.el= (attachment key from the
+folder, annotations of one file in reading order, colours left out, the
+Org text, a second run inserting only what is new, the replies of the
+API, the menu entry, the link type, the options among the
+bibliography's settings).  By hand: TESTPLAN.org, R57.
 
 ** Styles bundled with the configuration
 :PROPERTIES:

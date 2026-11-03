@@ -238,6 +238,7 @@ library is checked against something it did not compute.  See Session
 | Bibliography (Citar, BibTeX, the menu C-c x)        | `417-bibliography.el`     |
 | PDF and EPUB viewers                                | `117b-document-viewers.el` |
 | Zotero's attachments folder                         | `417c-zotero.el`          |
+| Zotero's annotations into a note                    | `417d-zotero-annotations.el` |
 | Philosophy note types                               | `419-philosophy-notes.el` |
 | Org-transclusion                                    | `420-transclusion.el`     |
 | Dashboards                                          | `821-dashboards.el`       |

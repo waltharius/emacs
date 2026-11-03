@@ -645,6 +645,25 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R57. Zotero's annotations into a note [0/5]
+With Zotero 10 running and its local API on (Settings → Advanced).
+- [ ] =C-c n , m=, 417d-zotero-annotations on (a new machine starts
+      without it).  In the bibliographic note of a book with highlights
+      made in Zotero, =C-c x a=: the highlights in the order of the
+      book, each a quote, a link =p. N= and the comment below; page
+      numbers as Zotero's sidebar shows them.  Polish letters intact,
+      words broken at line ends joined.
+- [ ] Click a link (=C-c C-o=): Zotero opens the PDF at that
+      highlight.
+- [ ] Highlight one more passage in Zotero, =C-c x a= again: only the
+      new one is inserted; the echo area counts the ones already there.
+- [ ] An EPUB with annotations: quotes inserted; the link names a page
+      where Zotero's sidebar shows one, "Zotero" otherwise; the link
+      opens the EPUB at the passage.
+- [ ] Close Zotero, =C-c x a=: "no answer ... is Zotero running?";
+      the note unchanged.  The API turned off in Zotero's settings: the
+      message names the setting.
+
 ** R56. Outside review of 2026-10-27, first fixes [0/14]
 Patches 0112-0131 (sessions 2026-10-27a-c, 2026-10-28a-j, 2026-10-29a-g).  Each
 line names what was broken, so a regression is recognised at once.

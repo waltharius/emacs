@@ -85,6 +85,7 @@
    "417-bibliography"         ; Citar, CSL, references
    "117b-document-viewers"    ; pdf-tools and nov (optional)
    "417c-zotero"              ; Zotero's attachments folder (off on a new machine)
+   "417d-zotero-annotations"  ; Zotero annotations into a note (C-c x a; off on a new machine)
    "419-philosophy-notes"     ; Philosophy note types (C-c n l)
    "420-transclusion"         ; transclusion for note linking inside other notes
    "821-dashboards"           ; Historical dashboards (C-c n f h)
