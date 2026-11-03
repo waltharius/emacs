@@ -265,7 +265,7 @@
       (message "✅ Indentation ON - Visual hierarchy enabled"))))
 
 ;; ============================================================
-;; TOGGLE EMPHASIS MARKERS (C-c n E)
+;; TOGGLE EMPHASIS MARKERS (C-c n v e)
 ;; ============================================================
 
 (defun my/toggle-emphasis-markers ()
@@ -276,7 +276,7 @@ When markers are VISIBLE: raw syntax shown, useful for debugging extra
 asterisks or mismatched markers.
 
 Note: this changes org-hide-emphasis-markers globally (all org buffers).
-Toggle: C-c n E  (in notes transient menu)"
+Toggle: C-c n v e  (View menu, Toggle column)"
   (interactive)
   (if org-hide-emphasis-markers
       (progn
@@ -312,7 +312,7 @@ Toggle: C-c n E  (in notes transient menu)"
 ;;
 ;; EMPHASIS MARKERS:
 ;; - Default: HIDDEN (org-hide-emphasis-markers = t)
-;; - Toggle: C-c n E (available in transient menu)
+;; - Toggle: C-c n v e (View menu)
 ;; - Use when: Debugging extra asterisks or markup errors
 
 ;; View menu (C-c n v), Toggle column: inserted from here so that the
