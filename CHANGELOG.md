@@ -13,6 +13,7 @@ convention, the lessons learned and the file ownership map.
 
 | Month   | File                                         |
 | ------- | -------------------------------------------- |
+| 2026-11 | [changelog/2026-11.md](changelog/2026-11.md) |
 | 2026-10 | [changelog/2026-10.md](changelog/2026-10.md) |
 | 2026-09 | [changelog/2026-09.md](changelog/2026-09.md) |
 | 2026-08 | [changelog/2026-08.md](changelog/2026-08.md) |

@@ -7892,15 +7892,56 @@ the sentence being written.
 ** A quoted phrase is wrapped whole
 
 Typing the trigger right after a *closing quote* walks back to the quote
-that opened the phrase and puts the marker in front of it:
+that opened the phrase and wraps the text between the two quotes:
 
-: "a quoted phrase"*   ->   *"a quoted phrase"*
+: "a quoted phrase"*   ->   "*a quoted phrase*"
 
-The markers land *outside* the quotes, so one keystroke after the
-closing quote emphasises the phrase together with its punctuation. Org
-renders that: the default =org-emphasis-regexp-components= forbids only
-whitespace at the border of an emphasised span, and a quote is not
-whitespace.
+The markers land *inside* the quotes; the quotes themselves stay plain
+text, and point stays after the closing quote, where the trigger was
+typed.
+
+*Why inside.*  Until 2026-11-03 the markers landed outside,
+=*"a quoted phrase"*=, and the display of the next phrase in the same
+paragraph went wrong whenever a comma, full stop or other non-space
+character followed the first one:
+
+: ="first"=, text ="second"=
+
+Org's highlighting accepts a double quote in front of an opening
+marker, so the closing === of the first phrase was read as an opening
+one as well, and the comma and the words after it were shown as
+verbatim up to the end of the second phrase.  With hidden markers it looked as if the second wrap had
+reached back to the first phrase.  The text was right and export read
+it right — only the highlighting (=org-do-emphasis-faces=) was wrong,
+in Org 9.6 and 9.8 alike, and the same happens with markers typed by
+hand.  Inside the quotes the closing marker follows the last character
+of the phrase, a letter or a full stop, and Org does not read a marker
+there as the start of a span.  A phrase ending in =-=, =(=, ='= or ={=
+can still show the effect: those are the other characters Org accepts
+in front of an opening marker.  Patching Org's highlighting was
+rejected as far too much code for a display fault; keeping the old
+form and living with it was the other option.
+
+Notes written before 2026-11-03 keep the old form; they display wrongly
+only where a punctuation mark follows the first phrase.  In export the
+quotes, now outside the markup, become typographic where
+=org-export-smart-quotes-alist= has an entry for the note's language;
+inside a verbatim or code span they were always left straight.
+
+*Whitespace and empty quotes.*  Whitespace after the opening quote is
+left outside the markers, since Org renders no span beginning with
+whitespace: =" a phrase"*= gives =" *a phrase*"=.  Empty quotes wrap
+nothing.
+
+*Opening quotes.*  A quote preceded by whitespace or standing at the
+start of a line is an opening quote, and a trigger after it wraps
+nothing.  That keeps markup typed by hand inside quotes working:
+after an opening quote and === the closing quote added by
+=electric-pair-mode= already follows, so the trigger stands right after
+a quote.  Until 2026-11-03 such a quote was taken for a closing one and
+the text since the previous quote in the paragraph was wrapped.  The
+same rule means a phrase ending in a space before its closing quote is
+not wrapped either; the typed character stays.
 
 The search walks back over as many hard-broken lines as the phrase
 needs — docu notes are written that way — but stops at a blank line.
@@ -7925,6 +7966,15 @@ time by =org-export-with-smart-quotes=, not typed.
 After a wrap, =C-= moves the opening marker one word further left, and
 repeats. The state is dropped as soon as point leaves the end of the
 wrapped span, so the key is only ever live immediately after a wrap.
+
+After a quoted phrase the opening marker moves to the word left of the
+opening quote, which the span then takes in, while the closing quote
+stays outside:
+
+: jeden "=dwa="   ->   =jeden "dwa="
+
+Moving the closing marker past the quote as well would bring back the
+display fault described above.
 
 *Markup typed by hand.*  When the same marker already stands before
 the word, the typed one closes it and nothing is wrapped: =*ważne*=
