@@ -645,14 +645,19 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
-** R57. Zotero's annotations into a note [0/5]
+** R57. Zotero's annotations into a note [0/6]
 With Zotero 10 running and its local API on (Settings → Advanced).
 - [ ] =C-c n , m=, 417d-zotero-annotations on (a new machine starts
       without it).  In the bibliographic note of a book with highlights
-      made in Zotero, =C-c x a=: the highlights in the order of the
-      book, each a quote, a link =p. N= and the comment below; page
-      numbers as Zotero's sidebar shows them.  Polish letters intact,
-      words broken at line ends joined.
+      made in Zotero, =C-c n t z a= (or =C-c x a=), =RET= on the first
+      line: the highlights in the order of the book, each a quote, a
+      link =p. N= and the comment below; page numbers as Zotero's
+      sidebar shows them.  Polish letters intact, words broken at line
+      ends joined.
+- [ ] In another note of the same book, =C-c x a=, type a word of one
+      highlight: the list narrows to it; =RET= inserts only that one.
+      Again, choose two with a comma between them, the later one
+      first: both inserted, in the order of the book.
 - [ ] Click a link (=C-c C-o=): Zotero opens the PDF at that
       highlight.
 - [ ] Highlight one more passage in Zotero, =C-c x a= again: only the

@@ -8,9 +8,10 @@
 ;; returns for a reference's PDF or EPUB.  Tested without Zotero: the
 ;; replies of the local API are stood in for (as the API answered on
 ;; 2026-11-03, Zotero 10.0.2), and so is citar where a test needs the
-;; files of a reference.  Tested: which file is which attachment, which
-;; annotations belong to it and in which order, the Org text of one, a
-;; second run inserting only what is new, the replies of the API that
+;; files of a reference, and so is the prompt.  Tested: which file is
+;; which attachment, which annotations belong to it and in which order,
+;; the Org text of one, the lines to choose from and what choosing gives,
+;; a second run inserting only what is new, the replies of the API that
 ;; stop the command, the menu entry, the zotero: link type and the
 ;; options among the bibliography's settings.  Whether the links open
 ;; Zotero, and the text against the real reader: TESTPLAN.org, R57.
@@ -135,14 +136,75 @@ named Zotero."
                                                    'annotationText "No page.")
                              "ATT00001")))))
 
+(defun my/zotann-test--take-default (_prompt _table &rest args)
+  "Stand-in for `completing-read-multiple' that takes its default, as RET does."
+  (list (nth 4 args)))
+
 (defmacro my/zotann-test--with-api (items &rest body)
-  "Run BODY with the local API answering ITEMS and one attachment."
+  "Run BODY with the local API answering ITEMS and one attachment.
+The list to choose from answers with its first line, all annotations."
   (declare (indent 1))
   `(cl-letf (((symbol-function 'my/zotero-annotations--citekey) (lambda () "boltanski2022"))
              ((symbol-function 'my/zotero-annotations--attachments)
               (lambda (_key) '(("/s/ATT00001/b.pdf" . "ATT00001"))))
-             ((symbol-function 'my/zotero-annotations--get) (lambda (_path) ,items)))
+             ((symbol-function 'my/zotero-annotations--get) (lambda (_path) ,items))
+             ((symbol-function 'completing-read-multiple) #'my/zotann-test--take-default))
      ,@body))
+
+(ert-deftest my/zotann-test-lines-to-choose-from ()
+  "A line holds page, text and comment, without the separator of several
+choices; an annotation without text names its type; equal lines are
+numbered."
+  (let ((crm-separator ",")
+        (my/zotero-annotations-page-format "p. %s")
+        (items (list (my/zotann-test--item "ANN00001" "ATT00001" "1"
+                                           'annotationType "highlight"
+                                           'annotationText "Akumulacja, nie bogactwo."
+                                           'annotationComment "Zob.\nWeber, rozdz. 2"
+                                           'annotationPageLabel "12")
+                     (my/zotann-test--item "ANN00002" "ATT00001" "2"
+                                           'annotationType "image")
+                     (my/zotann-test--item "ANN00003" "ATT00001" "3"
+                                           'annotationType "image"))))
+    (should (equal (mapcar #'car (my/zotero-annotations--candidates items))
+                   '("p. 12  Akumulacja  nie bogactwo.  » Zob. Weber  rozdz. 2"
+                     "-  [image]" "-  [image] (2)")))))
+
+(ert-deftest my/zotann-test-choosing-keeps-reading-order ()
+  "The first line, alone or with others, gives all; lines chosen in any
+order give their annotations in reading order; the list is offered in
+reading order."
+  (let* ((my/zotero-annotations-skip-colors nil)
+         (items (my/zotero-annotations--of "ATT00001" my/zotann-test--items))
+         (labels (mapcar #'car (my/zotero-annotations--candidates items)))
+         offered)
+    (cl-letf (((symbol-function 'completing-read-multiple) #'my/zotann-test--take-default))
+      (should (equal (my/zotero-annotations--choose items) items)))
+    (cl-letf (((symbol-function 'completing-read-multiple)
+               (lambda (_prompt table &rest _)
+                 (setq offered (funcall table "" nil 'metadata))
+                 (list (nth 2 labels) (nth 0 labels)))))
+      (should (equal (mapcar (lambda (i) (alist-get 'key i))
+                             (my/zotero-annotations--choose items))
+                     '("ANN00001" "ANN00003")))
+      (should (eq (alist-get 'display-sort-function (cdr offered)) #'identity)))
+    (cl-letf (((symbol-function 'completing-read-multiple)
+               (lambda (_prompt _table &rest args) (list (nth 1 labels) (nth 4 args)))))
+      (should (equal (my/zotero-annotations--choose items) items)))))
+
+(ert-deftest my/zotann-test-inserting-a-chosen-one ()
+  "Only the chosen annotation goes into the note."
+  (let ((my/zotero-annotations-skip-colors nil))
+    (with-temp-buffer
+      (org-mode)
+      (my/zotann-test--with-api my/zotann-test--items
+        (cl-letf (((symbol-function 'completing-read-multiple)
+                   (lambda (_prompt table &rest _)
+                     (list (seq-find (lambda (l) (string-match-p "Second" l))
+                                     (all-completions "" table))))))
+          (my/zotero-annotations-insert)))
+      (should (string-match-p "Second, on page 40" (buffer-string)))
+      (should-not (string-match-p "First, on page 39" (buffer-string))))))
 
 (ert-deftest my/zotann-test-a-second-run-inserts-only-what-is-new ()
   "The first run inserts the file's annotations in reading order; one

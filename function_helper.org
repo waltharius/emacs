@@ -4719,7 +4719,7 @@ citar's, citar-denote's or 417-bibliography's, so the menu works with a
 |-----+------------------------------+-------------------------------------------|
 | n   | =citar-create-note=         | New note from a Zotero reference         |
 | o   | =citar-denote-open-note=    | Open existing bibliographic note         |
-| a   | =my/zotero-annotations-insert= | Zotero's annotations of the PDF/EPUB into the note (417d) |
+| a   | =my/zotero-annotations-insert= | Zotero's annotations of the PDF/EPUB into the note, chosen or all (417d) |
 | f   | =my/open-bib-pdf-right=     | Open PDF for current note (right split)  |
 | e   | =citar-open-entry=          | Open BibTeX entry in refs.bib            |
 | u   | =citar-open-links=          | Open URL or DOI in browser               |
@@ -4909,11 +4909,21 @@ bibliography's settings).
 Module: =modules/400-notes-extensions/417d-zotero-annotations.el=
 (optional, off on a new machine; needs 417c-zotero.el for the
 attachments folder).  Function: =my/zotero-annotations-insert= inserts
-at point, in an Org note, the highlights, underlines and notes made in
+at point, in an Org note, highlights, underlines and notes made in
 Zotero's reader on the reference's PDF or EPUB.  The reference is the
 note's =#+reference= (citar-denote), or one chosen with citar when the
 note has none; with several PDF or EPUB files in Zotero the file is
 asked for.  Read only: nothing is written to Zotero.
+
+Which of them: the annotations not yet in the note are listed in
+reading order, one line each -- page, text, comment after =»= -- to
+search (typed words narrow the list, as everywhere in Vertico) and
+choose: one with =RET=, several separated by a comma (=crm-separator=,
+the prompt for several choices used elsewhere here).  The first line,
+=* All new annotations (N)=, inserts all of them; =RET= before anything
+is typed takes it.  Chosen ones go in in reading order, whatever the
+order they were chosen in.  Commas inside a line are shown as spaces,
+since a comma separates choices.
 
 Each annotation becomes a quote of its text, a link that opens it in
 Zotero, named after its page (=p. 40=), and its comment below:
@@ -4929,7 +4939,7 @@ Comment written in Zotero.
 
 An image or ink annotation has no text; its link says so (=p. 7,
 image=).  Run again, only annotations not yet linked in the buffer are
-inserted: the link carries the annotation's key.  An annotation deleted
+offered: the link carries the annotation's key.  An annotation deleted
 in Zotero stays in the note.
 
 Where the data comes from: Zotero's local API, =my/zotero-api-url=
@@ -4960,8 +4970,8 @@ scheme to the system; Zotero's desktop app registers it.
 
 Tests: =tests/test-zotero-annotations.el= (attachment key from the
 folder, annotations of one file in reading order, colours left out, the
-Org text, a second run inserting only what is new, the replies of the
-API, the menu entry, the link type, the options among the
+Org text, the lines to choose from and what choosing gives, a second
+run inserting only what is new, the replies of the API, the menu entry, the link type, the options among the
 bibliography's settings).  By hand: TESTPLAN.org, R57.
 
 ** Styles bundled with the configuration

@@ -32,10 +32,18 @@
 ;; 103 annotations (checked 2026-11-03), while ?itemType=annotation
 ;; returns them all.  The list is read once per command, on localhost.
 ;;
-;; A second run inserts only what is new: every inserted annotation
-;; carries its key in the link (annotation=KEY), and annotations whose
-;; key is already in the buffer are left out.  Deleting an annotation in
-;; Zotero leaves its quote in the note; the note is the user's text.
+;; Which of them: the command lists the annotations not yet in the note,
+;; in reading order, one line each (page, text, comment), to search and
+;; choose one or several with `completing-read-multiple', the prompt
+;; used for several choices elsewhere here (separator `crm-separator',
+;; a comma, 101-ui.el).  The first line inserts all of them, and is the
+;; one RET takes before anything is typed.  Chosen annotations go in in
+;; reading order, whatever the order they were chosen in.
+;;
+;; Not yet in the note: every inserted annotation carries its key in the
+;; link (annotation=KEY), and annotations whose key is already in the
+;; buffer are not offered.  Deleting an annotation in Zotero leaves its
+;; quote in the note; the note is the user's text.
 ;;
 ;; Page numbers: a PDF annotation carries its page label, the number
 ;; printed on the page when the PDF says so, otherwise the page's
@@ -45,6 +53,7 @@
 
 ;;; Code:
 
+(require 'crm)
 (require 'seq)
 (require 'subr-x)
 (require 'url)
@@ -249,14 +258,81 @@ named after its page; its comment."
       keys)))
 
 ;; ============================================================
+;; CHOOSING
+;; ============================================================
+
+(defconst my/zotero-annotations--all-label "* All new annotations"
+  "Beginning of the first line of the list, which inserts every annotation.")
+
+(defun my/zotero-annotations--label (item)
+  "Return the line of the annotation ITEM in the list to choose from.
+Page, text and comment on one line.  What `crm-separator' matches
+becomes a space: in a label it would split the choice in two."
+  (let* ((data (alist-get 'data item))
+         (page (alist-get 'annotationPageLabel data))
+         (text (string-trim (my/zotero-annotations--clean (alist-get 'annotationText data))))
+         (comment (string-trim (replace-regexp-in-string
+                                "[ \t\n\r]+" " "
+                                (or (alist-get 'annotationComment data) "")))))
+    (string-trim
+     (replace-regexp-in-string
+      crm-separator " "
+      (string-join
+       (delq nil (list (if (and page (not (string-empty-p page)))
+                           (format my/zotero-annotations-page-format page)
+                         "-")
+                       (if (string-empty-p text)
+                           (format "[%s]" (alist-get 'annotationType data))
+                         text)
+                       (unless (string-empty-p comment) (concat "» " comment))))
+       "  ")))))
+
+(defun my/zotero-annotations--candidates (items)
+  "Return (LABEL . ITEM) for each of ITEMS, labels made unique.
+Two annotations with the same line get a number after it: (2), (3)..."
+  (let ((seen (make-hash-table :test #'equal))
+        pairs)
+    (dolist (item items (nreverse pairs))
+      (let* ((label (my/zotero-annotations--label item))
+             (count (1+ (gethash label seen 0))))
+        (puthash label count seen)
+        (push (cons (if (= count 1) label (format "%s (%d)" label count)) item)
+              pairs)))))
+
+(defun my/zotero-annotations--choose (items)
+  "Let the user choose among ITEMS; return the chosen ones in reading order.
+ITEMS are in reading order.  The first line of the list, chosen alone
+or with others, returns all of them; so does RET before anything is
+typed."
+  (let* ((pairs (my/zotero-annotations--candidates items))
+         (all (format "%s (%d)" my/zotero-annotations--all-label (length items)))
+         (lines (cons all (mapcar #'car pairs)))
+         ;; Kept in reading order: without the metadata the completion
+         ;; frontend sorts the lines by its own rules.
+         (table (lambda (string pred action)
+                  (if (eq action 'metadata)
+                      '(metadata (display-sort-function . identity)
+                                 (cycle-sort-function . identity))
+                    (complete-with-action action lines string pred))))
+         (picked (completing-read-multiple
+                  "Zotero annotations (search; several with a comma; RET on the first: all): "
+                  table nil t nil nil all)))
+    (if (or (null picked) (member all picked))
+        items
+      (let ((chosen (delq nil (mapcar (lambda (label) (cdr (assoc label pairs))) picked))))
+        (seq-filter (lambda (item) (memq item chosen)) items)))))
+
+;; ============================================================
 ;; COMMAND
 ;; ============================================================
 
 (defun my/zotero-annotations-insert ()
-  "Insert at point the Zotero annotations of this note's PDF or EPUB.
+  "Insert at point Zotero annotations of this note's PDF or EPUB.
 The reference is the note's #+reference, or one chosen with citar; with
-several PDF or EPUB files in Zotero, the file is asked for.  Only
-annotations not yet linked in the buffer are inserted."
+several PDF or EPUB files in Zotero, the file is asked for.  The
+annotations not yet linked in the buffer are listed to search and
+choose from (`my/zotero-annotations--choose'); the first line, which
+RET takes at once, inserts all of them."
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Zotero annotations go into an Org note"))
@@ -280,11 +356,13 @@ annotations not yet linked in the buffer are inserted."
     (if (null new)
         (message "Zotero: no new annotations for %s (%d already in the note)"
                  citekey (length all))
-      (insert (mapconcat (lambda (item) (my/zotero-annotations--org item attachment))
-                         new ""))
-      (message "Zotero: %d annotation(s) of %s inserted%s" (length new) citekey
-               (if (= (length new) (length all)) ""
-                 (format ", %d already in the note" (- (length all) (length new))))))))
+      (let ((chosen (my/zotero-annotations--choose new)))
+        (insert (mapconcat (lambda (item) (my/zotero-annotations--org item attachment))
+                           chosen ""))
+        (message "Zotero: %d of %d new annotation(s) of %s inserted%s"
+                 (length chosen) (length new) citekey
+                 (if (= (length new) (length all)) ""
+                   (format ", %d already in the note" (- (length all) (length new)))))))))
 
 ;; ============================================================
 ;; LINKS
@@ -307,7 +385,7 @@ annotations not yet linked in the buffer are inserted."
   (when (fboundp 'my/transient-entries)
     (my/transient-entries
      t '((append my/bibliography-menu "o"
-                 ("a" "Zotero annotations into this note" my/zotero-annotations-insert))))))
+                 ("a" "Zotero annotations: choose or all" my/zotero-annotations-insert))))))
 
 (provide '417d-zotero-annotations)
 ;;; 417d-zotero-annotations.el ends here
