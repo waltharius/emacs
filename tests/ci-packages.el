@@ -45,6 +45,8 @@
     (citar) (citar-denote)
     ;; test-web-links: the command is org-web-tools' own (2026-10-25p).
     (org-web-tools)
+    ;; test-sentence-capitals types through captain (2026-11-13g).
+    (captain)
     ;; Not the transient built into Emacs: the one the configuration
     ;; really runs with comes from the archives with Magit (0.13 on the
     ;; owner's machine, 2026-10-20), and its menu entries have another

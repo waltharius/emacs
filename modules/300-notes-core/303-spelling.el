@@ -229,26 +229,8 @@ order, followed by the new ones in the order of FROM.  FROM is only read."
 
 (defun my/spell--dictionary-gitattributes (file)
   "Make git merge FILE by keeping the lines of both sides (merge=union).
-Creates or extends .gitattributes in the folder of FILE.  A file name
-with whitespace would need quoting there and is left alone."
-  (let* ((name (file-name-nondirectory file))
-         (attributes (expand-file-name ".gitattributes" (file-name-directory file)))
-         (line (format "%s merge=union" name)))
-    (unless (or (string-match-p "[ \t]" name)
-                (and (file-readable-p attributes)
-                     (with-temp-buffer
-                       (insert-file-contents attributes)
-                       (re-search-forward
-                        (concat "^" (regexp-quote line) "[ \t]*$") nil t))))
-      (with-temp-buffer
-        (if (file-readable-p attributes)
-            (progn
-              (insert-file-contents attributes)
-              (goto-char (point-max))
-              (unless (bolp) (insert "\n")))
-          (insert "# Written by 303-spelling.el: words added on two machines are both kept.\n"))
-        (insert line "\n")
-        (write-region nil nil attributes nil 'silent)))))
+See `my/git-merge-by-union' (000-core.el)."
+  (my/git-merge-by-union file "303-spelling.el"))
 
 ;; --- bringing the old words in --------------------------------------
 

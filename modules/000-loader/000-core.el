@@ -2337,6 +2337,42 @@ Notes have no hard links."
       (when (file-exists-p temp)
         (delete-file temp)))))
 
+;; A LIST IN THE SETTINGS FOLDER THAT TWO MACHINES ADD TO
+;; ------------------------------------------------------
+;; The settings folder is shared through git.  A file of one entry per
+;; line (the personal dictionary, the abbreviations of
+;; 304-sentence-capitals.el) gets lines added on two machines between
+;; two synchronisations; git's own `merge=union' driver
+;; (gitattributes(5)) keeps the lines of both sides instead of stopping
+;; with a conflict.  The attribute is written once, into .gitattributes
+;; next to the file.
+
+(defun my/git-merge-by-union (file &optional writer)
+  "Make git merge FILE by keeping the lines of both sides (merge=union).
+Creates or extends .gitattributes in the folder of FILE; WRITER, a
+module name, goes into the comment that starts a new .gitattributes.  A
+file name with whitespace would need quoting there and is left alone."
+  (let* ((name (file-name-nondirectory file))
+         (attributes (expand-file-name ".gitattributes" (file-name-directory file)))
+         (line (format "%s merge=union" name)))
+    (unless (or (string-match-p "[ \t]" name)
+                (and (file-readable-p attributes)
+                     (with-temp-buffer
+                       (insert-file-contents attributes)
+                       (re-search-forward
+                        (concat "^" (regexp-quote line) "[ \t]*$") nil t))))
+      (make-directory (file-name-directory attributes) t)
+      (with-temp-buffer
+        (if (file-readable-p attributes)
+            (progn
+              (insert-file-contents attributes)
+              (goto-char (point-max))
+              (unless (bolp) (insert "\n")))
+          (insert (format "# Written by %s: lines added on two machines are both kept.\n"
+                          (or writer "MyPKS"))))
+        (insert line "\n")
+        (my/write-region-atomically attributes)))))
+
 ;; ============================================================
 ;; BASIC EMACS SETTINGS
 ;; ============================================================

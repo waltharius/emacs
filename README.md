@@ -163,7 +163,7 @@ Nothing is vendored and there is no lockfile.
 | Document viewers | `pdf-tools`, `nov` |
 | Version control | `magit` |
 | Appearance | `modus-themes`, `ef-themes`, `standard-themes`, `doric-themes`, `doom-themes`, `spacious-padding`, `lin`, `pulsar`, `visual-fill-column`, `default-text-scale` |
-| Editing | `which-key`, `vundo`, `undo-fu-session`, `flyspell-correct` |
+| Editing | `which-key`, `vundo`, `undo-fu-session`, `flyspell-correct`, `captain` |
 | Other | `keyfreq`, `nov`, `org-drill` |
 
 **External programs.** Each is looked up with `executable-find`, and a
@@ -326,6 +326,7 @@ startup. Optional ones can be removed.
 | `102-editing.el` | required | which-key, vundo, undo-fu-session, **and the rebound default keys**. |
 | `302b-bold-marker.el` | required | Obsidian-style `word*` inline emphasis. |
 | `303-spelling.el` | required | Hunspell, Polish and English. |
+| `304-sentence-capitals.el` | optional | Capital letter at sentence start while typing in Org (captain); the owner's abbreviations in the settings folder. Off on a new machine. |
 | `503b-fonts.el` | required | Per-silo fonts: journal Playpen Sans, pks Source Sans 3, docu JetBrains Mono. |
 | `204-denote.el` | required | Denote itself, multi-silo setup, backlink window placement. |
 | `208-keybindings.el` | required | Not where keys are defined — a reference buffer (`C-c h k`) plus a few helpers. |

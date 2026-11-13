@@ -79,6 +79,7 @@ decided by 2026-10-25 ("the rest OK", with the changes noted).  /Plan/:
 | 102-editing            |   100 | keep                    | decided  |                                                                      |
 | 302b-bold-marker       |   300 | keep                    | decided  |                                                                      |
 | 303-spelling           |   300 | keep                    | decided  | slot =spelling=; a jinx module would fill it instead                 |
+| 304-sentence-capitals  |   300 | keep                    | decided  | 2026-11-13g: capital letter at sentence start while typing in Org, through captain (GNU ELPA); the owner's abbreviations in the settings folder.  Off on a new machine |
 | 503b-fonts             |   500 | keep                    | decided  |                                                                      |
 | 204-denote             |   200 | keep                    | decided  |                                                                      |
 | 205-notes              |   200 | keep                    | decided  | 2026-10-25: core (cannot be turned off) and needed by 08, 12 and 23 |

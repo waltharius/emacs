@@ -65,6 +65,7 @@
    "102-editing"              ; Modern conveniences
    "302b-bold-marker"         ; Obsidian-style bold (word*)
    "303-spelling"             ; Spellcheck (WORKING!)
+   "304-sentence-capitals"    ; Capital letter at sentence start (captain)
    "503b-fonts"               ; Fonts (PlaypenSans for journals)
    "204-denote"               ; Denote multi-silo
    "205-notes"                ; Note functions

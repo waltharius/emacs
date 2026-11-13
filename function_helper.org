@@ -2186,7 +2186,9 @@ Function: =my/toggle-spacious-padding= | Module: =modules/500-look/534-appearanc
 :CUSTOM_ID: menu-notes-tools
 :END:
 
-External tool integrations and spelling. New external integrations
+External tool integrations, spelling and capitals at sentence start
+(the Spelling and Capitals columns, [[#menu-spelling][Spelling commands]] and
+[[#menu-capitals][Capitals commands]]). New external integrations
 should be added here rather than at top level.
 Module: =modules/200-foundation/212-transient.el=
 
@@ -2414,6 +2416,23 @@ Module: =modules/300-notes-core/303-spelling.el=
 
 Function: =my/toggle-flyspell= | Variable: =my/flyspell-desktop-restoring= |
 Module: =modules/300-notes-core/303-spelling.el=
+
+*** Capitals commands
+:PROPERTIES:
+:CUSTOM_ID: menu-capitals
+:END:
+
+The Capitals column comes from =304-sentence-capitals.el=, inserted
+before the first column like Spelling, and goes with the module's
+switch.  What the module does: [[#sentence-capitals][Capital letter at sentence start]].
+
+| Key | Function                                   | Description                                        |
+|-----+--------------------------------------------+----------------------------------------------------|
+| c   | =my/sentence-capitals-toggle-buffer=       | Capitals off or on in this buffer only             |
+| +   | =my/sentence-capitals-add-abbreviation=    | Add an abbreviation: no capital after it           |
+| -   | =my/sentence-capitals-remove-abbreviation= | Remove an abbreviation, built-in or the owner's    |
+
+Module: =modules/300-notes-core/304-sentence-capitals.el=
 
 ** C-c n l — Philosophy
 :PROPERTIES:
@@ -5454,6 +5473,22 @@ directly), =tests/test-maintenance.el= (a keyword rename cut half way).
 
 Function: =my/write-region-atomically= | Module: =modules/000-loader/000-core.el=
 
+** Lists two machines add to
+:PROPERTIES:
+:CUSTOM_ID: fn-my-git-merge-by-union
+:END:
+
+A file of one entry per line in the settings folder -- the personal
+dictionary ([[#fn-spell-personal-dictionary][Personal dictionary in the settings folder]]), the
+abbreviations of [[#sentence-capitals][Capital letter at sentence start]] -- may get lines on
+two machines between two synchronisations.  =my/git-merge-by-union=
+writes =NAME merge=union= into =.gitattributes= next to the file, once:
+git's union driver (gitattributes(5), built into git) then keeps the
+lines of both sides instead of stopping with a conflict.  A file name
+with whitespace is left alone (it would need quoting there).
+
+Function: =my/git-merge-by-union= | Module: =modules/000-loader/000-core.el=
+
 * Link Tooltips
 :PROPERTIES:
 :CUSTOM_ID: link-tooltips
@@ -8069,6 +8104,87 @@ the whole buffer do not evict each other.
 characters, words, pages, and the divisor in use.
 
 Function: =my/standard-pages-report= | Module: =modules/600-look-modifications/645-standard-pages.el=
+
+* Capital Letter at Sentence Start
+:PROPERTIES:
+:CUSTOM_ID: sentence-capitals
+:END:
+
+Keywords: captain, captain-mode, capital letter, sentence start, abbreviations, np., sentence-abbreviations, my/sentence-capitals-mode
+
+The first word of a sentence gets its capital letter when the word is
+finished -- the space or punctuation typed after it -- as a word
+processor does it: =kot. pies= and a space give "kot. Pies".  In Org
+buffers only, and there in prose only: paragraphs (also in list items
+and quote blocks) and headline titles.  Source blocks, example blocks,
+keyword lines (=#+title:=), drawers, comments, tables, links, code,
+verbatim, timestamps and citations stay as typed.  A word that already
+holds a capital letter (iPhone, NATO) is not changed.  =C-/= undoes the
+capital with the characters typed just before it, as any typing.
+
+*The package.*  captain (GNU ELPA) does the typing side: after each word
+it asks whether to act at point and where the sentence starts, and
+capitalizes the word when it is the first.  The module supplies those
+two answers for Org and changes nothing of captain.  The mode line of
+an Org buffer shows "Captain" while it is on.
+
+*Where a sentence starts.*  At the start of a paragraph, of a list
+item's text (after the bullet and the check box) and of a headline's
+title (after the stars, TODO keyword and priority), and after =.=, =?= or
+=!= followed by a space or a line break, with closing quotes or
+brackets in between.  Two options in =C-c n , ,= (Writing → Capital
+letters at sentence start) take items and titles out:
+/Sentence capitals in lists/ (=my/sentence-capitals-in-lists=; a Polish
+list continuing a sentence after a colon starts its items small) and
+/Sentence capitals in headings/ (=my/sentence-capitals-in-headings=).
+
+*Where a full stop ends no sentence.*  After an abbreviation of the
+list below (=np.=, =tzn.=, =m.in.=, =e.g.=; case does not matter), one
+letter (=J. Kowalski=), a number of one to three digits (=2. rozdział=)
+or a Roman number of I, V and X (=XX. wiek=) -- ordinals in Polish --
+and after an ellipsis (=...= or =…=), which in Polish may end a
+sentence or pause within one.  There the next word stays as typed: a
+capital wanted and not given costs one shift key, a capital given where
+it was not wanted costs an undo.  A year (=w 2020. Potem=) ends a
+sentence.
+
+*The abbreviations.*  A built-in list of Polish and English
+abbreviations written with a full stop
+(=my/sentence-capitals--default-abbreviations=; Polish ones ending in
+the word's last letter -- =dr=, =mgr=, =nr=, =wg=, =zł= -- take no full
+stop and need no entry), changed by the owner's file:
+
+| File                                                   | Holds                                     |
+|--------------------------------------------------------+-------------------------------------------|
+| =<settings folder>/dictionaries/sentence-abbreviations= | one abbreviation per line, with its full stop; =-abbr.= takes a built-in one out; =#= starts a comment |
+| =<settings folder>/dictionaries/.gitattributes=        | =sentence-abbreviations merge=union=      |
+
+=C-c n t += adds one (the word before point is offered when it ends in
+a full stop); =C-c n t -= removes one, chosen from the list in force: an
+own abbreviation loses its line, a built-in one gets a =-abbr.= line,
+and adding that one back deletes the line.  The file may be edited by
+hand and is read again when it changes on disk, after a pull of the
+settings folder for instance.  Lines added on two machines are both
+kept by git (=merge=union=, see
+[[#fn-my-git-merge-by-union][Lists two machines add to]]).  Ordinary words
+that end sentences (Polish =im.=, English =red.=, =art.=, =no.=) are
+not in the built-in list.
+
+*The switch.*  =my/sentence-capitals-mode= (=C-c n , m=, like every
+module) turns it on in every Org buffer, open and future, and off in
+all; a new machine starts with it off.  =C-c n t c= turns it off or on
+in one buffer only.  Without captain installed the module says so once
+and nothing changes while typing.
+
+Tests: =tests/test-sentence-capitals.el=.  By hand: TESTPLAN.org R58.
+
+Functions: =my/sentence-capitals-toggle-buffer=,
+=my/sentence-capitals-add-abbreviation=,
+=my/sentence-capitals-remove-abbreviation=,
+=my/sentence-capitals-abbreviations= | Options:
+=my/sentence-capitals-in-lists=, =my/sentence-capitals-in-headings=,
+=my/sentence-capitals-abbreviations-file= | Module:
+=modules/300-notes-core/304-sentence-capitals.el=
 
 * Inline Emphasis Markers
 :PROPERTIES:

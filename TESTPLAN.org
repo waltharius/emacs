@@ -645,6 +645,28 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R58. Capital letter at sentence start [0/6]
+- [ ] =C-c n , m=, 304-sentence-capitals on (a new machine starts
+      without it).  In a note, type =kot jest. pies jest? tak= and a
+      space: "Kot jest. Pies jest? Tak".  The mode line of an Org buffer
+      shows "Captain"; a Markdown or Emacs Lisp buffer stays as typed.
+- [ ] =to np. kot, m.in. pies, w 2. rozdziale, XX. wiek, tak... no=:
+      only "To" gets a capital.  =było w 2020. potem=: "Potem".
+- [ ] A headline =* TODO kupić mleko=: "Kupić"; an item =- [ ] zadanie=:
+      "Zadanie".  Inside =#+begin_src= ... =#+end_src=, a =#+title:= line,
+      a table cell, a link's description: as typed.
+- [ ] =C-c n t= shows a Capitals column: =+= with point after
+      =wzgl.= offers =wzgl.=; =RET=; type =to wzgl. proste =: "proste"
+      stays small.  =<settings folder>/dictionaries/sentence-abbreviations=
+      holds the line, =.gitattributes= next to it the =merge=union= line.
+- [ ] =C-c n t -=, choose =wzgl.=: the line is gone.  Again =-=,
+      =np.=: the file holds =-np.=, and =kot np. pies= now gives "Pies";
+      =C-c n t += =np.= takes the line out again.
+- [ ] =C-c n t c= in one note: "off in this buffer", typing changes
+      nothing there, other notes still capitalize; =c= again: on.
+      =C-c n , m=, the module off: no capitals in any note, no Capitals
+      column; on again: both back.
+
 ** R57. Zotero's annotations into a note [0/6]
 With Zotero 10 running and its local API on (Settings → Advanced).
 - [ ] =C-c n , m=, 417d-zotero-annotations on (a new machine starts

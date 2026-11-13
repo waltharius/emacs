@@ -221,6 +221,7 @@ library is checked against something it did not compute.  See Session
 | Basic UI, completion, session, mode-line            | `101-ui.el`               |
 | Editing behaviour, keybindings                      | `102-editing.el`          |
 | Spell checking (ispell, flyspell, flyspell-correct) | `303-spelling.el`         |
+| Capital letter at sentence start (captain)          | `304-sentence-capitals.el` |
 | Fonts and typography                                | `503b-fonts.el`           |
 | Denote core, silo config, org-mode settings         | `204-denote.el`           |
 | Notes functions (journal, essay, capture)           | `205-notes.el`            |

@@ -48,10 +48,17 @@
         (funcall function))))
   (defun my/notes-report (kind title lines &optional _choices)
     "Stand-in: record the report in `my/spell-test--reports'."
-    (push (list kind title lines) my/spell-test--reports)))
+    (push (list kind title lines) my/spell-test--reports))
+  (defun my/git-merge-by-union (file &optional writer)
+    "Stand-in: record FILE and WRITER in `my/spell-test--union-calls'.
+The real one is tested in tests/test-sentence-capitals.el."
+    (push (list file writer) my/spell-test--union-calls)))
 
 (defvar my/spell-test--reports nil
   "Reports shown through the stand-in `my/notes-report'.")
+
+(defvar my/spell-test--union-calls nil
+  "Files given to the stand-in `my/git-merge-by-union', newest first.")
 
 ;; Special here as well, so that the `let's below bind what the module
 ;; reads: a bare `defvar' in 303-spelling.el is local to that file.
@@ -139,15 +146,13 @@ Binds `target' and `legacy' to the new and the old file."
     (my/spell--dictionary-merge legacy target)
     (should (equal (my/spell-test--read legacy) "personal_ws-1.1 pl_PL 0 utf-8\nzażółć\n"))))
 
-(ert-deftest my/spell-test-gitattributes-once ()
-  "The union line is written once, also into an existing file."
+(ert-deftest my/spell-test-gitattributes ()
+  "The dictionary is handed to `my/git-merge-by-union' (000-core.el)."
   (my/spell-test--with-folder
-    (let ((attributes (expand-file-name ".gitattributes" (file-name-directory target))))
-      (my/spell-test--write attributes "*.org diff")
+    (let ((my/spell-test--union-calls nil))
       (my/spell--dictionary-gitattributes target)
-      (my/spell--dictionary-gitattributes target)
-      (should (equal (my/spell-test--read attributes)
-                     "*.org diff\nhunspell_personal merge=union\n")))))
+      (should (equal my/spell-test--union-calls
+                     (list (list target "303-spelling.el")))))))
 
 ;; ============================================================
 ;; IMPORT AT START-UP
@@ -159,7 +164,7 @@ Binds `target' and `legacy' to the new and the old file."
     (my/spell-test--write legacy "zażółć\n")
     (should (my/spell--dictionary-prepare))
     (should (equal (my/spell-test--read target) "zażółć\n"))
-    (should (file-exists-p (expand-file-name ".gitattributes" (file-name-directory target))))
+    (should (equal (car (car my/spell-test--union-calls)) target))
     (should (member legacy (plist-get (my/spell--state-read) :imported)))))
 
 (ert-deftest my/spell-test-prepare-once-per-machine ()

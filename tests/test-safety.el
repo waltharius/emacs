@@ -388,7 +388,6 @@ symbolic link to its target, the link staying a link."
 (defconst my/safety-test--write-region-allowed
   '(("000-core.el" . "the helper itself; the .gitignore of the settings folder")
     ("114-typing-analytics.el" . "appends to the key log, its own file")
-    ("303-spelling.el" . "the dictionary's attributes file, generated")
     ("747-repo-docs.el" . "a generated page of the documentation site"))
   "Modules that call `write-region' directly, and on what: none on a note.")
 
