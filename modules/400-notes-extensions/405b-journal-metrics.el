@@ -573,7 +573,7 @@ Commit or stash the notes repository before running this with WRITE."
               (setq changed (1+ changed))
               (push (file-name-nondirectory file) names)
               (when write
-                (write-region (point-min) (point-max) file nil 'quiet)))))))
+                (my/write-region-atomically file)))))))
     (with-current-buffer (get-buffer-create "*journal-migration*")
       (erase-buffer)
       (insert (format "%s: %d of %d files\n\n"
@@ -631,7 +631,7 @@ first."
             (setq changed (1+ changed))
             (push (file-name-nondirectory file) names)
             (when write
-              (write-region (point-min) (point-max) file nil 'quiet))))))
+              (my/write-region-atomically file))))))
     (with-current-buffer (get-buffer-create "*notes-normalization*")
       (erase-buffer)
       (insert (format "%s: %d of %d files\n\n"

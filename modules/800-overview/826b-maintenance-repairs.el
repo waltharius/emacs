@@ -227,7 +227,7 @@ read-only state is preserved across `set-visited-file-name', and
     (with-temp-buffer
       (insert-file-contents file)
       (my/maintenance--write-filetags wanted)
-      (write-region (point-min) (point-max) file nil 'silent))
+      (my/write-region-atomically file))
     ;; 2. File name.
     (unless (equal new-file file)
       (rename-file file new-file)

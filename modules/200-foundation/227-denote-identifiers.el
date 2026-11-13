@@ -264,7 +264,7 @@ uses a live buffer when one exists so unsaved edits are not lost."
           (replace-match (concat "denote:" new) t t)
           (setq count (1+ count)))
         (when (> count 0)
-          (write-region (point-min) (point-max) file nil 'quiet))))
+          (my/write-region-atomically file))))
     count))
 
 (defun my/denote--set-front-matter-identifier (file new)
@@ -285,7 +285,7 @@ uses a live buffer when one exists so unsaved edits are not lost."
         (goto-char (point-min))
         (when (re-search-forward "^#\\+identifier:\\s-*\\(.*\\)$" nil t)
           (replace-match new t t nil 1))
-        (write-region (point-min) (point-max) file nil 'quiet)))))
+        (my/write-region-atomically file)))))
 
 (defun my/denote--identifier-target (file new)
   "Return the path FILE takes with identifier NEW."
@@ -563,7 +563,7 @@ Signals when OLD is not at POS: the file changed since it was read."
         (with-temp-buffer
           (insert-file-contents file)
           (swap)
-          (write-region (point-min) (point-max) file nil 'quiet))))))
+          (my/write-region-atomically file))))))
 
 ;;;###autoload
 (defun my/denote-fix-duplicates ()

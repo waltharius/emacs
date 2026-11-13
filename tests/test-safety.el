@@ -16,6 +16,8 @@
 ;;
 ;; Then the rules of publishing, 1.1-1.4 and 1.6 (2026-10-23g), on a
 ;; notes tree and a Hugo folder made for each test; nothing is uploaded.
+;; And 2.10 (2026-11-13b): a note rewritten by a command is replaced in
+;; one step, a failure planted in the write or the rename.
 ;;
 ;; Needs git, and ox-hugo for the page test of 1.4; the modules load in
 ;; the sandbox of tests/helper.el, Denote and ox-hugo from the installed
@@ -318,6 +320,94 @@ answer is t; k keeps it."
         (should (file-exists-p (expand-file-name "notes-root.eld" trash)))
         (should (file-exists-p new))))
     (delete-directory trash t)))
+
+;; ============================================================
+;; 2.10: A NOTE REWRITTEN BY A COMMAND IS REPLACED IN ONE STEP
+;; ============================================================
+
+(defmacro my/safety-test--rewrite (var &rest body)
+  "Run BODY with VAR a note in a folder of its own, holding \"old text\n\"."
+  (declare (indent 1))
+  `(let* ((dir (make-temp-file "mypks-rewrite-" t))
+          (,var (expand-file-name "20261113T100000--note.org" dir)))
+     (unwind-protect
+         (progn (with-temp-file ,var (insert "old text\n"))
+                ,@body)
+       (delete-directory dir t))))
+
+(defun my/safety-test--others (dir)
+  "Files in DIR other than the note: a temporary file left behind."
+  (seq-remove (lambda (f) (string-prefix-p "20261113T100000" f))
+              (directory-files dir nil "\\`[^.]\\|\\`\\.[^.]")))
+
+(ert-deftest my/safety-test-2.10-cut-write-leaves-note-whole ()
+  "2.10: a write cut short half way (a full disk, a crash) leaves the
+note as it was, and no temporary file beside it.  The write is cut by
+a stand-in for `write-region' that writes the first characters of the
+new text to the file it is given, then fails."
+  (my/safety-test--rewrite note
+    (let ((real (symbol-function 'write-region)))
+      (cl-letf (((symbol-function 'write-region)
+                 (lambda (_start _end filename &rest _)
+                   (funcall real "new" nil filename nil 'silent)
+                   (signal 'file-error (list "Writing" "No space left on device")))))
+        (with-temp-buffer
+          (insert "new text, longer than the old\n")
+          (should-error (my/write-region-atomically note) :type 'file-error))))
+    (should (equal (my/safety-test--read note) "old text\n"))
+    (should-not (my/safety-test--others (file-name-directory note)))))
+
+(ert-deftest my/safety-test-2.10-failed-rename-leaves-note-whole ()
+  "2.10: a rename that fails leaves the note as it was, and no temporary
+file beside it."
+  (my/safety-test--rewrite note
+    (cl-letf (((symbol-function 'rename-file)
+               (lambda (&rest _) (signal 'file-error (list "Renaming" "Permission denied")))))
+      (with-temp-buffer
+        (insert "new text\n")
+        (should-error (my/write-region-atomically note) :type 'file-error)))
+    (should (equal (my/safety-test--read note) "old text\n"))
+    (should-not (my/safety-test--others (file-name-directory note)))))
+
+(ert-deftest my/safety-test-2.10-replaced-whole-with-its-permissions ()
+  "2.10: a write that succeeds replaces the note with the whole new text
+(Polish letters intact), keeps its permissions, and writes through a
+symbolic link to its target, the link staying a link."
+  (my/safety-test--rewrite note
+    (set-file-modes note #o640)
+    (let ((link (expand-file-name "link.org" (file-name-directory note))))
+      (make-symbolic-link note link)
+      (with-temp-buffer
+        (insert "zażółć gęślą jaźń\n")
+        (my/write-region-atomically link))
+      (should (equal (my/safety-test--read note) "zażółć gęślą jaźń\n"))
+      (should (= (file-modes note) #o640))
+      (should (file-symlink-p link))
+      (should (equal (my/safety-test--others (file-name-directory note)) '("link.org"))))))
+
+(defconst my/safety-test--write-region-allowed
+  '(("000-core.el" . "the helper itself; the .gitignore of the settings folder")
+    ("114-typing-analytics.el" . "appends to the key log, its own file")
+    ("303-spelling.el" . "the dictionary's attributes file, generated")
+    ("747-repo-docs.el" . "a generated page of the documentation site"))
+  "Modules that call `write-region' directly, and on what: none on a note.")
+
+(ert-deftest my/safety-test-2.10-no-note-written-in-place ()
+  "2.10: `write-region' is called directly only by the modules listed in
+`my/safety-test--write-region-allowed', none of them on a note: every
+other module rewrites notes with `my/write-region-atomically'.  A new
+call fails this test until it is either the helper or listed here with
+what it writes."
+  (let ((modules (expand-file-name "modules" my/test-repo))
+        (callers nil))
+    (dolist (file (directory-files-recursively modules "\\.el\\'"))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (when (re-search-forward "^[^;\n]*(write-region " nil t)
+          (push (file-name-nondirectory file) callers))))
+    (should (equal (sort callers #'string<)
+                   (sort (mapcar #'car my/safety-test--write-region-allowed) #'string<)))))
 
 ;; ============================================================
 ;; 1.1-1.4, 1.6: WHAT A SITE TAKES, AND WHAT LEAVES WITH IT

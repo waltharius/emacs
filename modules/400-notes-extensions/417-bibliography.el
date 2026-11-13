@@ -783,7 +783,7 @@ the change; an unmodified buffer is reverted to show it."
                   (insert replaced)
                   (setq hits (1+ hits)))))
             (when (> hits 0)
-              (write-region (point-min) (point-max) file nil 'silent)
+              (my/write-region-atomically file)
               (when buffer
                 (with-current-buffer buffer
                   (revert-buffer :ignore-auto :noconfirm :preserve-modes)))))

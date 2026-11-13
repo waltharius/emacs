@@ -111,6 +111,26 @@ note is byte for byte the same."
                              "#+identifier: 20261023T100000\n\n"
                              "Line one.\n\n* Heading\n#+filetags: :inside:\n"))))))
 
+(ert-deftest my/maint-test-set-keywords-cut-write-leaves-note ()
+  "SAFETY 2.10: a write of the new front matter cut short half way leaves
+the note whole and unrenamed, with nothing beside it.  (With
+`write-region' straight onto the note, as until 2026-11-13b, the note
+was left holding the first characters of the new text.)"
+  (my/maint-test--with-notes
+    (let* ((file (my/maint-test--note pks "20261023T100000--a-title__kant" '("kant")
+                                      "Line one.\n"))
+           (before (my/maint-test--read file))
+           (real (symbol-function 'write-region)))
+      (cl-letf (((symbol-function 'write-region)
+                 (lambda (_start _end filename &rest _)
+                   (funcall real "#+ti" nil filename nil 'silent)
+                   (signal 'file-error (list "Writing" "No space left on device")))))
+        (should-error (my/maintenance--set-keywords file '("ethics" "kant"))
+                      :type 'file-error))
+      (should (equal (my/maint-test--read file) before))
+      (should (equal (directory-files pks nil "\\`[^.]\\|\\`\\.[^.]")
+                     (list (file-name-nondirectory file)))))))
+
 (ert-deftest my/maint-test-filetags-added-and-removed ()
   "A note without #+filetags: gets one above #+identifier:, even with a
 #+filetags: line far down in its body, which is left alone; removing the

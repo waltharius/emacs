@@ -2298,6 +2298,45 @@ is tested whole."
 (setq delete-old-versions t)
 (setq create-lockfiles nil)  ; Don't create .# lock files
 
+;; A NOTE REWRITTEN FROM A TEMPORARY BUFFER: IN ONE STEP
+;; -----------------------------------------------------
+;; Commands that change notes Emacs is not visiting (renaming a keyword,
+;; a citation key or an identifier across the notes, migrating front
+;; matter) read the note into a temporary buffer, edit it there and
+;; write it back.  `write-region' writes over the file in place: a write
+;; cut short -- a full disk, a crash, the power -- leaves the note
+;; truncated.  `my/write-region-atomically' writes the new text to a
+;; temporary file next to the note and renames it over the note, which
+;; the file system does in one step: afterwards the note is either the
+;; old text or the new, whole.  Emacs has no such write of its own:
+;; `file-precious-flag' does this for `save-buffer' only.
+
+(defun my/write-region-atomically (file)
+  "Replace FILE with the whole current buffer, in one step.
+The text goes to a temporary file in FILE's folder, flushed to disk,
+and is then renamed over FILE: a failure at any point before the rename
+leaves FILE as it was, and the temporary file is removed.  FILE keeps
+its permissions; a symbolic link stays a link and its target is
+replaced.  The buffer is written as `write-region' writes it (same
+coding system), without visiting FILE and without a message.
+
+A hard link to FILE is not updated: the rename gives FILE a new inode.
+Notes have no hard links."
+  (let* ((target (file-truename (expand-file-name file)))
+         (temp (make-temp-file (expand-file-name ".mypks-write-"
+                                                 (file-name-directory target)))))
+    (unwind-protect
+        (progn
+          ;; Flushed before the rename, so that after a crash the name
+          ;; cannot point at text not yet on disk.
+          (let ((write-region-inhibit-fsync nil))
+            (write-region nil nil temp nil 'silent))
+          (when (file-exists-p target)
+            (set-file-modes temp (file-modes target)))
+          (rename-file temp target t))
+      (when (file-exists-p temp)
+        (delete-file temp)))))
+
 ;; ============================================================
 ;; BASIC EMACS SETTINGS
 ;; ============================================================

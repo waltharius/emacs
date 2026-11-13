@@ -5361,6 +5361,36 @@ In =bash= those names trigger history expansion. Quote the *whole*
 name in single quotes (=cat '!home!…!bookmarks.~18~'=), not part of it,
 or run =set +H=. =zsh= does not have this problem.
 
+** Notes rewritten in one step
+:PROPERTIES:
+:CUSTOM_ID: fn-my-write-region-atomically
+:END:
+
+Commands that change notes not open in a buffer -- renaming a keyword
+(=826b-maintenance-repairs.el=), a citation key (=417-bibliography.el=,
+=my/cite-rename-key=), a Denote identifier or the links to it
+(=227-denote-identifiers.el=), migrating journal metrics or the gap
+after the front matter (=405b-journal-metrics.el=) -- read the note into
+a temporary buffer, edit it there and write it back with
+=my/write-region-atomically=.  The new text goes to a temporary file
+=.mypks-write-XXXXXX= in the note's folder, flushed to disk, and is then
+renamed over the note: a write cut short (a full disk, a crash, the
+power) leaves the note as it was, never half written, and the temporary
+file is removed.  The note keeps its permissions; through a symbolic
+link the target is replaced and the link stays.  A hard link to the
+note is not updated (the note gets a new inode); notes have none.
+
+A note open in a buffer is saved with =save-buffer= instead, which has
+Emacs's own safeguard: the first save after visiting renames the old
+file to a backup (/Numbered backups/ above).
+
+Rule: SAFETY.org 2.10.  Tests: =tests/test-safety.el= (2.10: a write
+cut half way, a failed rename, a successful write with its permissions
+and a link; no module but the listed ones calls =write-region=
+directly), =tests/test-maintenance.el= (a keyword rename cut half way).
+
+Function: =my/write-region-atomically= | Module: =modules/000-loader/000-core.el=
+
 * Link Tooltips
 :PROPERTIES:
 :CUSTOM_ID: link-tooltips
