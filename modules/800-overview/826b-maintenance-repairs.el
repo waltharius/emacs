@@ -1,4 +1,4 @@
-;;; 826b-maintenance-repairs.el --- Rename or remove a keyword across the collection -*- lexical-binding: t; -*-
+;;; 826b-maintenance-repairs.el --- Repairs across the collection: keywords, language codes -*- lexical-binding: t; -*-
 
 ;; MyPKS-Requires: 826-maintenance 227-denote-identifiers
 ;; MyPKS-Optional: yes
@@ -8,7 +8,9 @@
 ;;; Commentary:
 ;; The repair half of the Maintenance menu (C-c n !): renaming or
 ;; removing one keyword across the collection, through a review list
-;; with a preview, one decision per note.  Split from 826-maintenance.el
+;; with a preview, one decision per note; and writing every note's
+;; #+language: as the code Org expects (C), after a list of the changes
+;; and one question.  Split from 826-maintenance.el
 ;; on 2026-10-25 (MODULES.org): that module reads and reports, this one
 ;; renames files.  It reads keywords with 26's `my/maintenance-file-
 ;; keywords', the inverse of the name builder here
@@ -436,20 +438,126 @@ leaving part-way through is safe and leaves no modified buffers."
 ;; contract, rule 12): on, K in the repairs column of the Maintenance
 ;; menu; off, gone.
 
+;; ============================================================
+;; LANGUAGE CODES IN #+language:
+;; ============================================================
+;; Bibliographic notes made before 2026-11-13 have the BibLaTeX name of
+;; their language in #+language: ("polish"), and Zotero's Language field
+;; brings others ("pol", "pl-PL", "polski"); Org reads the keyword as the
+;; export language and expects a code.  One command writes the code
+;; (`my/language-code', 000-core.el) in every note: it lists what it
+;; would change, and writes only after one question.  A mechanical
+;; change, unlike a keyword's new name, so one question rather than one
+;; per note; nothing else in a note is touched.
+
+(defconst my/maintenance--language-buffer "*Language codes*"
+  "Name of the buffer of `my/maintenance-language-codes': what it changes.")
+
+(defconst my/maintenance--language-regexp "^#\\+language:[ \t]*\\(.*?\\)[ \t]*$"
+  "A #+language: line; group 1 its value.  Case does not matter.")
+
+(defun my/maintenance--language-value ()
+  "Return (START END VALUE) of the #+language: value in the buffer, or nil.
+Looked for in the front matter only, the first
+`my/note-front-matter-limit' characters."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t))
+      (when (re-search-forward my/maintenance--language-regexp
+                               (min (point-max) my/note-front-matter-limit) t)
+        (list (match-beginning 1) (match-end 1) (match-string-no-properties 1))))))
+
+(defun my/maintenance-language-changes (&optional files)
+  "Return what `my/maintenance-language-codes' would change in FILES.
+FILES defaults to every Org note.  A list of (FILE OLD NEW), NEW nil
+for a value `my/language-code' does not know; a note whose value is
+already its code, or without #+language:, is not listed."
+  (let (changes)
+    (dolist (file (or files (my/notes-files my-notes-dir "\\.org\\'" t)))
+      (with-temp-buffer
+        (insert-file-contents file nil 0 my/note-front-matter-limit)
+        (when-let* ((found (my/maintenance--language-value))
+                    (old (nth 2 found))
+                    ((not (string-empty-p old))))
+          (let ((new (my/language-code old)))
+            (unless (equal new old)
+              (push (list file old new) changes))))))
+    (nreverse changes)))
+
+(defun my/maintenance--language-write (file new)
+  "Write NEW as FILE's #+language: value, leaving the rest as it is.
+Refuses a file with unsaved changes in a buffer; a buffer visiting it
+is reverted afterwards.  Return non-nil when FILE was written."
+  (let ((buffer (find-buffer-visiting file)))
+    (if (and buffer (buffer-modified-p buffer))
+        nil
+      (with-temp-buffer
+        (insert-file-contents file)
+        (pcase-let ((`(,start ,end ,_) (my/maintenance--language-value)))
+          (goto-char start)
+          (delete-region start end)
+          (insert new))
+        (my/write-region-atomically file))
+      (when (buffer-live-p buffer)
+        (with-current-buffer buffer
+          (revert-buffer :ignore-auto :noconfirm :preserve-modes)))
+      t)))
+
+(defun my/maintenance-language-codes ()
+  "Write every note's #+language: as a two-letter code, after asking once.
+Lists the notes whose value would change (\"polish\" -> \"pl\") and
+the values no code was found for, which stay; then asks.  A note with
+unsaved changes in a buffer is skipped and named."
+  (interactive)
+  (let* ((changes (my/maintenance-language-changes))
+         (known (seq-filter #'caddr changes))
+         (unknown (seq-remove #'caddr changes))
+         (root (file-name-as-directory (expand-file-name my-notes-dir))))
+    (with-current-buffer (get-buffer-create my/maintenance--language-buffer)
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert (format "#+language: as a code -- %d note(s) to change, %d value(s) not known\n\n"
+                        (length known) (length unknown)))
+        (dolist (c known)
+          (insert (format "%-12s -> %-4s %s\n" (nth 1 c) (nth 2 c)
+                          (string-remove-prefix root (car c)))))
+        (when unknown
+          (insert "\nNo code found, left as they are:\n")
+          (dolist (c unknown)
+            (insert (format "%-12s       %s\n" (nth 1 c) (string-remove-prefix root (car c)))))))
+      (goto-char (point-min))
+      (special-mode)
+      (display-buffer (current-buffer)))
+    (if (null known)
+        (message "#+language: every known value is already a code%s"
+                 (if unknown (format " (%d not known, listed)" (length unknown)) ""))
+      (when (y-or-n-p (format "Write the code in %d note(s)? " (length known)))
+        (let (skipped)
+          (dolist (c known)
+            (unless (my/maintenance--language-write (car c) (nth 2 c))
+              (push (file-name-nondirectory (car c)) skipped)))
+          (message "#+language: %d note(s) written%s"
+                   (- (length known) (length skipped))
+                   (if skipped
+                       (format "; skipped, unsaved changes: %s" (string-join skipped ", "))
+                     "")))))))
+
 (defgroup my/maintenance-repairs nil
-  "Renaming or removing a keyword across the collection (826b-maintenance-repairs.el)."
+  "Repairs across the collection: keywords, language codes (826b-maintenance-repairs.el)."
   :tag "Maintenance repairs"
   :group 'mypks-notes)
 
 (defconst my/maintenance-repairs--menu-entries
-  '((append my/notes-maintenance-menu "W" ("K" "Rename or remove a keyword" my/maintenance-rename-keyword)))
+  '((append my/notes-maintenance-menu "W" ("K" "Rename or remove a keyword" my/maintenance-rename-keyword))
+    (append my/notes-maintenance-menu "K" ("C" "Language codes in #+language:" my/maintenance-language-codes)))
   "Menu entries of this module, for `my/transient-entries'.")
 
 (define-minor-mode my/maintenance-repairs-mode
-  "Keyword repairs as a module, switched on and off.
-On: K, rename or remove a keyword, in the repairs column of the
-Maintenance menu (C-c n !).  Off: gone, and the commands remain for
-M-x.  Customize saves the position in this machine's settings."
+  "Repairs as a module, switched on and off.
+On: K, rename or remove a keyword, and C, language codes in
+#+language:, in the repairs column of the Maintenance menu (C-c n !).
+Off: gone, and the commands remain for M-x.  Customize saves the
+position in this machine's settings."
   :global t
   :init-value t
   :group 'my/maintenance-repairs

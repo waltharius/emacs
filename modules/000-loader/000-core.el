@@ -2498,6 +2498,64 @@ keyword.  Does not save the buffer."
         (goto-char insert-at)
         (insert (format "#+%s: %s\n" name value))))))
 
+;; THE LANGUAGE OF A NOTE: A TWO-LETTER CODE
+;; -----------------------------------------
+;; Org reads `#+language:' as the note's language for export -- its
+;; words ("Contents", "Figure"), the citation locale of citeproc, the
+;; hyphenation of LaTeX -- and expects a code: "pl", "en".  Languages
+;; reach notes under other names: BibLaTeX's langid as a bibliographic
+;; note's template fills it ("polish", "ngerman"), Zotero's Language
+;; field ("pol", "Polish", "pl-PL", "polski").  With such a name Org
+;; finds no translation and citeproc falls back to en-US.
+;; `my/language-code' turns any of them into the code; the names Org's
+;; LaTeX export knows (`org-latex-language-alist': babel, polyglossia and
+;; English names of about 90 languages) are read from there, the few
+;; others from `my/language--other-names'.
+
+(defconst my/language--other-names
+  '(;; ISO 639-2, as library catalogues and Zotero's Language field have it.
+    ("pol" . "pl") ("eng" . "en") ("ger" . "de") ("deu" . "de")
+    ("fre" . "fr") ("fra" . "fr") ("ita" . "it") ("spa" . "es")
+    ("rus" . "ru") ("ukr" . "uk") ("cze" . "cs") ("ces" . "cs")
+    ("lat" . "la") ("grc" . "el") ("gre" . "el") ("ell" . "el")
+    ("por" . "pt") ("dut" . "nl") ("nld" . "nl")
+    ;; The names of languages in Polish and in the languages themselves.
+    ("polski" . "pl") ("angielski" . "en") ("niemiecki" . "de")
+    ("francuski" . "fr") ("włoski" . "it") ("hiszpański" . "es")
+    ("rosyjski" . "ru") ("ukraiński" . "uk") ("czeski" . "cs")
+    ("łaciński" . "la") ("łacina" . "la") ("grecki" . "el")
+    ("deutsch" . "de") ("français" . "fr") ("italiano" . "it")
+    ("español" . "es") ("русский" . "ru") ("українська" . "uk")
+    ("čeština" . "cs"))
+  "Names of languages Org's table lacks, lower case, with their codes.")
+
+(defvar org-latex-language-alist)
+
+(defun my/language-code (value)
+  "Return the two-letter language code for VALUE, or nil.
+VALUE may be a code with or without a region (\"pl\", \"pl-PL\",
+\"pl_PL\", \"en-GB\": the language part, lower case), an ISO 639-2 code
+(\"pol\"), a babel or polyglossia name (\"polish\", \"ngerman\"), an
+English name (\"Polish\") or a name in Polish or in the language itself
+(\"polski\", \"Deutsch\").  Nil for anything else, and for an empty
+VALUE: the caller keeps what it had."
+  (let ((name (downcase (string-trim (or value "")))))
+    (cond
+     ((string-empty-p name) nil)
+     ((string-match "\\`\\([a-z][a-z]\\)\\(?:[-_][a-z0-9]+\\)*\\'" name)
+      (match-string 1 name))
+     ((cdr (assoc name my/language--other-names)))
+     ((and (require 'ox-latex nil t) (boundp 'org-latex-language-alist))
+      (seq-some (lambda (entry)
+                  (let ((props (cdr entry)))
+                    (when (member name (mapcar #'downcase
+                                               (delq nil (list (plist-get props :babel)
+                                                               (plist-get props :babel-ini-alt)
+                                                               (plist-get props :polyglossia)
+                                                               (plist-get props :lang-name)))))
+                      (substring (car entry) 0 2))))
+                org-latex-language-alist)))))
+
 ;; ============================================================
 ;; A MODULE'S OWN SWITCH: ITS KEYS
 ;; ============================================================

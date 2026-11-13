@@ -4927,7 +4927,7 @@ A note made with =n= (citar-denote, template =biblio= in
 ,#+translator:  Joanna Bednarek i Agnieszka Kowalczyk
 ,#+publisher:   Heterodox
 ,#+year:        2020
-,#+language:    polish
+,#+language:    pl
 #+end_example
 
 citar-denote fills =%^{FIELD}= placeholders with the raw BibLaTeX
@@ -4949,8 +4949,9 @@ a message says so; the note is made either way.
 | =my/bibliographic-note-fields-style= | =mypks-note-fields.csl= | CSL style giving the names and the year    |
 
 The language is the template's, not the book's: the headings are
-Polish, and the note is written in Polish.  The =#+language:= line holds
-the entry's BibLaTeX language as the .bib has it.
+Polish, and the note is written in Polish.  The =#+language:= line is
+the book's language as a code (=pl=, from BibLaTeX's =langid= =polish=;
+[[#language-codes][Language codes]]), which Org expects there.
 
 citar-denote has no hook after it fills a note:
 =my/bibliographic-note-fill= runs as advice after its function
@@ -7726,12 +7727,48 @@ are plain text instead of buttons.  The package entries (=U=, =B=,
 | =I= | =my/denote-fix-duplicates= | walk duplicate identifier groups, one confirmation each |
 | =W= | =my/denote-repair-suspect-links= | point each link found by =w= at the note its text names, one question each |
 | =K= | =my/maintenance-rename-keyword= | rename or remove one keyword across the collection |
+| =C= | =my/maintenance-language-codes= | every note's =#+language:= as a two-letter code, after a list and one question ([[#language-codes][Language codes]]) |
 | =U= | =my/packages-upgrade= | upgrade the installed Emacs packages, the package folder copied first ([[#packages-upgrade][Package upgrades]], 149-packages.el) |
 | =B= | =my/packages-restore= | put the packages back as in a copy |
 | =L= | =my/packages-list-backups= | the copies, with their size |
 
 Lower case reads, upper case writes. Anything that renames files across
 the collection is on a capital so a mistyped key cannot start it.
+
+** Language codes
+:PROPERTIES:
+:CUSTOM_ID: language-codes
+:END:
+
+Org reads =#+language:= as the note's export language -- its words, the
+citation locale of citeproc, LaTeX's hyphenation -- and expects a code:
+=pl=, =en=.  Bibliographic notes made before 2026-11-13 had the BibLaTeX
+name there (=polish=), and Zotero's Language field brings others (=pol=,
+=Polish=, =pl-PL=, =polski=); with them an export gets English words and
+citeproc's fallback locale, en-US.
+
+=C= (=my/maintenance-language-codes=, 826b-maintenance-repairs.el) looks
+at the =#+language:= line in the front matter of every Org note and
+lists, in =*Language codes*=, each value it would change and its code,
+and the values it found no code for, which stay.  Then one question;
+only after =y= are the notes written, and in them only that value
+(alignment and everything else as it was; a =#+language:= further down,
+in an example block, is not front matter and stays).  A note with
+unsaved changes in a buffer is skipped and named; an open note without
+changes is reverted after the write.  Each note is replaced in one step
+(SAFETY 2.10).
+
+The names are turned into codes by =my/language-code= (000-core.el): a
+code with a region gives its language part (=pl-PL=, =en-GB= → =pl=,
+=en=), the names of Org's own table (=org-latex-language-alist=: babel,
+polyglossia and English names, about 90 languages) and a short list of
+others (ISO 639-2 codes, Polish and native names).  Used also by =S= and
+=R= for a note's language, and by a new bibliographic note's
+=#+language:= ([[#bibliographic-note-front-matter][its front matter]]).
+
+Tests: =tests/test-maintenance.el= (the names, the list and the
+question, a body line and alignment untouched, a buffer with unsaved
+changes skipped).
 
 ** Changing an identifier
 

@@ -106,7 +106,7 @@ decided by 2026-10-25 ("the rest OK", with the changes noted).  /Plan/:
 | 424-readwise           |   400 | keep                    | decided  |                                                                      |
 | 425-inbox-review       |   400 | keep                    | decided  |                                                                      |
 | 826-maintenance        |   800 | keep                    | decided  | 2026-10-25: the reports and the Maintenance menu; split 2026-10-25v, the repairs are 26b; the Maintenance menu (C-c n !) gets two columns, Reports and Repairs.  836-notes-stats requires the reports part |
-| 826b-maintenance-repairs |   800 | keep                    | decided  | 2026-10-25v: renaming or removing a keyword across the collection, K in the repairs column; requires 26 |
+| 826b-maintenance-repairs |   800 | keep                    | decided  | 2026-10-25v: renaming or removing a keyword across the collection, K in the repairs column; 2026-11-13f: language codes in #+language:, C; requires 26 |
 | 227-denote-identifiers |   200 | keep                    | decided  | core                                                                 |
 | 428-writing-projects   |   400 | keep                    | decided  |                                                                      |
 | 729-writing-export     |   700 | keep                    | decided  |                                                                      |

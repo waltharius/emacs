@@ -128,6 +128,16 @@ year alone out of a full date, no full stop at the end -- not the raw
     (should (equal (my/ref-test-short "baluk2018" "pl")
                    "Kamil Bałuk i Wacław Krupiński, /Wodecki: tak mi wyszło/ (2018)"))))
 
+(ert-deftest my/ref-test-language-name-read-as-code ()
+  "A note whose #+language: is a name (\"polish\", as bibliographic notes
+had it) or a region tag (\"pl-PL\") is rendered in Polish, not in
+citeproc's fallback English."
+  (skip-unless (locate-library "citeproc"))
+  (my/ref-test-with-bib my/ref-test-bib
+    (dolist (language '("polish" "pl-PL" "polski"))
+      (should (equal (my/ref-test-short "baluk2018" language)
+                     "Kamil Bałuk i Wacław Krupiński, /Wodecki: tak mi wyszło/ (2018)")))))
+
 (ert-deftest my/ref-test-short-reference-english-and ()
   "In an English note the word is \"and\", not citeproc's \"&\"."
   (skip-unless (locate-library "citeproc"))
@@ -314,7 +324,7 @@ of the bundled one."
 #+translator:  %^{mypks:translators}
 #+publisher:   %^{publisher}
 #+year:        %^{mypks:year}
-#+language:    polish
+#+language:    %^{mypks:language}
 
 * Problem, na który odpowiada tekst
 "
@@ -346,6 +356,7 @@ field the entry lacks is emptied, the rest of the note untouched."
       (should (string-match-p "^#\\+translator:  Joanna Bednarek i Agnieszka Kowalczyk$" note))
       (should (string-match-p "^#\\+year:        2020$" note))
       (should (string-match-p "^#\\+publisher:$" note))
+      (should (string-match-p "^#\\+language:    pl$" note))
       (should-not (string-match-p "%\\^{" note))
       (should (string-suffix-p "\n\n* Problem, na który odpowiada tekst\n" note)))))
 

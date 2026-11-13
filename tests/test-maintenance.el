@@ -1,13 +1,15 @@
 ;;; test-maintenance.el --- ERT tests for keyword renaming and the checks of 826-maintenance -*- lexical-binding: t; -*-
 
-;; Tests: 826-maintenance 826b-maintenance-repairs
+;; Tests: 826-maintenance 826b-maintenance-repairs 000-core
 
 ;;; Commentary:
 
 ;; 826-maintenance.el renames or removes a keyword across the collection
 ;; -- the front matter and the file name of every note using it -- and
 ;; reports broken `denote:' links: the fifth module of TESTING.org,
-;; *Every module tested*, part 3.  On real files in a temporary notes
+;; *Every module tested*, part 3.  Also the repair of #+language: values
+;; into codes (826b) and the mapping it uses, `my/language-code'
+;; (000-core.el).  On real files in a temporary notes
 ;; folder; the review list is driven with its own keys (y, n).
 ;;
 ;;   emacs -Q --batch --eval '(package-initialize)' -l ert \
@@ -110,6 +112,84 @@ note is byte for byte the same."
                      (concat "#+title:      A title\n#+filetags:   :ethics:kant:\n"
                              "#+identifier: 20261023T100000\n\n"
                              "Line one.\n\n* Heading\n#+filetags: :inside:\n"))))))
+
+(ert-deftest my/maint-test-language-code-names ()
+  "Every name a language reaches a note under gives its code: BibLaTeX's
+langid, ISO 639-2, a region tag, English, Polish and native names; an
+unknown or empty value gives nil."
+  (dolist (pair '(("polish" . "pl") ("Polish" . "pl") ("pol" . "pl") ("polski" . "pl")
+                  ("pl-PL" . "pl") ("pl_PL" . "pl") ("PL" . "pl") ("pl" . "pl")
+                  ("english" . "en") ("american" . "en") ("en-GB" . "en")
+                  ("ngerman" . "de") ("Deutsch" . "de") ("niemiecki" . "de")
+                  ("fra" . "fr") ("français" . "fr") ("łacina" . "la")
+                  ("русский" . "ru")))
+    (should (equal (cons (car pair) (my/language-code (car pair))) pair)))
+  (should-not (my/language-code "klingon"))
+  (should-not (my/language-code ""))
+  (should-not (my/language-code nil)))
+
+(defun my/maint-test--lang-note (dir name language &optional body)
+  "Write NAME.org in DIR with #+language: LANGUAGE (nil: no such line)."
+  (let ((file (expand-file-name (concat name ".org") dir)))
+    (with-temp-file file
+      (insert "#+title:       A title\n"
+              (if language (format "#+language:    %s\n" language) "")
+              "#+identifier:  " (substring name 0 15) "\n\n"
+              (or body "Body text.\n")))
+    file))
+
+(ert-deftest my/maint-test-language-codes-listed-then-written ()
+  "The repair lists the values it would change and those it does not
+know, writes nothing until the answer, then only the value: alignment,
+the rest of the front matter and a #+language: in the body untouched."
+  (my/maint-test--with-notes
+    (let* ((a (my/maint-test--lang-note pks "20261101T100000--a" "polish"
+                                        "#+begin_example\n#+language: polish\n#+end_example\n"))
+           (b (my/maint-test--lang-note docu "20261101T100001--b" "pl-PL"))
+           (c (my/maint-test--lang-note pks "20261101T100002--c" "pl"))
+           (d (my/maint-test--lang-note pks "20261101T100003--d" "klingon"))
+           (e (my/maint-test--lang-note pks "20261101T100004--e" nil))
+           (before (mapcar #'my/maint-test--read (list a b c d e))))
+      (should (equal (mapcar (lambda (ch) (list (file-name-nondirectory (car ch)) (nth 1 ch) (nth 2 ch)))
+                             (my/maintenance-language-changes (list a b c d e)))
+                     '(("20261101T100000--a.org" "polish" "pl")
+                       ("20261101T100001--b.org" "pl-PL" "pl")
+                       ("20261101T100003--d.org" "klingon" nil))))
+      ;; Answered no: nothing written, the list shown.
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) nil)))
+        (my/maintenance-language-codes))
+      (should (equal (mapcar #'my/maint-test--read (list a b c d e)) before))
+      (with-current-buffer my/maintenance--language-buffer
+        (should (string-match-p "2 note(s) to change, 1 value(s) not known" (buffer-string)))
+        (should (string-match-p "klingon" (buffer-string))))
+      ;; Answered yes.
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) t)))
+        (my/maintenance-language-codes))
+      (should (equal (my/maint-test--read a)
+                     (replace-regexp-in-string "\\`\\(#\\+title:.*\n#\\+language:    \\)polish"
+                                               "\\1pl" (nth 0 before))))
+      (should (string-match-p "#\\+begin_example\n#\\+language: polish\n" (my/maint-test--read a)))
+      (should (string-match-p "^#\\+language:    pl$" (my/maint-test--read b)))
+      (should (equal (mapcar #'my/maint-test--read (list c d e)) (nthcdr 2 before)))
+      (kill-buffer my/maintenance--language-buffer))))
+
+(ert-deftest my/maint-test-language-codes-skip-unsaved-buffer ()
+  "A note with unsaved changes in a buffer is skipped, its buffer and
+file untouched; one open without changes is written and reverted."
+  (my/maint-test--with-notes
+    (let* ((a (my/maint-test--lang-note pks "20261101T100000--a" "polish"))
+           (b (my/maint-test--lang-note pks "20261101T100001--b" "polish"))
+           (buffer-a (find-file-noselect a))
+           (buffer-b (find-file-noselect b)))
+      (with-current-buffer buffer-a (goto-char (point-max)) (insert "Unsaved.\n"))
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) t)))
+        (my/maintenance-language-codes))
+      (should (string-match-p "^#\\+language:    polish$" (my/maint-test--read a)))
+      (should (with-current-buffer buffer-a (string-match-p "Unsaved" (buffer-string))))
+      (should (string-match-p "^#\\+language:    pl$" (my/maint-test--read b)))
+      (should (with-current-buffer buffer-b
+                (string-match-p "^#\\+language:    pl$" (buffer-string))))
+      (kill-buffer my/maintenance--language-buffer))))
 
 (ert-deftest my/maint-test-set-keywords-cut-write-leaves-note ()
   "SAFETY 2.10: a write of the new front matter cut short half way leaves

@@ -379,7 +379,8 @@ present, and the report says when they are the ones in use."
 ;; citar-denote leaves alone: `my/bibliographic-note-fill' renders them
 ;; with citeproc after citar-denote has expanded the rest -- "Fred L.
 ;; Block i Margaret R. Somers", as C-c x S writes them -- and empties the
-;; placeholders of fields the entry lacks.
+;; placeholders of fields the entry lacks.  The language, BibLaTeX's
+;; langid ("polish"), is written as the code Org expects ("pl").
 
 (with-eval-after-load 'denote
   (add-to-list 'denote-templates
@@ -388,7 +389,7 @@ present, and the report says when they are the ones in use."
 #+translator:  %^{mypks:translators}
 #+publisher:   %^{publisher}
 #+year:        %^{mypks:year}
-#+language:    %^{langid}
+#+language:    %^{mypks:language}
 
 * Problem, na który odpowiada tekst
 
@@ -472,10 +473,25 @@ a message saying so."
              (and (fboundp 'citar-get-value) (citar-get-value "translator" key))
              (and date (string-match "[0-9]\\{4\\}" date) (match-string 0 date)))))))
 
+(defun my/bibliographic-note--language (key)
+  "Return the language of KEY as a code (`my/language-code'), or nil.
+As citeproc reads the entry (langid \"polish\" becomes \"pl-PL\", a
+language field is taken as it is), from the files the names come from;
+else as citar has it.  A name `my/language-code' does not know is
+returned as it is."
+  (let ((value (or (ignore-errors
+                     (alist-get 'language (cdar (funcall (my/reference--itemgetter)
+                                                         (list key)))))
+                   (and (fboundp 'citar-get-value)
+                        (or (citar-get-value "langid" key)
+                            (citar-get-value "language" key))))))
+    (and value (or (my/language-code value) value))))
+
 (defun my/bibliographic-note-fill (key)
   "Fill the %^{mypks:...} placeholders of the note in this buffer for KEY.
 %^{mypks:authors}, %^{mypks:translators} and %^{mypks:year} get the
-names and year of `my/bibliographic-note--fields'; afterwards every
+names and year of `my/bibliographic-note--fields', %^{mypks:language}
+the language code of `my/bibliographic-note--language'; afterwards every
 placeholder left in the buffer's #+keyword: lines -- a field the entry
 lacks -- is emptied, and so is the space after an empty keyword.  Runs
 after citar-denote has expanded its own."
@@ -484,7 +500,8 @@ after citar-denote has expanded its own."
     (when (re-search-forward "%\\^{mypks:" nil t)
       (pcase-let ((`(,authors ,translators ,year) (my/bibliographic-note--fields key)))
         (dolist (pair `(("authors" . ,authors) ("translators" . ,translators)
-                        ("year" . ,year)))
+                        ("year" . ,year)
+                        ("language" . ,(my/bibliographic-note--language key))))
           (goto-char (point-min))
           (while (search-forward (format "%%^{mypks:%s}" (car pair)) nil t)
             (replace-match (or (cdr pair) "") t t)))))
@@ -636,13 +653,14 @@ Bound by callers that know the language better than the buffer does.")
 (defun my/reference--locale ()
   "Return the language references are rendered in, as the export does.
 `my/reference--locale-override' when bound; else the note's #+language:
-keyword in an Org buffer, else the default language of the export, else
+keyword in an Org buffer, as a code (\"polish\" read as \"pl\",
+`my/language-code'), else the default language of the export, else
 English."
   (or my/reference--locale-override
       (and (derived-mode-p 'org-mode)
            (let ((value (cadar (org-collect-keywords '("LANGUAGE")))))
              (and value (not (string-empty-p (string-trim value)))
-                  (string-trim value))))
+                  (or (my/language-code value) (string-trim value)))))
       (and (boundp 'org-export-default-language) org-export-default-language)
       "en"))
 
