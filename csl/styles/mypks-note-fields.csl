@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0" demote-non-dropping-particle="never">
+  <info>
+    <title>MyPKS bibliographic note fields</title>
+    <id>https://github.com/waltharius/emacs/blob/main/csl/styles/mypks-note-fields.csl</id>
+    <author>
+      <name>MyPKS</name>
+    </author>
+    <category citation-format="author-date"/>
+    <summary>The authors (or editors), translators and year of an entry,
+      for the front matter of a new bibliographic note (417-bibliography.el,
+      my/bibliographic-note-fill).  The three are separated by a double
+      vertical line, which the Lisp splits on; not meant for reading.</summary>
+    <updated>2026-11-13T00:00:00+00:00</updated>
+    <rights license="https://www.gnu.org/licenses/gpl-3.0.html">GNU General Public License, version 3 or later</rights>
+  </info>
+  <!-- As in mypks-short-reference.csl: citeproc-el gives and="text" the
+       first term named "and" whatever its form, the symbol "&" in
+       English; the symbol form is given the word. -->
+  <locale xml:lang="en">
+    <terms>
+      <term name="and" form="symbol">and</term>
+    </terms>
+  </locale>
+  <!-- Every name, given name first: the front matter lists them all. -->
+  <macro name="contributors">
+    <choose>
+      <if variable="author">
+        <names variable="author">
+          <name and="text" delimiter=", " delimiter-precedes-last="never"
+                initialize="false"/>
+        </names>
+      </if>
+      <else-if variable="editor">
+        <names variable="editor">
+          <name and="text" delimiter=", " delimiter-precedes-last="never"
+                initialize="false"/>
+          <label form="short" prefix=" (" suffix=")"/>
+        </names>
+      </else-if>
+    </choose>
+  </macro>
+  <macro name="translators">
+    <names variable="translator">
+      <name and="text" delimiter=", " delimiter-precedes-last="never"
+            initialize="false"/>
+    </names>
+  </macro>
+  <!-- The separators are literal text at the top of the layout, so
+       they are printed whether or not a field is: always three parts. -->
+  <macro name="fields">
+    <text macro="contributors"/>
+    <text value="‖"/>
+    <text macro="translators"/>
+    <text value="‖"/>
+    <date variable="issued">
+      <date-part name="year"/>
+    </date>
+  </macro>
+  <citation>
+    <layout>
+      <text macro="fields"/>
+    </layout>
+  </citation>
+  <bibliography>
+    <layout>
+      <text macro="fields"/>
+    </layout>
+  </bibliography>
+</style>

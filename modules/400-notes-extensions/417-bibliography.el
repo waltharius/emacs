@@ -371,14 +371,23 @@ present, and the report says when they are the ones in use."
 ;; ============================================================
 ;; Note: #+reference is added automatically by citar-denote — do not duplicate it here.
 ;; Fields that do not expand (origdate, pagetotal) are omitted — add manually if needed.
+;;
+;; citar-denote fills %^{FIELD} with the raw BibLaTeX field, so authors
+;; read "Block, Fred L. and Somers, Margaret R.", and a field the entry
+;; lacks stays as typed ("%^{year}" for an entry with a date only).  The
+;; names and the year are therefore %^{mypks:...} placeholders, which
+;; citar-denote leaves alone: `my/bibliographic-note-fill' renders them
+;; with citeproc after citar-denote has expanded the rest -- "Fred L.
+;; Block i Margaret R. Somers", as C-c x S writes them -- and empties the
+;; placeholders of fields the entry lacks.
 
 (with-eval-after-load 'denote
   (add-to-list 'denote-templates
                '(biblio . "#+entry-type:  %^{=type=}
-#+authors:     %^{author}
-#+translator:  %^{translator}
+#+authors:     %^{mypks:authors}
+#+translator:  %^{mypks:translators}
 #+publisher:   %^{publisher}
-#+year:        %^{year}
+#+year:        %^{mypks:year}
 #+language:    %^{langid}
 
 * Problem, na który odpowiada tekst
@@ -412,6 +421,91 @@ present, and the report says when they are the ones in use."
   (citar-denote-template 'biblio)
   :config
   (citar-denote-mode 1))
+
+;; ============================================================
+;; BIBLIOGRAPHIC NOTE: names and year as C-c x S writes them
+;; ============================================================
+
+(defcustom my/bibliographic-note-language "pl"
+  "Language the names of a new bibliographic note are joined in.
+A CSL locale code: \"pl\" gives \"Fred L. Block i Margaret R. Somers\",
+\"en\" \"... and ...\".  The language of the template's headings, not
+of the book: the note is written in it.  Takes effect at once."
+  :type 'string
+  :tag "Language of a bibliographic note's names"
+  :group 'my/bibliography)
+
+(defcustom my/bibliographic-note-fields-style "mypks-note-fields.csl"
+  "CSL style giving the names and year of a new bibliographic note.
+It prints the authors (or editors), the translators and the year,
+separated by \"‖\"; bundled in csl/styles/.  Takes effect at once."
+  :type 'string
+  :tag "Style of a bibliographic note's names and year"
+  :group 'my/bibliography)
+
+(declare-function citar-get-value "citar" (field key-or-entry))
+
+(defun my/bibliographic-note--fields (key)
+  "Return (AUTHORS TRANSLATORS YEAR) of KEY, each a string or nil.
+Rendered with `my/bibliographic-note-fields-style' in
+`my/bibliographic-note-language': not in the note's #+language:, which
+the template fills with the entry's BibLaTeX language (\"polish\"), a
+name no CSL locale has.  When rendering fails -- citeproc missing, the
+key not yet in the bibliography files -- the raw fields citar has, and
+a message saying so."
+  (condition-case err
+      (mapcar (lambda (part) (let ((part (string-trim part)))
+                               (unless (string-empty-p part) part)))
+              (let ((parts (split-string
+                            (let ((my/reference--locale-override my/bibliographic-note-language))
+                              (my/reference-render (list key) my/bibliographic-note-fields-style
+                                                   'plain))
+                            "‖")))
+                (append parts (make-list (max 0 (- 3 (length parts))) ""))))
+    (error
+     (message "Bibliographic note: names left as the .bib has them (%s)"
+              (error-message-string err))
+     (let ((date (and (fboundp 'citar-get-value)
+                      (or (citar-get-value "date" key) (citar-get-value "year" key)))))
+       (list (and (fboundp 'citar-get-value)
+                  (or (citar-get-value "author" key) (citar-get-value "editor" key)))
+             (and (fboundp 'citar-get-value) (citar-get-value "translator" key))
+             (and date (string-match "[0-9]\\{4\\}" date) (match-string 0 date)))))))
+
+(defun my/bibliographic-note-fill (key)
+  "Fill the %^{mypks:...} placeholders of the note in this buffer for KEY.
+%^{mypks:authors}, %^{mypks:translators} and %^{mypks:year} get the
+names and year of `my/bibliographic-note--fields'; afterwards every
+placeholder left in the buffer's #+keyword: lines -- a field the entry
+lacks -- is emptied, and so is the space after an empty keyword.  Runs
+after citar-denote has expanded its own."
+  (save-excursion
+    (goto-char (point-min))
+    (when (re-search-forward "%\\^{mypks:" nil t)
+      (pcase-let ((`(,authors ,translators ,year) (my/bibliographic-note--fields key)))
+        (dolist (pair `(("authors" . ,authors) ("translators" . ,translators)
+                        ("year" . ,year)))
+          (goto-char (point-min))
+          (while (search-forward (format "%%^{mypks:%s}" (car pair)) nil t)
+            (replace-match (or (cdr pair) "") t t)))))
+    (goto-char (point-min))
+    (while (re-search-forward "^\\(#\\+[[:alnum:]_-]+:.*?\\)[ \t]*%\\^{[^}\n]*}[ \t]*$" nil t)
+      (replace-match "\\1" t nil))
+    (goto-char (point-min))
+    (while (re-search-forward "^\\(#\\+[[:alnum:]_-]+:\\)[ \t]+$" nil t)
+      (replace-match "\\1" t nil))))
+
+(defun my/bibliographic-note--after-expand (key &rest _)
+  "Advice after `citar-denote--expand-citation-macros': fill KEY's note."
+  (my/bibliographic-note-fill key))
+
+;; citar-denote has no hook after it fills a new note; its own function
+;; for that is advised.  When citar-denote renames it, the placeholders
+;; stay visible in the next note made, and tests/test-references.el
+;; fails on the function missing.
+(with-eval-after-load 'citar-denote
+  (advice-add 'citar-denote--expand-citation-macros :after
+              #'my/bibliographic-note--after-expand))
 
 ;; ============================================================
 ;; HELPER: Reopen PDF for current bibliographic note on the right
@@ -535,11 +629,17 @@ Read as the export reads them, and kept until a file changes."
                           (not org-cite-csl-bibtex-titles-to-sentence-case))))))
       (cdr my/reference--items))))
 
+(defvar my/reference--locale-override nil
+  "Non-nil: the language `my/reference--locale' returns, whatever the note.
+Bound by callers that know the language better than the buffer does.")
+
 (defun my/reference--locale ()
   "Return the language references are rendered in, as the export does.
-The note's #+language: keyword in an Org buffer, else the default
-language of the export, else English."
-  (or (and (derived-mode-p 'org-mode)
+`my/reference--locale-override' when bound; else the note's #+language:
+keyword in an Org buffer, else the default language of the export, else
+English."
+  (or my/reference--locale-override
+      (and (derived-mode-p 'org-mode)
            (let ((value (cadar (org-collect-keywords '("LANGUAGE")))))
              (and value (not (string-empty-p (string-trim value)))
                   (string-trim value))))

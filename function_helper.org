@@ -4717,7 +4717,7 @@ citar's, citar-denote's or 417-bibliography's, so the menu works with a
 
 | Key | Function                    | Description                              |
 |-----+------------------------------+-------------------------------------------|
-| n   | =citar-create-note=         | New note from a Zotero reference         |
+| n   | =citar-create-note=         | New note from a Zotero reference ([[#bibliographic-note-front-matter][front matter]]) |
 | o   | =citar-denote-open-note=    | Open existing bibliographic note         |
 | a   | =my/zotero-annotations-insert= | Zotero's annotations of the PDF/EPUB into the note, chosen or all (417d) |
 | f   | =my/open-bib-pdf-right=     | Open PDF for current note (right split)  |
@@ -4913,6 +4913,54 @@ Tests: =tests/test-zotero.el= (no library path without the module, the
 folder with it, a new folder at once, the option among the
 bibliography's settings).
 
+** n — the front matter of a new bibliographic note
+:PROPERTIES:
+:CUSTOM_ID: bibliographic-note-front-matter
+:END:
+
+A note made with =n= (citar-denote, template =biblio= in
+=denote-templates=) starts with the entry's details:
+
+#+begin_example
+,#+entry-type:  book
+,#+authors:     Fred L. Block i Margaret R. Somers
+,#+translator:  Joanna Bednarek i Agnieszka Kowalczyk
+,#+publisher:   Heterodox
+,#+year:        2020
+,#+language:    polish
+#+end_example
+
+citar-denote fills =%^{FIELD}= placeholders with the raw BibLaTeX
+fields, which would give "Block, Fred L. and Somers, Margaret R.".  The
+authors, translators and year are therefore =%^{mypks:...}=
+placeholders that citar-denote leaves alone;
+=my/bibliographic-note-fill= renders them afterwards with citeproc, the
+way =S= writes names ([[#reference-as-text][A reference as text]]):
+given name first, every name, joined by the word for "and"; editors with
+=(red.)= when there are no authors; the year of a full date.  A
+placeholder of a field the entry lacks is left empty instead of showing
+=%^{year}=.  When rendering fails -- citeproc missing, or a key Zotero's
+export has not yet written to the .bib -- the raw fields are written and
+a message says so; the note is made either way.
+
+| Option                               | Default                 | Meaning                                    |
+|--------------------------------------+-------------------------+--------------------------------------------|
+| =my/bibliographic-note-language=     | =pl=                    | Language the names are joined in (=i=, =and=) |
+| =my/bibliographic-note-fields-style= | =mypks-note-fields.csl= | CSL style giving the names and the year    |
+
+The language is the template's, not the book's: the headings are
+Polish, and the note is written in Polish.  The =#+language:= line holds
+the entry's BibLaTeX language as the .bib has it.
+
+citar-denote has no hook after it fills a note:
+=my/bibliographic-note-fill= runs as advice after its function
+=citar-denote--expand-citation-macros=.  A test fails when citar-denote
+renames that function.
+
+Functions: =my/bibliographic-note-fill= | Module:
+=modules/400-notes-extensions/417-bibliography.el= | Tests:
+=tests/test-references.el=
+
 ** a — Zotero's annotations into the note
 :PROPERTIES:
 :CUSTOM_ID: zotero-annotations
@@ -5002,7 +5050,9 @@ used instead: =chicago-notes-bibliography.csl=, =locales-pl-PL.xml= and
 =locales-en-US.xml=, unchanged from the Citation Style Language
 repositories, CC BY-SA 3.0 (=csl/README.md= names sources and dates).
 =mypks-short-reference.csl= is the configuration's own style for =C-c x S=
-([[#reference-as-text][A reference as text]]).
+([[#reference-as-text][A reference as text]]), and =mypks-note-fields.csl=
+for the names of a new bibliographic note
+([[#bibliographic-note-front-matter][its front matter]]).
 *Messages* says once per session which bundled file is in use; when no
 style is found at all, a warning says what to put where.
 

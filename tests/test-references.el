@@ -65,6 +65,15 @@
   langid = {polish}
 }
 
+@book{block2020,
+  title = {Karl Polanyi: krytyka wolnorynkowego fundamentalizmu},
+  author = {Block, Fred L. and Somers, Margaret R.},
+  translator = {Bednarek, Joanna and Kowalczyk, Agnieszka},
+  date = {2020},
+  publisher = {Heterodox},
+  langid = {polish}
+}
+
 @book{brace2010,
   title = {{O} tytułach w klamrach},
   author = {{Instytut Badań}},
@@ -87,6 +96,7 @@ The caches of rendered entries start empty."
           (my/csl-bundled-locales-dir (expand-file-name "csl/locales/" my/test-repo))
           (my/csl-default-style "chicago-notes-bibliography.csl")
           (my/reference-short-style "mypks-short-reference.csl")
+          (my/bibliographic-note-fields-style "mypks-note-fields.csl")
           (my/reference-full-style nil)
           (my/reference--items nil)
           (my/reference--processors nil))
@@ -296,6 +306,109 @@ of the bundled one."
                 (should-error (call-interactively #'my/insert-short-reference)
                               :type 'user-error)
                 (should (equal (buffer-string) before))))))))
+
+(defconst my/ref-test-note-front
+  "#+title:       Block 2020
+#+entry-type:  book
+#+authors:     %^{mypks:authors}
+#+translator:  %^{mypks:translators}
+#+publisher:   %^{publisher}
+#+year:        %^{mypks:year}
+#+language:    polish
+
+* Problem, na który odpowiada tekst
+"
+  "The front matter of the biblio template as citar-denote leaves it,
+the entry's publisher not yet filled (to see an empty field emptied).")
+
+(defun my/ref-test-filled-note (key language)
+  "The front matter of `my/ref-test-note-front' filled for KEY in LANGUAGE.
+The default language of the export is English, as in the configuration,
+which does not set it: the note's language must not come from there,
+nor from its #+language: polish."
+  (with-temp-buffer
+    (insert my/ref-test-note-front)
+    (org-mode)
+    (let ((org-export-default-language "en")
+          (my/bibliographic-note-language language))
+      (my/bibliographic-note-fill key))
+    (buffer-string)))
+
+(ert-deftest my/ref-test-bibliographic-note-names-as-in-text ()
+  "A new bibliographic note names authors and translators as C-c x S
+does, given name first, joined by \"i\" -- not \"Block, Fred L. and
+Somers, Margaret R.\" -- and has the year of a date; a placeholder of a
+field the entry lacks is emptied, the rest of the note untouched."
+  (skip-unless (locate-library "citeproc"))
+  (my/ref-test-with-bib my/ref-test-bib
+    (let ((note (my/ref-test-filled-note "block2020" "pl")))
+      (should (string-match-p "^#\\+authors:     Fred L\\. Block i Margaret R\\. Somers$" note))
+      (should (string-match-p "^#\\+translator:  Joanna Bednarek i Agnieszka Kowalczyk$" note))
+      (should (string-match-p "^#\\+year:        2020$" note))
+      (should (string-match-p "^#\\+publisher:$" note))
+      (should-not (string-match-p "%\\^{" note))
+      (should (string-suffix-p "\n\n* Problem, na który odpowiada tekst\n" note)))))
+
+(ert-deftest my/ref-test-bibliographic-note-language-option ()
+  "In English the names are joined by \"and\"."
+  (skip-unless (locate-library "citeproc"))
+  (my/ref-test-with-bib my/ref-test-bib
+    (should (string-match-p "^#\\+authors:     Fred L\\. Block and Margaret R\\. Somers$"
+                            (my/ref-test-filled-note "block2020" "en")))))
+
+(ert-deftest my/ref-test-bibliographic-note-editors-no-translator ()
+  "An edited volume names its editors with \"(red.)\"; three authors
+are all named; an entry without translators leaves the line empty."
+  (skip-unless (locate-library "citeproc"))
+  (my/ref-test-with-bib my/ref-test-bib
+    (let ((note (my/ref-test-filled-note "edited2005" "pl")))
+      (should (string-match-p "^#\\+authors:     Edyta Ed (red\\.)$" note))
+      (should (string-match-p "^#\\+translator:$" note))
+      (should (string-match-p "^#\\+year:        2005$" note)))
+    (should (string-match-p "^#\\+authors:     Anna Aa, Bogdan Bb i Celina Cc$"
+                            (my/ref-test-filled-note "three2001" "pl")))))
+
+(ert-deftest my/ref-test-bibliographic-note-falls-back-to-raw ()
+  "A key not in the bibliography files (Zotero's export behind citar):
+the raw fields citar has, no error, the note still made."
+  (skip-unless (locate-library "citeproc"))
+  (my/ref-test-with-bib my/ref-test-bib
+    (cl-letf (((symbol-function 'citar-get-value)
+               (lambda (field _key)
+                 (cdr (assoc field '(("author" . "Nowy, Jan") ("date" . "2026-03-01")))))))
+      (let ((note (my/ref-test-filled-note "notyet2026" "pl")))
+        (should (string-match-p "^#\\+authors:     Nowy, Jan$" note))
+        (should (string-match-p "^#\\+translator:$" note))
+        (should (string-match-p "^#\\+year:        2026$" note))))))
+
+(ert-deftest my/ref-test-bibliographic-note-after-citar-denote ()
+  "Through citar-denote's own expansion: it fills the fields it knows,
+leaves the %^{mypks:...} ones alone, and the advice fills those after.
+Fails when citar-denote renames the function the advice is on."
+  (skip-unless (and (locate-library "citeproc") (locate-library "citar-denote")))
+  (require 'citar-denote)
+  (should (fboundp 'citar-denote--expand-citation-macros))
+  (should (advice-member-p #'my/bibliographic-note--after-expand
+                           'citar-denote--expand-citation-macros))
+  (my/ref-test-with-bib my/ref-test-bib
+    (cl-letf (((symbol-function 'citar-denote--format-author-editor) (lambda (_) "raw"))
+              ((symbol-function 'citar-get-value) (lambda (&rest _) nil))
+              ((symbol-function 'citar-format-reference) (lambda (&rest _) "ref"))
+              ((symbol-function 'citar-get-entry)
+               (lambda (_) '(("=type=" . "book") ("publisher" . "Heterodox")
+                             ("author" . "Block, Fred L. and Somers, Margaret R.")))))
+      (with-temp-buffer
+        (insert (replace-regexp-in-string "#\\+entry-type:  book"
+                                          "#+entry-type:  %^{=type=}"
+                                          my/ref-test-note-front))
+        (org-mode)
+        (let ((org-export-default-language "en")
+              (my/bibliographic-note-language "pl"))
+          (citar-denote--expand-citation-macros "block2020"))
+        (let ((note (buffer-string)))
+          (should (string-match-p "^#\\+entry-type:  book$" note))
+          (should (string-match-p "^#\\+publisher:   Heterodox$" note))
+          (should (string-match-p "^#\\+authors:     Fred L\\. Block i Margaret R\\. Somers$" note)))))))
 
 (provide 'test-references)
 ;;; test-references.el ends here
