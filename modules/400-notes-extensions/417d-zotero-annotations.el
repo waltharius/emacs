@@ -61,7 +61,10 @@
 
 (defvar my/zotero-storage-directory)
 (declare-function citar-get-files "citar" (&optional citekey-or-citekeys))
-(declare-function citar-select-ref "citar" (&rest args))
+;; citar-select-ref is a `cl-defun' with keyword arguments, (&key
+;; filter): the byte compiler reads &key in a declaration as two required
+;; arguments, so its argument list is left unspecified (t).
+(declare-function citar-select-ref "citar" t)
 (declare-function citar-denote--retrieve-references "citar-denote" (file))
 (declare-function org-link-set-parameters "ol" (type &rest parameters))
 
