@@ -45,7 +45,7 @@ nor anything else that takes time.  After applying patches, or before
 pushing:
 
 ```sh
-bash hooks/check-all            # parens, lint, hook tests, every tests/test-*.el
+bash hooks/check-all            # parens, lint, hook tests, declarations, every tests/test-*.el
 bash hooks/check-all loader     # only the test files whose name has "loader"
 ```
 
@@ -57,6 +57,15 @@ settings folder and `~/.emacs.d` -- so a run neither reads nor writes
 the real notes and settings.  A file that fails prints why: ERT's
 condition, or, when it did not load, its error lines (a missing package
 reads "Cannot load <package>").
+
+Before the tests, the declarations check of the weekly run
+(`tests/weekly/declarations.el`, below) runs against the packages
+installed here: a `declare-function` naming a package's function is
+checked when that package is installed, and skipped and counted when it
+is not ("N skipped (package not installed)"); a declaration naming a
+module is always checked.  Under 1 second.  On GitHub it checks the
+packages of `tests/ci-packages.el` at every push; the weekly run checks
+them all.
 
 What "passed" means, since 2026-10-20 (audit of that date: a selection
 that matched nothing, or a file without tests, passed):
@@ -113,7 +122,7 @@ and by hand from *Actions → weekly → Run workflow*:
 |---|---|
 | First start on a clean machine (`tests/weekly/install.el`) | every module loads and every package installs from the archives, as at a new user's first start; nothing is cached, so a package withdrawn or renamed in the archives shows here |
 | Byte compilation (`tests/weekly/compile.el`) | every module compiled after the whole configuration loaded; a warning not listed in `tests/weekly/compile-warnings.txt` fails -- a misspelt function, a wrong number of arguments, a variable never defined, something obsolete |
-| Declarations (`tests/weekly/declarations.el`) | every `declare-function` form in `modules/` names a file that defines the function with the same argument list (Emacs's `check-declare`); a declaration left behind after a function moved or gained an argument fails. Exceptions, with their reason, in `tests/weekly/declare-exceptions.txt` |
+| Declarations (`tests/weekly/declarations.el`) | every `declare-function` form in `modules/` names a file that defines the function with the same argument list (Emacs's `check-declare`); a declaration left behind after a function moved or gained an argument fails. Every declared file must be found, "ext:" ones too: with every package installed, a file missing is a package that dropped or renamed it. Exceptions, with their reason, in `tests/weekly/declare-exceptions.txt` |
 | Module tests (`tests/weekly/test-modules.el`) | for every module: it loads alone with what it declares; the others load without it; its switch goes off and on leaving nothing behind and doubling nothing (TESTING.org, *Every module tested*, part 2) |
 
 On a machine where the configuration runs, every package is installed

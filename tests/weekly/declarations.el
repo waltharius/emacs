@@ -17,8 +17,21 @@
 ;; see (a constructor made by `cl-defstruct', a function made by a
 ;; macro of a package).
 ;;
-;; A weekly check: a declaration names a package's file, found only
-;; with every package installed.  Run by hooks/check-weekly.
+;; Two ways to run it:
+;;
+;; - weekly, `my/weekly-check-declarations' (hooks/check-weekly), with
+;;   every package installed: every declared file must be found,
+;;   "ext:" ones too (`check-declare-ext-errors'), since a package's
+;;   file missing then means the package renamed or dropped it;
+;;
+;; - at every push and with hooks/check-all,
+;;   `my/check-declarations-installed', with the packages installed
+;;   here: a package's file not found is skipped and counted (the
+;;   package is not installed), everything found is checked as weekly.
+;;   A module's file is never skipped: modules are always here.  Added
+;;   2026-11-13c: a wrong declaration of a package's function, found by
+;;   the weekly run only, had waited a week (2026-11-13a); the packages
+;;   the push's tests install are the ones new code tends to use.
 
 ;;; Code:
 
@@ -46,9 +59,28 @@
                         (car (split-string line))))
                     (split-string (buffer-string) "\n"))))))
 
+(defvar my/declare-installed-only nil
+  "Non-nil: a declared file that is not found and is no module is skipped.
+Set by `my/check-declarations-installed'.")
+
+(defun my/declare--module-file-p (file)
+  "Non-nil when FILE, a declared file, is a module: its name starts with a digit."
+  (string-match-p "\\`[0-9]" (file-name-nondirectory file)))
+
+(defun my/check-declarations-installed ()
+  "Check the declarations of modules/ against the packages installed here.
+As `my/weekly-check-declarations', but a package's file that is not
+found is skipped and counted instead of failing."
+  (let ((my/declare-installed-only t))
+    (my/weekly-check-declarations)))
+
 (defun my/weekly-check-declarations ()
   "Check every declaration of modules/; print each problem; exit 1 on one."
   (let* ((modules (expand-file-name "../../modules" my/weekly-declare-directory))
+         ;; With every package installed, an "ext:" file not found is a
+         ;; package that lost the file; with some installed, it is one
+         ;; not installed.
+         (check-declare-ext-errors (not my/declare-installed-only))
          (exceptions (my/weekly-declare--exceptions))
          ;; check-declare also shows its findings in a *Check Declarations
          ;; Warnings* buffer; in batch that is printed to standard error,
@@ -61,23 +93,35 @@
                                         (directory-files modules t "\\`[0-9]"))
                             load-path))
          (errors (let ((inhibit-message t)) (check-declare-directory modules)))
-         (problems nil) (excused nil))
+         (problems nil) (excused nil) (skipped nil))
     ;; ERRORS: ((DECLARED-FILE (SOURCE-FILE FUNCTION REASON) ...) ...)
     (dolist (entry errors)
       (dolist (item (cdr entry))
         (pcase-let ((`(,source ,function ,reason) item))
-          (if (member function exceptions)
-              (push function excused)
+          (cond
+           ((member function exceptions)
+            (push function excused))
+           ((and my/declare-installed-only
+                 (equal reason "file not found")
+                 (not (my/declare--module-file-p (car entry))))
+            (push function skipped))
+           (t
             (push (format "%s: %s declared in %s: %s"
                           (file-name-nondirectory source) function
                           (file-name-nondirectory (car entry)) reason)
-                  problems)))))
+                  problems))))))
     (dolist (p (sort problems #'string<))
       (princ (format "PROBLEM   %s\n" p)))
-    (dolist (f (seq-remove (lambda (f) (member f excused)) exceptions))
-      (princ (format "gone      %s  (no longer reported: remove its line)\n" f)))
-    (princ (format "declarations: %d problem(s), %d excused\n"
-                   (length problems) (length (seq-uniq excused))))
+    ;; Only with every package installed: otherwise an exception is not
+    ;; reported because its package is not installed.
+    (unless my/declare-installed-only
+      (dolist (f (seq-remove (lambda (f) (member f excused)) exceptions))
+        (princ (format "gone      %s  (no longer reported: remove its line)\n" f))))
+    (princ (format "declarations: %d problem(s), %d excused%s\n"
+                   (length problems) (length (seq-uniq excused))
+                   (if my/declare-installed-only
+                       (format ", %d skipped (package not installed)" (length skipped))
+                     "")))
     (kill-emacs (if problems 1 0))))
 
 (provide 'weekly-declarations)

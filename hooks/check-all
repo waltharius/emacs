@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Every check of this configuration: what a commit checks (hooks/pre-commit:
-# parens and lint) and every test in tests/.  For after `git am', which
-# runs no pre-commit hook, and for continuous integration.
+# parens and lint), the declarations of other files' functions for the
+# packages installed, and every test in tests/.  For after `git am',
+# which runs no pre-commit hook, and for continuous integration.
 #
 #     bash hooks/check-all            # everything
 #     bash hooks/check-all loader     # only tests/test-loader.el (any part of a name)
@@ -65,6 +66,23 @@ if [ -z "$only" ]; then
   else
     echo "  FAILED   lint (no python3 on PATH)"
     status=1
+  fi
+  # Every declare-function of modules/ against its definition, for the
+  # packages installed here (tests/weekly/declarations.el); a package
+  # not installed is skipped and counted.  hooks/check-weekly checks
+  # them all, with every package installed.
+  if command -v emacs >/dev/null 2>&1; then
+    output="$(emacs -Q --batch --eval '(package-initialize)' \
+                -l tests/weekly/declarations.el -f my/check-declarations-installed 2>/dev/null)"
+    code=$?
+    summary="$(grep -E '^declarations: ' <<<"$output" | sed 's/^declarations: //')"
+    if [ "$code" -eq 0 ]; then
+      printf '  ok       %-12s %s\n' "declarations" "$summary"
+    else
+      status=1
+      printf '  FAILED   %-12s %s\n' "declarations" "${summary:-did not run to the end}"
+      grep -vE '^declarations: ' <<<"$output" | sed 's/^/           /'
+    fi
   fi
   echo
 fi
