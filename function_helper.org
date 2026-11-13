@@ -4762,11 +4762,22 @@ will be exported cites with =i= instead ([[#citing-howto][Citing and the bibliog
 
 | Key | Inserts                                  | Example (a note with =#+language: pl=)                         |
 |-----+------------------------------------------+-----------------------------------------------------------------|
-| S   | Given Family, /Title/ (Year)             | =Kamil Bałuk i Wacław Krupiński, /Wodecki: tak mi wyszło/ (2018)= |
+| S   | ~=Given Family, /Title/ (Year)=~         | ~=Kamil Bałuk i Wacław Krupiński, /Wodecki: tak mi wyszło/ (2018)=~ |
 | R   | the entry an exported bibliography holds | =Bałuk, Kamil, i Wacław Krupiński. /Wodecki: tak mi wyszło/. Wydawnictwo Agora, 2018.= |
 
 Both ask with citar; several references chosen at once are joined by
-=;= (short) or one per line (full).  The text is rendered by citeproc-el
+=;= (short) or one per line (full).
+
+In Org the short reference goes in between ~=~ signs, each one when
+several are chosen (=my/reference-short-verbatim=, on by default).  Org
+shows verbatim text in a face of its own, so the reference stands out
+from the sentence whatever the note's font, and the title still shows in
+italic inside it: a font without an italic (the journal's) cannot show
+the title's /italic/ alone.  Exported, the reference is verbatim:
+monospaced, the title's slashes as they are -- for notes that stay
+plain text, as this command is meant for.  Org reads ~=~ as verbatim
+only after a space or an opening bracket, so the reference is inserted
+after a space, as in a sentence.  The text is rendered by citeproc-el
 with a CSL style — the same machinery and the same entries as the
 export — so names, dates and editors follow the style rather than the
 raw BibLaTeX fields (=Bałuk, Kamil and Krupiński, Wacław=):
@@ -4789,6 +4800,7 @@ raw BibLaTeX fields (=Bałuk, Kamil and Krupiński, Wacław=):
 |-----------------------------+-------------------------------+------------------------------------------------|
 | =my/reference-short-style= | =mypks-short-reference.csl=   | CSL style of =S=                               |
 | =my/reference-full-style=  | nil (the export style)        | CSL style of =R=                               |
+| =my/reference-short-verbatim= | t                          | In Org, =S= between ~=~ signs                  |
 
 A style is looked up in =my/csl-styles-dir= first, then in =csl/styles/=
 of this repository, so a changed copy of =mypks-short-reference.csl=

@@ -462,6 +462,19 @@ is.  The default gives \"Given Family i Given Family, /Title/ (Year)\",
   :tag "Style of the short reference (C-c x S)"
   :group 'my/bibliography)
 
+(defcustom my/reference-short-verbatim t
+  "Non-nil: in Org, each short reference goes in between = signs.
+=Given Family, /Title/ (Year)=: Org shows it in the face of verbatim
+text, which is set in a font of its own, so the reference stands out
+whatever the note's font -- one without an italic (the journal's) cannot
+show the title's /italic/ alone.  Org still shows the title in italic
+inside it.  Exported, the reference is verbatim text: in a monospaced
+font, the slashes of the title as they are.  Outside Org nothing is
+added.  Takes effect at once."
+  :type 'boolean
+  :tag "Short reference between = signs (C-c x S)"
+  :group 'my/bibliography)
+
 (defcustom my/reference-full-style nil
   "CSL style of the full reference `my/insert-full-reference' inserts.
 Nil: the export style, `my/csl-default-style', so that the reference
@@ -556,13 +569,14 @@ language of the export, else English."
     ;; The getter answers (KEY . nil) for a key it does not hold.
     (seq-remove (lambda (key) (cdar (funcall getter (list key)))) keys)))
 
-(defun my/reference-render (keys style-name &optional format separator)
+(defun my/reference-render (keys style-name &optional format separator wrap)
   "Return the references to KEYS, a list of citation keys, as text.
 Rendered in the CSL style STYLE-NAME as entries of a bibliography, in
 the language of the current buffer (`my/reference--locale').  FORMAT is
 a citeproc output format, `org' by default; SEPARATOR joins several
-references, a new line by default.  An unknown key is an error naming
-it."
+references, a new line by default.  WRAP, a function, is applied to the
+text of each reference before they are joined.  An unknown key is an
+error naming it."
   (let ((missing (my/reference-missing keys))
         (processor (my/reference--processor style-name (my/reference--locale))))
     (when missing
@@ -577,7 +591,8 @@ it."
      processor)
     (car (citeproc-render-bib processor (or format 'org) 'no-links t
                               (lambda (items _params)
-                                (string-join items (or separator "\n")))))))
+                                (string-join (if wrap (mapcar wrap items) items)
+                                             (or separator "\n")))))))
 
 (defun my/reference-render-citation (citation style-name &optional format)
   "Return CITATION, a `citeproc-citation' structure, as text.
@@ -598,20 +613,23 @@ not checked: `my/reference-missing' does that."
   (or (citar-select-refs)
       (user-error "No reference chosen")))
 
-(defun my/reference--insert (keys style-name separator)
+(defun my/reference--insert (keys style-name separator &optional verbatim)
   "Insert the references to KEYS in STYLE-NAME, joined by SEPARATOR.
-Org markup (/italic/) in Org buffers, plain text elsewhere."
-  (insert (my/reference-render keys style-name
-                               (if (derived-mode-p 'org-mode) 'org 'plain)
-                               separator)))
+Org markup (/italic/) in Org buffers, plain text elsewhere.  VERBATIM
+non-nil, in an Org buffer: each reference between = signs."
+  (let ((org (derived-mode-p 'org-mode)))
+    (insert (my/reference-render keys style-name (if org 'org 'plain) separator
+                                 (and org verbatim
+                                      (lambda (text) (concat "=" text "=")))))))
 
 (defun my/insert-short-reference (keys)
   "Insert a short reference to each of KEYS at point.
 Interactively, KEYS are chosen with citar.  In the style
 `my/reference-short-style': Given Family i Given Family, /Title/ (Year),
-several joined by \"; \"."
+several joined by \"; \"; in Org each between = signs when
+`my/reference-short-verbatim' is on."
   (interactive (list (my/reference--select)))
-  (my/reference--insert keys my/reference-short-style "; "))
+  (my/reference--insert keys my/reference-short-style "; " my/reference-short-verbatim))
 
 (defun my/insert-full-reference (keys)
   "Insert the full reference to each of KEYS at point, one per line.

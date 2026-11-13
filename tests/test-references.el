@@ -187,17 +187,18 @@ with slashes as Org does)."
                               (replace-regexp-in-string "[ \t\n]+" " " exported))))))
 
 (ert-deftest my/ref-test-several-keys-joined ()
-  "Several references: \"; \" between short ones, one full one per line,
-the full ones in the export style."
+  "Several references: \"; \" between short ones, each between = signs,
+one full one per line, the full ones in the export style and without."
   (skip-unless (locate-library "citeproc"))
   (my/ref-test-with-bib my/ref-test-bib
     (cl-letf (((symbol-function 'citar-select-refs)
                (lambda (&rest _) '("baluk2018" "gogh1990"))))
       (my/ref-test-in-note
        "pl" (lambda ()
-              (call-interactively #'my/insert-short-reference)
+              (let ((my/reference-short-verbatim t))
+                (call-interactively #'my/insert-short-reference))
               (should (string-suffix-p
-                       "\n\nKamil Bałuk i Wacław Krupiński, /Wodecki: tak mi wyszło/ (2018); Vincent van Gogh, /Listy/ (1990)"
+                       "\n\n=Kamil Bałuk i Wacław Krupiński, /Wodecki: tak mi wyszło/ (2018)=; =Vincent van Gogh, /Listy/ (1990)="
                        (buffer-string)))))
       (my/ref-test-in-note
        "pl" (lambda ()
@@ -206,13 +207,40 @@ the full ones in the export style."
                        "\n\nBałuk, Kamil, i Wacław Krupiński. /Wodecki: tak mi wyszło/. Wydawnictwo Agora, 2018.\nGogh, Vincent van. /Listy/. Penguin, 1990."
                        (buffer-string))))))))
 
+(ert-deftest my/ref-test-short-reference-verbatim-option ()
+  "In Org the short reference is between = signs while the option is
+on, the title in /italic/ inside; with it off, as before.  Org reads
+the result as one verbatim object."
+  (skip-unless (locate-library "citeproc"))
+  (my/ref-test-with-bib my/ref-test-bib
+    (my/ref-test-in-note
+     "pl" (lambda ()
+            (insert "Czytam ")
+            (let ((my/reference-short-verbatim t))
+              (my/insert-short-reference '("gogh1990")))
+            (insert ".")
+            (should (string-suffix-p "Czytam =Vincent van Gogh, /Listy/ (1990)=."
+                                     (buffer-string)))
+            (should (equal (org-element-property
+                            :value (car (org-element-map (org-element-parse-buffer)
+                                            'verbatim #'identity)))
+                           "Vincent van Gogh, /Listy/ (1990)"))))
+    (my/ref-test-in-note
+     "pl" (lambda ()
+            (let ((my/reference-short-verbatim nil))
+              (my/insert-short-reference '("gogh1990")))
+            (should (string-suffix-p "\n\nVincent van Gogh, /Listy/ (1990)"
+                                     (buffer-string)))))))
+
 (ert-deftest my/ref-test-plain-text-outside-org ()
-  "Outside Org the title is not wrapped in Org's /italic/ markers."
+  "Outside Org the title is not wrapped in Org's /italic/ markers, nor
+the reference in = signs."
   (skip-unless (locate-library "citeproc"))
   (my/ref-test-with-bib my/ref-test-bib
     (with-temp-buffer
       (text-mode)
-      (let ((org-export-default-language "pl"))
+      (let ((org-export-default-language "pl")
+            (my/reference-short-verbatim t))
         (my/insert-short-reference '("baluk2018")))
       (should (equal (buffer-string)
                      "Kamil Bałuk i Wacław Krupiński, Wodecki: tak mi wyszło (2018)")))))
