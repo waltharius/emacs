@@ -66,7 +66,7 @@
 (require 'subr-x)
 
 (declare-function my/note-keyword "000-core" (name))
-(declare-function my/note-keyword-set "000-core" (name value))
+(declare-function my/note-keyword-set "000-core" (name value &optional column))
 (declare-function my/transient-append "212-transient" (prefix anchor suffix))
 
 (defgroup my-image-display nil

@@ -2489,6 +2489,14 @@ empty or corrupt.  A UI preference is never worth aborting init for."
 (defconst my/note-front-matter-limit 4096
   "How far into a file to look for `#+keyword:' lines, in characters.")
 
+(defconst my/note-front-matter-column 14
+  "Column at which Denote aligns the values of its front matter.
+Handed to `my/note-keyword-set' as COLUMN by a caller writing a keyword
+into the front matter a reader sees, so that the new line stands with
+`#+title:' and `#+identifier:' rather than beside them.  Without it a
+value follows a single space, which is what the per-note appearance
+settings have always written and what their notes still hold.")
+
 (defun my/note-keyword (name)
   "Return the value of the file keyword NAME, or nil.
 NAME is given without the `#+' and the colon, e.g. \"text_width\".
@@ -2514,15 +2522,26 @@ buffer."
           nil
         n))))
 
-(defun my/note-keyword-set (name value)
+(defun my/note-keyword--line (name value &optional column)
+  "Return the front-matter line for NAME and VALUE, without the newline.
+With COLUMN, the value starts there; without it, one space after the
+colon.  At least one space in either case: a keyword longer than COLUMN
+must not end up welded to its value."
+  (let* ((prefix (format "#+%s:" name))
+         (pad (if column (max 1 (- column (length prefix))) 1)))
+    (concat prefix (make-string pad ?\s) (format "%s" value))))
+
+(defun my/note-keyword-set (name value &optional column)
   "Set file keyword NAME to VALUE in the current buffer.
 Replaces an existing line, or inserts one after the last front-matter
-keyword.  Does not save the buffer."
+keyword.  With COLUMN, the value is aligned there, the way Denote writes
+its own front matter -- see `my/note-front-matter-column'.  Does not save
+the buffer."
   (save-excursion
     (goto-char (point-min))
     (if (re-search-forward (format "^#\\+%s:.*$" (regexp-quote name))
                            (min (point-max) my/note-front-matter-limit) t)
-        (replace-match (format "#+%s: %s" name value) t t)
+        (replace-match (my/note-keyword--line name value column) t t)
       ;; No such line yet: walk the opening run of `#+keyword:' lines
       ;; and insert after it, so the new key joins the front matter
       ;; rather than landing in the prose.
@@ -2532,7 +2551,20 @@ keyword.  Does not save the buffer."
           (forward-line 1)
           (setq insert-at (point)))
         (goto-char insert-at)
-        (insert (format "#+%s: %s\n" name value))))))
+        (insert (my/note-keyword--line name value column) "\n")))))
+
+(defun my/note-keyword-remove (name)
+  "Remove the line defining file keyword NAME in the current buffer.
+Returns non-nil when a line was removed.  Not the same as setting an
+empty value: `my/note-keyword' reads an empty value as absent, but the
+line would stay in the file, in every diff and in anything reading the
+front matter by eye.  Does not save the buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (when (re-search-forward (format "^#\\+%s:.*\n?" (regexp-quote name))
+                             (min (point-max) my/note-front-matter-limit) t)
+      (replace-match "")
+      t)))
 
 ;; THE LANGUAGE OF A NOTE: A TWO-LETTER CODE
 ;; -----------------------------------------

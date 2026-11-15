@@ -6314,6 +6314,18 @@ key joins the front matter rather than landing in the prose. *It does
 not save the buffer* — the change is visible and the decision to keep
 it is yours.
 
+Its optional third argument is a column: the value is then aligned
+there, the way Denote aligns its own front matter
+(=my/note-front-matter-column=, 14). Without it the value follows a
+single space, which is the format the appearance keywords of existing
+notes already carry; a keyword a reader sees beside =#+title:= passes
+the column.
+
+=my/note-keyword-remove= takes the whole line away, newline included.
+Not the same as writing an empty value: =my/note-keyword= reads an empty
+value as absent, but the line stays in the file, in every diff and in
+front matter read by eye.
+
 * Persisted UI state
 :PROPERTIES:
 :CUSTOM_ID: ui-state
