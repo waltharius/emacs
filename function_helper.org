@@ -962,9 +962,11 @@ Module: =modules/800-overview/821-dashboards.el=
 :END:
 
 Insert links, timestamps, and other content at point. =t=, =i=, =I=,
-=u= and =H= are appended dynamically by =420-transclusion.el=,
-=331-org-images.el=, =332-web-links.el= and =333-denote-hubs.el=; =H= is
-the one entry that writes into another file rather than at point.
+=u=, =H= and =g= are appended dynamically by =420-transclusion.el=,
+=331-org-images.el=, =332-web-links.el=, =333-denote-hubs.el= and
+=405c-journal-places.el=; =H= is the one entry that writes into another
+file rather than at point, and =g= the one that writes front matter
+rather than text.
 =u= sits in the Link column, after =L=, since 2026-10-19: it was
 anchored on =I= of the images module and vanished without it. =w=
 is declared here rather than appended, because its module,
@@ -1247,6 +1249,79 @@ and =my/journal-week-label= (=%G-W%V=, e.g. =2026-W35=).  They count
 days with the [[#dates][date functions of 000-core.el]].
 
 Function: =my/journal-insert-week-links= | Module: =modules/200-foundation/205-notes.el=
+
+*** g — Place of the day
+:PROPERTIES:
+:CUSTOM_ID: fn-my-journal-set-place
+:END:
+
+Records where the journal day in the current buffer was spent, as a
+front-matter keyword beside the metrics:
+
+#+begin_example
+#+identifier: 20261115T000000
+#+language:   pl
+#+schema:     2
+#+wellbeing:  7
+#+place:      Kraków; Roma, Włochy
+#+end_example
+
+A keyword and not a property drawer for the reason given under
+[[#fn-my-journal-set-metrics][Metrics today]]: Org parses a file-level
+drawer only above =#+title:=, where it fights Denote's front matter, and
+a drawer under a headline duplicated the metrics block in practice.
+Reading and writing go through =my/note-keyword=, =my/note-keyword-set=
+and =my/note-keyword-remove= of =000-core.el=, not through a regexp of
+the module's own.
+
+*The value.* Places are separated by =my/journal-place-separator=
+(="; "=). The separator is not a comma because a comma belongs inside
+one place, between a town and its country: ="Roma, Włochy"=. A place in
+=my/journal-place-home-country= (="Polska"=) carries no country at all,
+and the country is stripped when typed — otherwise one town would stand
+in the completion list twice, bare and with the country. Spelling, case
+and diacritics are kept as typed: a town name is a name, not a key.
+
+*The list offered.* Derived from the notes, never stored: the journal
+silo is scanned for =#+place:=, reading only the first four kilobytes of
+each file. The scan also keeps the newest day each place appears on, and
+that is the order of the list — the place of the last journey first.
+Derived rather than kept in a list of its own for the reason hub
+membership is computed from note content, and ordered by the notes
+rather than by a minibuffer history because a scan survives a restart
+and is the same on every machine.
+
+The scan is cached for the session. A prefix argument (=C-u C-c n i g=)
+scans again, for notes changed outside this Emacs; a place just written
+is added to the cached list without a scan.
+
+*Choosing.* The first =my/journal-place-quick-count= (9) candidates are
+shown behind a number, and typing that number alone chooses them at
+once — the mechanism of flyspell-correct's completing-read interface,
+which is what =C-;= already does when correcting a word: the digit is
+not bound to a key, since it has to stay typable; a hook notices that
+the whole input is an index and leaves the minibuffer. Anything else is
+read as typed, so a place used for the first time needs no ceremony.
+The cost is that a place whose name is a single digit cannot be typed;
+longer names that start with one are unaffected.
+
+*Answers.* =RET= on an empty first prompt changes nothing; =-=
+(=my/journal-place-remove-marker=, the marker of the metrics) removes
+the keyword; otherwise places are collected one after another until an
+empty answer, and they replace whatever was recorded before. The command
+runs read → prompt → write, so =C-g= at any point leaves the file
+byte-identical.
+
+The command refuses to run outside a journal note, and only the journal
+silo is scanned: where a day was spent is a fact about a day.
+
+| Option | Default |
+|--------|---------|
+| =my/journal-place-separator= | ="; "= |
+| =my/journal-place-home-country= | ="Polska"=, or nil to keep every country |
+| =my/journal-place-quick-count= | =9= |
+
+Function: =my/journal-set-place= | Module: =modules/400-notes-extensions/405c-journal-places.el=
 
 *** i — Image from disk
 :PROPERTIES:

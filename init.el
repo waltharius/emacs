@@ -72,6 +72,9 @@
    ;; Optional: without it there are no metrics commands and no menu
    ;; entries for them, and nothing else changes.
    "405b-journal-metrics"     ; Journal metrics (C-c n c w / W)
+   ;; Optional: without it there is no place command and no menu entry
+   ;; for it; `#+place:' keywords already in the notes stay there.
+   "405c-journal-places"      ; Place of a journal day (C-c n i g)
    "306-capture"              ; Org-capture (SMART DATE!)
    "207-git"                  ; Git auto-commit
    "208-keybindings"          ; Keybindings

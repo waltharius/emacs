@@ -338,6 +338,7 @@ startup. Optional ones can be removed.
 |--------|---|---------|
 | `205-notes.el` | required | Journal (today and backdated), plain notes, essays, linked notes, silo moves, the shared keyword prompt, week-day link lists. |
 | `405b-journal-metrics.el` | optional | Structured daily metrics as front-matter keywords. |
+| `405c-journal-places.el` | optional | The place a journal day was spent, as a `#+place:` keyword, with the places used so far offered in the order of last visit. |
 | `306-capture.el` | required | Idea capture that records where it came from, and promotion to a full note. |
 | `419-philosophy-notes.el` | required | Five note types: literatura, pojęcie, myśliciel, problem, mapa. |
 | `420-transclusion.el` | required | `org-transclusion` wizard and live-sync editing. |

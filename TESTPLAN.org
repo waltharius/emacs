@@ -762,6 +762,22 @@ line names what was broken, so a regression is recognised at once.
       =M-x my/cite-rename-key= on a key of a test note that also holds
       =@KEY-2020=: only =@KEY= changes.
 
+** R56. The place of a journal day [0/6]
+- [ ] In today's journal, =C-c n i g=: the prompt offers the places
+      already used, the most recent first, the first nine behind a
+      number.  Typing =2= chooses the second at once.
+- [ ] A place typed by hand is accepted; =RET= on the empty prompt ends
+      the list.  The note holds =#+place:= with the places separated by
+      "; ", aligned with the rest of the front matter.
+- [ ] =Kraków, Polska= is written as =Kraków=; =Roma, Włochy= keeps its
+      country.
+- [ ] =C-c n i g= again, =RET= at once: the file is unchanged (=git
+      diff= empty).  Again with =-=: the =#+place:= line is gone.
+- [ ] =C-c n c w= in the same note: the metrics are written and
+      =#+place:= is untouched.
+- [ ] =C-c n , m=: =405c-journal-places= off, restart, =C-c n i= has no
+      =g= entry and no menu complains; on again.
+
 ** R55. The bibliography split: citar, Zotero [0/5]
 - [ ] =C-c x=, =C-c n t z= and =M-x my/zotero-menu= open the same
       bibliography menu, with the same keys as before.

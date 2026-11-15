@@ -316,6 +316,7 @@ C-c n -- NOTES TRANSIENT MENU TREE
        l  Insert link       L  Linked note       u  Web link (auto title)
        H  Add to HUB
        h  Time (HH:MM)      d  Date (YYYY-MM-DD) w  Week's days
+       g  Place of the day
        i  Image from disk   I  Attachments folder
        t  Transclusion ->
             a  Add (wizard)    A  Add all in buffer
