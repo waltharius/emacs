@@ -575,6 +575,25 @@ UPDATED is non-nil when HEAD moved."
   "git cannot read the repository: "
   "The start of the reason `my/auto-commit-pending' gives when git refuses DIR.")
 
+(defconst my/auto-commit--identity-reason
+  "changes not committed: git has no user name and e-mail"
+  "The reason `my/auto-commit-pending' gives when git cannot sign a commit.")
+
+(defun my/auto-commit--identity-missing-p (dir)
+  "Return non-nil when git in DIR has no author or committer to record.
+Every commit carries a name and an e-mail address.  Without
+`user.name' and `user.email', git guesses them from the login and the
+host name, and refuses when the guess is not an address (\"Author
+identity unknown ... unable to auto-detect email address\"); on a
+machine where git was never set up, that is every commit.  `git var'
+asks the same question without committing, and exits non-zero in the
+same case; DIR matters because a repository may set its own identity.
+Found 2026-11-18: the warning said only \"The commit failed\", and the
+reason was one line in the log."
+  (seq-some (lambda (variable)
+              (not (eq 0 (car (my/auto-commit--query-status dir "var" variable)))))
+            '("GIT_AUTHOR_IDENT" "GIT_COMMITTER_IDENT")))
+
 (defun my/auto-commit-pending (dir)
   "Return why DIR's work is not on its server, or nil when it is.
 
@@ -592,7 +611,10 @@ cannot read is reported with git's own message
      ((my/auto-commit--unmerged-p dir) "files hold conflict markers")
      ((my/auto-commit--busy-p dir) "a rebase or merge is in progress")
      ((my/auto-commit--locked-p dir) "git is locked (.git/index.lock)")
-     ((my/auto-commit--dirty-p dir) "changes not committed")
+     ((my/auto-commit--dirty-p dir)
+      (if (my/auto-commit--identity-missing-p dir)
+          my/auto-commit--identity-reason
+        "changes not committed"))
      ((not (and (my/auto-commit--has-upstream-p dir)
                 (my/auto-commit--unpushed-p dir)))
       nil)
@@ -625,6 +647,13 @@ cannot read is reported with git's own message
   `r r' (continue) / `r a' (abort).")
       ("changes not committed"
        "  The commit failed; the reason is in the log (C-c v l).")
+      ((pred (equal my/auto-commit--identity-reason))
+       "  Git records a name and an e-mail address with every commit, and none
+  is set on this machine.  Set them once, in a terminal:
+    git config --global user.name 'Name Surname'
+    git config --global user.email 'name@example.com'
+  Where home-manager manages git's configuration, ~/.config/git/config
+  is read-only: set them there.  The next idle period commits.")
       ((pred (equal my/auto-commit--push-off-reason))
        (if my/auto-commit-push
            (format "  %s is in `my/auto-commit-no-push-directories' (C-c n , ,

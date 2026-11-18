@@ -847,5 +847,54 @@ automatic commits off, for a machine that does not use git."
       (should (string-search "changes not committed" text))
       (should (string-search "my/auto-commit-mode" text)))))
 
+;; ============================================================
+;; NO GIT IDENTITY
+;; ============================================================
+
+(defmacro my/ac-test--without-identity (dir &rest body)
+  "Run BODY with git knowing no user name or e-mail address in DIR.
+The clone's own identity is removed; the user's and the system's
+configuration are hidden; and git is told not to guess one from the
+login and host name, which succeeds on some machines and not on others."
+  (declare (indent 1))
+  `(progn
+     (my/ac-test--git ,dir "config" "--unset" "user.email")
+     (my/ac-test--git ,dir "config" "--unset" "user.name")
+     (let ((process-environment
+            (append '("GIT_CONFIG_GLOBAL=/dev/null"
+                      "GIT_CONFIG_NOSYSTEM=1"
+                      "GIT_CONFIG_COUNT=1"
+                      "GIT_CONFIG_KEY_0=user.useConfigOnly"
+                      "GIT_CONFIG_VALUE_0=true")
+                    (seq-remove (lambda (entry)
+                                  (string-match-p
+                                   "\\`\\(EMAIL\\|GIT_\\(AUTHOR\\|COMMITTER\\)_\\(NAME\\|EMAIL\\)\\)="
+                                   entry))
+                                process-environment))))
+       ,@body)))
+
+(ert-deftest my/ac-test-no-identity-named-as-the-reason ()
+  "Without user.name and user.email the commit fails, and the reason
+says so, with the commands that set them -- not only \"the commit
+failed\" with the cause one line in the log."
+  (my/ac-test--with-repos
+    (my/ac-test--without-identity here
+      (should (my/auto-commit--identity-missing-p here))
+      (my/ac-test--write (expand-file-name "p.org" here) "p\n")
+      (my/ac-test--cycle)
+      (should (my/auto-commit--dirty-p here))
+      (let ((reason (my/auto-commit-pending here)))
+        (should (equal reason my/auto-commit--identity-reason))
+        (should (string-search "git config --global user.email"
+                               (my/auto-commit--advice here reason)))))))
+
+(ert-deftest my/ac-test-identity-present-no-identity-reason ()
+  "With an identity (the clone's own), a change not committed yet keeps
+the plain reason."
+  (my/ac-test--with-repos
+    (should-not (my/auto-commit--identity-missing-p here))
+    (my/ac-test--write (expand-file-name "q.org" here) "q\n")
+    (should (equal (my/auto-commit-pending here) "changes not committed"))))
+
 (provide 'test-auto-commit)
 ;;; test-auto-commit.el ends here

@@ -645,7 +645,7 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
-** R59. Automatic commits: the switch [0/4]
+** R59. Automatic commits: the switch, git identity [0/5]
 - [ ] =C-c n , ,= → Tools → Git: the option =my/auto-commit-mode= on.  Toggle,
       Apply and Save; =C-h v my/auto-commit-mode= → nil, and this
       machine's =custom.el= holds it.  =M-: my/auto-commit--idle-timer=
@@ -659,6 +659,14 @@ first: on exit it still writes to the old places.
       off.
 - [ ] Toggle back on, Apply and Save: the next idle period commits; the
       next start pulls; quitting with work not on the server asks again.
+- [ ] On a test account with no git configuration (no =~/.gitconfig=,
+      no =~/.config/git/config=): create a writing project, write in it,
+      =C-c v a=.  Where git cannot guess an address from the host name,
+      the warning reads "changes not committed: git has no user name and
+      e-mail" and shows the two =git config= lines (where it can guess,
+      git commits under the guessed address and nothing is reported).
+      Set them: the next =C-c v a= commits, and =C-c v ?= says "on the
+      server" or "commits not pushed".
 
 ** R58. Capital letter at sentence start [0/6]
 - [ ] =C-c n , m=, 304-sentence-capitals on (a new machine starts
