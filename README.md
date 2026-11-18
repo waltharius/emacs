@@ -404,7 +404,7 @@ startup. Optional ones can be removed.
 
 | Module | | Purpose |
 |--------|---|---------|
-| `207-git.el` | required | Auto-commit *and push* on idle and on exit, for notes and for this repo. |
+| `207-git.el` | required | Magit; auto-commit *and push* on idle and on exit, for notes and writing projects (this repo only if asked). Switch `my/auto-commit-mode` turns the automatic part off on a machine. |
 | `114-typing-analytics.el` | required | keyfreq and keylog. Data is gitignored. |
 | `716-org-export.el` | required | PDF export and LaTeX preamble. |
 

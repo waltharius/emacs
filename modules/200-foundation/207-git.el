@@ -19,6 +19,13 @@
 ;; (see "IN THE BACKGROUND"); only the exit commit waits for git.  A conflict is never resolved automatically: the pull is
 ;; undone, nothing is pushed, and a warning says how to resolve it.
 ;;
+;; All of it -- the idle timer, the start-up pull, the exit commit and
+;; its question -- is started by one switch, `my/auto-commit-mode' (see
+;; "ON AND OFF"), on by default.  A machine that does not use git turns
+;; it off in its settings (C-c n , , -> Tools -> Git) and hears nothing
+;; more of it.  Magit and the C-c v commands stay either way: they run
+;; only when asked.
+;;
 ;; Docs: ~/.emacs.d/function_helper.org::#auto-commit
 
 ;;; Code:
@@ -85,6 +92,10 @@ Run from `git-commit-setup-hook' in the buffer of the message."
   "Automatic commits of the notes repository (207-git.el)."
   :tag "Automatic commits"
   :group 'mypks-git)
+
+;; The switch is defined under ON AND OFF, after everything it starts;
+;; the timer and the idle cycle read it before that.
+(defvar my/auto-commit-mode)
 
 (defun my/auto-commit--notes-directory ()
   "Return the notes folder, the first repository committed automatically."
@@ -654,20 +665,28 @@ so that the next failure is shown again."
                                     (cdr entry)
                                     (my/auto-commit--advice (car entry) (cdr entry))))
                           (nreverse new) "\n\n")
-               "\n\nCheck at any time: C-c v ?   Git output: C-c v l")
+               "\n\nCheck at any time: C-c v ?   Git output: C-c v l"
+               "\nNot using git on this machine: turn `my/auto-commit-mode' off"
+               "\n(C-c n , , -> Tools -> Git), Apply and Save.")
        :warning))))
 
 ;;;###autoload
 (defun my/auto-commit-status ()
   "Say, for every auto-committed repository, whether its work is on the server."
   (interactive)
-  (let ((lines (mapcar (lambda (dir)
-                         (format "%s: %s" (abbreviate-file-name dir)
-                                 (or (ignore-errors (my/auto-commit-pending dir))
-                                     "on the server")))
-                       (seq-filter (lambda (d) (file-directory-p
-                                                (expand-file-name ".git" d)))
-                                   (my/auto-commit-directories)))))
+  (let ((lines (append
+                ;; Said first: with the switch off nothing below changes
+                ;; by itself, and a list of pending work would otherwise
+                ;; read as a cycle that keeps failing.
+                (unless my/auto-commit-mode
+                  (list "Automatic commits are off (my/auto-commit-mode); C-c v a still commits on request"))
+                (mapcar (lambda (dir)
+                          (format "%s: %s" (abbreviate-file-name dir)
+                                  (or (ignore-errors (my/auto-commit-pending dir))
+                                      "on the server")))
+                        (seq-filter (lambda (d) (file-directory-p
+                                                 (expand-file-name ".git" d)))
+                                    (my/auto-commit-directories))))))
     (message "%s" (string-join lines "\n"))
     lines))
 
@@ -1158,7 +1177,7 @@ From `after-init-hook', when every module has added its repositories."
     (my/auto-commit--startup-pull-next
      (mapcar #'expand-file-name (my/auto-commit-directories)) nil)))
 
-(add-hook 'after-init-hook #'my/auto-commit--startup-pull -90)
+;; On `after-init-hook' through `my/auto-commit-mode' (ON AND OFF).
 
 (defvar my/auto-commit--idle-timer nil
   "Repeating idle timer running `my/auto-commit-all'.")
@@ -1167,19 +1186,20 @@ From `after-init-hook', when every module has added its repositories."
   "Commit and push in the background, quietly, after a period of idleness.
 Skipped while the start-up pull or another cycle runs; the next idle
 period catches up.  Failures are shown as warnings, not swallowed."
-  (unless (my/auto-commit--busy-in-background-p)
+  (unless (or (not my/auto-commit-mode)
+              (my/auto-commit--busy-in-background-p))
     (my/auto-commit--cycle #'ignore t)))
 
 (defun my/auto-commit--arm-timer ()
-  "Start the idle timer, replacing a running one.
-Called at load and whenever `my/auto-commit-idle-seconds' changes."
+  "Start the idle timer, replacing a running one; with the switch off, stop it.
+Called by `my/auto-commit-mode' and whenever `my/auto-commit-idle-seconds'
+changes."
   (when (timerp my/auto-commit--idle-timer)
     (cancel-timer my/auto-commit--idle-timer))
   (setq my/auto-commit--idle-timer
-        (run-with-idle-timer my/auto-commit-idle-seconds t
-                             #'my/auto-commit--on-idle)))
-
-(my/auto-commit--arm-timer)
+        (and (bound-and-true-p my/auto-commit-mode)
+             (run-with-idle-timer my/auto-commit-idle-seconds t
+                                  #'my/auto-commit--on-idle))))
 
 ;; THE WAY OUT: ONE COMMIT, TWO ENTRANCES.  Until 2026-10-19 the exit
 ;; commit was wired three ways -- `kill-emacs-hook', the last frame in
@@ -1216,9 +1236,8 @@ in `kill-emacs-query-functions', BEFORE `confirm-kill-emacs' asks
 and the real quit later committed nothing (outside review 2026-10-27)."
   (setq my/auto-commit-done nil))
 
-;; First of the advice on quitting, so that it runs before the others.
-(advice-add 'save-buffers-kill-emacs :before #'my/auto-commit--new-quit
-            '((depth . -100)))
+;; Added by `my/auto-commit-mode' as the first advice on quitting
+;; (depth -100), so that it runs before the others.
 
 (defun my/auto-commit--uncommitted-p ()
   "Non-nil when an auto-committed repository has changes not committed.
@@ -1245,7 +1264,7 @@ descriptions of `my/auto-commit-all'."
 (define-obsolete-function-alias 'my/auto-commit-all-once
   #'my/auto-commit-exit-commit "2026-10-19")
 
-(add-hook 'kill-emacs-hook #'my/auto-commit-exit-commit)
+;; On `kill-emacs-hook' through `my/auto-commit-mode'.
 
 (defun my/auto-commit--save-before-quit (&rest _)
   "Save the buffers of auto-committed repositories before quitting asks.
@@ -1256,7 +1275,9 @@ it anyway.  No git here; the commit follows in
       (my/auto-commit--save-buffers)
     (error (message "Saving before quitting: %s" (error-message-string err)))))
 
-(advice-add 'save-buffers-kill-emacs :before #'my/auto-commit--save-before-quit)
+;; Added by `my/auto-commit-mode'.  With the switch off, quitting asks
+;; "Save file ...?" about a note as about any other file: nothing
+;; commits it afterwards.
 
 ;; A commit message still open when quitting: git waits for it, so Emacs
 ;; asks about "active processes" and "other clients" (the message
@@ -1275,13 +1296,21 @@ it anyway.  No git here; the commit follows in
       (pop-to-buffer (car open))
       (user-error "Not quitting: finish the commit with C-c C-c or cancel it with C-c C-k, then quit"))))
 
-(advice-add 'save-buffers-kill-emacs :before #'my/auto-commit--message-before-quit)
+;; Outside the switch: it protects a commit written by hand (C-c v c,
+;; Magit), which exists with automatic commits off as well.  Depth -50:
+;; after `my/auto-commit--new-quit' (-100) and before
+;; `my/auto-commit--save-before-quit' (0), the order these had when all
+;; three were added at load -- the switch, turned on again later, would
+;; otherwise put the saving first.
+(advice-add 'save-buffers-kill-emacs :before #'my/auto-commit--message-before-quit
+            '((depth . -50)))
 
 (defun my/auto-commit--on-last-client-frame (frame)
   "In a daemon, start a background cycle when FRAME is the last client frame.
 Emacs keeps running, so this is not the exit commit: the real exit
 later commits again."
-  (when (and (daemonp)
+  (when (and my/auto-commit-mode
+             (daemonp)
              (frame-parameter frame 'client)
              (not (seq-some (lambda (other)
                               (and (not (eq other frame))
@@ -1290,7 +1319,7 @@ later commits again."
              (not (my/auto-commit--busy-in-background-p)))
     (my/auto-commit--cycle #'ignore t)))
 
-(add-hook 'delete-frame-functions #'my/auto-commit--on-last-client-frame)
+;; On `delete-frame-functions' through `my/auto-commit-mode'.
 
 ;; The last word before quitting.  `kill-emacs-query-functions' run
 ;; after the buffers have been saved, so the cycle commits what the save
@@ -1328,7 +1357,69 @@ question is turned on (`my/auto-commit-confirm-exit')."
             ;; the flag stayed set, and that later quit committed nothing.)
             (progn (setq my/auto-commit-done nil) nil))))))
 
-(add-hook 'kill-emacs-query-functions #'my/auto-commit--confirm-exit)
+;; ============================================================
+;; ON AND OFF
+;; ============================================================
+;; The switch of the automatic part (module contract, rule 12): what
+;; runs by itself is started here and taken back here.  Magit, the
+;; C-c v keys and `my/auto-commit--message-before-quit' are not part of
+;; it -- they act only when asked, or protect a commit written by hand.
+;;
+;; Not named `my/git-mode' and not declared as the module's
+;; MyPKS-Switch: 207-git stays a core module, Magit included, and the
+;; switch covers only the automatic commits.  A MyPKS-Switch is the
+;; switch of a whole module, and the weekly switch test would rightly
+;; find the C-c v keys still bound with it off.
+;;
+;; Off, nothing is committed, pulled or pushed without being asked, and
+;; nothing about the repositories is reported.  What is already in
+;; them stays; turning it on again resumes at the next idle period (the
+;; start-up pull follows at the next start).
+
+(define-minor-mode my/auto-commit-mode
+  "Automatic commits, pulls and pushes of the notes and other repositories.
+
+On (the default): a commit and push after `my/auto-commit-idle-seconds'
+of idleness, a pull at start-up, a last commit when Emacs quits with the
+question about work not on the server (`my/auto-commit-confirm-exit'),
+and a warning when a repository's work stops reaching its server.
+
+Off: none of that.  For a machine that does not use git, or that keeps
+its notes in a repository by hand.  C-c v a (`my/auto-commit-now'), C-c v
+? and Magit still work when asked.  A folder that is no git repository
+needs no switch: it is skipped either way.
+
+Customize saves the position in this machine's settings
+\(C-c n , , -> Tools -> Git, or M-x customize-option RET
+my/auto-commit-mode); M-x my/auto-commit-mode changes it for this
+session only."
+  :global t
+  :init-value t
+  :group 'my/git
+  (if my/auto-commit-mode
+      (progn
+        (add-hook 'after-init-hook #'my/auto-commit--startup-pull -90)
+        (add-hook 'kill-emacs-hook #'my/auto-commit-exit-commit)
+        (add-hook 'kill-emacs-query-functions #'my/auto-commit--confirm-exit)
+        (add-hook 'delete-frame-functions #'my/auto-commit--on-last-client-frame)
+        (advice-add 'save-buffers-kill-emacs :before #'my/auto-commit--new-quit
+                    '((depth . -100)))
+        (advice-add 'save-buffers-kill-emacs :before #'my/auto-commit--save-before-quit))
+    (remove-hook 'after-init-hook #'my/auto-commit--startup-pull)
+    (remove-hook 'kill-emacs-hook #'my/auto-commit-exit-commit)
+    (remove-hook 'kill-emacs-query-functions #'my/auto-commit--confirm-exit)
+    (remove-hook 'delete-frame-functions #'my/auto-commit--on-last-client-frame)
+    (advice-remove 'save-buffers-kill-emacs #'my/auto-commit--new-quit)
+    (advice-remove 'save-buffers-kill-emacs #'my/auto-commit--save-before-quit)
+    ;; Forgotten, so that turning it on again reports what is pending
+    ;; afresh instead of taking it for already shown.
+    (setq my/auto-commit--reported nil))
+  (my/auto-commit--arm-timer))
+
+;; The saved position, applied once the module has loaded: Customize
+;; has set the variable from custom.el already, and this call runs the
+;; body accordingly.
+(my/auto-commit-mode (if my/auto-commit-mode 1 -1))
 
 ;; ============================================================
 ;; MANUAL COMMIT FUNCTIONS

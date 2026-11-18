@@ -4005,6 +4005,47 @@ change is the opposite: it has a reason worth writing down, and an
 automatic commit buries the reason and silently absorbs half-finished
 edits. Set =my/auto-commit-config-enabled= to =t= to include it anyway.
 
+** On and off
+:PROPERTIES:
+:CUSTOM_ID: auto-commit-switch
+:END:
+
+Everything below that runs by itself -- the idle cycle, the start-up
+pull, the exit commit and its question, the warnings about work not on
+the server -- is started by one switch, =my/auto-commit-mode=, on by
+default (since 2026-11-18a).  For a machine that does not use git, or
+whose repositories are committed by hand:
+
+| Where                                        | Effect                                       |
+|----------------------------------------------+----------------------------------------------|
+| =C-c n , ,= → Tools → Git, /Toggle/, /Apply and Save/ | off on this machine, from now on (its =custom.el=) |
+| =M-x customize-option RET my/auto-commit-mode= | the same                                   |
+| =M-x my/auto-commit-mode=                    | off or on for this session only              |
+
+Off, nothing is committed, pulled or pushed without being asked, and
+nothing is reported; quitting asks "Save file ...?" about a note as
+about any other file, since nothing commits it afterwards.  What stays:
+Magit and every =C-c v= command, =C-c v a= included, which commits and
+pushes when pressed; =C-c v ?= says first that the automatic commits
+are off.  The question before quitting with a commit message still open
+(=C-c v c=, Magit) stays too: it protects a commit made by hand.
+Turned on again, the next idle period commits; the start-up pull
+follows at the next start.
+
+A folder that is no git repository needs no switch: it is skipped
+whether the switch is on or off.  The switch matters where a folder
+/is/ a repository but nobody wants it committed automatically -- a
+writing project gets one at creation (=428-writing-projects.el=), and on
+a machine where git has no user name and e-mail address set, commits
+there usually fail and are reported at every start.
+
+Not a module switch in the sense of [[#module-switch][A module's switch]]: 207-git stays a
+core module and keeps Magit and its keys; =my/auto-commit-mode= turns
+off its automatic part only, so it is not its =MyPKS-Switch= and
+=C-c n , m= lists the module as core.
+
+Function: =my/auto-commit-mode= | Module: =modules/200-foundation/207-git.el=
+
 ** When it runs
 
 *After five minutes of idleness*, repeating. This is the one that
@@ -7558,7 +7599,9 @@ How a module writes one, with two helpers:
   commits of =207-git.el= when it is off (=my/auto-commit-repository-sources=
   is extended at load, outside the switch): the switch turns off what
   the module does, not the backup of what it already wrote.  Decided
-  2026-10-19, with the planner and the writing projects.
+  2026-10-19, with the planner and the writing projects.  The automatic
+  commits themselves have a switch of their own, =my/auto-commit-mode=
+  ([[#auto-commit-switch][Auto-commit: on and off]]); off, nothing is committed for any module.
 - A capture template goes in with =my/settings-capture-template= and out
   with =my/settings-capture-template-remove= (000-core.el), both by the
   template's target; a key taken from an option goes through

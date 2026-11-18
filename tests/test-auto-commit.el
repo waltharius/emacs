@@ -743,5 +743,109 @@ commit is made there; once it is closed, the next cycle commits."
       (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) (error "Asked"))))
         (should-not (my/auto-commit--message-before-quit))))))
 
+;; ============================================================
+;; THE SWITCH (my/auto-commit-mode)
+;; ============================================================
+
+(defun my/ac-test--switch-items ()
+  "Return how often each piece the switch adds is in place, as an alist."
+  (list (cons 'after-init (seq-count (lambda (f) (eq f #'my/auto-commit--startup-pull))
+                                     after-init-hook))
+        (cons 'kill-emacs (seq-count (lambda (f) (eq f #'my/auto-commit-exit-commit))
+                                     kill-emacs-hook))
+        (cons 'query (seq-count (lambda (f) (eq f #'my/auto-commit--confirm-exit))
+                                kill-emacs-query-functions))
+        (cons 'frame (seq-count (lambda (f) (eq f #'my/auto-commit--on-last-client-frame))
+                                delete-frame-functions))
+        (cons 'new-quit (if (advice-member-p #'my/auto-commit--new-quit
+                                             'save-buffers-kill-emacs)
+                            1 0))
+        (cons 'save (if (advice-member-p #'my/auto-commit--save-before-quit
+                                         'save-buffers-kill-emacs)
+                        1 0))
+        (cons 'timer (seq-count (lambda (timer)
+                                  (eq (timer--function timer) #'my/auto-commit--on-idle))
+                                timer-idle-list))))
+
+(defmacro my/ac-test--with-switch (&rest body)
+  "Run BODY, then leave the switch on and the idle timer stopped, as the
+test file keeps it."
+  (declare (indent 0))
+  `(unwind-protect
+       (progn ,@body)
+     (my/auto-commit-mode 1)
+     (when (timerp my/auto-commit--idle-timer)
+       (cancel-timer my/auto-commit--idle-timer))))
+
+(ert-deftest my/ac-test-switch-off-takes-everything-back ()
+  "Off: no idle timer, no start-up pull, no exit commit or question, no
+advice on quitting.  On again: each of them once.  The question about an
+open commit message stays either way: it protects a commit made by hand."
+  (my/ac-test--with-switch
+    (my/auto-commit-mode 1)
+    (should (seq-every-p (lambda (item) (= (cdr item) 1)) (my/ac-test--switch-items)))
+    (my/auto-commit-mode -1)
+    (should (seq-every-p (lambda (item) (= (cdr item) 0)) (my/ac-test--switch-items)))
+    (should-not my/auto-commit--idle-timer)
+    (should (advice-member-p #'my/auto-commit--message-before-quit
+                             'save-buffers-kill-emacs))
+    (my/auto-commit-mode 1)
+    (my/auto-commit-mode 1)
+    (should (seq-every-p (lambda (item) (= (cdr item) 1)) (my/ac-test--switch-items)))))
+
+(ert-deftest my/ac-test-switch-off-idle-timer-stays-off ()
+  "A change of `my/auto-commit-idle-seconds' with the switch off starts
+no timer; nor does an idle period that fires all the same start a cycle."
+  (my/ac-test--with-switch
+    (my/auto-commit-mode -1)
+    (my/auto-commit--arm-timer)
+    (should-not my/auto-commit--idle-timer)
+    (let ((started nil))
+      (cl-letf (((symbol-function 'my/auto-commit--cycle)
+                 (lambda (&rest _) (setq started t))))
+        (my/auto-commit--on-idle))
+      (should-not started))))
+
+(ert-deftest my/ac-test-switch-off-forgets-what-was-reported ()
+  "Turned off, what was already reported is forgotten, so that turning
+it on again reports the pending work afresh."
+  (my/ac-test--with-switch
+    (let ((my/auto-commit--reported (list (cons "/tmp/x/" "commits not pushed"))))
+      (my/auto-commit-mode -1)
+      (should-not my/auto-commit--reported))))
+
+(ert-deftest my/ac-test-switch-off-status-says-so ()
+  "C-c v ? says first that the automatic commits are off; the
+repositories follow, still answered."
+  (my/ac-test--with-repos
+    (my/ac-test--with-switch
+      (my/auto-commit-mode -1)
+      (let ((lines (my/auto-commit-status)))
+        (should (string-prefix-p "Automatic commits are off" (car lines)))
+        (should (string-suffix-p ": on the server" (cadr lines))))
+      (my/auto-commit-mode 1)
+      (should-not (string-prefix-p "Automatic commits are off"
+                                   (car (my/auto-commit-status)))))))
+
+(ert-deftest my/ac-test-switch-off-commit-on-request-still-works ()
+  "With the switch off, C-c v a still commits and pushes when asked."
+  (my/ac-test--with-repos
+    (my/ac-test--with-switch
+      (my/auto-commit-mode -1)
+      (my/ac-test--write (expand-file-name "n.org" here) "n\n")
+      (should (equal (my/ac-test--cycle) '("here: committed, pushed"))))))
+
+(ert-deftest my/ac-test-report-names-the-switch ()
+  "The warning about work not on the server says how to turn the
+automatic commits off, for a machine that does not use git."
+  (my/ac-test--with-repos
+    (let (text)
+      (cl-letf (((symbol-function 'display-warning)
+                 (lambda (_type message &rest _) (setq text message))))
+        (my/ac-test--write (expand-file-name "o.org" here) "o\n")
+        (my/auto-commit--report (list here)))
+      (should (string-search "changes not committed" text))
+      (should (string-search "my/auto-commit-mode" text)))))
+
 (provide 'test-auto-commit)
 ;;; test-auto-commit.el ends here

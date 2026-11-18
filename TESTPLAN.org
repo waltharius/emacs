@@ -645,6 +645,21 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
+** R59. Automatic commits: the switch [0/4]
+- [ ] =C-c n , ,= → Tools → Git: the option =my/auto-commit-mode= on.  Toggle,
+      Apply and Save; =C-h v my/auto-commit-mode= → nil, and this
+      machine's =custom.el= holds it.  =M-: my/auto-commit--idle-timer=
+      → nil.
+- [ ] Off: change a note, wait longer than =my/auto-commit-idle-seconds=:
+      =C-c v l= shows no new commit; =C-c v ?= starts with "Automatic
+      commits are off".  =C-c v a= still commits and pushes.
+- [ ] Off: change a note without saving, =C-x C-c=: Emacs asks "Save
+      file ...?" about it, as about any file, and asks nothing about the
+      server.  Restart: no start-up pull in =C-c v l=, the switch still
+      off.
+- [ ] Toggle back on, Apply and Save: the next idle period commits; the
+      next start pulls; quitting with work not on the server asks again.
+
 ** R58. Capital letter at sentence start [0/6]
 - [ ] =C-c n , m=, 304-sentence-capitals on (a new machine starts
       without it).  In a note, type =kot jest. pies jest? tak= and a
