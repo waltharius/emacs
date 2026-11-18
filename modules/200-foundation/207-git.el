@@ -190,6 +190,24 @@ will not see the work."
   :type 'boolean
   :group 'my/git)
 
+(defcustom my/auto-commit-warn-unpushed t
+  "When non-nil, commits that did not reach the server are reported.
+
+On (the default): a warning after the idle cycle, and the question when
+quitting (`my/auto-commit-confirm-exit'), when a repository has commits
+its server does not -- the server unreachable, the push refused, or
+pushing turned off.
+
+Off: for a machine often away from its server on purpose, or one that
+commits locally only.  Those commits are no longer warned or asked
+about; they are pushed by a later cycle once the server answers, and
+C-c v ? still lists them.  Everything that keeps work from being
+committed at all -- a failed commit, a conflict, a lock, a repository
+git cannot read -- is reported either way: that is work not even on
+this machine's history."
+  :type 'boolean
+  :group 'my/git)
+
 (defvar my/auto-commit-log-buffer "*auto-commit*"
   "Buffer collecting git output from automatic commits and pushes.")
 
@@ -621,6 +639,20 @@ cannot read is reported with git's own message
      ((my/auto-commit--push-p dir) "commits not pushed")
      (t my/auto-commit--push-off-reason))))
 
+(defun my/auto-commit--unpushed-reason-p (reason)
+  "Non-nil when REASON means only that commits are not on the server yet."
+  (member reason (list "commits not pushed" my/auto-commit--push-off-reason)))
+
+(defun my/auto-commit--reported-reason (dir)
+  "Return why DIR's work is not on its server, as far as it is reported.
+`my/auto-commit-pending', less the reasons `my/auto-commit-warn-unpushed'
+turned off.  An error asking is the reason itself."
+  (let ((reason (condition-case err (my/auto-commit-pending dir)
+                  (error (error-message-string err)))))
+    (unless (and (not my/auto-commit-warn-unpushed)
+                 (my/auto-commit--unpushed-reason-p reason))
+      reason)))
+
 (defun my/auto-commit--advice (dir reason)
   "Return what to do about REASON in DIR, as text."
   (let ((git (abbreviate-file-name (expand-file-name ".git" dir))))
@@ -673,8 +705,7 @@ so that the next failure is shown again."
   (let (new)
     (dolist (dir dirs)
       (let* ((dir (expand-file-name dir))
-             (reason (condition-case err (my/auto-commit-pending dir)
-                       (error (error-message-string err))))
+             (reason (my/auto-commit--reported-reason dir))
              (old (assoc dir my/auto-commit--reported)))
         (cond
          ((null reason)
@@ -1369,8 +1400,12 @@ question is turned on (`my/auto-commit-confirm-exit')."
                                                  (error nil))))
                                    ;; A folder kept from pushing on
                                    ;; purpose (a test copy) is not asked
-                                   ;; about at every exit.
+                                   ;; about at every exit; nor, with
+                                   ;; `my/auto-commit-warn-unpushed'
+                                   ;; off, are commits not pushed yet.
                                    (and reason
+                                        (or my/auto-commit-warn-unpushed
+                                            (not (my/auto-commit--unpushed-reason-p reason)))
                                         (not (and (equal reason my/auto-commit--push-off-reason)
                                                   my/auto-commit-push))
                                         (format "%s (%s)"

@@ -645,7 +645,7 @@ first: on exit it still writes to the old places.
 - [ ] =M-x my/repo-docs-mode= off: the preview server stops and Export
       has no =r=; on again: =r= back.
 
-** R59. Automatic commits: the switch, git identity [0/5]
+** R59. Automatic commits: the switch, git identity, away from the server [0/7]
 - [ ] =C-c n , ,= → Tools → Git: the option =my/auto-commit-mode= on.  Toggle,
       Apply and Save; =C-h v my/auto-commit-mode= → nil, and this
       machine's =custom.el= holds it.  =M-: my/auto-commit--idle-timer=
@@ -667,6 +667,15 @@ first: on exit it still writes to the old places.
       git commits under the guessed address and nothing is reported).
       Set them: the next =C-c v a= commits, and =C-c v ?= says "on the
       server" or "commits not pushed".
+- [ ] Away from home (or GitLab stopped): change a note, =C-c v a=:
+      "server unreachable", and a warning "commits not pushed".  =C-c n
+      , ,= → Tools → Git, =my/auto-commit-warn-unpushed= off, Apply and
+      Save.  Restart, change a note, =C-c v a=: no warning; =C-x C-c=
+      asks nothing about the server; =C-c v ?= still says "commits not
+      pushed".  Back home, the next cycle pushes.
+- [ ] Still off, leave a lock: =touch ~/notes/.git/index.lock=, change a
+      note, =C-c v a=: the warning "git is locked" appears, and =C-x C-c=
+      asks.  =rm ~/notes/.git/index.lock=; turn the option on again.
 
 ** R58. Capital letter at sentence start [0/6]
 - [ ] =C-c n , m=, 304-sentence-capitals on (a new machine starts

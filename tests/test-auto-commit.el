@@ -896,5 +896,87 @@ the plain reason."
     (my/ac-test--write (expand-file-name "q.org" here) "q\n")
     (should (equal (my/auto-commit-pending here) "changes not committed"))))
 
+;; ============================================================
+;; AWAY FROM THE SERVER ON PURPOSE (my/auto-commit-warn-unpushed)
+;; ============================================================
+
+(defun my/ac-test--server-away (here)
+  "Point HERE's remote at a server that does not exist."
+  (my/ac-test--git here "remote" "set-url" "origin"
+                   (expand-file-name "missing.git" (file-name-directory
+                                                    (directory-file-name here)))))
+
+(defun my/ac-test--warnings (thunk)
+  "Call THUNK; return the texts of the warnings it showed."
+  (let (texts)
+    (cl-letf (((symbol-function 'display-warning)
+               (lambda (_type message &rest _) (push message texts))))
+      (funcall thunk))
+    (nreverse texts)))
+
+(ert-deftest my/ac-test-unpushed-not-warned-when-turned-off ()
+  "Off: commits the server does not have are neither warned about after
+the cycle nor asked about at exit; C-c v ? still lists them."
+  (my/ac-test--with-repos
+    (my/ac-test--server-away here)
+    (my/ac-test--write (expand-file-name "r.org" here) "r\n")
+    (should (equal (my/ac-test--cycle) '("here: committed, server unreachable")))
+    (let ((my/auto-commit-warn-unpushed nil)
+          (my/auto-commit-done nil)
+          (my/auto-commit-confirm-exit t)
+          (noninteractive nil))
+      (should (null (my/ac-test--warnings
+                     (lambda () (my/auto-commit--report (list here))))))
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) (error "Asked"))))
+        (should (my/auto-commit--confirm-exit)))
+      (should (string-search "commits not pushed"
+                             (string-join (my/auto-commit-status) "\n"))))))
+
+(ert-deftest my/ac-test-unpushed-warned-by-default ()
+  "On (the default): the same commits are warned about once."
+  (my/ac-test--with-repos
+    (my/ac-test--server-away here)
+    (my/ac-test--write (expand-file-name "s.org" here) "s\n")
+    (my/ac-test--cycle)
+    (setq my/auto-commit--reported nil)
+    (let ((texts (my/ac-test--warnings
+                  (lambda () (my/auto-commit--report (list here))))))
+      (should (= (length texts) 1))
+      (should (string-search "commits not pushed" (car texts))))))
+
+(ert-deftest my/ac-test-unpushed-off-failed-commit-still-warned ()
+  "Off concerns the server only: what keeps commits from being made --
+here a lock left by an interrupted git -- is still reported, and still
+asked about at exit."
+  (my/ac-test--with-repos
+    (my/ac-test--server-away here)
+    (let ((my/auto-commit-warn-unpushed nil)
+          (my/auto-commit-confirm-exit t)
+          (noninteractive nil)
+          (asked nil))
+      (my/ac-test--write (expand-file-name "t.org" here) "t\n")
+      (my/ac-test--write (expand-file-name ".git/index.lock" here) "")
+      (should (equal (length (my/ac-test--warnings
+                              (lambda () (my/auto-commit--report (list here)))))
+                     1))
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) (setq asked t) t))
+                ((symbol-function 'my/auto-commit-exit-commit) #'ignore))
+        (my/auto-commit--confirm-exit))
+      (should asked))))
+
+(ert-deftest my/ac-test-unpushed-on-again-reported-again ()
+  "Turned on again, commits still not pushed are reported: nothing was
+recorded as shown while they were not reported."
+  (my/ac-test--with-repos
+    (my/ac-test--server-away here)
+    (my/ac-test--write (expand-file-name "u.org" here) "u\n")
+    (my/ac-test--cycle)
+    (setq my/auto-commit--reported nil)
+    (let ((my/auto-commit-warn-unpushed nil))
+      (my/ac-test--warnings (lambda () (my/auto-commit--report (list here)))))
+    (should (= (length (my/ac-test--warnings
+                        (lambda () (my/auto-commit--report (list here)))))
+               1))))
+
 (provide 'test-auto-commit)
 ;;; test-auto-commit.el ends here

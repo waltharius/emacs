@@ -4095,7 +4095,9 @@ shows the buffer and stays (=my/auto-commit--message-before-quit=).
 saved: one more cycle, then, if any repository still has work only on
 this machine, the question "Not on the server: ... Quit anyway?".  No
 keeps Emacs open, and the next quit commits again.  Off with
-=my/auto-commit-confirm-exit= = nil (the commit still runs).
+=my/auto-commit-confirm-exit= = nil (the commit still runs); with
+=my/auto-commit-warn-unpushed= = nil it asks only about work not
+committed, never about commits not pushed yet ([[#auto-commit-stops][When it stops]]).
 Quitting by =kill-emacs= directly (shutdown, =emacsclient -e
 '(kill-emacs)'=) skips the question but still runs the commit, from
 =kill-emacs-hook=.
@@ -4139,6 +4141,17 @@ now asked what keeps its work off the server
 | changes not committed: git has no user name and e-mail | git was never told who commits (=user.name=, =user.email=) and cannot guess an address; every commit fails (since 2026-11-18b; =my/auto-commit--identity-missing-p= asks =git var=) | =git config --global user.name '...'= and =user.email '...'=, or in home-manager's git settings where it manages them; a machine that does not use git turns =my/auto-commit-mode= off ([[#auto-commit-switch][On and off]]) |
 | commits not pushed | server unreachable, or the push refused | pushed by the next cycle once the server answers; =C-c v l= |
 | commits not pushed: pushing is turned off | =my/auto-commit-push= is nil, or the folder is in =my/auto-commit-no-push-directories= | turn it on / remove the folder (=C-c n , ,= → Tools → Git), Apply and Save, =C-c v a= |
+
+*Away from the server on purpose.*  =my/auto-commit-warn-unpushed=
+(=t=; =C-c n , ,= → Tools → Git) turned off stops the two reasons that
+mean only that commits are not on the server yet -- /commits not
+pushed/ and /pushing is turned off/: no warning after the cycle, no
+question when quitting.  They are still pushed by a later cycle once
+the server answers, and =C-c v ?= still lists them.  Every other reason
+in the table is reported either way: each means work not even in this
+machine's history.  For a laptop often away from home, or a machine
+that commits locally only.  Turned on again, the commits still not
+pushed are reported at the next cycle (since 2026-11-18c).
 
 A repository without an upstream branch (a local one by choice) is
 not reported.  A folder kept from pushing on purpose
